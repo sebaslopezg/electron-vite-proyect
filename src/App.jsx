@@ -1,14 +1,46 @@
 //import { useEffect, useState } from "react";
-import Badge from 'react-bootstrap/Badge';
-import Button from 'react-bootstrap/Button';
-import { SideBar } from './components/SideBar';
+import { SideBar } from './components/SideBar.jsx';
+
+import DataTable from 'datatables.net-react';
+import DT from 'datatables.net-bs5';
+import { useState } from 'react';
+ 
+DataTable.use(DT);
 
 function App() {
 
+  
+
+    const [tableData, setTableData] = useState([
+    [ 'Tiger Nixon', 'System Architect' ],
+    [ 'Garrett Winters', 'Accountant' ],
+  ]);
 
   return <>
 
-  <SideBar/>
+    <div className="container-fluid">
+      <div className='row'>
+        <div className="col-2 p-0">
+          <SideBar/>
+        </div>
+        <div className="col-10 p-3">
+
+          <div className="row">
+            Botones de accion
+          </div>
+
+          <DataTable data={tableData} className="display table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Position</th>
+                    </tr>
+                </thead>
+          </DataTable>
+        </div>
+      </div>
+    </div>
+
 
   </>
 }
