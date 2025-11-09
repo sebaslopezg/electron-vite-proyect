@@ -4,17 +4,24 @@ import { SideBar } from './components/SideBar.jsx';
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-bs5';
 import { useState } from 'react';
+import Modal from 'react-bootstrap/Modal';
+import Button from 'react-bootstrap/Button';
+import Form from 'react-bootstrap/Form';
+import 'bootstrap/dist/css/bootstrap.min.css';
  
 DataTable.use(DT);
-
+// crear modal con formularios
 function App() {
 
-  
-
-    const [tableData, setTableData] = useState([
+  const [tableData, setTableData] = useState([
     [ 'Tiger Nixon', 'System Architect' ],
     [ 'Garrett Winters', 'Accountant' ],
   ]);
+
+  const [show, setShow] = useState(false);
+
+  const handleClose = () => setShow(false);
+  const handleShow = () => setShow(true);
 
   return <>
 
@@ -26,21 +33,58 @@ function App() {
         <div className="col-10 p-3">
 
           <div className="row">
-            Botones de accion
+            {/* -- action buttons -- */}
+
+            <div className="row">
+              <div className="col">
+                <button className='btn btn-primary' onClick={handleShow}>Nuevo</button>
+              </div>
+            </div>
           </div>
 
           <DataTable data={tableData} className="display table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Position</th>
-                    </tr>
-                </thead>
+              <thead>
+                  <tr>
+                      <th>Name</th>
+                      <th>Position</th>
+                  </tr>
+              </thead>
           </DataTable>
         </div>
       </div>
     </div>
 
+
+      <Modal show={show} onHide={handleClose} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Crear Producto</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+
+          <Form>
+            <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
+              <Form.Label>Nombre</Form.Label>
+              <Form.Control type="text" placeholder="mi producto" />
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="exampleForm.ControlTextarea1">
+              <Form.Label>Código SKU</Form.Label>
+              <Form.Control type="text" placeholder="mi producto" />
+            </Form.Group>
+          </Form>
+
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={() => {
+            alert('Saved!');
+            handleClose();
+          }}>
+            Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
   </>
 }
