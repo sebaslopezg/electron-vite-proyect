@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron")
+const { contextBridge, ipcRenderer } = require("electron") //aqui se usa CommonJS porque con ES da error
 
 contextBridge.exposeInMainWorld("api", {
   ping: () => ipcRenderer.invoke("ping"),
@@ -6,4 +6,8 @@ contextBridge.exposeInMainWorld("api", {
   onMessage: (channel, callback) => {
     ipcRenderer.on(channel, (_, msg) => callback(msg));
   },
+  getInventario: () => ipcRenderer.invoke("get-inventario"),
+  addInventario: (item) => ipcRenderer.invoke("add-inventario", item),
+  updateInventario: (item) => ipcRenderer.invoke("update-inventario", item),
+  deleteInventario: (item) => ipcRenderer.invoke("delete-inventario", item),
 });

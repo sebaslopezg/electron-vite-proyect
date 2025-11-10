@@ -14,7 +14,7 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ref_name TEXT,
       sku TEXT,
-      status TEXT,
+      status INTEGER,
       date_created TEXT,
       date_modify TEXT
     )

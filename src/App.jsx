@@ -1,9 +1,8 @@
-//import { useEffect, useState } from "react";
 import { SideBar } from './components/SideBar.jsx';
 
 import DataTable from 'datatables.net-react';
 import DT from 'datatables.net-bs5';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
@@ -23,8 +22,44 @@ function App() {
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
 
-  return <>
+  //connect to DB
 
+  const [items, setItems] = useState([]);
+  const [form, setForm] = useState({ ref_name: '', sku: '', status: '' });
+  const [editingId, setEditingId] = useState(null);
+
+  const load = async () => {
+    const data = await window.api.getInventario();
+    setItems(data);
+    console.log(data)
+  };
+  
+  useEffect(() => { load(); }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (editingId) {
+      await window.api.updateInventario({ ...form, id: editingId });
+      setEditingId(null);
+    } else {
+      await window.api.addInventario(form);
+    }
+    setForm({ ref_name: '', sku: '', status: '' });
+    load();
+  };
+
+  const handleEdit = (item) => {
+    setForm({ ref_name: item.ref_name, sku: item.sku, status: item.status });
+    setEditingId(item.id);
+  };
+
+  const handleDelete = async (id) => {
+    await window.api.deleteInventario(id);
+    load();
+  };
+  
+  return <>
+<h1>holaaaaa</h1>
     <div className="container-fluid">
       <div className='row'>
         <div className="col-2 p-0">
@@ -50,9 +85,105 @@ function App() {
                   </tr>
               </thead>
           </DataTable>
+
+
+
+
+
+
+
+ <div className="container mt-5">
+      <h2 className="text-center mb-4">Inventario CRUD</h2>
+
+      <form onSubmit={handleSubmit} className="mb-4">
+        <div className="mb-3">
+          <input
+            className="form-control"
+            placeholder="Reference name"
+            value={form.ref_name}
+            onChange={(e) => setForm({ ...form, ref_name: e.target.value })}
+          />
+        </div>
+        <div className="mb-3">
+          <input
+            className="form-control"
+            placeholder="SKU"
+            value={form.sku}
+            onChange={(e) => setForm({ ...form, sku: e.target.value })}
+          />
+        </div>
+        <button className="btn btn-primary" type="submit">
+          {editingId ? 'Update' : 'Add'}
+        </button>
+        {editingId && (
+          <button
+            type="button"
+            className="btn btn-secondary ms-2"
+            onClick={() => {
+              setEditingId(null);
+              setForm({ ref_name: '', sku: '', status: '' });
+            }}
+          >
+            Cancel
+          </button>
+        )}
+      </form>
+
+      <table className="table table-striped">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Ref Name</th>
+            <th>SKU</th>
+            <th>Status</th>
+            <th>Date Created</th>
+            <th>Date Modify</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it) => (
+            <tr key={it.id}>
+              <td>{it.id}</td>
+              <td>{it.ref_name}</td>
+              <td>{it.sku}</td>
+              <td>{it.status}</td>
+              <td>{it.date_created}</td>
+              <td>{it.date_modify}</td>
+              <td>
+                <button
+                  className="btn btn-sm btn-warning me-2"
+                  onClick={() => handleEdit(it)}
+                >
+                  Edit
+                </button>
+                <button
+                  className="btn btn-sm btn-danger"
+                  onClick={() => handleDelete(it.id)}
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+
+
+
+
+
+
+
+
         </div>
       </div>
     </div>
+
+
+    {/* modal para usar mas tarde */}
 
 
       <Modal show={show} onHide={handleClose} size="lg" centered>
@@ -61,28 +192,44 @@ function App() {
         </Modal.Header>
         <Modal.Body>
 
-          <Form>
+          <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="exampleForm.ControlInput1">
               <Form.Label>Nombre</Form.Label>
-              <Form.Control type="text" placeholder="mi producto" />
+              <Form.Control 
+                value={form.ref_name} 
+                onChange={(e) => setForm({ ...form, ref_name: e.target.value })}
+                type="text" 
+                placeholder="mi producto"
+              />
             </Form.Group>
             <Form.Group className="mb-3" controlId="exampleForm.ControlTextarea1">
               <Form.Label>Código SKU</Form.Label>
-              <Form.Control type="text" placeholder="mi producto" />
+              <Form.Control 
+                value={form.sku}
+                onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                type="text" 
+                placeholder="mi producto" 
+              />
             </Form.Group>
           </Form>
 
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose}>
-            Close
+          <Button variant="primary" type='submit'>
+            {editingId ? 'Actualizar' : 'Guardar'}
           </Button>
-          <Button variant="primary" onClick={() => {
-            alert('Saved!');
-            handleClose();
-          }}>
-            Save Changes
-          </Button>
+          {editingId && (
+            <button
+              type="button"
+              className="btn btn-secondary ms-2"
+              onClick={() => {
+                setEditingId(null);
+                setForm({ ref_name: '', sku: '', status: '' });
+              }}
+            >
+              Cancelar
+            </button>
+          )}
         </Modal.Footer>
       </Modal>
 

@@ -1,53 +1,42 @@
-import { app, BrowserWindow, ipcMain, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, globalShortcut } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
-import { globalShortcut } from "electron";
+import chokidar from "chokidar";
+import db from "./database.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const isDev = process.env.NODE_ENV === "development";
+const isDev = !app.isPackaged;
 const isMac = process.platform === "darwin";
 
 let mainWindow;
 
-const preloadPath = path.join(app.getAppPath(), "electron/preload.js");
-console.log("Using preload:", preloadPath);
-
-function createMainWindow() {
+async function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: preloadPath,
+      preload: path.join(app.getAppPath(), "electron/preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
-  Menu.setApplicationMenu(null); // Hide menu bar
-
   if (isDev && process.env.VITE_DEV_SERVER_URL) {
     console.log("Loading dev server:", process.env.VITE_DEV_SERVER_URL);
+    await mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
 
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-
-    // Open DevTools once DOM is ready
     mainWindow.webContents.once("dom-ready", () => {
-      console.log("DOM ready — opening DevTools");
       mainWindow.webContents.openDevTools({ mode: "detach" });
     });
-
-    // Extra: log any load errors
-    mainWindow.webContents.on("did-fail-load", (_, code, desc) => {
-      console.error("Failed to load renderer:", code, desc);
-    });
-
   } else {
     const indexPath = path.join(__dirname, "../dist/index.html");
     console.log("Loading production file:", indexPath);
-    mainWindow.loadFile(indexPath);
+    await mainWindow.loadFile(indexPath);
   }
+
+  Menu.setApplicationMenu(null);
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -55,7 +44,68 @@ function createMainWindow() {
   });
 }
 
-// Handle IPC
+// === CRUD IPC ===
+
+// READ
+ipcMain.handle("get-inventario", async () => {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT * FROM inventario WHERE status > 0", (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+});
+
+// CREATE
+ipcMain.handle("add-inventario", async (_, item) => {
+  const { ref_name, sku } = item;
+  const now = new Date().toISOString();
+  const status = 1;
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO inventario (ref_name, sku, status, date_created, date_modify)
+       VALUES (?, ?, ?, ?, ?)`,
+      [ref_name, sku, status, now, now],
+      function (err) {
+        if (err) reject(err);
+        else resolve({ id: this.lastID });
+      }
+    );
+  });
+});
+
+// UPDATE
+ipcMain.handle("update-inventario", async (_, item) => {
+  const { id, ref_name, sku, status } = item;
+  const date_modify = new Date().toISOString();
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE inventario SET ref_name=?, sku=?, status=?, date_modify=? WHERE id=?`,
+      [ref_name, sku, status, date_modify, id],
+      function (err) {
+        if (err) reject(err);
+        else resolve({ changes: this.changes });
+      }
+    );
+  });
+});
+
+// DELETE (soft delete)
+ipcMain.handle("delete-inventario", async (_, item) => {
+  const { id } = item;
+  const status = 0;
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE inventario SET status=? WHERE id=?`,
+      [status, id],
+      function (err) {
+        if (err) reject(err);
+        else resolve({ changes: this.changes });
+      }
+    );
+  });
+});
+// Other IPCs
 ipcMain.handle("ping", () => "pong from main 🚀");
 
 ipcMain.on("custom-event", (event, data) => {
@@ -63,10 +113,21 @@ ipcMain.on("custom-event", (event, data) => {
   event.reply("custom-event-reply", { ok: true, msg: "Got your message!" });
 });
 
-app.whenReady().then(() => {
-  createMainWindow();
+app.whenReady().then(async () => {
+  // 🔁 Watch for main process changes and restart the app automatically
+  if (isDev) {
+    const watcher = chokidar.watch([
+      path.join(__dirname, "./**/*.js"),
+      path.join(__dirname, "../electron/**/*.js"),
+    ]);
+    watcher.on("change", () => {
+      console.log("🔁 Restarting Electron due to main process change...");
+      app.relaunch();
+      app.exit(0);
+    });
+  }
+  await createMainWindow();
 
-  // Manual devtools toggle
   if (isDev) {
     globalShortcut.register("CommandOrControl+Shift+I", () => {
       if (mainWindow) {
