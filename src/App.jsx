@@ -59,7 +59,6 @@ function App() {
   };
   
   return <>
-<h1>holaaaaa</h1>
     <div className="container-fluid">
       <div className='row'>
         <div className="col-2 p-0">
@@ -155,13 +154,13 @@ function App() {
                   className="btn btn-sm btn-warning me-2"
                   onClick={() => handleEdit(it)}
                 >
-                  Edit
+                  Editar
                 </button>
                 <button
                   className="btn btn-sm btn-danger"
                   onClick={() => handleDelete(it.id)}
                 >
-                  Delete
+                  Eliminar
                 </button>
               </td>
             </tr>

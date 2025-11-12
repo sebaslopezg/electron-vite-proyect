@@ -23,16 +23,19 @@ async function createMainWindow() {
     },
   });
 
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    console.log("Loading dev server:", process.env.VITE_DEV_SERVER_URL);
-    await mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  if (isDev) {
+    // ✅ Point to Vite's dev server
+    const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
+    console.log("🚀 Loading Vite dev server:", devServerURL);
+    await mainWindow.loadURL(devServerURL);
 
     mainWindow.webContents.once("dom-ready", () => {
       mainWindow.webContents.openDevTools({ mode: "detach" });
     });
   } else {
+    // ✅ In production, load the built index.html
     const indexPath = path.join(__dirname, "../dist/index.html");
-    console.log("Loading production file:", indexPath);
+    console.log("📦 Loading production build:", indexPath);
     await mainWindow.loadFile(indexPath);
   }
 
@@ -91,12 +94,12 @@ ipcMain.handle("update-inventario", async (_, item) => {
 });
 
 // DELETE (soft delete)
-ipcMain.handle("delete-inventario", async (_, item) => {
-  const { id } = item;
+ipcMain.handle("delete-inventario", async (_, id) => {
   const status = 0;
+
   return new Promise((resolve, reject) => {
     db.run(
-      `UPDATE inventario SET status=? WHERE id=?`,
+      `UPDATE inventario SET status = ? WHERE id = ?`,
       [status, id],
       function (err) {
         if (err) reject(err);
@@ -105,6 +108,7 @@ ipcMain.handle("delete-inventario", async (_, item) => {
     );
   });
 });
+
 // Other IPCs
 ipcMain.handle("ping", () => "pong from main 🚀");
 
