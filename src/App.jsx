@@ -15,7 +15,7 @@ function App() {
   const [tableData, setTableData] = useState([
     [ 'Tiger Nixon', 'System Architect' ],
     [ 'Garrett Winters', 'Accountant' ],
-  ]);
+  ]); 
 
   const [show, setShow] = useState(false);
 
@@ -25,16 +25,19 @@ function App() {
   //connect to DB
 
   const [items, setItems] = useState([]);
+  const [dataInTable, setDataInTable] = useState([]);
   const [form, setForm] = useState({ ref_name: '', sku: '', status: '' });
   const [editingId, setEditingId] = useState(null);
 
   const load = async () => {
     const data = await window.api.getInventario();
-    setItems(data);
     console.log(data)
+    setItems(data);
+    const formattedData = data.flatMap(obj => Object.values(obj));
+    setDataInTable(formattedData)
   };
   
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load() }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -76,7 +79,7 @@ function App() {
             </div>
           </div>
 
-          <DataTable data={tableData} className="display table">
+          <DataTable id="hixD" data={dataInTable} className="display table">
               <thead>
                   <tr>
                       <th>Name</th>

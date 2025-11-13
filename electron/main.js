@@ -28,7 +28,7 @@ async function createMainWindow() {
   if (isDev) {
     // ✅ Point to Vite's dev server
     const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
-    console.log("🚀 Loading Vite dev server:", devServerURL);
+    console.log("Loading Vite dev server:", devServerURL);
     await mainWindow.loadURL(devServerURL);
 
     mainWindow.webContents.once("dom-ready", () => {
@@ -37,7 +37,7 @@ async function createMainWindow() {
   } else {
     // ✅ In production, load the built index.html
     const indexPath = path.join(__dirname, "../dist/index.html");
-    console.log("📦 Loading production build:", indexPath);
+    console.log("Loading production build:", indexPath);
     await mainWindow.loadFile(indexPath);
   }
 
