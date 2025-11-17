@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import './assets/niceStyle.css';
+import './assets/niceMain.js'
 
 import App from './App.jsx'
 
