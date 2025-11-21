@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom'
 import { Header } from './Header';
 import { Aside } from './Aside';
-import { DashboardPage } from '../pages/DashboardPage';
-import { Productos } from '../pages/Productos';
+import { DashboardPage } from '../../pages/DashboardPage';
+import { Productos } from './../../pages/Productos';
 
 // Main Dashboard Component
 function Dashboard() {
