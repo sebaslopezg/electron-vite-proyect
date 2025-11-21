@@ -26,7 +26,7 @@
   },
   "build": {
     "appId": "com.sebas.electronvite",
-    "productName": "ElectronViteReactApp",
+    "productName": "Caedro ERP",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -44,11 +44,11 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/favicon.ico"
+      "icon": "assets/favicon.png"
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon.icns"
+      "icon": "assets/favicon.icns"
     }
   },
   "devDependencies": {

@@ -18,6 +18,7 @@ async function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, "assets", "favicon.png"),
     webPreferences: {
       preload: path.join(app.getAppPath(), "electron/preload.js"),
       contextIsolation: true,
@@ -26,7 +27,7 @@ async function createMainWindow() {
   });
 
   if (isDev) {
-    // ✅ Point to Vite's dev server
+    // Point to Vite's dev server
     const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
     console.log("Loading Vite dev server:", devServerURL);
     await mainWindow.loadURL(devServerURL);

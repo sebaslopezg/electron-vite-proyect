@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import logo from './../../assets/favicon.png'
 
 // Header Component with interactivity
 export const Header = () => {
@@ -24,8 +25,8 @@ export const Header = () => {
         <header id="header" className="header fixed-top d-flex align-items-center">
             <div className="d-flex align-items-center justify-content-between">
                 <a href="index.html" className="logo d-flex align-items-center">
-                    <img src="assets/img/logo.png" alt="" />
-                    <span className="d-none d-lg-block">NiceAdmin</span>
+                    <img src={logo} alt="" />
+                    <span className="d-none d-lg-block">Caedro</span>
                 </a>
                 <i 
                     className="bi bi-list toggle-sidebar-btn" 

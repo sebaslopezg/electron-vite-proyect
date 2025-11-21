@@ -8,6 +8,7 @@ const DataTableComponent = ({
   columns, 
   onEdit, 
   onDelete,
+  onShow,
   title = 'Acciones',
   customRenders = {}
 }) => {
@@ -71,7 +72,10 @@ const DataTableComponent = ({
           const deleteBtn = row.querySelector(`.btn-delete-${data.id}`);
           
           if (editBtn && onEdit) {
-            editBtn.onclick = () => onEdit(data);
+            editBtn.onclick = () => {
+              onEdit(data);
+              if (onShow) onShow();
+            };
           }
           
           if (deleteBtn && onDelete) {

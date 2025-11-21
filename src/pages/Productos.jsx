@@ -5,6 +5,7 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Swal from 'sweetalert2'
+import DataTableComponent from '../components/DataTableComponent';
 
 DataTable.use(DT);
 
@@ -64,7 +65,7 @@ export const Productos = () => {
       load();
     }
   }
-
+  
     return <>
 
       <div className="pagetitle">
@@ -86,52 +87,51 @@ export const Productos = () => {
               </div>
             </div>
           </div>
-          <DataTable 
-            data={dataInTable} 
-            className="display table table-striped"
-            options={{
-              columns: [
-                { data: 'id', title: 'ID' },
-                { data: 'ref_name', title: 'Ref Name' },
-                { data: 'sku', title: 'SKU' },
-                { data: 'status', title: 'Status' },
-                { data: 'date_created', title: 'Date Created' },
-                { data: 'date_modify', title: 'Date Modify' },
-                {
-                  data: null,
-                  title: 'Actions',
-                  orderable: false,
-                  render: function(data, type, row) {
-                    return `
-                      <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
-                        Editar
-                      </button>
-                      <button class="btn btn-sm btn-danger btn-delete-${row.id}">
-                        Eliminar
-                      </button>
-                    `;
-                  }
-                }
-              ],
-              createdRow: function(row, data, dataIndex) {
-                // Attach event listeners to the buttons
-                const editBtn = row.querySelector(`.btn-edit-${data.id}`);
-                const deleteBtn = row.querySelector(`.btn-delete-${data.id}`);
-                
-                if (editBtn) {
-                  editBtn.onclick = () => {
-                    handleEdit(data)
-                    handleShow()
-                  };
-                }
-                
-                if (deleteBtn) {
-                  deleteBtn.onclick = () => handleDelete(data.id);
+
+          <DataTableComponent 
+            data={dataInTable}
+            columns={[
+              { data: 'ref_name', title: 'Nombre Referencia' },
+              { data: 'sku', title: 'SKU' },
+              { data: 'status', title: 'Status' },
+              { data: 'date_created', title: 'Fecha Creación' },
+              { data: 'date_modify', title: 'Fecha Modificación' },
+              {
+                data: null,
+                title: 'Actions',
+                orderable: false,
+                render: function(data, type, row) {
+                  return `
+                    <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
+                      Editar
+                    </button>
+                    <button class="btn btn-sm btn-danger btn-delete-${row.id}">
+                      Eliminar
+                    </button>
+                  `;
                 }
               }
+            ]}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onShow={handleShow}
+            customRenders={{
+              status: (data, type, row) => {
+                const badgeClass = data === 1 ? 'bg-success' : 'bg-danger';
+                const statusName = data === 1 ? 'Activo' : 'Inactivo'
+                return `<span class="badge ${badgeClass}">${statusName}</span>`;
+              },
+              date_created: (data, type, row) => {
+                return new Date(data).toLocaleDateString('es-ES');
+              },
+              date_modify: (data, type, row) => {
+                return new Date(data).toLocaleDateString('es-ES');
+              },
+              sku: (data, type, row) => {
+                return `<strong>${data.toUpperCase()}</strong>`;
+              }
             }}
-          >
-          </DataTable>
+          />
         </div>
       </div>
 
