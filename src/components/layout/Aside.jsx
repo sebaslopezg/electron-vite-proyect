@@ -6,7 +6,9 @@ export const Aside = () => {
 
     const menuItems = [
         { path: '/', label: 'Dashboard', icon: 'bi-grid' },
-        { path: '/productos', label: 'Productos', icon: 'bi-person' },
+        { path: '/ventas', label: 'Ventas', icon: 'bi-receipt-cutoff' },
+        { path: '/inventario', label: 'Inventario', icon: 'bi-clipboard-check' },
+        { path: '/productos', label: 'Productos', icon: 'bi-box-seam' },
         { path: '/settings', label: 'Settings', icon: 'bi-gear' },
     ]
 
