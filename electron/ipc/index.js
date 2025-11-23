@@ -1,5 +1,7 @@
-import { registerInventarioHandlers } from "./inventarioHandlers.js";
+import { registerClientesHandlers } from "./clientesHandlers.js"
+import { registerInventarioHandlers } from "./inventarioHandlers.js"
 
 export function registerAllHandlers() {
-  registerInventarioHandlers();
+  registerInventarioHandlers()
+  registerClientesHandlers()
 }

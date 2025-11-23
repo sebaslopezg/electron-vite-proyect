@@ -36,7 +36,7 @@ async function createMainWindow() {
       mainWindow.webContents.openDevTools({ mode: "detach" });
     });
   } else {
-    // ✅ In production, load the built index.html
+    // In production, load the built index.html
     const indexPath = path.join(__dirname, "../dist/index.html");
     console.log("Loading production build:", indexPath);
     await mainWindow.loadFile(indexPath);
@@ -61,14 +61,14 @@ ipcMain.on("custom-event", (event, data) => {
 app.whenReady().then(async () => {
   initDatabase();
   registerAllHandlers();
-  // 🔁 Watch for main process changes and restart the app automatically
+  // Watch for main process changes and restart the app automatically
   if (isDev) {
     const watcher = chokidar.watch([
       path.join(__dirname, "./**/*.js"),
       path.join(__dirname, "../electron/**/*.js"),
     ]);
     watcher.on("change", () => {
-      console.log("🔁 Restarting Electron due to main process change...");
+      console.log("Restarting Electron due to main process change...");
       app.relaunch();
       app.exit(0);
     });
