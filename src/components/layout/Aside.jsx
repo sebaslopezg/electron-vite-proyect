@@ -5,11 +5,12 @@ export const Aside = () => {
     const location = useLocation()
 
     const menuItems = [
-        { path: '/', label: 'Dashboard', icon: 'bi-grid' },
+        //{ path: '/', label: 'Dashboard', icon: 'bi-grid' },
         { path: '/ventas', label: 'Ventas', icon: 'bi-receipt-cutoff' },
+        { path: '/clientes', label: 'Clientes', icon: 'bi-people' },
         { path: '/inventario', label: 'Inventario', icon: 'bi-clipboard-check' },
         { path: '/productos', label: 'Productos', icon: 'bi-box-seam' },
-        { path: '/settings', label: 'Settings', icon: 'bi-gear' },
+        { path: '/configuracion', label: 'Settings', icon: 'bi-gear' },
     ]
 
     return <>

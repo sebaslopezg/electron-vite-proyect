@@ -3,7 +3,10 @@ import { Routes, Route } from 'react-router-dom'
 import { Header } from './Header';
 import { Aside } from './Aside';
 import { DashboardPage } from '../../pages/DashboardPage';
+import { Ventas } from './../../pages/Ventas'
+import { Clientes } from './../../pages/Clientes'
 import { Productos } from './../../pages/Productos';
+import { Configuracion } from './../../pages/Configuracion'
 
 // Main Dashboard Component
 function Dashboard() {
@@ -218,8 +221,11 @@ function Dashboard() {
 
         <main id="main" className="main">
             <Routes>
-                <Route path="/" element={<DashboardPage />} />
+                <Route path="/" element={<Ventas />} />
+                <Route path="/ventas" element={<Ventas />} />
+                <Route path="/clientes" element={<Clientes />} />
                 <Route path="/productos" element={<Productos />} />
+                <Route path="/configuracion" element={<Configuracion />} />
             </Routes>
         </main>
 
