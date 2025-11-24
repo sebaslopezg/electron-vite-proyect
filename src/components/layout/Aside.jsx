@@ -10,7 +10,7 @@ export const Aside = () => {
         { path: '/clientes', label: 'Clientes', icon: 'bi-people' },
         { path: '/inventario', label: 'Inventario', icon: 'bi-clipboard-check' },
         { path: '/productos', label: 'Productos', icon: 'bi-box-seam' },
-        { path: '/configuracion', label: 'Settings', icon: 'bi-gear' },
+        { path: '/configuracion', label: 'Configuración', icon: 'bi-gear' },
     ]
 
     return <>

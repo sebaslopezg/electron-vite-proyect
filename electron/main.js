@@ -51,7 +51,7 @@ async function createMainWindow() {
 }
 
 // Other IPCs
-ipcMain.handle("ping", () => "pong from main 🚀");
+ipcMain.handle("ping", () => "pong from main");
 
 ipcMain.on("custom-event", (event, data) => {
   console.log("Renderer says:", data);

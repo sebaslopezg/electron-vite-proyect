@@ -6,14 +6,20 @@ contextBridge.exposeInMainWorld("api", {
   onMessage: (channel, callback) => {
     ipcRenderer.on(channel, (_, msg) => callback(msg));
   },
-  getInventario: () => ipcRenderer.invoke("get-inventario"),
-  addInventario: (item) => ipcRenderer.invoke("add-inventario", item),
-  updateInventario: (item) => ipcRenderer.invoke("update-inventario", item),
-  deleteInventario: (item) => ipcRenderer.invoke("delete-inventario", item),
+
+  //productos
+  getProductos: () => ipcRenderer.invoke("get-productos"),
+  addProducto: (item) => ipcRenderer.invoke("add-producto", item),
+  updateProducto: (item) => ipcRenderer.invoke("update-producto", item),
+  deleteProducto: (item) => ipcRenderer.invoke("delete-producto", item),
 
   //clientes
   getClientes: () => ipcRenderer.invoke("get-clientes"),
   addCliente: (item) => ipcRenderer.invoke("add-cliente", item),
   updateCliente: (item) => ipcRenderer.invoke("update-cliente", item),
   deleteCliente: (item) => ipcRenderer.invoke("delete-cliente", item),
-});
+
+  //configuraciones
+  getConfiguracion:() => ipcRenderer.invoke("get-configuracion"),
+  updateConfiguracion:() => ipcRenderer.invoke("update-configuracion", item),
+})

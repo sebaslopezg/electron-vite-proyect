@@ -40,7 +40,7 @@ export const Header = () => {
                     <input 
                         type="text" 
                         name="query" 
-                        placeholder="Search" 
+                        placeholder="Buscar" 
                         title="Enter search keyword"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}

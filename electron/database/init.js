@@ -1,5 +1,7 @@
-import { createInventarioTable } from "./tables/inventario.js";
+import { createProductoTable } from "./tables/producto.js"
+import { createConfigurarTable } from "./tables/configurar.js"
 
 export function initDatabase() {
-  createInventarioTable();
+  createProductoTable()
+  createConfigurarTable()
 }

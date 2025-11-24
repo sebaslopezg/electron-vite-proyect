@@ -17,13 +17,13 @@ export const Productos = () => {
   const handleShow = () => setShow(true);
 
   //connect to DB
-  const [items, setItems] = useState([]);
-  const [dataInTable, setDataInTable] = useState([]);
-  const [form, setForm] = useState({ ref_name: '', sku: '', status: '' });
-  const [editingId, setEditingId] = useState(null);
+  const [items, setItems] = useState([])
+  const [dataInTable, setDataInTable] = useState([])
+  const [form, setForm] = useState({ ref_name: '', sku: '', status: '' })
+  const [editingId, setEditingId] = useState(null)
 
   const load = async () => {
-    const data = await window.api.getInventario();
+    const data = await window.api.getProductos()
     setItems(data);
     setDataInTable(data)
   };
@@ -32,20 +32,20 @@ export const Productos = () => {
     setForm({ ref_name: '', sku: '', status: '' })
   }
   
-  useEffect(() => { load() }, []);
+  useEffect(() => { load() }, [])
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     if (editingId) {
-      await window.api.updateInventario({ ...form, id: editingId });
-      setEditingId(null);
+      await window.api.updateProducto({ ...form, id: editingId })
+      setEditingId(null)
     } else {
-      await window.api.addInventario(form);
+      await window.api.addProducto(form)
     }
-    setForm({ ref_name: '', sku: '', status: '' });
+    setForm({ ref_name: '', sku: '', status: '' })
     handleClose()
-    load();
-  };
+    load()
+  }
 
   const handleEdit = (item) => {
     setForm({ ref_name: item.ref_name, sku: item.sku, status: item.status });
@@ -61,7 +61,7 @@ export const Productos = () => {
     });
     
     if (result.isConfirmed) {
-      await window.api.deleteInventario(id);
+      await window.api.deleteProducto(id);
       load();
     }
   }

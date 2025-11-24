@@ -1,7 +1,9 @@
 import { registerClientesHandlers } from "./clientesHandlers.js"
-import { registerInventarioHandlers } from "./inventarioHandlers.js"
+import { registerProductoHandlers } from "./productoHandlers.js"
+import { registerConfigurarHandlers } from "./configurarHandlers.js"
 
-export function registerAllHandlers() {
-  registerInventarioHandlers()
+export const registerAllHandlers = () => {
+  registerProductoHandlers()
   registerClientesHandlers()
+  registerConfigurarHandlers()
 }
