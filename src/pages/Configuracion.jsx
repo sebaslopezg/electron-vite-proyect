@@ -31,45 +31,41 @@ export const Configuracion = () => {
         }
     }
 
-    const handleSubmit = async (e) => {
-        e.preventDefault() 
+const handleSubmit = async (e) => {
+    e.preventDefault(); 
 
-        // Define the payload structure
-        const dataForDb = {
-            key: 'confAlmacen',
-            value: JSON.stringify({ 
-                nombre: form.almacenNombre,
-                nit: form.almacenNit,
-                direccion: form.almacenDireccion,
-                telefono: form.almacenTelefono,
-            })
-        }
-        
-        console.log('Sending to Backend:', dataForDb)
-        
-        try {
-            // Send the correctly defined variable 'dataForDb'
-            const result = await window.api.updateConfiguracion(dataForDb) 
-            console.log('Update successful:', result)
-            await load()
-
-            Swal.fire({
-                title: "Configuracion guardada",
-                text: "La configuracion se ha guardado de manera exitosa",
-                icon: "success"
-            })
-            
-        } catch (error) {
-            console.error('Error updating configuration:', error)
-            const errorText = error.toString();
-            Swal.fire({
-                title: "Error de configuración",
-                // This is the safest way to display an unknown error object
-                text: errorText, 
-                icon: "error"
-            })
-        }
+    const payload = { 
+        key: 'confAlmacen',
+        value: JSON.stringify({ 
+            nombre: form.almacenNombre,
+            nit: form.almacenNit,
+            direccion: form.almacenDireccion,
+            telefono: form.almacenTelefono,
+        }),
     }
+    
+    console.log('Sending to Backend:', payload);
+    
+    try {
+        const result = await window.api.updateConfiguracion(payload); 
+        console.log('Update successful:', result);
+        await load();
+
+        Swal.fire({
+            title: "Configuracion guardada",
+            text: "La configuracion se ha guardado de manera exitosa",
+            icon: "success"
+        });
+        
+    } catch (error) {
+        console.error('Error updating configuration:', error);
+        Swal.fire({
+            title: "Error de configuración",
+            text: error.message || error.toString(), 
+            icon: "error"
+        });
+    }
+}
 
     useEffect(() => { load() }, [])
 

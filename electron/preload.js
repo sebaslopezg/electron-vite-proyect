@@ -21,5 +21,5 @@ contextBridge.exposeInMainWorld("api", {
 
   //configuraciones
   getConfiguracion:() => ipcRenderer.invoke("get-configuracion"),
-  updateConfiguracion:() => ipcRenderer.invoke("update-configuracion", item),
+  updateConfiguracion:(item) => ipcRenderer.invoke("update-configuracion", item),
 })
