@@ -1,7 +1,6 @@
 import { ipcMain } from "electron";
 import db from "../database/index.js";
 import { v4 as uuidv4 } from 'uuid';
-//const { v4: uuidv4 } = require('uuid');
 
 export const registerClientesHandlers = () => {
 
@@ -16,15 +15,11 @@ export const registerClientesHandlers = () => {
 
     ipcMain.handle("add-cliente", async (_, item) => {
 
-        console.log('Handler: add-cliente received item:', item);
-
         const { nombre, documento, telefono, direccion } = item
 
         const now = new Date().toISOString()
         const status = 1
         const id = uuidv4()
-
-        console.log('Handler: Preparing to run DB insert with ID:', id);
 
         return new Promise((resolve, reject) => {
             db.run(
@@ -46,7 +41,6 @@ export const registerClientesHandlers = () => {
                         console.error('DB ERROR:', err) // LOG ERROR
                     }else {
                         resolve({ id: this.lastID })
-                        console.log('DB Success! Changes:', this.changes) // LOG SUCCESS
                     }
                 }
             )
