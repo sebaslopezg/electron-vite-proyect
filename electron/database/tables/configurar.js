@@ -9,7 +9,11 @@ export const createConfigurarTable = () => {
     nit: '',
     logo: '',
     direccion: '',
-    telefono: ''
+    telefono: '',
+    prefijo:'F',
+    resolucionDian:'',
+    nombreFactura:'Factura de Venta',
+    footer:'Esta factura de venta es de ejemplo'
   }
 
   const value = JSON.stringify(confAlmacen)
@@ -19,7 +23,8 @@ export const createConfigurarTable = () => {
       key TEXT PRIMARY KEY,
       value TEXT,
       date_created TEXT,
-      date_modify TEXT
+      date_modify TEXT,
+      modify_by TEXT
     )`, 
     (err) => {
       if (err) {

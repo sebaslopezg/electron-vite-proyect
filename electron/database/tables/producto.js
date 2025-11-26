@@ -8,7 +8,8 @@ export function createProductoTable() {
       sku TEXT,
       status INTEGER,
       date_created TEXT,
-      date_modify TEXT
+      date_modify TEXT,
+      modify_by TEXT
     )
   `)
 }
