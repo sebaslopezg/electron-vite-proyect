@@ -22,4 +22,9 @@ contextBridge.exposeInMainWorld("api", {
   //configuraciones
   getConfiguracion:() => ipcRenderer.invoke("get-configuracion"),
   updateConfiguracion:(item) => ipcRenderer.invoke("update-configuracion", item),
+
+  //conf almacen
+  getAllConfAlmacen:() => ipcRenderer.invoke("getAll-almacenConf"),
+  getOneConfAlmacen:(id) => ipcRenderer.invoke("get-almacenConf", id),
+  updateConfAlmacen: (item) => ipcRenderer.invoke("update-almacenConf", item),
 })
