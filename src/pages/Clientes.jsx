@@ -17,7 +17,7 @@ export const Clientes = () => {
   const handleShow = () => setShow(true)
 
   //connect to DB
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState([])
   const [dataInTable, setDataInTable] = useState([])
   const [form, setForm] = useState({ 
       documento: '', 
@@ -29,9 +29,9 @@ export const Clientes = () => {
 
   const load = async () => {
     const data = await window.api.getClientes()
-    setItems(data);
+    setItems(data)
     setDataInTable(data)
-  };
+  }
 
   const cleanForm = () => {
     setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
@@ -61,7 +61,7 @@ export const Clientes = () => {
         title: "Error",
         text: `Error al guardar el cliente. Verifique que el Documento de identidad no exista ya. ${error.message || ''}`, 
         icon: "error"
-      });
+      })
     }
   }
 

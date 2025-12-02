@@ -1,6 +1,6 @@
 import { ipcMain } from "electron"
 import db from "../database/index.js"
-import { v4 as uuidv4 } from 'uuid'
+//import { v4 as uuidv4 } from 'uuid'
 
 export const registerAlmacenConfigHandlers = () => {
 
@@ -30,11 +30,24 @@ export const registerAlmacenConfigHandlers = () => {
         })
     })
 
+    ipcMain.handle("update-consecutivoFactura", async (_, item) => {
+        const {consecutivo, id} = item
+        return new Promise((resolve, reject) => {
+            db.run(`UPDATE almacen_conf SET consecutivo = ?, WHERE id = ?`,
+                [consecutivo,id],
+                function (err) {
+                    if (err) reject(err)
+                    else resolve({ changes: this.changes })
+                }
+            )
+        })
+    })
 
     ipcMain.handle("update-almacenConf", async (_, item) => {
         const {
             id, 
             nombre_almacen, 
+            nit_almacen,
             logo_almacen, 
             direccion_almacen, 
             telefono_almacen,
@@ -64,6 +77,7 @@ export const registerAlmacenConfigHandlers = () => {
                     WHERE id = ?`,
                 [ 
                     nombre_almacen, 
+                    nit_almacen,
                     logo_almacen, 
                     direccion_almacen, 
                     telefono_almacen,
