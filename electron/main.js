@@ -2,6 +2,8 @@ import { app, BrowserWindow, ipcMain, Menu, globalShortcut } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import chokidar from "chokidar";
+import pkg from "electron-updater";
+const { autoUpdater } = pkg;
 
 import { initDatabase } from "./database/init.js";
 import { registerAllHandlers } from "./ipc/index.js";
@@ -91,5 +93,18 @@ app.on("window-all-closed", () => {
 });
 
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
-});
+  if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+  if (!app.isPackaged) return
+  autoUpdater.checkForUpdatesAndNotify()
+})
+
+//mensaje
+autoUpdater.on('update-available', () => {
+  alert("¡Nueva actualizacion disponible!")
+})
+
+autoUpdater.on('update-downloaded', () => {
+  console.log("Update downloaded. Will install on restart.")
+  alert("La actualizacion se iniciara cuando se reinicie la aplicacion")
+  autoUpdater.quitAndInstall()
+})
