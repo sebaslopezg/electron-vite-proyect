@@ -1,4 +1,11 @@
-import { app, BrowserWindow, ipcMain, Menu, globalShortcut } from "electron";
+import { 
+  app, 
+  BrowserWindow, 
+  ipcMain, 
+  Menu, 
+  globalShortcut, 
+  dialog 
+} from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import chokidar from "chokidar";
@@ -100,11 +107,23 @@ app.on("activate", () => {
 
 //mensaje
 autoUpdater.on('update-available', () => {
-  alert("¡Nueva actualizacion disponible!")
+dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Actualización',
+    message: '¡Nueva actualización disponible!',
+    buttons: ['OK']
+  })
 })
 
 autoUpdater.on('update-downloaded', () => {
-  console.log("Update downloaded. Will install on restart.")
-  alert("La actualizacion se iniciara cuando se reinicie la aplicacion")
-  autoUpdater.quitAndInstall()
+  dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      title: 'Actualización lista',
+      message: 'La actualización se ha descargado. ¿Reiniciar ahora?',
+      buttons: ['Si', 'No']
+    }).then((result) => {
+      if (result.response === 0) {
+        autoUpdater.quitAndInstall()
+      }
+    })
 })
