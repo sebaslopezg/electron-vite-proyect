@@ -1,5 +1,4 @@
-- Terminar de implementar el nuevo modulo better-sqllite3
 - implementar mejora en aumento de campos en productos y aplicarlo en crud
 - agregar indexaciones para mejorar las consultas en la BD
-- probar todos los cruds con las nuevas implementaciones.
+- probar todos los cruds con las nuevas implementaciones. (tecnicamente resuelto)
 - implementar maestro detalle mejorado en ventas
