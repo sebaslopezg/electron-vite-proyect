@@ -22,7 +22,7 @@ export const createAlmacenConfTable = () => {
   const user = 'system'
 
   // 1. Create the table
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS almacen_conf (
       id TEXT PRIMARY KEY,
       nombre_almacen TEXT,

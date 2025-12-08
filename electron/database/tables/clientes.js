@@ -1,7 +1,7 @@
 import db from "../index.js"
 
 export const createClientesTable = () => {
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS clientes (
       id TEXT PRIMARY KEY,
       nombre TEXT,
@@ -12,7 +12,7 @@ export const createClientesTable = () => {
       date_created TEXT,
       date_modify TEXT,
       modify_by TEXT
-    )
+    );
     CREATE INDEX IF NOT EXISTS idx_cliente on clientes(id);
   `)
 }

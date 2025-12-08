@@ -18,7 +18,7 @@ export const createConfigurarTable = () => {
 
   const value = JSON.stringify(confAlmacen)
 
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS configurar (
       key TEXT PRIMARY KEY,
       value TEXT,
@@ -33,7 +33,7 @@ export const createConfigurarTable = () => {
       }
 
       // Insert default row after table is created
-      db.run(
+      db.exec(
         `INSERT OR IGNORE INTO configurar (key,value, date_created, date_modify)
         VALUES (?, ?, ?, ?)`,
         [confAlmacen.key, value, now, now],

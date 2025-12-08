@@ -1,7 +1,7 @@
 import db from "../index.js"
 
 export function createVentasMaestroTable() {
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS ventasMaestro (
       id TEXT PRIMARY KEY,
       numero_factura INTEGER,
