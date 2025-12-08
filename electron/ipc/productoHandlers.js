@@ -17,7 +17,7 @@ export const registerProductoHandlers = () => {
   })
 
   // 2. ADD PRODUCT
-  ipcMain.handle("add-producto", (event, item) => {
+  ipcMain.handle("add-producto", (_, item) => {
     try {
       const id = uuidv4()
       const now = new Date().toISOString()
@@ -53,7 +53,7 @@ export const registerProductoHandlers = () => {
   })
 
   // 3. UPDATE PRODUCT
-  ipcMain.handle("update-producto", (event, item) => {
+  ipcMain.handle("update-producto", (_, item) => {
     try {
       const now = new Date().toISOString()
 
@@ -81,7 +81,7 @@ export const registerProductoHandlers = () => {
   });
 
   // 4. DELETE PRODUCT
-  ipcMain.handle("delete-producto", (event, item) => {
+  ipcMain.handle("delete-producto", (_, item) => {
     try {
       const now = new Date().toISOString();
       const stmt = db.prepare(`

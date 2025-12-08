@@ -13,5 +13,6 @@ export const createClientesTable = () => {
       date_modify TEXT,
       modify_by TEXT
     )
+    CREATE INDEX IF NOT EXISTS idx_cliente on clientes(id);
   `)
 }

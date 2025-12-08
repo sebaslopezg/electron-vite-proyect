@@ -17,6 +17,7 @@ export const createProductoTable = () => {
       modify_by TEXT
     )
     -- Create indexes for fields you search by often!
+    CREATE INDEX IF NOT EXISTS idx_producto_id ON producto(id);
     CREATE INDEX IF NOT EXISTS idx_producto_ref ON producto(ref_name);
     CREATE INDEX IF NOT EXISTS idx_producto_sku ON producto(sku);
   `)
