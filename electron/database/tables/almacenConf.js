@@ -48,7 +48,7 @@ export const createAlmacenConfTable = () => {
     const row = countStmt.get()
 
     if (row.count === 0) {
-      console.log("Table empty, inserting default configuration...");
+      console.log("Table empty, inserting default configuration...")
                 
       const insertStmt = db.prepare(`
         INSERT INTO almacen_conf (
@@ -76,6 +76,6 @@ export const createAlmacenConfTable = () => {
     }
 
   } catch (error) {
-      console.error('Database initialization error in almacenConf:', error);
+      console.error('Database initialization error in almacenConf:', error)
   }
 }

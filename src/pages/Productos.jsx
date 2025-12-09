@@ -1,11 +1,10 @@
-import DataTable from 'datatables.net-react';
+import DataTable from 'datatables.net-react'
 import DT from 'datatables.net-bs5';
-import { useState, useEffect } from 'react';
-import Modal from 'react-bootstrap/Modal';
-import Button from 'react-bootstrap/Button';
-import Form from 'react-bootstrap/Form';
+import { useState, useEffect } from 'react'
+import Modal from 'react-bootstrap/Modal'
+import { Form, Button, Row, Col } from 'react-bootstrap'
 import Swal from 'sweetalert2'
-import DataTableComponent from '../components/DataTableComponent';
+import DataTableComponent from '../components/DataTableComponent'
 
 DataTable.use(DT);
 
@@ -19,17 +18,30 @@ export const Productos = () => {
   //connect to DB
   const [items, setItems] = useState([])
   const [dataInTable, setDataInTable] = useState([])
-  const [form, setForm] = useState({ ref_name: '', sku: '', status: '' })
+
+  const emptyForm = {
+    ref_name: '', 
+    sku: '', 
+    status: 1,
+    stock:0,
+    unidad_medida:'',
+    iva:0,
+    allow_negative:'',
+    descripcion:'',
+    precio:0
+  }
+
+  const [form, setForm] = useState({...emptyForm})
   const [editingId, setEditingId] = useState(null)
 
   const load = async () => {
     const data = await window.api.getProductos()
-    setItems(data);
+    setItems(data)
     setDataInTable(data)
   };
 
   const cleanForm = () => {
-    setForm({ ref_name: '', sku: '', status: '' })
+    setForm({...emptyForm})
   }
   
   useEffect(() => { load() }, [])
@@ -42,15 +54,25 @@ export const Productos = () => {
     } else {
       await window.api.addProducto(form)
     }
-    setForm({ ref_name: '', sku: '', status: '' })
+    cleanForm()
     handleClose()
     load()
   }
 
   const handleEdit = (item) => {
-    setForm({ ref_name: item.ref_name, sku: item.sku, status: item.status });
-    setEditingId(item.id);
-  };
+    setForm({ 
+      ref_name: item.ref_name, 
+      sku: item.sku, 
+      status: item.status,
+      stock:item.stock,
+      unidad_medida:item.unidad_medida,
+      iva:item.iva,
+      allow_negative:item.allow_negative,
+      descripcion:item.descripcion,
+      precio:item.precio
+    })
+    setEditingId(item.id)
+  }
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
@@ -58,11 +80,11 @@ export const Productos = () => {
       showDenyButton: true,
       confirmButtonText: "Sí",
       denyButtonText: `No`
-    });
+    })
     
     if (result.isConfirmed) {
-      await window.api.deleteProducto(id);
-      load();
+      await window.api.deleteProducto(id)
+      load()
     }
   }
   
@@ -141,26 +163,117 @@ export const Productos = () => {
           </Modal.Header>
           <Modal.Body>
               <Form onSubmit={handleSubmit}>
-                  <Form.Group className="mb-3">
-                      <Form.Label>Nombre</Form.Label>
+                <Row>
+                  <Col md={6}>
+                      <Form.Group className="mb-3">
+                      <Form.Label htmlFor="skuCode">Código SKU</Form.Label>
                       <Form.Control 
-                      value={form.ref_name} 
-                      onChange={(e) => setForm({ ...form, ref_name: e.target.value })}
-                      type="text" 
-                      placeholder="mi producto"
-                      required
+                        id='skuCode'
+                        value={form.sku}
+                        onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                        type="text" 
+                        placeholder="SKU-001" 
+                        required
                       />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                      <Form.Label>Código SKU</Form.Label>
+                    </Form.Group>
+                  </Col>
+
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="nombre">Nombre</Form.Label>
+                        <Form.Control 
+                          id='nombre'
+                          value={form.ref_name} 
+                          onChange={(e) => setForm({ ...form, ref_name: e.target.value })}
+                          type="text" 
+                          placeholder="mi producto"
+                          required
+                        />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="initialStock">Stock inicial</Form.Label>
+                        <Form.Control 
+                          id='initialStock'
+                          value={form.stock} 
+                          onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                          type="number" 
+                          placeholder="Cantidad inicial del producto"
+                          required
+                        />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="unidad_medida">Unidad de medida</Form.Label>
+                        <Form.Select
+                          value={form.unidad_medida}
+                          onChange={(e) => setForm({ ...form, unidad_medida: e.target.value })}
+                        >
+                          <option>Unidad de medida</option>
+                          <option value="un">Unidad</option>
+                          <option value="kg">Kilo Gramos (kg)</option>
+                          <option value="g">Gramos (g)</option>
+                          <option value="cajas">Cajas</option>
+                        </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="iva">IVA (%)</Form.Label>
+                        <Form.Control 
+                          htmlFor="iva"
+                          value={form.iva} 
+                          onChange={(e) => setForm({ ...form, iva: e.target.value })}
+                          type="text" 
+                          placeholder="Porcentaje de IVA"
+                          required
+                        />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                        <Form.Check
+                          checked={form.allow_negative === 1}
+                          onChange={(e) => setForm({ ...form, allow_negative: e.target.checked ? 1 : 0 })}
+                          type="switch"
+                          id="custom-switch"
+                          label="Permitir negativos"
+                        />
+                    </Form.Group>
+                  </Col>
+                  <Col md={8}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="precio">Precio</Form.Label>
+                        <Form.Control 
+                          id='precio'
+                          value={form.precio} 
+                          onChange={(e) => setForm({ ...form, precio: e.target.value })}
+                          type="number" 
+                          placeholder="Precio del producto"
+                          required
+                        />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col>
+                    <Form.Group>
+                      <Form.Label htmlFor="descripcion">Descripcion</Form.Label>
                       <Form.Control 
-                      value={form.sku}
-                      onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                      type="text" 
-                      placeholder="SKU-001" 
-                      required
+                        id='descripcion'
+                        value={form.descripcion}
+                        onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+                        as="textarea" rows={3} 
                       />
-                  </Form.Group>
+                    </Form.Group>
+                  </Col>
+                </Row>
               </Form>
           </Modal.Body>
           <Modal.Footer>

@@ -22,11 +22,31 @@ export const registerProductoHandlers = () => {
 
       const stmt = db.prepare(`
         INSERT INTO producto (
-          id, ref_name, sku, allow_negative, stock, iva, 
-          unidad_medida, descripcion, status, date_created, date_modify
+          id, 
+          ref_name, 
+          sku,
+          precio, 
+          allow_negative, 
+          stock, 
+          iva, 
+          unidad_medida, 
+          descripcion, 
+          status, 
+          date_created, 
+          date_modify
         ) VALUES (
-          @id, @ref_name, @sku, @allow_negative, @stock, @iva, 
-          @unidad_medida, @descripcion, @status, @date_created, @date_modify
+          @id, 
+          @ref_name, 
+          @sku, 
+          @precio,
+          @allow_negative, 
+          @stock, 
+          @iva, 
+          @unidad_medida, 
+          @descripcion, 
+          @status,
+          @date_created, 
+          @date_modify
         )
       `)
 
@@ -54,6 +74,7 @@ export const registerProductoHandlers = () => {
         UPDATE producto SET
           ref_name = @ref_name,
           sku = @sku,
+          precio = @precio,
           allow_negative = @allow_negative,
           stock = @stock,
           iva = @iva,
@@ -86,15 +107,16 @@ export const registerProductoHandlers = () => {
       `)
 
       const info = stmt.run({
-        id: item.id,
+        id: item,
         date_modify: now,
-        modify_by: item.modify_by || 'System'
+        modify_by: 'No user'
       })
 
       if (info.changes > 0) {
         return { success: true, changes: info.changes };
       } else {
-        return { success: false, changes: 0, message: "Product ID not found." };
+        console.log(`Error: ${info.changes}`)
+        return { success: false, changes: 0, message: "Product ID not found." }
       }
 
     } catch (error) {

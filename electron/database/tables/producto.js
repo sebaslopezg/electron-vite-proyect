@@ -6,6 +6,7 @@ export const createProductoTable = () => {
       id TEXT PRIMARY KEY,
       ref_name TEXT,
       sku TEXT,
+      precio REAL,
       allow_negative INTEGER,
       stock REAL,
       iva REAL,
