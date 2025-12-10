@@ -22,13 +22,13 @@ export const Productos = () => {
   const emptyForm = {
     ref_name: '', 
     sku: '', 
-    status: 1,
     stock:0,
     unidad_medida:'',
     iva:0,
     allow_negative:'',
     descripcion:'',
-    precio:0
+    precio:0,
+    status:1
   }
 
   const [form, setForm] = useState({...emptyForm})
@@ -63,13 +63,13 @@ export const Productos = () => {
     setForm({ 
       ref_name: item.ref_name, 
       sku: item.sku, 
-      status: item.status,
       stock:item.stock,
       unidad_medida:item.unidad_medida,
       iva:item.iva,
       allow_negative:item.allow_negative,
       descripcion:item.descripcion,
-      precio:item.precio
+      precio:item.precio,
+      status:item.status
     })
     setEditingId(item.id)
   }
@@ -193,7 +193,36 @@ export const Productos = () => {
                   </Col>
                 </Row>
                 <Row>
-                  <Col md={4}>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="precio">Precio</Form.Label>
+                        <Form.Control 
+                          id='precio'
+                          value={form.precio} 
+                          onChange={(e) => setForm({ ...form, precio: e.target.value })}
+                          type="number" 
+                          placeholder="Precio del producto"
+                          required
+                        />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="iva">IVA (%)</Form.Label>
+                        <Form.Control 
+                          id="iva"
+                          value={form.iva} 
+                          onChange={(e) => setForm({ ...form, iva: e.target.value })}
+                          type="number" 
+                          placeholder="Porcentaje de IVA"
+                          required
+                        />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Row>
+                  <Col md={6}>
+
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="initialStock">Stock inicial</Form.Label>
                         <Form.Control 
@@ -205,11 +234,13 @@ export const Productos = () => {
                           required
                         />
                     </Form.Group>
+
                   </Col>
-                  <Col md={4}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="unidad_medida">Unidad de medida</Form.Label>
                         <Form.Select
+                          id='unidad_medida'
                           value={form.unidad_medida}
                           onChange={(e) => setForm({ ...form, unidad_medida: e.target.value })}
                         >
@@ -221,43 +252,31 @@ export const Productos = () => {
                         </Form.Select>
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
-                    <Form.Group className="mb-3">
-                        <Form.Label htmlFor="iva">IVA (%)</Form.Label>
-                        <Form.Control 
-                          htmlFor="iva"
-                          value={form.iva} 
-                          onChange={(e) => setForm({ ...form, iva: e.target.value })}
-                          type="text" 
-                          placeholder="Porcentaje de IVA"
-                          required
-                        />
-                    </Form.Group>
-                  </Col>
                 </Row>
                 <Row>
-                  <Col md={4}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
-                        <Form.Check
-                          checked={form.allow_negative === 1}
-                          onChange={(e) => setForm({ ...form, allow_negative: e.target.checked ? 1 : 0 })}
-                          type="switch"
-                          id="custom-switch"
-                          label="Permitir negativos"
-                        />
+                      <Form.Label></Form.Label>
+                      <Form.Check
+                        checked={form.allow_negative === 1}
+                        onChange={(e) => setForm({ ...form, allow_negative: e.target.checked ? 1 : 0 })}
+                        type="switch"
+                        id="custom-switch"
+                        label="Permitir negativos"
+                      />
                     </Form.Group>
                   </Col>
-                  <Col md={8}>
+                  <Col md={6}>
                     <Form.Group className="mb-3">
-                        <Form.Label htmlFor="precio">Precio</Form.Label>
-                        <Form.Control 
-                          id='precio'
-                          value={form.precio} 
-                          onChange={(e) => setForm({ ...form, precio: e.target.value })}
-                          type="number" 
-                          placeholder="Precio del producto"
-                          required
-                        />
+                        <Form.Label htmlFor="status">Estado</Form.Label>
+                        <Form.Select
+                          id='status'
+                          value={form.status}
+                          onChange={(e) => setForm({ ...form, status: e.target.value })}
+                        >
+                          <option value="1">Activo</option>
+                          <option value="2">Inactivo</option>
+                        </Form.Select>
                     </Form.Group>
                   </Col>
                 </Row>

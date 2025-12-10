@@ -18,7 +18,7 @@ export const registerProductoHandlers = () => {
     try {
       const id = uuidv4()
       const now = new Date().toISOString()
-      const status = 1
+      const status = item.status > 0 && item.status <= 2 ? item.status : 1
 
       const stmt = db.prepare(`
         INSERT INTO producto (
@@ -69,7 +69,7 @@ export const registerProductoHandlers = () => {
   ipcMain.handle("update-producto", (_, item) => {
     try {
       const now = new Date().toISOString()
-
+      const status = item.status > 0 && item.status <= 2 ? item.status : 1
       const stmt = db.prepare(`
         UPDATE producto SET
           ref_name = @ref_name,
@@ -80,11 +80,16 @@ export const registerProductoHandlers = () => {
           iva = @iva,
           unidad_medida = @unidad_medida,
           descripcion = @descripcion,
-          date_modify = @date_modify
+          date_modify = @date_modify,
+          status = @status
         WHERE id = @id
       `)
 
-      const info = stmt.run({ ...item, date_modify: now })
+      const info = stmt.run({
+         ...item, 
+         date_modify: now,
+         status:status
+        })
 
       return { success: true, changes: info.changes }
 

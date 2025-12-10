@@ -79,7 +79,7 @@ export const registerAlmacenConfigHandlers = () => {
                     modify_by = @modify_by
                     WHERE id = @id
                 `)
-            const info = db.run({
+            const info = stmt.run({
                 ...item,
                 date_modify:now,
                 modify_by:user
