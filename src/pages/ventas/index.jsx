@@ -15,7 +15,6 @@ export const Ventas = () => {
     const data = await window.api.getAllConfAlmacen()
     if (data) {
         setAlmacenData(data[0])
-        console.log(data[0])
     }else{
         await Swal.fire({
             title: "Error",

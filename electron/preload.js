@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on(channel, (_, msg) => callback(msg));
   },
 
+  //inventario
+  getInventario:() => ipcRenderer.invoke("get-inventario"),
+
   //productos
   getProductos: () => ipcRenderer.invoke("get-productos"),
   addProducto: (item) => ipcRenderer.invoke("add-producto", item),

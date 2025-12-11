@@ -37,7 +37,7 @@ export const Clientes = () => {
     setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
   }
   
-  useEffect(() => { load() }, []);
+  useEffect(() => { load() }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -73,7 +73,7 @@ export const Clientes = () => {
       direccion: item.direccion 
     })
     setEditingId(item.id)
-  };
+  }
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
