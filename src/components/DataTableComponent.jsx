@@ -10,7 +10,8 @@ const DataTableComponent = ({
   onDelete,
   onShow,
   title = 'Acciones',
-  customRenders = {}
+  customRenders = {},
+  customActions = [] // New prop for custom action buttons
 }) => {
   
   const defaultColumns = [
@@ -25,19 +26,81 @@ const DataTableComponent = ({
       title: title,
       orderable: false,
       render: function(data, type, row) {
-        return `
-          <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
-            Editar
-          </button>
-          <button class="btn btn-sm btn-danger btn-delete-${row.id}">
-            Eliminar
-          </button>
-        `;
+        let buttons = '';
+        
+        // Add default Edit button if onEdit exists
+        if (onEdit) {
+          buttons += `
+            <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
+              Editar
+            </button>
+          `;
+        }
+        
+        // Add default Delete button if onDelete exists
+        if (onDelete) {
+          buttons += `
+            <button class="btn btn-sm btn-danger btn-delete-${row.id}">
+              Eliminar
+            </button>
+          `;
+        }
+        
+        // Add custom action buttons
+        customActions.forEach((action, index) => {
+          buttons += `
+            <button class="btn btn-sm ${action.className || 'btn-secondary'} ${action.extraClasses || ''} btn-custom-${action.name}-${row.id}">
+              ${action.icon ? `<i class="${action.icon}"></i>` : action.label}
+            </button>
+          `;
+        });
+        
+        return buttons;
       }
     }
   ];
 
   const tableColumns = (columns || defaultColumns).map(col => {
+    // Check if this is the actions column (data: null and no custom render)
+    if (col.data === null && !col.render) {
+      return {
+        ...col,
+        render: function(data, type, row) {
+          let buttons = '';
+          
+          // Add default Edit button if onEdit exists
+          if (onEdit) {
+            buttons += `
+              <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
+                Editar
+              </button>
+            `;
+          }
+          
+          // Add default Delete button if onDelete exists
+          if (onDelete) {
+            buttons += `
+              <button class="btn btn-sm btn-danger me-2 btn-delete-${row.id}">
+                Eliminar
+              </button>
+            `;
+          }
+          
+          // Add custom action buttons
+          customActions.forEach((action, index) => {
+            buttons += `
+              <button class="btn btn-sm ${action.className || 'btn-secondary'} ${action.extraClasses || ''} btn-custom-${action.name}-${row.id}">
+                ${action.icon ? `<i class="${action.icon}"></i>` : action.label}
+              </button>
+            `;
+          });
+          
+          return buttons;
+        }
+      };
+    }
+    
+    // Apply custom renders for other columns
     if (customRenders[col.data]) {
       return {
         ...col,
@@ -81,6 +144,14 @@ const DataTableComponent = ({
           if (deleteBtn && onDelete) {
             deleteBtn.onclick = () => onDelete(data.id);
           }
+          
+          // Attach event listeners to custom action buttons
+          customActions.forEach((action) => {
+            const customBtn = row.querySelector(`.btn-custom-${action.name}-${data.id}`);
+            if (customBtn && action.onClick) {
+              customBtn.onclick = () => action.onClick(data);
+            }
+          });
         }
       }}
     >

@@ -20,10 +20,10 @@ export const Clientes = () => {
   const [items, setItems] = useState([])
   const [dataInTable, setDataInTable] = useState([])
   const [form, setForm] = useState({ 
-      documento: '', 
-      nombre: '', 
-      telefono: '', 
-      direccion: '' 
+    documento: '', 
+    nombre: '', 
+    telefono: '', 
+    direccion: '' 
   })
   const [editingId, setEditingId] = useState(null)
 
@@ -125,11 +125,11 @@ export const Clientes = () => {
               orderable: false,
               render: function(data, type, row) {
                 return `
-                  <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
-                    Editar
+                  <button class="btn btn-sm btn-secondary me-2 btn-edit-${row.id}">
+                    <i class="bi bi-pencil"></i>
                   </button>
                   <button class="btn btn-sm btn-danger btn-delete-${row.id}">
-                   Eliminar
+                   <i class="bi bi-trash3"></i>
                   </button>
                   `;
                 }

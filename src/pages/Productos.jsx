@@ -115,7 +115,7 @@ export const Productos = () => {
             columns={[
               { data: 'ref_name', title: 'Nombre Referencia' },
               { data: 'sku', title: 'SKU' },
-              { data: 'status', title: 'Status' },
+              { data: 'status', title: 'Estado' },
               { data: 'date_created', title: 'Fecha Creación' },
               { data: 'date_modify', title: 'Fecha Modificación' },
               {
@@ -124,12 +124,12 @@ export const Productos = () => {
                 orderable: false,
                 render: function(data, type, row) {
                   return `
-                    <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
-                      Editar
-                    </button>
-                    <button class="btn btn-sm btn-danger btn-delete-${row.id}">
-                      Eliminar
-                    </button>
+                  <button class="btn btn-sm btn-secondary me-2 btn-edit-${row.id}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="btn btn-sm btn-danger btn-delete-${row.id}">
+                   <i class="bi bi-trash3"></i>
+                  </button>
                   `;
                 }
               }
