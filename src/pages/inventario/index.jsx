@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import DataTableComponent from '../../components/DataTableComponent'
 import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
@@ -7,63 +6,165 @@ import Form from 'react-bootstrap/Form'
 import Swal from 'sweetalert2'
 
 export const Inventario = () => {
-
-    const [show, setShow] = useState(false)
-    const [dataInTable, setDataInTable] = useState([])
+  const [show, setShow] = useState(false)
+  const [dataInTable, setDataInTable] = useState([])
+  const [selectedProduct, setSelectedProduct] = useState(null)
 
   const [form, setForm] = useState({ 
-    cantidad: ''
+    cantidad: '',
+    type: ''
   })
 
-    const defaultModalInfo = {
-        title:'Registro',
-        description:'Ingrese la cantidad'
+  const [modalInfo, setModalInfo] = useState({
+    title: 'Registro',
+    description: 'Ingrese la cantidad',
+    increase: null
+  })
+
+  const handleClose = () => {
+    setShow(false)
+    setSelectedProduct(null)
+    cleanForm()
+  }
+
+  const handleShow = () => setShow(true)
+
+  const load = async () => {
+    const data = await window.api.getInventario()
+    setDataInTable(data)
+  }
+
+  useEffect(() => { 
+    load() 
+  }, [])
+
+  const handleIncrease = async (row) => {
+    setSelectedProduct(row)
+    setModalInfo({
+        title: `Registrar ingreso de productos - ${row.ref_name}`,
+        description: 'Ingrese la cantidad a ingresar:',
+        increase: true
+    })
+    setForm({ 
+        cantidad: '', 
+        type: 'ingreso' 
+    })
+    handleShow()
+  }
+
+  const handleDecrease = async (row) => {
+    setSelectedProduct(row)
+    setModalInfo({
+        title: `Registrar egreso de productos - ${row.ref_name}`,
+        description: 'Ingrese la cantidad a egresar:',
+        increase: false
+    })
+    setForm({ 
+        cantidad: '', 
+        type: 'egreso' 
+    })
+    handleShow()
+  }
+
+  const handleSave = async () => {
+    if (!selectedProduct) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No hay producto seleccionado'
+      })
+      return
     }
 
-    const [modalInfo, setModalInfo] = useState({})
-
-    const handleClose = () => setShow(false)
-    const handleShow = () => setShow(true)
-
-    const load = async () => {
-        const data = await window.api.getInventario()
-        setDataInTable(data)
+    if (!form.cantidad || parseFloat(form.cantidad) <= 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'La cantidad debe ser mayor a 0'
+      })
+      return
     }
 
-    const [editingId, setEditingId] = useState(null)
+    try {
+      const result = await window.api.setInventario({
+        id: selectedProduct.id,
+        cantidad: parseFloat(form.cantidad),
+        type: form.type,
+        usuario: 'current_user', // You can replace this with actual user
+        notas: '' // Optional notes
+      })
 
-    useEffect(() => { load() }, [])
-
-    const handleIncrease = async (row) => {
-
-        setModalInfo({
-            title:'Registrar ingreso de productos',
-            description:'Ingrese la cantidad a ingresar:'
+      if (result.success) {
+        Swal.fire({
+            icon: 'success',
+            title: 'Éxito',
+            text: `Stock actualizado: ${result.stockAnterior} → ${result.stockNuevo}`,
+            timer: 2000
         })
-        console.log(modalInfo)
-        handleShow()
-    }
-
-    const handleDecrease = async (row) => {
-        setModalInfo({
-            title:'Registrar egreso de productos',
-            description:'Ingrese la cantidad a egresar:'
-        })
-        console.log(modalInfo)
-        handleShow()
-    }
-
-    const handleSave = () => {
-        // Handle save logic here
-        console.log('Saving...')
         handleClose()
+        load() // Reload the table
+      } else {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: result.error || 'No se pudo actualizar el inventario'
+        })
+      }
+    } catch (error) {
+      console.error('Error al guardar inventario:', error)
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al procesar la solicitud'
+      })
     }
+  }
 
-    const cleanForm = () => {
-        //setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
+  const cleanForm = () => {
+    setForm({ cantidad: '', type: '' })
+  }
+
+  const viewHistory = async (row) => {
+    try {
+      const history = await window.api.getInventarioHistory(row.id)
+      
+      if (history.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Sin historial',
+            text: 'No hay movimientos registrados para este producto'
+        })
+        return
+      }
+
+      // Format history for display
+      const historyHtml = history.map(h => `
+        <div style="text-align: left; padding: 10px; border-bottom: 1px solid #eee;">
+            <strong>Fecha:</strong> ${new Date(h.fecha).toLocaleString('es-ES')}<br>
+            <strong>Tipo:</strong> ${h.tipo_movimiento}<br>
+            <strong>Cantidad:</strong> ${h.cantidad}<br>
+            <strong>Stock:</strong> ${h.stock_anterior} → ${h.stock_nuevo}<br>
+            <strong>Usuario:</strong> ${h.usuario}
+            ${h.notas ? `<br><strong>Notas:</strong> ${h.notas}` : ''}
+        </div>
+      `).join('')
+
+        Swal.fire({
+            title: `Historial - ${row.ref_name}`,
+            html: `<div style="max-height: 400px; overflow-y: auto;">${historyHtml}</div>`,
+            width: 600
+        })
+    } catch (error) {
+        console.error('Error al obtener historial:', error)
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo obtener el historial'
+        })
     }
+  }
 
-    return <>
+  return <>
         <div className="pagetitle">
             <h1>Inventario</h1>
         </div>
@@ -71,13 +172,6 @@ export const Inventario = () => {
         <div className="card">
             <div className="card-title"></div>
             <div className="card-body">
-
-                <button className='btn btn-primary' onClick={(e) => {
-                  setEditingId(null)
-                  cleanForm()
-                  handleShow()
-                }}>Nuevo</button>
-
                 <DataTableComponent 
                     data={dataInTable}
                     columns={[
@@ -96,7 +190,7 @@ export const Inventario = () => {
                             name: 'increase',
                             label: 'Aumentar',
                             icon: 'bi bi-plus-lg',
-                            className: 'btn-secondary',
+                            className: 'btn-success',
                             extraClasses: 'me-2',
                             onClick: handleIncrease
                         },
@@ -104,49 +198,70 @@ export const Inventario = () => {
                             name: 'decrease',
                             label: 'Disminuir',
                             icon: 'bi bi-dash',
-                            className: 'btn-secondary',
+                            className: 'btn-warning',
+                            extraClasses: 'me-2',
                             onClick: handleDecrease
+                        },
+                        {
+                            name: 'history',
+                            label: 'Historial',
+                            icon: 'bi bi-clock-history',
+                            className: 'btn-info',
+                            onClick: viewHistory
                         }
                     ]}
                     customRenders={{
-                        date_created: (data, type, row) => {
-                            return new Date(data).toLocaleDateString('es-ES')
+                        stock: (data, type, row) => {
+                            const stockLevel = data <= 0 ? 'danger' : data <= 10 ? 'warning' : 'success'
+                            return `<span class="badge bg-${stockLevel}">${data}</span>`
                         },
-                        date_modify: (data, type, row) => {
-                            return new Date(data).toLocaleDateString('es-ES')
+                        precio: (data, type, row) => {
+                            return `$${parseFloat(data).toLocaleString('es-CO', { minimumFractionDigits: 2 })}`
                         }
                     }}
                 />
-
             </div>
         </div>
 
-      <Modal show={show} onHide={handleClose} size="sm" centered>
-          <Modal.Header closeButton>
-          <Modal.Title>{modalInfo.title}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-              <Form onSubmit={handleSave}>
+        <Modal show={show} onHide={handleClose} size="sm" centered>
+            <Modal.Header closeButton>
+                <Modal.Title>{modalInfo.title}</Modal.Title>
+            </Modal.Header>
+        <Modal.Body>
+            <Form onSubmit={(e) => {
+                e.preventDefault()
+                handleSave()
+            }}>
+                <Form.Group className="mb-3">
                     <Form.Label htmlFor="cantidad">{modalInfo.description}</Form.Label>
-                      <Form.Control 
-                        id='cantidad'
-                        value={form.documento} 
+                    <Form.Control 
+                        id="cantidad"
+                        value={form.cantidad} 
                         onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
-                        type="text" 
+                        type="number"
+                        step="0.01"
+                        min="0"
                         placeholder="Cantidad"
                         required
-                      />
-              </Form>
-          </Modal.Body>
-          <Modal.Footer>
-              <Button variant="secondary" onClick={handleClose}>
-                  Cancelar
-              </Button>
-              <Button variant="primary" onClick={handleSave}>
-                  Guardar
-              </Button>
-              
-          </Modal.Footer>
-      </Modal>
+                        autoFocus
+                    />
+                    {selectedProduct && (
+                        <Form.Text className="text-muted">
+                            Stock actual: <strong>{selectedProduct.stock}</strong> {selectedProduct.unidad_medida || ''}
+                        </Form.Text>
+                    )}
+                </Form.Group>
+            </Form>
+        </Modal.Body>
+        <Modal.Footer>
+            <Button variant="secondary" onClick={handleClose}>
+                Cancelar
+            </Button>
+            <Button variant="primary" onClick={handleSave}>
+                Guardar
+            </Button>
+        </Modal.Footer>
+        </Modal>
     </>
+
 }

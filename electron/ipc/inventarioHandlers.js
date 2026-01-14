@@ -20,7 +20,7 @@ export const registerInventarioHandler = () =>{
         return stmt.all()
         } catch (error) {
         console.error("Error al intentar obtener productos:", error)
-        return []
+            return []
         }
     })
 

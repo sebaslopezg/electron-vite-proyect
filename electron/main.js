@@ -68,8 +68,8 @@ ipcMain.on("custom-event", (event, data) => {
 });
 
 app.whenReady().then(async () => {
-  initDatabase();
-  registerAllHandlers();
+  initDatabase()
+  registerAllHandlers()
   // Watch for main process changes and restart the app automatically
   if (isDev) {
     const watcher = chokidar.watch([

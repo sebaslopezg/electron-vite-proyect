@@ -7,8 +7,13 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on(channel, (_, msg) => callback(msg));
   },
 
+  //ventas
+  createVenta: (data) => ipcRenderer.invoke("create-venta", data),
+
   //inventario
-  getInventario:() => ipcRenderer.invoke("get-inventario"),
+  getInventario: () => ipcRenderer.invoke("get-inventario"),
+  setInventario: (item) => ipcRenderer.invoke("set-inventario", item),
+  getInventarioHistory: (productoId) => ipcRenderer.invoke("get-inventario-history", productoId),
 
   //productos
   getProductos: () => ipcRenderer.invoke("get-productos"),
