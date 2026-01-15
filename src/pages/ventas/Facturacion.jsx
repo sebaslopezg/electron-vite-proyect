@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
-import {Button, ButtonGroup} from 'react-bootstrap'
+import {
+  Button, 
+  InputGroup, 
+  Form,
+  Row,
+  Col
+} from 'react-bootstrap'
 import Modal from 'react-bootstrap/Modal'
 
 export const Facturacion = () => {
@@ -9,18 +15,39 @@ export const Facturacion = () => {
   const [carrito, setCarrito] = useState([])
   const [show, setShow] = useState(false)
   const [cliente, setCliente] = useState({ nombre: 'Consumidor Final', documento: '222222' })
+  const [modalData, setModalData] = useState({})
+
 
   useEffect(() => {
-    loadProductos()
+
   }, [])
 
   const loadProductos = async () => {
-    const res = await window.api.getProductos()
-    setProductos(res)
+    const data = await window.api.getProductos()
+    setProductos(data)
   }
 
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
+
+
+  const handleAddProduct = () =>{
+    loadProductos()
+    handleShow()
+    setModalData({
+      title:'Agregar Producto',
+      columns:[
+        { data: 'ref_name', title: 'Nombre Referencia' },
+        { data: 'sku', title: 'SKU' },
+        { data: 'precio', title: 'Precio' },
+      ]
+    })
+  }
+
+  const handleAddClient = () =>{
+    //handleShow()
+  }
+
 
   const agregarAlCarrito = (prod) => {
     const existe = carrito.find(item => item.id === prod.id)
@@ -64,16 +91,29 @@ export const Facturacion = () => {
 
   return <>
 
-    <ButtonGroup aria-label="Basic example">
-      <Button variant="primary" onClick={(e) => {
-        cleanForm()
-        handleShow()
-      }}>Agregar Producto</Button>
-      <Button variant="primary" onClick={(e) => {
-        cleanForm()
-        handleShow()
-      }}>Agregar Clientes</Button>
-    </ButtonGroup>
+    <Row className="justify-content-between">
+      <Col xs={4}>
+        <InputGroup className="mb-3">
+          <Button variant="primary" onClick={(e) => {
+            handleAddProduct()
+          }}>Agregar Producto</Button>
+            <Form.Control
+              placeholder="Código SKU" 
+            />
+        </InputGroup>
+      </Col>
+
+      <Col xs={5}>
+        <InputGroup className="mb-3">
+          <Button variant="primary" onClick={(e) => {
+            handleAddClient()
+          }}>Agregar Cliente</Button>
+            <Form.Control
+              placeholder="Documento de identidad del cliente" 
+            />
+        </InputGroup>
+      </Col>
+    </Row>
 
     <DataTableComponent 
       data=""
@@ -104,19 +144,37 @@ export const Facturacion = () => {
     />
 
 
-    <Modal show={show} onHide={handleClose} size="lm" centered>
+    <Modal show={show} onHide={handleClose} size="lg" centered>
       <Modal.Header closeButton>
-        <Modal.Title>aaa</Modal.Title>
+        <Modal.Title>Agregar Productos</Modal.Title>
       </Modal.Header>
           <Modal.Body>
-sdf
+
+          <DataTableComponent 
+            data={productos}
+            columns={[
+              { data: 'ref_name', title: 'Nombre Referencia' },
+              { data: 'sku', title: 'SKU' },
+              { data: 'precio', title: 'Precio' },
+              {
+                data: null,
+                title: 'Agregar',
+                orderable: false,
+                render: function(data, type, row) {
+                  return `
+                  <button class="btn btn-sm btn-secondary me-2 btn-add-${row.id}">
+                    Agregar
+                  </button>
+                  `;
+                }
+              }
+            ]}
+          />
+
           </Modal.Body>
           <Modal.Footer>
               <Button variant="secondary" onClick={handleClose}>
-                  Cancelar
-              </Button>
-              <Button variant="primary" onClick={handleClose}>
-                  Guardar
+                  Cerrar
               </Button>
           </Modal.Footer>
       </Modal>
