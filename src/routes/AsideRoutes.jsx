@@ -4,5 +4,6 @@ export const menuItems = [
     { path: '/clientes', label: 'Clientes', icon: 'bi-people' },
     { path: '/inventario', label: 'Inventario', icon: 'bi-clipboard-check' },
     { path: '/productos', label: 'Productos', icon: 'bi-box-seam' },
+    { path: '/bitacoras', label: 'Bitacora', icon: 'bi-clipboard' },
     { path: '/configuracion', label: 'Configuración', icon: 'bi-gear' },
 ]

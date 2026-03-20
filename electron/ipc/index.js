@@ -4,6 +4,7 @@ import { registerInventarioHandler } from "./inventarioHandlers.js"
 import { registerConfigurarHandlers } from "./configurarHandlers.js"
 import { registerAlmacenConfigHandlers } from "./almacenConfigHandlers.js"
 import { registerVentasHandlers } from "./ventasHandlers.js"
+import { registerBitacoraHandlers } from "./bitacoraHandlers.js"
 
 export const registerAllHandlers = () => {
   registerProductoHandlers()
@@ -12,4 +13,5 @@ export const registerAllHandlers = () => {
   registerAlmacenConfigHandlers()
   registerInventarioHandler()
   registerVentasHandlers()
+  registerBitacoraHandlers()
 }

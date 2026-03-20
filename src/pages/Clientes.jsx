@@ -19,11 +19,11 @@ export const Clientes = () => {
   //connect to DB
   const [items, setItems] = useState([])
   const [dataInTable, setDataInTable] = useState([])
-  const [form, setForm] = useState({ 
-    documento: '', 
-    nombre: '', 
-    telefono: '', 
-    direccion: '' 
+  const [form, setForm] = useState({
+    documento: '',
+    nombre: '',
+    telefono: '',
+    direccion: ''
   })
   const [editingId, setEditingId] = useState(null)
 
@@ -36,7 +36,7 @@ export const Clientes = () => {
   const cleanForm = () => {
     setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
   }
-  
+
   useEffect(() => { load() }, [])
 
   const handleSubmit = async (e) => {
@@ -59,18 +59,18 @@ export const Clientes = () => {
       console.error('Error al guardar el cliente:', error)
       Swal.fire({
         title: "Error",
-        text: `Error al guardar el cliente. Verifique que el Documento de identidad no exista ya. ${error.message || ''}`, 
+        text: `Error al guardar el cliente. Verifique que el Documento de identidad no exista ya. ${error.message || ''}`,
         icon: "error"
       })
     }
   }
 
   const handleEdit = (item) => {
-    setForm({ 
-      documento: item.documento, 
-      nombre: item.nombre, 
-      telefono: item.telefono, 
-      direccion: item.direccion 
+    setForm({
+      documento: item.documento,
+      nombre: item.nombre,
+      telefono: item.telefono,
+      direccion: item.direccion
     })
     setEditingId(item.id)
   }
@@ -82,38 +82,38 @@ export const Clientes = () => {
       confirmButtonText: "Sí",
       denyButtonText: `No`
     });
-    
+
     if (result.isConfirmed) {
-      await window.api.deleteCliente(id)
+      await window.api.deleteBitacora(id)
       load()
     }
   }
-  
-    return <>
 
-      <div className="pagetitle">
-        <h1>Clientes</h1>
-      </div>
+  return <>
 
-      <div className="card">
-        <div className="card-title"></div>
-        <div className="card-body">
+    <div className="pagetitle">
+      <h1>Clientes</h1>
+    </div>
 
+    <div className="card">
+      <div className="card-title"></div>
+      <div className="card-body">
+
+        <div className="row">
           <div className="row">
-            <div className="row">
-              <div className="col">
-                <button className='btn btn-primary' onClick={(e) => {
-                  setEditingId(null)
-                  cleanForm()
-                  handleShow()
-                  }}>Nuevo</button>
-              </div>
+            <div className="col">
+              <button className='btn btn-primary' onClick={(e) => {
+                setEditingId(null)
+                cleanForm()
+                handleShow()
+              }}>Nuevo</button>
             </div>
           </div>
+        </div>
 
-          <DataTableComponent 
-            data={dataInTable}
-            columns={[
+        <DataTableComponent
+          data={dataInTable}
+          columns={[
             { data: 'documento', title: 'Documento' },
             { data: 'nombre', title: 'Nombre' },
             { data: 'telefono', title: 'Teléfono' },
@@ -123,7 +123,7 @@ export const Clientes = () => {
               data: null,
               title: 'Actions',
               orderable: false,
-              render: function(data, type, row) {
+              render: function (data, type, row) {
                 return `
                   <button class="btn btn-sm btn-secondary me-2 btn-edit-${row.id}">
                     <i class="bi bi-pencil"></i>
@@ -132,86 +132,86 @@ export const Clientes = () => {
                    <i class="bi bi-trash3"></i>
                   </button>
                   `;
-                }
               }
-            ]}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onShow={handleShow}
-            customRenders={{
-              date_created: (data, type, row) => {
-                return new Date(data).toLocaleDateString('es-ES');
-              },
-               // Only show date_modify if needed, else remove
-              date_modify: (data, type, row) => {
-                return new Date(data).toLocaleDateString('es-ES');
-              }
-            }}
-          />
-        </div>
+            }
+          ]}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onShow={handleShow}
+          customRenders={{
+            date_created: (data, type, row) => {
+              return new Date(data).toLocaleDateString('es-ES');
+            },
+            // Only show date_modify if needed, else remove
+            date_modify: (data, type, row) => {
+              return new Date(data).toLocaleDateString('es-ES');
+            }
+          }}
+        />
       </div>
+    </div>
 
-      <Modal show={show} onHide={handleClose} size="lg" centered>
-          <Modal.Header closeButton>
-          <Modal.Title>{editingId ? 'Editar Cliente' : 'Crear Cliente'}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-              <Form onSubmit={handleSubmit}>
-                  <Form.Group className="mb-3">
-                      <Form.Label htmlFor="documento">Documento de identidad</Form.Label>
-                      <Form.Control 
-                      id='documento'
-                      value={form.documento} 
-                      onChange={(e) => setForm({ ...form, documento: e.target.value })}
-                      type="text" 
-                      placeholder="Documento de identificacion del cliente"
-                      required
-                      />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                      <Form.Label htmlFor='nombre'>Nombre</Form.Label>
-                      <Form.Control 
-                      id='nombre'
-                      value={form.nombre}
-                      onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                      type="text" 
-                      placeholder="Nombre del cliente" 
-                      required
-                      />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                      <Form.Label htmlFor='telefono'>Telefono</Form.Label>
-                      <Form.Control 
-                      id='telefono'
-                      value={form.telefono}
-                      onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-                      type="text" 
-                      placeholder="Telefono o celular del cliente" 
-                      required
-                      />
-                  </Form.Group>
-                  <Form.Group className="mb-3">
-                      <Form.Label htmlFor='direccion'>Direccion</Form.Label>
-                      <Form.Control 
-                      id='direccion'
-                      value={form.direccion}
-                      onChange={(e) => setForm({ ...form, direccion: e.target.value })}
-                      type="text" 
-                      placeholder="Enrique segoviano" 
-                      required
-                      />
-                  </Form.Group>
-              </Form>
-          </Modal.Body>
-          <Modal.Footer>
-              <Button variant="secondary" onClick={handleClose}>
-                  Cancelar
-              </Button>
-              <Button variant="primary" onClick={handleSubmit}>
-                  {editingId ? 'Actualizar' : 'Guardar'}
-              </Button>
-              
-          </Modal.Footer>
-      </Modal>
-    </>
+    <Modal show={show} onHide={handleClose} size="lg" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>{editingId ? 'Editar Cliente' : 'Crear Cliente'}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3">
+            <Form.Label htmlFor="documento">Documento de identidad</Form.Label>
+            <Form.Control
+              id='documento'
+              value={form.documento}
+              onChange={(e) => setForm({ ...form, documento: e.target.value })}
+              type="text"
+              placeholder="Documento de identificacion del cliente"
+              required
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label htmlFor='nombre'>Nombre</Form.Label>
+            <Form.Control
+              id='nombre'
+              value={form.nombre}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              type="text"
+              placeholder="Nombre del cliente"
+              required
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label htmlFor='telefono'>Telefono</Form.Label>
+            <Form.Control
+              id='telefono'
+              value={form.telefono}
+              onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+              type="text"
+              placeholder="Telefono o celular del cliente"
+              required
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label htmlFor='direccion'>Direccion</Form.Label>
+            <Form.Control
+              id='direccion'
+              value={form.direccion}
+              onChange={(e) => setForm({ ...form, direccion: e.target.value })}
+              type="text"
+              placeholder="Enrique segoviano"
+              required
+            />
+          </Form.Group>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={handleClose}>
+          Cancelar
+        </Button>
+        <Button variant="primary" onClick={handleSubmit}>
+          {editingId ? 'Actualizar' : 'Guardar'}
+        </Button>
+
+      </Modal.Footer>
+    </Modal>
+  </>
 }

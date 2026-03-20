@@ -27,12 +27,18 @@ contextBridge.exposeInMainWorld("api", {
   updateCliente: (item) => ipcRenderer.invoke("update-cliente", item),
   deleteCliente: (item) => ipcRenderer.invoke("delete-cliente", item),
 
+  //bitacoras
+  getBitacoras: () => ipcRenderer.invoke("get-bitacoras"),
+  addBitacora: (item) => ipcRenderer.invoke("add-bitacora", item),
+  updateBitacora: (item) => ipcRenderer.invoke("update-bitacora", item),
+  deleteBitacora: (item) => ipcRenderer.invoke("delete-bitacora", item),
+
   //configuraciones
-  getConfiguracion:() => ipcRenderer.invoke("get-configuracion"),
-  updateConfiguracion:(item) => ipcRenderer.invoke("update-configuracion", item),
+  getConfiguracion: () => ipcRenderer.invoke("get-configuracion"),
+  updateConfiguracion: (item) => ipcRenderer.invoke("update-configuracion", item),
 
   //conf almacen
-  getAllConfAlmacen:() => ipcRenderer.invoke("getAll-almacenConf"),
-  getOneConfAlmacen:(id) => ipcRenderer.invoke("get-almacenConf", id),
+  getAllConfAlmacen: () => ipcRenderer.invoke("getAll-almacenConf"),
+  getOneConfAlmacen: (id) => ipcRenderer.invoke("get-almacenConf", id),
   updateConfAlmacen: (item) => ipcRenderer.invoke("update-almacenConf", item),
 })

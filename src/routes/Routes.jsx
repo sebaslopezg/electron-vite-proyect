@@ -4,6 +4,7 @@ import { Inventario } from '../pages/inventario'
 import { Clientes } from '../pages/Clientes'
 import { Productos } from '../pages/Productos'
 import { Configuracion } from '../pages/Configuracion'
+import { Bitacoras } from '../pages/Bitacoras'
 
 export const MainRoutes = () => {
 
@@ -14,6 +15,7 @@ export const MainRoutes = () => {
             <Route path="/inventario" element={<Inventario />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/productos" element={<Productos />} />
+            <Route path="/bitacoras" element={<Bitacoras />} />
             <Route path="/configuracion" element={<Configuracion />} />
         </Routes>
     </>
