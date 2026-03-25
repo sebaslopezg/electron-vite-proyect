@@ -169,7 +169,7 @@ export const Facturacion = () => {
           item.id === prod.id ? { ...item, cantidad: item.cantidad + 1 } : item
         );
       } else {
-        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje' }];
+        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva }];
       }
     });
   };
@@ -239,6 +239,13 @@ export const Facturacion = () => {
       const id = e.target.getAttribute('data-id') || e.target.closest('button')?.getAttribute('data-id');
       if (!id) return;
 
+      if (e.target.classList.contains('change-iva')) {
+        const val = parseFloat(e.target.value) || 0;
+        setCarrito(prev => prev.map(item =>
+          String(item.id) === String(id) ? { ...item, iva: val } : item
+        ));
+      }
+
       if (e.target.closest('.btn-select-product')) {
         const selected = productos.find(p => String(p.id) === String(id));
         if (selected) agregarAlCarrito(selected);
@@ -252,15 +259,38 @@ export const Facturacion = () => {
         }
       }
 
+      if (e.target.classList.contains('change-discount')) {
+        const val = parseFloat(e.target.value) || 0;
+
+        setCarrito(prev => prev.map(item =>
+          String(item.id) === String(id) ? { ...item, descuento: val } : item
+        ));
+      }
+
+      if (e.target.closest('.toggle-discount-type')) {
+        setCarrito(prev => prev.map(item => {
+          if (String(item.id) === String(id)) {
+            return {
+              ...item,
+              tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje'
+            };
+          }
+          return item;
+        }));
+      }
+
       if (e.target.closest('.btn-qty-plus')) updateQuantity(id, 1);
       if (e.target.closest('.btn-qty-minus')) updateQuantity(id, -1);
       if (e.target.closest('.btn-remove-item')) {
         removeItem(id);
       }
     };
-
+    document.addEventListener('input', handleGlobalClicks);
     document.addEventListener('click', handleGlobalClicks);
-    return () => document.removeEventListener('click', handleGlobalClicks);
+    return () => {
+      document.addEventListener('input', handleGlobalClicks);
+      document.removeEventListener('click', handleGlobalClicks)
+    }
   }, [productos, clientes, carrito]);
 
   return <>
@@ -348,7 +378,17 @@ export const Facturacion = () => {
         </div>
       `
         },
-        { data: 'iva', title: 'IVA' },
+        {
+          data: 'iva',
+          title: 'IVA %',
+          render: (data, type, row) => `
+    <div class="input-group input-group-sm" style="width: 80px">
+      <input type="number" class="form-control change-iva text-center" 
+             data-id="${row.id}" value="${row.iva || 0}">
+      <span class="input-group-text">%</span>
+    </div>
+  `
+        },
         {
           data: 'precio',
           title: 'Precio',
