@@ -4,3 +4,7 @@
 - probar todos los cruds con las nuevas implementaciones. (tecnicamente resuelto)
 - Crear crud para inventarios
 - implementar maestro detalle mejorado en ventas
+
+Encargos:
+- id del producto
+- quién lo creó, cuando loc reó y quién lo modificó

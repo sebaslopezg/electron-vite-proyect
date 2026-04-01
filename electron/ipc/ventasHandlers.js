@@ -4,6 +4,26 @@ import db from "../database/index.js"
 
 export const registerVentasHandlers = () => {
 
+    ipcMain.handle("get-maestro", () => {
+        try {
+            const stmt = db.prepare('SELECT * FROM ventasMaestro WHERE status > 0')
+            return stmt.all()
+        } catch (error) {
+            console.error("Error al intentar obtener productos:", error)
+            return []
+        }
+    })
+
+    ipcMain.handle("get-detalle", (_, id) => {
+        try {
+            const stmt = db.prepare('SELECT * FROM ventasDetalle WHERE maestro_id = ?')
+            const info = stmt.all(id)
+            return { success: true, data: info }
+        } catch (error) {
+
+        }
+    })
+
     ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
         const transaction = db.transaction((maestroData, detallesData) => {
             const now = new Date().toISOString()
@@ -22,10 +42,10 @@ export const registerVentasHandlers = () => {
                 VALUES (?, ?, ?, ?, ?, 1)
             `)
             insertMaestro.run(
-                maestroId, 
-                maestroData.numero_factura, 
-                maestroData.nombre_cliente, 
-                maestroData.documento_cliente, 
+                maestroId,
+                maestroData.numero_factura,
+                maestroData.nombre_cliente,
+                maestroData.documento_cliente,
                 now
             )
 
@@ -48,13 +68,13 @@ export const registerVentasHandlers = () => {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `)
                 insertDetalle.run(
-                    detalleId, 
-                    maestroId, 
-                    item.id, 
-                    item.ref_name, 
-                    item.cantidad, 
-                    item.precio, 
-                    item.cantidad * item.precio, 
+                    detalleId,
+                    maestroId,
+                    item.id,
+                    item.ref_name,
+                    item.cantidad,
+                    item.precio,
+                    item.cantidad * item.precio,
                     now
                 )
 
@@ -81,13 +101,13 @@ export const registerVentasHandlers = () => {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `)
                 insertInventario.run(
-                    uuidv4(), 
-                    item.id, 
-                    'SALIDA', 
-                    'VENTA', 
-                    item.cantidad, 
-                    stockAnterior, 
-                    stockNuevo, 
+                    uuidv4(),
+                    item.id,
+                    'SALIDA',
+                    'VENTA',
+                    item.cantidad,
+                    stockAnterior,
+                    stockNuevo,
                     now
                 )
             }
@@ -99,7 +119,7 @@ export const registerVentasHandlers = () => {
             return transaction(maestro, detalles)
         } catch (error) {
             console.error("Transaction Error:", error)
-        return { success: false, error: error.message }
+            return { success: false, error: error.message }
         }
     })
 

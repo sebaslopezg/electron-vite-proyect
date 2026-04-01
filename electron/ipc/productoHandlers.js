@@ -26,6 +26,7 @@ export const registerProductoHandlers = () => {
           ref_name, 
           sku,
           precio, 
+          tipo,
           allow_negative, 
           stock, 
           iva, 
@@ -39,6 +40,7 @@ export const registerProductoHandlers = () => {
           @ref_name, 
           @sku, 
           @precio,
+          @tipo,
           @allow_negative, 
           @stock, 
           @iva, 
@@ -57,7 +59,7 @@ export const registerProductoHandlers = () => {
         date_modify: now,
         status: status
       })
-      
+
       return { success: true, id: id, changes: info.changes }
 
     } catch (error) {
@@ -75,6 +77,7 @@ export const registerProductoHandlers = () => {
           ref_name = @ref_name,
           sku = @sku,
           precio = @precio,
+          tipo = @tipo,
           allow_negative = @allow_negative,
           stock = @stock,
           iva = @iva,
@@ -86,10 +89,10 @@ export const registerProductoHandlers = () => {
       `)
 
       const info = stmt.run({
-         ...item, 
-         date_modify: now,
-         status:status
-        })
+        ...item,
+        date_modify: now,
+        status: status
+      })
 
       return { success: true, changes: info.changes }
 

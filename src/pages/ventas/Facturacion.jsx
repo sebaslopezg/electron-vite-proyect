@@ -19,6 +19,8 @@ export const Facturacion = () => {
   const [modalData, setModalData] = useState({ title: '', columns: [], type: '' })
   const [descuento, setDescuento] = useState(0)
   const [esPorcentaje, setEsPorcentaje] = useState(true)
+  const [metodoPago, setMetodoPago] = useState('contado')
+  const [cuotas, setCuotas] = useState(1)
 
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
 
@@ -467,6 +469,37 @@ export const Facturacion = () => {
               <span className="h5">Total:</span>
               <span className="h5 text-primary">{formatCurrency(totalFinal)}</span>
             </div>
+
+            <Form.Group className="mb-3">
+              <Form.Label><small>Método de Pago</small></Form.Label>
+              <Form.Select
+                size="sm"
+                value={metodoPago}
+                onChange={(e) => setMetodoPago(e.target.value)}
+              >
+                <option value="contado">Contado</option>
+                <option value="credito">Crédito</option>
+              </Form.Select>
+            </Form.Group>
+
+            {metodoPago === 'credito' && (
+              <Form.Group className="mb-3 animate__animated animate__fadeIn">
+                <Form.Label><small>Plazo en Meses</small></Form.Label>
+                <InputGroup size="sm">
+                  <Form.Control
+                    type="number"
+                    min="1"
+                    max="72"
+                    value={cuotas}
+                    onChange={(e) => setCuotas(Math.max(1, parseInt(e.target.value) || 1))}
+                  />
+                  <InputGroup.Text>Días</InputGroup.Text>
+                </InputGroup>
+                <Form.Text className="text-muted">
+                  Valor cuota aprox: {formatCurrency(totalFinal / cuotas)}
+                </Form.Text>
+              </Form.Group>
+            )}
 
             <Button
               variant="success"

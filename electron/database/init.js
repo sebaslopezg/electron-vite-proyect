@@ -5,6 +5,9 @@ import { createClientesTable } from "./tables/clientes.js"
 import { createAlmacenConfTable } from "./tables/almacenConf.js"
 import { createInventarioTable } from './tables/inventario.js'
 import { createBitacoraTable } from './tables/bitacora.js'
+import { createVentasMaestroTable } from './tables/ventasMaestro.js'
+import { createVentasDetalleTable } from './tables/ventasDetalle.js'
+
 
 export const initDatabase = async () => {
 
@@ -14,6 +17,8 @@ export const initDatabase = async () => {
   createAlmacenConfTable()
   createInventarioTable()
   createBitacoraTable()
+  createVentasMaestroTable()
+  createVentasDetalleTable()
 
   //await runMigrations()
 }

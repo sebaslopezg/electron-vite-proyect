@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld("api", {
   },
 
   //ventas
+  getMaestro: () => ipcRenderer.invoke("get-maestro"),
+  getDetalle: (id) => ipcRenderer.invoke("get-detalle", id),
   createVenta: (data) => ipcRenderer.invoke("create-venta", data),
 
   //inventario
