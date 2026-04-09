@@ -55,7 +55,7 @@ export const Facturacion = () => {
   const handleShow = () => setShow(true)
 
   const loadProductos = async () => {
-    const data = await window.api.getProductos()
+    const data = await window.api.getAllProductos()
     setProductos(data)
   }
 

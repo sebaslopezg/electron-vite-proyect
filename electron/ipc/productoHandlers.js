@@ -6,7 +6,25 @@ export const registerProductoHandlers = () => {
 
   ipcMain.handle("get-productos", () => {
     try {
-      const stmt = db.prepare('SELECT * FROM producto WHERE status > 0')
+      const stmt = db.prepare(`SELECT * FROM producto WHERE status > 0 AND tipo = 'producto'`)
+      return stmt.all()
+    } catch (error) {
+      console.error("Error al intentar obtener productos:", error)
+      return []
+    }
+  })
+  ipcMain.handle("get-servicios", () => {
+    try {
+      const stmt = db.prepare(`SELECT * FROM producto WHERE status > 0 AND tipo = 'servicio'`)
+      return stmt.all()
+    } catch (error) {
+      console.error("Error al intentar obtener productos:", error)
+      return []
+    }
+  })
+  ipcMain.handle("get-allProductos", () => {
+    try {
+      const stmt = db.prepare(`SELECT * FROM producto WHERE status > 0`)
       return stmt.all()
     } catch (error) {
       console.error("Error al intentar obtener productos:", error)
