@@ -122,7 +122,11 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             numero_nota: Math.floor(Math.random() * 1000) + 1, // Cambiar por consecutivo real
             id_factura_origen: facturaCargada.id, 
             numero_factura_origen: facturaCargada.numero_factura.toString(),
-            id_cliente: facturaCargada.id_cliente || '0', 
+
+            documento_cliente: facturaCargada.documento_cliente || '',
+            nombre_cliente: facturaCargada.nombre_cliente || 'Cliente Mostrador',
+
+            //id_cliente: facturaCargada.id_cliente || '0', 
             motivo_dian: formData.motivo_dian,
             observaciones: formData.observaciones,
             total_base: totales.base,
@@ -189,7 +193,12 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                                 <div className="alert alert-info py-2 m-0">
                                     <strong>Factura Seleccionada:</strong> {facturaCargada.prefijo || ''}{facturaCargada.numero_factura} | 
                                     <strong> Cliente:</strong> {facturaCargada.nombre_cliente} | 
-                                    <strong> Total:</strong> ${facturaCargada.total_final.toLocaleString('es-CO')}
+                                    {/* Calculamos el total sumando los detalles, ya que ventasMaestro no tiene columna de total */}
+                                    <strong> Total Original:</strong> ${
+                                        productosDisponibles
+                                            .reduce((sum, item) => sum + (item.total || 0), 0)
+                                            .toLocaleString('es-CO')
+                                    }
                                 </div>
                             </div>
                         )}

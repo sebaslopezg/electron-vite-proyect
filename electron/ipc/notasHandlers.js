@@ -35,11 +35,11 @@ export const registerNotasHandlers = () => {
       const insertNota = db.prepare(`
         INSERT INTO nota (
           id, tipo_nota, prefijo, numero_nota, id_factura_origen, 
-          numero_factura_origen, id_cliente, motivo_dian, observaciones, 
+          numero_factura_origen, documento_cliente, nombre_cliente, motivo_dian, observaciones, 
           total_base, total_iva, total_final, status, date_created, date_modify, modify_by
         ) VALUES (
           @id, @tipo_nota, @prefijo, @numero_nota, @id_factura_origen, 
-          @numero_factura_origen, @id_cliente, @motivo_dian, @observaciones, 
+          @numero_factura_origen, @documento_cliente, @nombre_cliente, @motivo_dian, @observaciones, 
           @total_base, @total_iva, @total_final, 1, @now, @now, @usuario
         )
       `);
@@ -51,7 +51,11 @@ export const registerNotasHandlers = () => {
         numero_nota: notaData.numero_nota,
         id_factura_origen: notaData.id_factura_origen,
         numero_factura_origen: notaData.numero_factura_origen,
-        id_cliente: notaData.id_cliente,
+        
+        // CAMBIOS AQUÍ:
+        documento_cliente: notaData.documento_cliente || '',
+        nombre_cliente: notaData.nombre_cliente || '',
+        
         motivo_dian: notaData.motivo_dian,
         observaciones: notaData.observaciones || '',
         total_base: notaData.total_base,

@@ -6,10 +6,20 @@ export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-maestro", () => {
         try {
-            const stmt = db.prepare('SELECT * FROM ventasMaestro WHERE status > 0')
+            // CAMBIO AQUÍ: Subconsulta para obtener las notas aplicadas
+            const stmt = db.prepare(`
+                SELECT 
+                    v.*,
+                    (SELECT GROUP_CONCAT(tipo_nota, ' y ') 
+                     FROM nota 
+                     WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas
+                FROM ventasMaestro v
+                WHERE v.status > 0
+                ORDER BY v.date_created DESC
+            `)
             return stmt.all()
         } catch (error) {
-            console.error("Error al intentar obtener productos:", error)
+            console.error("Error al intentar obtener facturas:", error)
             return []
         }
     })
@@ -20,7 +30,8 @@ export const registerVentasHandlers = () => {
             const info = stmt.all(id)
             return { success: true, data: info }
         } catch (error) {
-
+            console.error("Error al obtener detalle:", error)
+            return { success: false, error: error.message }
         }
     })
 
@@ -29,7 +40,7 @@ export const registerVentasHandlers = () => {
             const now = new Date().toISOString()
             const maestroId = uuidv4()
 
-            // 1. Insert Maestro (The Header) /// EXPANDIR, FALTAN DATOS
+            // 1. Insert Maestro (The Header)
             const insertMaestro = db.prepare(`
                 INSERT INTO ventasMaestro (
                     id, 
@@ -122,5 +133,4 @@ export const registerVentasHandlers = () => {
             return { success: false, error: error.message }
         }
     })
-
 }
