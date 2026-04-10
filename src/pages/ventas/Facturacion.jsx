@@ -21,6 +21,9 @@ export const Facturacion = () => {
   const [esPorcentaje, setEsPorcentaje] = useState(true)
   const [metodoPago, setMetodoPago] = useState('contado')
   const [cuotas, setCuotas] = useState(1)
+  
+  // NUEVO ESTADO: Total Recibido
+  const [totalRecibido, setTotalRecibido] = useState('')
 
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
 
@@ -50,6 +53,11 @@ export const Facturacion = () => {
   const subtotalNeto = resumen.subtotal - resumen.totalDescuentos;
   const ivaTotal = resumen.totalIva;
   const totalFinal = resumen.totalFinal;
+
+  // NUEVOS CÁLCULOS: Cambio y Saldo
+  const recibidoNum = parseFloat(totalRecibido) || 0;
+  const cambio = recibidoNum >= totalFinal ? recibidoNum - totalFinal : 0;
+  const saldoPendiente = recibidoNum < totalFinal ? totalFinal - recibidoNum : 0;
 
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
@@ -124,9 +132,7 @@ export const Facturacion = () => {
       cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed) {
-        setCarrito([]);
-        setDescuento(0);
-        setCliente(null);
+        cleanForm();
       }
     });
   };
@@ -179,15 +185,49 @@ export const Facturacion = () => {
   const finalizarVenta = async () => {
     if (carrito.length === 0) return
 
+    if (!cliente) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Falta el Cliente',
+        text: 'Por favor seleccione o busque un cliente antes de generar la factura.'
+      });
+      return;
+    }
+
+    if (recibidoNum < totalFinal) {
+      if (metodoPago === 'contado') {
+        Swal.fire('Atención', 'Por favor establezca el plazo de la factura', 'warning');
+        setMetodoPago('credito'); // Cambia a crédito automáticamente
+        return; // Detiene la función para que el usuario ingrese los días
+      }
+
+      if (metodoPago === 'credito') {
+        const confirm = await Swal.fire({
+          title: 'Venta con saldo pendiente',
+          text: '¿Esta venta irá a la sección de abonos, seguro que desea guardar la factura?',
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: '#3085d6',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Sí, guardar',
+          cancelButtonText: 'Cancelar'
+        });
+
+        if (!confirm.isConfirmed) return; // Si el usuario cancela, no hacemos nada
+      }
+    }
+
     const data = {
       maestro: {
-        numero_factura: Date.now(),
         nombre_cliente: cliente?.nombre,
         documento_cliente: cliente?.documento,
         subtotal: subtotal,
         descuento: valorDescuento,
         iva: ivaTotal,
-        total: totalFinal
+        total: totalFinal,
+        total_recibido: recibidoNum,
+        saldo_pendiente: saldoPendiente,
+        metodo_pago: metodoPago
       },
       detalles: carrito
     };
@@ -195,10 +235,8 @@ export const Facturacion = () => {
     const result = await window.api.createVenta(data)
 
     if (result.success) {
-      Swal.fire('Venta exitosa', `Factura #${data.maestro.numero_factura} creada`, 'success')
-      setCarrito([])
+      Swal.fire('Venta exitosa', `Factura #${result.numero_factura} creada`, 'success')
       loadProductos()
-      setDescuento(0);
       cleanForm();
     } else {
       Swal.fire('Error', result.error, 'error')
@@ -208,6 +246,9 @@ export const Facturacion = () => {
   const cleanForm = () => {
     setCarrito([]);
     setCliente(null);
+    setDescuento(0);
+    setTotalRecibido('');
+    setMetodoPago('contado');
   };
 
   const updateQuantity = (id, delta) => {
@@ -297,9 +338,9 @@ export const Facturacion = () => {
 
   return <>
 
-    <Row className="justify-content-between">
+    <Row className="justify-content-between mb-3">
       <Col xs={4}>
-        <InputGroup className="mb-3">
+        <InputGroup>
           <Button variant="primary" onClick={handleAddProduct}>
             Agregar Producto</Button>
           <Form.Control
@@ -330,117 +371,116 @@ export const Facturacion = () => {
       </Col>
     </Row>
 
-    <Row className="mb-3">
-      <Col className="d-flex gap-2">
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          onClick={aplicarDescuentoMasivo}
-          disabled={carrito.length === 0}
-        >
-          <i className="bi bi-percent me-1"></i>
-          Descuento Masivo
-        </Button>
+    <Row>
+      {/* LADO IZQUIERDO: ACCIONES Y TABLA */}
+      <Col lg={8}>
+        <div className="d-flex gap-2 mb-3">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={aplicarDescuentoMasivo}
+            disabled={carrito.length === 0}
+          >
+            <i className="bi bi-percent me-1"></i>
+            Descuento Masivo
+          </Button>
 
-        <Button
-          variant="outline-danger"
-          size="sm"
-          onClick={vaciarCarrito}
-          disabled={carrito.length === 0}
-        >
-          <i className="bi bi-trash3 me-1"></i>
-          Vaciar Carrito
-        </Button>
-      </Col>
-    </Row>
+          <Button
+            variant="outline-danger"
+            size="sm"
+            onClick={vaciarCarrito}
+            disabled={carrito.length === 0}
+          >
+            <i className="bi bi-trash3 me-1"></i>
+            Vaciar Carrito
+          </Button>
+        </div>
 
-    <DataTableComponent
-      data={carrito}
-      columns={[
-        { data: 'ref_name', title: 'Referencia' },
-        { data: 'sku', title: 'SKU' },
-        {
-          data: 'ref_name',
-          title: 'Stock',
-          render: (data, type, row) => `
-      <span class="badge ${row.stock < 5 ? 'bg-danger' : 'bg-info'}">
-        ${row.stock}
-      </span>
-    </div>
-  `
-        },
-        {
-          data: null,
-          title: 'Cantidad',
-          render: (data, type, row) => `
-        <div class="btn-group btn-group-sm">
-          <button class="btn btn-outline-secondary btn-qty-minus" data-id="${row.id}">-</button>
-          <span class="btn btn-light disabled" style="width: 40px">${row.cantidad}</span>
-          <button class="btn btn-outline-secondary btn-qty-plus" data-id="${row.id}">+</button>
+        <DataTableComponent
+          data={carrito}
+          columns={[
+            { data: 'ref_name', title: 'Ref.' },
+            { data: 'sku', title: 'SKU' },
+            {
+              data: 'ref_name',
+              title: 'Stk.',
+              render: (data, type, row) => `
+          <span class="badge ${row.stock < 5 ? 'bg-danger' : 'bg-info'}">
+            ${row.stock}
+          </span>
+      `
+            },
+            {
+              data: null,
+              title: 'Cant.',
+              render: (data, type, row) => `
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-secondary btn-qty-minus" data-id="${row.id}">-</button>
+              <span class="btn btn-light disabled" style="width: 35px; padding: 0.25rem;">${row.cantidad}</span>
+              <button class="btn btn-outline-secondary btn-qty-plus" data-id="${row.id}">+</button>
+            </div>
+          `
+            },
+            {
+              data: 'iva',
+              title: 'IVA%',
+              render: (data, type, row) => `
+        <div class="input-group input-group-sm" style="width: 70px">
+          <input type="number" class="form-control change-iva text-center px-1" 
+                data-id="${row.id}" value="${row.iva || 0}">
         </div>
       `
-        },
-        {
-          data: 'iva',
-          title: 'IVA %',
-          render: (data, type, row) => `
-    <div class="input-group input-group-sm" style="width: 80px">
-      <input type="number" class="form-control change-iva text-center" 
-             data-id="${row.id}" value="${row.iva || 0}">
-      <span class="input-group-text">%</span>
-    </div>
-  `
-        },
-        {
-          data: 'precio',
-          title: 'Precio',
-          render: (val) => `$${(Number(val)).toLocaleString()}`
-        },
-        {
-          data: null,
-          title: 'Descuento',
-          render: (data, type, row) => `
-    <div class="input-group input-group-sm" style="width: 120px">
-      <input type="number" class="form-control change-discount" 
-             data-id="${row.id}" value="${row.descuento || 0}">
-      <button class="btn btn-outline-secondary toggle-discount-type" data-id="${row.id}">
-        ${row.tipoDescuento === 'porcentaje' ? '%' : '$'}
-      </button>
-    </div>
-  `
-        },
-        {
-          data: null,
-          title: 'Total',
-          render: (data, type, row) => {
-            const sub = row.precio * row.cantidad;
-            const desc = row.tipoDescuento === 'porcentaje'
-              ? sub * (row.descuento / 100)
-              : row.descuento;
-            return `<strong>${formatCurrency(sub - desc)}</strong>`;
-          }
-        },
-        {
-          data: null,
-          title: 'Actions',
-          orderable: false,
-          render: function (data, type, row) {
-            return `
-            <button class="btn btn-sm btn-danger btn-remove-item" data-id="${row.id}">
-          <i class="bi bi-trash"></i>
-        </button>
-            `;
-          }
-        }
-      ]}
-    />
+            },
+            {
+              data: 'precio',
+              title: 'Precio',
+              render: (val) => `$${(Number(val)).toLocaleString()}`
+            },
+            {
+              data: null,
+              title: 'Desc.',
+              render: (data, type, row) => `
+        <div class="input-group input-group-sm" style="width: 90px">
+          <input type="number" class="form-control change-discount px-1 text-center" 
+                data-id="${row.id}" value="${row.descuento || 0}">
+          <button class="btn btn-outline-secondary toggle-discount-type px-1" data-id="${row.id}">
+            ${row.tipoDescuento === 'porcentaje' ? '%' : '$'}
+          </button>
+        </div>
+      `
+            },
+            {
+              data: null,
+              title: 'Total',
+              render: (data, type, row) => {
+                const sub = row.precio * row.cantidad;
+                const desc = row.tipoDescuento === 'porcentaje'
+                  ? sub * (row.descuento / 100)
+                  : row.descuento;
+                return `<strong>${formatCurrency(sub - desc)}</strong>`;
+              }
+            },
+            {
+              data: null,
+              title: '',
+              orderable: false,
+              render: function (data, type, row) {
+                return `
+                <button class="btn btn-sm btn-danger btn-remove-item" data-id="${row.id}">
+              <i class="bi bi-trash"></i>
+            </button>
+                `;
+              }
+            }
+          ]}
+        />
+      </Col>
 
-    <Row className="mt-4 justify-content-end">
-      <Col md={4}>
-        <div className="card shadow-sm mt-3">
+      {/* LADO DERECHO: RESUMEN DE VENTA */}
+      <Col lg={4}>
+        <div className="card shadow-sm sticky-top" style={{ top: '20px' }}>
           <div className="card-body">
             <h5 className="card-title mb-3">Resumen de Venta</h5>
-
 
             <div className="d-flex justify-content-between mb-2">
               <span>Subtotal:</span>
@@ -465,12 +505,43 @@ export const Facturacion = () => {
             </div>
 
             <hr />
-            <div className="d-flex justify-content-between mb-4">
+            <div className="d-flex justify-content-between mb-3">
               <span className="h5">Total:</span>
               <span className="h5 text-primary">{formatCurrency(totalFinal)}</span>
             </div>
 
-            <Form.Group className="mb-3">
+            {/* NUEVO CAMPO: Total Recibido */}
+            <Form.Group className="mb-3 bg-light p-2 rounded">
+              <Form.Label className="fw-bold"><small>Dinero Recibido (Cliente)</small></Form.Label>
+              <InputGroup size="sm">
+                <InputGroup.Text>$</InputGroup.Text>
+                <Form.Control
+                  type="number"
+                  min="0"
+                  value={totalRecibido}
+                  onChange={(e) => setTotalRecibido(e.target.value)}
+                  placeholder="Ej: 50000"
+                />
+              </InputGroup>
+            </Form.Group>
+
+            {/* MOSTRAR CAMBIO (Si el cliente paga con un billete más grande) */}
+            {recibidoNum > totalFinal && (
+              <div className="d-flex justify-content-between mb-3 text-success">
+                <strong>Cambio a devolver:</strong>
+                <strong className="fs-5">{formatCurrency(cambio)}</strong>
+              </div>
+            )}
+
+            {/* MOSTRAR SALDO PENDIENTE (Si el cliente entrega menos dinero) */}
+            {recibidoNum > 0 && recibidoNum < totalFinal && (
+              <div className="d-flex justify-content-between mb-3 text-warning">
+                <strong>Saldo pendiente (Deuda):</strong>
+                <strong>{formatCurrency(saldoPendiente)}</strong>
+              </div>
+            )}
+
+            <Form.Group className="mb-3 border-top pt-3">
               <Form.Label><small>Método de Pago</small></Form.Label>
               <Form.Select
                 size="sm"
@@ -478,13 +549,13 @@ export const Facturacion = () => {
                 onChange={(e) => setMetodoPago(e.target.value)}
               >
                 <option value="contado">Contado</option>
-                <option value="credito">Crédito</option>
+                <option value="credito">Crédito (Abonos)</option>
               </Form.Select>
             </Form.Group>
 
             {metodoPago === 'credito' && (
-              <Form.Group className="mb-3 animate__animated animate__fadeIn">
-                <Form.Label><small>Plazo en Meses</small></Form.Label>
+              <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
+                <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
                 <InputGroup size="sm">
                   <Form.Control
                     type="number"
@@ -496,7 +567,7 @@ export const Facturacion = () => {
                   <InputGroup.Text>Días</InputGroup.Text>
                 </InputGroup>
                 <Form.Text className="text-muted">
-                  Valor cuota aprox: {formatCurrency(totalFinal / cuotas)}
+                  Aplica para saldos pendientes
                 </Form.Text>
               </Form.Group>
             )}
@@ -504,17 +575,17 @@ export const Facturacion = () => {
             <Button
               variant="success"
               size="lg"
-              className="w-100"
+              className="w-100 mt-2 shadow-sm"
               disabled={carrito.length === 0}
               onClick={finalizarVenta}
             >
-              <i className="bi bi-cash-stack me-2"></i>
-              Finalizar Factura
+              <i className="bi bi-check-circle me-2"></i>
+              Generar Factura
             </Button>
           </div>
         </div>
-      </Col >
-    </Row >
+      </Col>
+    </Row>
 
     <Modal show={show} onHide={handleClose} size="lg" centered>
       <Modal.Header closeButton>
@@ -528,7 +599,6 @@ export const Facturacion = () => {
             columns={modalData.columns}
           />
         )}
-
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={handleClose}>

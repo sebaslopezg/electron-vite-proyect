@@ -22,6 +22,16 @@ export function createVentasMaestroTable() {
       email_cliente TEXT,
 
       footer TEXT,
+
+      -- CAMPOS FINANCIEROS
+      subtotal REAL,
+      descuento REAL,
+      iva REAL,
+      total_factura REAL,
+      total_recibido REAL,
+      saldo_pendiente REAL,
+      metodo_pago TEXT,
+
       status INTEGER,
       date_created TEXT,
       date_modify TEXT,

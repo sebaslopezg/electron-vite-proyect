@@ -51,15 +51,29 @@ export const registerVentasHandlers = () => {
                     numero_factura, 
                     nombre_cliente, 
                     documento_cliente, 
+                    subtotal,          -- NUEVO
+                    descuento,         -- NUEVO
+                    iva,               -- NUEVO
+                    total_factura, 
+                    total_recibido, 
+                    saldo_pendiente,
+                    metodo_pago,
                     date_created, 
                     status
-                ) VALUES (?, ?, ?, ?, ?, 1)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             `)
             insertMaestro.run(
                 maestroId,
                 nuevoNumeroFactura,
                 maestroData.nombre_cliente,
                 maestroData.documento_cliente,
+                maestroData.subtotal,
+                maestroData.descuento,
+                maestroData.iva,
+                maestroData.total,
+                maestroData.total_recibido,
+                maestroData.saldo_pendiente,
+                maestroData.metodo_pago,
                 now
             )
 
@@ -128,7 +142,11 @@ export const registerVentasHandlers = () => {
                 )
             }
 
-            return { success: true, maestroId }
+            return {
+                success: true, 
+                maestroId, 
+                numero_factura: nuevoNumeroFactura
+            }
         })
 
         try {
