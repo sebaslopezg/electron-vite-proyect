@@ -112,8 +112,8 @@ export const Ventas = () => {
                     <div className="tab-pane fade" id="verFacturas" role="tabpanel" aria-labelledby="verFacturas-tab">
                         <VerFacturas />
                     </div>
-                    <div className="tab-pane fade" id="verFacturas" role="tabpanel" aria-labelledby="verFacturas-tab">
-                        <Notas />
+                    <div className="tab-pane fade" id="notas" role="tabpanel" aria-labelledby="notas-tab">
+                            <Notas />
                     </div>
                     <div className="tab-pane fade" id="config" role="tabpanel" aria-labelledby="configurar-tab">
                         <Configuracion data={almacenData} onReload={loadAlmacenConf} />
