@@ -15,7 +15,8 @@ export const Configuracion = ({ data, onReload }) => {
         resolucionDian:'',
         nombreFactura:'',
         footer_factura:'',
-        consecutivo:''
+        consecutivo:'',
+        consecutivo_nota: '',
     })
 
     useEffect(() => {
@@ -31,7 +32,8 @@ export const Configuracion = ({ data, onReload }) => {
                 resolucionDian: data.resolucionDian || '',
                 nombreFactura: data.nombreFactura || '',
                 footer_factura: data.footer_factura || '',
-                consecutivo: data.consecutivo || ''
+                consecutivo: data.consecutivo || '',
+                consecutivo_nota: data.consecutivo_nota || ''
             })
         }
     }, [data])
@@ -130,24 +132,23 @@ export const Configuracion = ({ data, onReload }) => {
                 </Col>
             </Row>
 
-            <h5 className="card-title">Datos facturacion</h5>
+            <h5 className="card-title">Datos facturación y Notas</h5>
 
             <Row>
-                <Col md={6}>
+                <Col md={4}>
                     <Form.Group className="mb-3">
-                        <Form.Label htmlFor="almacenDocName">Nombre del documento</Form.Label>
+                        <Form.Label htmlFor="almacenDocName">Nombre Documento</Form.Label>
                         <Form.Control
                             id="almacenDocName"
                             value={form.nombreFactura}
                             onChange={(e) => setForm({ ...form, nombreFactura: e.target.value })}
                             type="text"
-                            placeholder="Nombre que aparece en la cabecera del documento"
                             required
                         />
                     </Form.Group>
                 </Col>
 
-                <Col md={3}>
+                <Col md={2}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="almacenPrefijo">Prefijo</Form.Label>
                         <Form.Control
@@ -155,7 +156,6 @@ export const Configuracion = ({ data, onReload }) => {
                             value={form.prefijo}
                             onChange={(e) => setForm({ ...form, prefijo: e.target.value })}
                             type="text"
-                            placeholder="Prefijo de factura"
                             required
                         />
                     </Form.Group>
@@ -163,43 +163,26 @@ export const Configuracion = ({ data, onReload }) => {
 
                 <Col md={3}>
                     <Form.Group className="mb-3">
-                        <Form.Label htmlFor="almacenConsecutivo">Consecutivo</Form.Label>
+                        <Form.Label htmlFor="almacenConsecutivo">Consecutivo Factura</Form.Label>
                         <Form.Control
                             id="almacenConsecutivo"
                             value={form.consecutivo}
                             onChange={(e) => setForm({ ...form, consecutivo: e.target.value })}
-                            type="text"
-                            placeholder="Consecutivo de facturacion"
-                            required
-                        />
-                    </Form.Group>
-                </Col>
-            </Row>
-
-            <Row>
-                <Col md={6}>
-                    <Form.Group className="mb-3">
-                        <Form.Label htmlFor="almacenResolucionDian">Resolucion de la Dian</Form.Label>
-                        <Form.Control
-                            id="almacenResolucionDian"
-                            value={form.resolucionDian}
-                            onChange={(e) => setForm({ ...form, resolucionDian: e.target.value })}
-                            type="text"
-                            placeholder="Resolucion de facturacion de la dian"
+                            type="number"
                             required
                         />
                     </Form.Group>
                 </Col>
 
-                <Col md={6}>
+                {/* NUEVO CAMPO A CONTINUACIÓN */}
+                <Col md={3}>
                     <Form.Group className="mb-3">
-                        <Form.Label htmlFor="almacenFacturaFooter">Pie de factura</Form.Label>
+                        <Form.Label htmlFor="almacenConsecutivoNota">Consecutivo Notas</Form.Label>
                         <Form.Control
-                            id="almacenFacturaFooter"
-                            value={form.footer_factura}
-                            onChange={(e) => setForm({ ...form, footer_factura: e.target.value })}
-                            type="text"
-                            placeholder="Informacion que aparece al pie de la factura"
+                            id="almacenConsecutivoNota"
+                            value={form.consecutivo_nota}
+                            onChange={(e) => setForm({ ...form, consecutivo_nota: e.target.value })}
+                            type="number"
                             required
                         />
                     </Form.Group>

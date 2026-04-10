@@ -40,7 +40,11 @@ export const registerVentasHandlers = () => {
             const now = new Date().toISOString()
             const maestroId = uuidv4()
 
-            // 1. Insert Maestro (The Header)
+            const config = db.prepare('SELECT id, consecutivo FROM almacen_conf LIMIT 1').get()
+            if (!config) throw new Error("No se encontró configuración del almacén")
+            
+            const nuevoNumeroFactura = config.consecutivo + 1
+
             const insertMaestro = db.prepare(`
                 INSERT INTO ventasMaestro (
                     id, 
@@ -49,16 +53,17 @@ export const registerVentasHandlers = () => {
                     documento_cliente, 
                     date_created, 
                     status
-                )
-                VALUES (?, ?, ?, ?, ?, 1)
+                ) VALUES (?, ?, ?, ?, ?, 1)
             `)
             insertMaestro.run(
                 maestroId,
-                maestroData.numero_factura,
+                nuevoNumeroFactura,
                 maestroData.nombre_cliente,
                 maestroData.documento_cliente,
                 now
             )
+
+            db.prepare('UPDATE almacen_conf SET consecutivo = ? WHERE id = ?').run(nuevoNumeroFactura, config.id)
 
             // 2. Process each item
             for (const item of detallesData) {

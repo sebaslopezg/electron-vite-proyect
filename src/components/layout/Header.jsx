@@ -35,7 +35,7 @@ export const Header = () => {
                 ></i>
             </div>
 
-            <div className={`search-bar ${searchBarShow ? 'search-bar-show' : ''}`}>
+{/*             <div className={`search-bar ${searchBarShow ? 'search-bar-show' : ''}`}>
                 <div className="search-form d-flex align-items-center">
                     <input 
                         type="text" 
@@ -50,7 +50,7 @@ export const Header = () => {
                         <i className="bi bi-search"></i>
                     </button>
                 </div>
-            </div>
+            </div> */}
 
             <nav className="header-nav ms-auto">
                 <ul className="d-flex align-items-center">
@@ -64,7 +64,7 @@ export const Header = () => {
                         </a>
                     </li>
 
-                    <li className="nav-item dropdown">
+{/*                     <li className="nav-item dropdown">
                         <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
                             <i className="bi bi-bell"></i>
                             <span className="badge bg-primary badge-number">4</span>
@@ -225,7 +225,7 @@ export const Header = () => {
                                 </a>
                             </li>
                         </ul>
-                    </li>
+                    </li> */}
                 </ul>
             </nav>
         </header>

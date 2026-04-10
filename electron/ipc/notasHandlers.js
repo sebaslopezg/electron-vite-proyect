@@ -6,7 +6,6 @@ export const registerNotasHandlers = () => {
 
   ipcMain.handle("get-notas", () => {
     try {
-      // Ahora hacemos JOIN con ventasMaestro
       const stmt = db.prepare(`
         SELECT 
           n.*,
@@ -23,36 +22,67 @@ export const registerNotasHandlers = () => {
     }
   });
 
-  // 2. CREATE NOTA (The Complex Transaction)
+
   ipcMain.handle("add-nota", (_, data) => {
-    // We define the transaction block first
     const createNotaTransaction = db.transaction((notaData) => {
       const now = new Date().toISOString();
       const notaId = uuidv4();
       const currentUser = notaData.usuario || 'system';
 
-      // --- STEP A: Insert the Master Record (Header) ---
+      const config = db.prepare('SELECT id, consecutivo_nota FROM almacen_conf LIMIT 1').get()
+      if (!config) throw new Error("No se encontró configuración del almacén")
+      
+      const nuevoNumeroNota = config.consecutivo_nota + 1
+
       const insertNota = db.prepare(`
         INSERT INTO nota (
-          id, tipo_nota, prefijo, numero_nota, id_factura_origen, 
-          numero_factura_origen, documento_cliente, nombre_cliente, motivo_dian, observaciones, 
-          total_base, total_iva, total_final, status, date_created, date_modify, modify_by
-        ) VALUES (
-          @id, @tipo_nota, @prefijo, @numero_nota, @id_factura_origen, 
-          @numero_factura_origen, @documento_cliente, @nombre_cliente, @motivo_dian, @observaciones, 
-          @total_base, @total_iva, @total_final, 1, @now, @now, @usuario
+          id, 
+          tipo_nota, 
+          prefijo, 
+          numero_nota, 
+          id_factura_origen, 
+          numero_factura_origen, 
+          documento_cliente, 
+          nombre_cliente, 
+          motivo_dian, 
+          observaciones, 
+          total_base, 
+          total_iva, 
+          total_final, 
+          status, 
+          date_created, 
+          date_modify, 
+          modify_by
+        ) 
+        VALUES (
+          @id, 
+          @tipo_nota, 
+          @prefijo, 
+          @numero_nota, 
+          @id_factura_origen, 
+          @numero_factura_origen, 
+          @documento_cliente, 
+          @nombre_cliente, 
+          @motivo_dian, 
+          @observaciones, 
+          @total_base, 
+          @total_iva, 
+          @total_final, 
+          1, 
+          @now, 
+          @now, 
+          @usuario
         )
       `);
 
       insertNota.run({
         id: notaId,
         tipo_nota: notaData.tipo_nota,
-        prefijo: notaData.prefijo,
-        numero_nota: notaData.numero_nota,
+        prefijo: notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND',
+        numero_nota: nuevoNumeroNota,
         id_factura_origen: notaData.id_factura_origen,
         numero_factura_origen: notaData.numero_factura_origen,
         
-        // CAMBIOS AQUÍ:
         documento_cliente: notaData.documento_cliente || '',
         nombre_cliente: notaData.nombre_cliente || '',
         
@@ -65,7 +95,8 @@ export const registerNotasHandlers = () => {
         usuario: currentUser
       });
 
-      // Prepare statements for the loop to maximize performance
+      db.prepare('UPDATE almacen_conf SET consecutivo_nota = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
+
       const insertItem = db.prepare(`
         INSERT INTO nota_item (
           id, id_nota, id_producto, nombre_producto, cantidad, 
@@ -89,9 +120,7 @@ export const registerNotasHandlers = () => {
         )
       `);
 
-      // --- STEP B: Loop through Items ---
       for (const item of notaData.items) {
-        // 1. Insert Note Detail
         insertItem.run({
           id: uuidv4(),
           id_nota: notaId,
@@ -104,23 +133,17 @@ export const registerNotasHandlers = () => {
           total: item.total
         });
 
-        // 2. Handle Inventory Logic (Only if it's a physical return)
-        // If the user specifies this note returns items to stock (e.g., Devolution)
         if (notaData.afecta_inventario) {
           const currentProduct = getStock.get(item.id_producto);
           
           if (currentProduct) {
             const stockAnterior = currentProduct.stock;
-            // If Credit Note (Devolution), stock goes UP. If Debit (Correction), it might go DOWN.
-            // Assuming Credit Note = items returned to store:
             const stockNuevo = notaData.tipo_nota === 'Crédito' 
               ? stockAnterior + item.cantidad 
               : stockAnterior - item.cantidad;
 
-            // Update Product
             updateStock.run({ stock: stockNuevo, now: now, id: item.id_producto });
 
-            // Log in Inventario table
             insertInventario.run({
               id: uuidv4(),
               producto_id: item.id_producto,
@@ -137,30 +160,25 @@ export const registerNotasHandlers = () => {
         }
       }
 
-      return notaId; // Return the new ID if everything succeeded
+      return notaId;
     });
 
-    // Execute the transaction
     try {
       const newNotaId = createNotaTransaction(data);
       return { success: true, id: newNotaId };
     } catch (error) {
       console.error("Error en transacción de Nota:", error);
-      // better-sqlite3 automatically rolls back changes if an error is thrown inside the transaction!
       return { success: false, error: error.message };
     }
   });
 
 ipcMain.handle("search-factura", (_, numero_factura) => {
     try {
-      // 1. Buscar el encabezado de la factura
       const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ?').get(numero_factura);
       
       if (!maestro) {
         return { success: false, message: 'Factura no encontrada' };
       }
-
-      // 2. Buscar los productos de esa factura
       const detalles = db.prepare('SELECT * FROM ventasDetalle WHERE maestro_id = ?').all(maestro.id);
       
       return { success: true, maestro, detalles };

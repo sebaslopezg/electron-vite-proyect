@@ -35,7 +35,7 @@ export const registerAlmacenConfigHandlers = () => {
         }
     })
 
-    ipcMain.handle("update-almacenConf", (_, item) => {
+ipcMain.handle("update-almacenConf", (_, item) => {
         try {
             const now = new Date().toISOString()
             const user = 'system'
@@ -52,14 +52,15 @@ export const registerAlmacenConfigHandlers = () => {
                     nombreFactura = @nombreFactura,
                     footer_factura = @footer_factura,
                     consecutivo = @consecutivo,
+                    consecutivo_nota = @consecutivo_nota, -- NUEVO CAMPO
                     date_modify = @date_modify,
                     modify_by = @modify_by
                     WHERE id = @id
                 `)
             const info = stmt.run({
                 ...item,
-                date_modify:now,
-                modify_by:user
+                date_modify: now,
+                modify_by: user
             })
             return { success: true, changes: info.changes }
         } catch (error) {
