@@ -45,4 +45,9 @@ contextBridge.exposeInMainWorld("api", {
   getAllConfAlmacen: () => ipcRenderer.invoke("getAll-almacenConf"),
   getOneConfAlmacen: (id) => ipcRenderer.invoke("get-almacenConf", id),
   updateConfAlmacen: (item) => ipcRenderer.invoke("update-almacenConf", item),
+
+  //notas - credito/debito
+  getNotas: () => ipcRenderer.invoke("get-notas"),
+  addNota: (data) => ipcRenderer.invoke("add-nota", data),
+  searchFactura: (numero) => ipcRenderer.invoke("search-factura", numero),
 })
