@@ -5,7 +5,7 @@ import { Clientes } from '../pages/Clientes'
 import { Configuracion } from '../pages/Configuracion'
 import { Bitacoras } from '../pages/Bitacoras'
 import { ProductosIndex } from '../pages/Productos'
-import { Encargos } from '../pages/encargos/Encargos'
+import { IndexEncargos } from '../pages/encargos/Index'
 
 export const MainRoutes = () => {
 
@@ -16,7 +16,7 @@ export const MainRoutes = () => {
             <Route path="/inventario" element={<Inventario />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/productos" element={<ProductosIndex />} />
-            <Route path="/encargos" element={<Encargos />} />
+            <Route path="/encargos" element={<IndexEncargos />} />
             <Route path="/bitacoras" element={<Bitacoras />} />
             <Route path="/configuracion" element={<Configuracion />} />
         </Routes>
