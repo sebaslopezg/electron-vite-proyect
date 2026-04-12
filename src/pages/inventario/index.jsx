@@ -21,6 +21,11 @@ export const Inventario = () => {
     increase: null
   })
 
+  // NUEVOS ESTADOS PARA EL MODAL DE HISTORIAL
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyData, setHistoryData] = useState([])
+  const [historyTitle, setHistoryTitle] = useState('')
+
   const handleClose = () => {
     setShow(false)
     setSelectedProduct(null)
@@ -124,6 +129,7 @@ export const Inventario = () => {
     setForm({ cantidad: '', type: '' })
   }
 
+  // FUNCIÓN ACTUALIZADA: Ahora abre el Modal en lugar del SweetAlert
   const viewHistory = async (row) => {
     try {
       const history = await window.api.getInventarioHistory(row.id)
@@ -137,23 +143,10 @@ export const Inventario = () => {
         return
       }
 
-      // Format history for display
-      const historyHtml = history.map(h => `
-        <div style="text-align: left; padding: 10px; border-bottom: 1px solid #eee;">
-            <strong>Fecha:</strong> ${new Date(h.fecha).toLocaleString('es-ES')}<br>
-            <strong>Tipo:</strong> ${h.tipo_movimiento}<br>
-            <strong>Cantidad:</strong> ${h.cantidad}<br>
-            <strong>Stock:</strong> ${h.stock_anterior} → ${h.stock_nuevo}<br>
-            <strong>Usuario:</strong> ${h.usuario}
-            ${h.notas ? `<br><strong>Notas:</strong> ${h.notas}` : ''}
-        </div>
-      `).join('')
+      setHistoryTitle(`Historial de Movimientos - ${row.ref_name}`)
+      setHistoryData(history)
+      setShowHistory(true)
 
-        Swal.fire({
-            title: `Historial - ${row.ref_name}`,
-            html: `<div style="max-height: 400px; overflow-y: auto;">${historyHtml}</div>`,
-            width: 600
-        })
     } catch (error) {
         console.error('Error al obtener historial:', error)
         Swal.fire({
@@ -206,7 +199,7 @@ export const Inventario = () => {
                             name: 'history',
                             label: 'Historial',
                             icon: 'bi bi-clock-history',
-                            className: 'btn-info',
+                            className: 'btn-info text-white',
                             onClick: viewHistory
                         }
                     ]}
@@ -223,6 +216,7 @@ export const Inventario = () => {
             </div>
         </div>
 
+        {/* MODAL 1: PARA INGRESOS Y EGRESOS */}
         <Modal show={show} onHide={handleClose} size="sm" centered>
             <Modal.Header closeButton>
                 <Modal.Title>{modalInfo.title}</Modal.Title>
@@ -262,6 +256,46 @@ export const Inventario = () => {
             </Button>
         </Modal.Footer>
         </Modal>
-    </>
 
+        {/* MODAL 2: PARA EL HISTORIAL CON TABLA */}
+        <Modal show={showHistory} onHide={() => setShowHistory(false)} size="lg" centered>
+            <Modal.Header closeButton>
+                <Modal.Title>{historyTitle}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <DataTableComponent 
+                    data={historyData}
+                    columns={[
+                        { data: 'fecha', title: 'Fecha' },
+                        { data: 'tipo_movimiento', title: 'Tipo' },
+                        { data: 'cantidad', title: 'Cant.' },
+                        { data: 'stock_anterior', title: 'Antes' },
+                        { data: 'stock_nuevo', title: 'Después' },
+                        { data: 'usuario', title: 'Usuario' },
+                        { data: 'notas', title: 'Notas' }
+                    ]}
+                    customRenders={{
+                        fecha: (data) => new Date(data).toLocaleString('es-CO'),
+                        tipo_movimiento: (data) => {
+                            const val = data ? data.toLowerCase() : '';
+                            let badgeClass = 'secondary';
+                            
+                            // Logica para pintar de verde ingresos, y rojo salidas
+                            if (val === 'ingreso' || val === 'entrada') badgeClass = 'success';
+                            if (val === 'egreso' || val === 'salida') badgeClass = 'danger';
+
+                            return `<span class="badge bg-${badgeClass}">${data.toUpperCase()}</span>`;
+                        },
+                        notas: (data) => data ? `<small class="text-muted">${data}</small>` : '<span class="text-muted">-</span>'
+                    }}
+                />
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowHistory(false)}>
+                    Cerrar
+                </Button>
+            </Modal.Footer>
+        </Modal>
+
+    </>
 }

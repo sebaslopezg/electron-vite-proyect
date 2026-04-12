@@ -197,8 +197,8 @@ export const Facturacion = () => {
     if (recibidoNum < totalFinal) {
       if (metodoPago === 'contado') {
         Swal.fire('Atención', 'Por favor establezca el plazo de la factura', 'warning');
-        setMetodoPago('credito'); // Cambia a crédito automáticamente
-        return; // Detiene la función para que el usuario ingrese los días
+        setMetodoPago('credito');
+        return;
       }
 
       if (metodoPago === 'credito') {
@@ -235,9 +235,10 @@ export const Facturacion = () => {
     const result = await window.api.createVenta(data)
 
     if (result.success) {
-      Swal.fire('Venta exitosa', `Factura #${result.numero_factura} creada`, 'success')
+      Swal.fire('Venta exitosa', `Factura ${result.prefijo}${result.numero_factura} creada`, 'success')
       loadProductos()
       cleanForm();
+      window.dispatchEvent(new CustomEvent('factura-creada'));
     } else {
       Swal.fire('Error', result.error, 'error')
     }

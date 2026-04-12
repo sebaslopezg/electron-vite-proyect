@@ -3,7 +3,6 @@ import DT from 'datatables.net-bs5';
 import { useState, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
-import { Servicios } from './servicios';
 import ProductModal from '../../components/ProductoModal';
 
 DataTable.use(DT);
@@ -11,12 +10,9 @@ DataTable.use(DT);
 export const Productos = () => {
 
   const [show, setShow] = useState(false);
-
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
 
-  //connect to DB
-  const [items, setItems] = useState([])
   const [dataInTable, setDataInTable] = useState([])
 
   const emptyForm = {
@@ -29,7 +25,7 @@ export const Productos = () => {
     descripcion: '',
     precio: 0,
     status: 1,
-    tipo: '',
+    tipo: 'producto',
   }
 
   const [form, setForm] = useState({ ...emptyForm })
@@ -37,7 +33,6 @@ export const Productos = () => {
 
   const load = async () => {
     const data = await window.api.getProductos()
-    setItems(data)
     setDataInTable(data)
   };
 
@@ -47,18 +42,30 @@ export const Productos = () => {
 
   useEffect(() => { load() }, [])
 
+  // CORRECCIÓN 2: Alertas de Éxito y Error
   const handleSubmit = async (e) => {
-
     e.preventDefault()
+    
+    let result;
     if (editingId) {
-      await window.api.updateProducto({ ...form, id: editingId })
-      setEditingId(null)
+      result = await window.api.updateProducto({ ...form, id: editingId })
     } else {
-      await window.api.addProducto(form)
+      result = await window.api.addProducto(form)
     }
-    cleanForm()
-    handleClose()
-    load()
+
+    if (result && result.success) {
+        Swal.fire({
+            title: '¡Éxito!',
+            text: 'Producto guardado correctamente',
+            icon: 'success',
+            timer: 1500
+        });
+        cleanForm()
+        handleClose()
+        load()
+    } else {
+        Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error');
+    }
   }
 
   const handleEdit = (item) => {
@@ -92,6 +99,16 @@ export const Productos = () => {
   }
 
   return <>
+    <div className="mb-3">
+        <button className='btn btn-primary' onClick={() => {
+            setEditingId(null)
+            cleanForm()
+            handleShow()
+        }}>
+            <i className="bi bi-plus-circle me-2"></i>Nuevo Producto
+        </button>
+    </div>
+
     <DataTableComponent
       data={dataInTable}
       columns={[

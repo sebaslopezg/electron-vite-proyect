@@ -24,52 +24,59 @@ export const registerVentasHandlers = () => {
         }
     })
 
-    ipcMain.handle("get-detalle", (_, id) => {
+ipcMain.handle("get-detalle", (_, id) => {
         try {
-            const stmt = db.prepare('SELECT * FROM ventasDetalle WHERE maestro_id = ?')
-            const info = stmt.all(id)
-            return { success: true, data: info }
+            const stmtDetalle = db.prepare('SELECT * FROM ventasDetalle WHERE maestro_id = ?')
+            const info = stmtDetalle.all(id)
+
+            const stmtNotas = db.prepare('SELECT * FROM nota WHERE id_factura_origen = ? AND status = 1')
+            const notas = stmtNotas.all(id)
+
+            return { success: true, data: info, notas: notas }
         } catch (error) {
             console.error("Error al obtener detalle:", error)
             return { success: false, error: error.message }
         }
     })
 
-    ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
+ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
         const transaction = db.transaction((maestroData, detallesData) => {
             const now = new Date().toISOString()
             const maestroId = uuidv4()
 
-            const config = db.prepare('SELECT id, consecutivo FROM almacen_conf LIMIT 1').get()
+            const config = db.prepare('SELECT id, consecutivo, prefijo FROM almacen_conf LIMIT 1').get()
             if (!config) throw new Error("No se encontró configuración del almacén")
             
             const nuevoNumeroFactura = config.consecutivo + 1
+            const prefijoFactura = config.prefijo || ''
 
             const insertMaestro = db.prepare(`
                 INSERT INTO ventasMaestro (
                     id, 
                     numero_factura, 
+                    prefijo,
                     nombre_cliente, 
                     documento_cliente, 
-                    subtotal,          -- NUEVO
-                    descuento,         -- NUEVO
-                    iva,               -- NUEVO
+                    subtotal,          
+                    descuento,         
+                    iva,               
                     total_factura, 
                     total_recibido, 
                     saldo_pendiente,
                     metodo_pago,
                     date_created, 
                     status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             `)
             insertMaestro.run(
                 maestroId,
                 nuevoNumeroFactura,
+                prefijoFactura,
                 maestroData.nombre_cliente,
                 maestroData.documento_cliente,
-                maestroData.subtotal,
-                maestroData.descuento,
-                maestroData.iva,
+                maestroData.subtotal,          
+                maestroData.descuento,         
+                maestroData.iva,               
                 maestroData.total,
                 maestroData.total_recibido,
                 maestroData.saldo_pendiente,
@@ -79,11 +86,9 @@ export const registerVentasHandlers = () => {
 
             db.prepare('UPDATE almacen_conf SET consecutivo = ? WHERE id = ?').run(nuevoNumeroFactura, config.id)
 
-            // 2. Process each item
             for (const item of detallesData) {
                 const detalleId = uuidv4()
 
-                // A. Insert into VentasDetalle
                 const insertDetalle = db.prepare(`
                     INSERT INTO ventasDetalle (
                         id, 
@@ -108,15 +113,12 @@ export const registerVentasHandlers = () => {
                     now
                 )
 
-                // B. Get current stock for inventory log
                 const producto = db.prepare("SELECT stock FROM producto WHERE id = ?").get(item.id)
                 const stockAnterior = producto.stock
                 const stockNuevo = stockAnterior - item.cantidad
 
-                // C. Update Product Stock
                 db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.id)
 
-                // D. Register Inventory Movement
                 const insertInventario = db.prepare(`
                     INSERT INTO inventario (
                         id, 
@@ -142,10 +144,11 @@ export const registerVentasHandlers = () => {
                 )
             }
 
-            return {
+            return { 
                 success: true, 
                 maestroId, 
-                numero_factura: nuevoNumeroFactura
+                numero_factura: nuevoNumeroFactura, 
+                prefijo: prefijoFactura 
             }
         })
 

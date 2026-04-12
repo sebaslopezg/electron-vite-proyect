@@ -78,6 +78,26 @@ export const registerProductoHandlers = () => {
         status: status
       })
 
+      if (item.stock > 0) {
+        db.prepare(`
+          INSERT INTO inventario (
+            id, 
+            producto_id, 
+            tipo_movimiento, 
+            modulo_movimiento, 
+            cantidad, 
+            stock_anterior, 
+            stock_nuevo, 
+            fecha, 
+            usuario, 
+            notas
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          uuidv4(), id, 'ingreso', 'creacion_producto', 
+          item.stock, 0, item.stock, now, 'system', 'Stock inicial al crear producto'
+        );
+      }
+
       return { success: true, id: id, changes: info.changes }
 
     } catch (error) {

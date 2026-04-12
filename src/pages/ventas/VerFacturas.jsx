@@ -2,22 +2,37 @@ import { useEffect, useState } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
 import { useFacturas } from "../../hooks/useFacturas"
 import Modal from 'react-bootstrap/Modal'
-import { Button, Row, Col } from 'react-bootstrap'
+import { Button, Row, Col, Table } from 'react-bootstrap'
 
 export const VerFacturas = () => {
     const { facturas, loading, reload } = useFacturas();
     const [show, setShow] = useState(false)
     const [detalleData, setDetalleData] = useState([])
-    
-    // NUEVO ESTADO: Para guardar la información general de la factura
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
+    
+    const [notasFactura, setNotasFactura] = useState([])
 
     const handleClose = () => {
         setShow(false)
         setFacturaSeleccionada(null)
+        setNotasFactura([]) 
     }
     const handleShow = () => setShow(true)
 
+    // NUEVO EFECTO: Escuchar cuando se crea una factura para recargar automáticamente
+    useEffect(() => {
+        const handleNuevaFactura = () => {
+            reload(); // Ejecuta la función de recarga de tu hook
+        };
+        window.addEventListener('factura-creada', handleNuevaFactura);
+        
+        // Limpiar el evento cuando el componente se desmonte
+        return () => {
+            window.removeEventListener('factura-creada', handleNuevaFactura);
+        }
+    }, [reload])
+
+    // EFECTO EXISTENTE: Clics en la tabla
     useEffect(() => {
         const handleClicks = (e) => {
             const id = e.target.getAttribute('data-id') || e.target.closest('button')?.getAttribute('data-id');
@@ -31,29 +46,32 @@ export const VerFacturas = () => {
         return () => {
             document.removeEventListener('click', handleClicks)
         }
-    }, [facturas]) // <-- Importante añadir 'facturas' aquí para que el click handler siempre tenga la data fresca
+    }, [facturas]) 
 
     const verDetalle = async (facturaId) => {
-        // 1. Buscamos la información general de la factura en el estado actual
         const selected = facturas.find(f => f.id === facturaId)
         setFacturaSeleccionada(selected || null)
 
-        // 2. Traemos los productos de esa factura
-        const data = await window.api.getDetalle(facturaId)
-        setDetalleData(data.data)
-        handleShow()
+        const response = await window.api.getDetalle(facturaId)
+        if (response.success) {
+            setDetalleData(response.data)
+            setNotasFactura(response.notas || []) 
+            handleShow()
+        }
     }
 
     return <>
-        <button className="btn btn-outline-primary mb-3" onClick={reload}>
-            <i className="bi bi-arrow-clockwise me-2"></i>Actualizar Listado
-        </button>
+        {/* EL BOTÓN DE ACTUALIZAR FUE ELIMINADO */}
 
         <DataTableComponent
             data={facturas}
             columns={[
                 { data: 'date_created', title: 'Fecha' },
-                { data: 'numero_factura', title: 'N° Factura' },
+                { 
+                    data: null, 
+                    title: 'N° Factura',
+                    render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
+                },
                 { data: 'documento_cliente', title: 'Doc Cliente' },
                 { data: 'nombre_cliente', title: 'Nombre Cliente' },
                 {
@@ -65,14 +83,14 @@ export const VerFacturas = () => {
 
                         if (row.metodo_pago === 'credito') {
                             if (!row.total_recibido || row.total_recibido === 0) {
-                                badges += '<span class="badge bg-danger me-1">Crédito</span>';
+                                badges += '<span class="badge bg-danger me-1">Crédito (Sin Abonos)</span>';
                             } else if (row.saldo_pendiente > 0) {
-                                badges += '<span class="badge bg-warning text-dark me-1">Crédito</span>';
+                                badges += '<span class="badge bg-warning text-dark me-1">Crédito (Abonado)</span>';
                             } else {
-                                badges += '<span class="badge bg-success me-1">Crédito</span>';
+                                badges += '<span class="badge bg-success me-1">Crédito (Pagado)</span>';
                             }
                         } else {
-                            badges += '<span class="badge bg-secondary me-1">Contado</span>';
+                            badges += '<span class="badge bg-primary me-1">Contado</span>';
                         }
 
                         if (row.notas_aplicadas) {
@@ -108,12 +126,12 @@ export const VerFacturas = () => {
         <Modal show={show} onHide={handleClose} size="lg" centered>
             <Modal.Header closeButton>
                 <Modal.Title>
-                    Detalles de la Factura {facturaSeleccionada ? `#${facturaSeleccionada.numero_factura}` : ''}
+                    Detalles de la Factura {facturaSeleccionada ? `${facturaSeleccionada.prefijo || ''}${facturaSeleccionada.numero_factura}` : ''}                
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
                 
-                {/* CABECERA DEL MODAL: Info del Cliente y Estado */}
+                {/* CABECERA DEL MODAL */}
                 {facturaSeleccionada && (
                     <div className="bg-light p-3 rounded mb-3 border">
                         <Row>
@@ -160,6 +178,43 @@ export const VerFacturas = () => {
                         <p className="mb-2"><strong>IVA:</strong> ${(facturaSeleccionada.iva || 0).toLocaleString('es-CO')}</p>
                         <hr className="my-2" />
                         <h4 className="mb-0 text-primary"><strong>Total Factura:</strong> ${(facturaSeleccionada.total_factura || 0).toLocaleString('es-CO')}</h4>
+                    </div>
+                )}
+
+                {/* NUEVA SECCIÓN: NOTAS APLICADAS */}
+                {notasFactura.length > 0 && (
+                    <div className="mt-4">
+                        <h6 className="text-danger fw-bold border-bottom pb-2">
+                            <i className="bi bi-file-earmark-minus me-2"></i>Notas Aplicadas a esta Factura
+                        </h6>
+                        <Table size="sm" bordered hover className="mt-2 text-center align-middle">
+                            <thead className="table-light">
+                                <tr>
+                                    <th>N° Nota</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha</th>
+                                    <th>Motivo DIAN</th>
+                                    <th>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {notasFactura.map((nota, idx) => (
+                                    <tr key={idx}>
+                                        <td>{nota.prefijo}-{nota.numero_nota}</td>
+                                        <td>
+                                            <span className={`badge ${nota.tipo_nota === 'Crédito' ? 'bg-warning text-dark' : 'bg-secondary'}`}>
+                                                Nota {nota.tipo_nota}
+                                            </span>
+                                        </td>
+                                        <td>{new Date(nota.date_created).toLocaleDateString('es-CO')}</td>
+                                        <td><small>{nota.motivo_dian}</small></td>
+                                        <td className={nota.tipo_nota === 'Crédito' ? 'text-danger fw-bold' : 'text-primary fw-bold'}>
+                                            {nota.tipo_nota === 'Crédito' ? '-' : '+'}${(nota.total_final || 0).toLocaleString('es-CO')}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </Table>
                     </div>
                 )}
 
