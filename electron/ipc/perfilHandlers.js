@@ -3,6 +3,17 @@ import { v4 as uuidv4 } from 'uuid'
 import { appDb } from "../database/index.js"
 import fs from 'fs'
 import path from 'path'
+import Database from 'better-sqlite3'
+
+// Función auxiliar para formatear los bytes a KB/MB
+const formatBytes = (bytes, decimals = 2) => {
+    if (!+bytes) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
 
 export const registerPerfilHandlers = () => {
 
@@ -17,7 +28,6 @@ export const registerPerfilHandlers = () => {
     ipcMain.handle("add-perfil", (_, data) => {
         try {
             const id = uuidv4()
-            // Creamos un nombre de archivo seguro sin espacios ni caracteres raros
             const safeName = data.nombre.toLowerCase().replace(/[^a-z0-9]/g, '_');
             const filename = `store_${safeName}_${Date.now()}.db`;
             
@@ -34,14 +44,12 @@ export const registerPerfilHandlers = () => {
 
     ipcMain.handle("switch-perfil", (_, id) => {
         try {
-            // Transacción: Desactivamos todos, y activamos solo el seleccionado
             const transaction = appDb.transaction(() => {
                 appDb.prepare("UPDATE perfiles SET is_active = 0").run();
                 appDb.prepare("UPDATE perfiles SET is_active = 1 WHERE id = ?").run(id);
             });
             transaction();
 
-            // REINICIAMOS LA APP DE ELECTRON PARA APLICAR CAMBIOS SEGUROS
             app.relaunch();
             app.exit(0);
             return { success: true };
@@ -59,17 +67,55 @@ export const registerPerfilHandlers = () => {
                 return { success: false, error: "Seguridad: No se puede eliminar el perfil principal del sistema." };
             }
             if (perfil.is_active === 1) {
-                return { success: false, error: "No se puede eliminar un perfil que está actualmente en uso. Cambie a otro primero." };
+                return { success: false, error: "No se puede eliminar un perfil en uso." };
             }
 
             appDb.prepare("DELETE FROM perfiles WHERE id = ?").run(id);
 
             const dbPath = path.join(app.getPath("userData"), "app2", perfil.filename);
-            if (fs.existsSync(dbPath)) {
-                fs.unlinkSync(dbPath);
-            }
+            if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath); 
 
             return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    })
+
+    // --- NUEVO: Obtener estadísticas de la Base de Datos ---
+    ipcMain.handle("get-perfil-stats", (_, filename) => {
+        try {
+            const dbPath = path.join(app.getPath("userData"), "app2", filename);
+            
+            if (!fs.existsSync(dbPath)) {
+                return { success: false, error: "El archivo físico de la base de datos no existe." };
+            }
+
+            // 1. Obtener tamaño del archivo
+            const stats = fs.statSync(dbPath);
+            const sizeFormatted = formatBytes(stats.size);
+
+            // 2. Abrir conexión temporal en modo solo lectura
+            const tempDb = new Database(dbPath, { readonly: true });
+            
+            // 3. Buscar todas las tablas (ignorando las del sistema interno de sqlite)
+            const tables = tempDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
+            
+            // 4. Contar las filas de cada tabla
+            const tableStats = tables.map(t => {
+                const countRow = tempDb.prepare(`SELECT COUNT(*) as count FROM ${t.name}`).get();
+                return {
+                    name: t.name,
+                    rows: countRow.count
+                };
+            });
+
+            tempDb.close(); // Cerrar conexión temporal
+
+            return { 
+                success: true, 
+                size: sizeFormatted, 
+                tables: tableStats 
+            };
         } catch (error) {
             return { success: false, error: error.message };
         }

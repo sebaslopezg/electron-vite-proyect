@@ -12,6 +12,9 @@ export const Configuracion = () => {
     const [perfiles, setPerfiles] = useState([]);
     const [showPerfilModal, setShowPerfilModal] = useState(false);
     const [nuevoPerfilNombre, setNuevoPerfilNombre] = useState('');
+    const [showStatsModal, setShowStatsModal] = useState(false);
+    const [statsData, setStatsData] = useState({ nombre: '', filename: '', size: '0 KB', tables: [] });
+    const [loadingStats, setLoadingStats] = useState(false);
 
     useEffect(() => {
         const handleReactSwitch = (e) => handleSwitchPerfil(e.detail.id, e.detail.nombre);
@@ -135,17 +138,40 @@ export const Configuracion = () => {
         }
     }
 
+    const handleShowStats = async (filename, nombre) => {
+        setLoadingStats(true);
+        setStatsData({ nombre, filename, size: 'Calculando...', tables: [] });
+        setShowStatsModal(true);
+
+        const result = await window.api.getPerfilStats(filename);
+        if (result.success) {
+            setStatsData({
+                nombre,
+                filename,
+                size: result.size,
+                tables: result.tables
+            });
+        } else {
+            setShowStatsModal(false);
+            Swal.fire('Error', result.error, 'error');
+        }
+        setLoadingStats(false);
+    }
+
     useEffect(() => { 
         load() 
         const handleReactSwitch = (e) => handleSwitchPerfil(e.detail.id, e.detail.nombre);
         const handleReactDelete = (e) => handleDeletePerfil(e.detail.id, e.detail.nombre);
+        const handleReactStats = (e) => handleShowStats(e.detail.filename, e.detail.nombre);
         
         window.addEventListener('react-switch-perfil', handleReactSwitch);
-        window.addEventListener('react-delete-perfil', handleReactDelete); // <--- NUEVO
+        window.addEventListener('react-delete-perfil', handleReactDelete);
+        window.addEventListener('react-stats-perfil', handleReactStats);
         
         return () => {
             window.removeEventListener('react-switch-perfil', handleReactSwitch);
             window.removeEventListener('react-delete-perfil', handleReactDelete);
+            window.removeEventListener('react-stats-perfil', handleReactStats);
         }
     }, [])
 
@@ -237,8 +263,13 @@ export const Configuracion = () => {
 
                                         let switchBtn = isActive 
                                             ? `<button class="btn btn-sm btn-light me-2" disabled>En uso</button>`
-                                            : `<button class="btn btn-sm btn-primary text-white me-2" onclick="document.dispatchEvent(new CustomEvent('switch-perfil-action', {detail: {id: '${row.id}', nombre: '${row.nombre}'}}))">
-                                                    <i class="bi bi-box-arrow-in-right me-1"></i> Cargar
+                                            : `<button class="btn btn-sm btn-primary text-white me-2" onclick="document.dispatchEvent(new CustomEvent('switch-perfil-action', {detail: {id: '${row.id}', nombre: '${row.nombre}'}}))" title="Cargar Perfil">
+                                                    <i class="bi bi-box-arrow-in-right"></i>
+                                               </button>`;
+                                        
+                                        // --- NUEVO BOTÓN INFO ---
+                                        let infoBtn = `<button class="btn btn-sm btn-info text-white me-2" onclick="document.dispatchEvent(new CustomEvent('stats-perfil-action', {detail: {filename: '${row.filename}', nombre: '${row.nombre}'}}))" title="Información de la Base de Datos">
+                                                    <i class="bi bi-info-circle"></i>
                                                </button>`;
                                         
                                         let deleteBtn = (isMain || isActive)
@@ -247,7 +278,7 @@ export const Configuracion = () => {
                                                     <i class="bi bi-trash3"></i>
                                                </button>`;
 
-                                        return switchBtn + deleteBtn;
+                                        return switchBtn + infoBtn + deleteBtn;
                                     }
                                 }
                             ]}
@@ -283,6 +314,57 @@ export const Configuracion = () => {
                 <Button variant="danger" type="submit" form="perfilForm">Crear Perfil</Button>
             </Modal.Footer>
         </Modal>
+
+        <Modal show={showStatsModal} onHide={() => setShowStatsModal(false)} centered scrollable>
+            <Modal.Header closeButton className="bg-light">
+                <Modal.Title className="fs-5">
+                    <i className="bi bi-server me-2 text-primary"></i>
+                    Información de Datos
+                </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <div className="text-center mb-4">
+                    <h5 className="mb-0 fw-bold">{statsData.nombre}</h5>
+                    <code className="text-muted">{statsData.filename}</code>
+                </div>
+
+                <Row className="mb-3">
+                    <Col>
+                        <div className="border rounded p-3 text-center bg-white shadow-sm">
+                            <h6 className="text-muted mb-1">Peso en Disco</h6>
+                            <h3 className="text-primary mb-0">{statsData.size}</h3>
+                        </div>
+                    </Col>
+                </Row>
+
+                <h6 className="fw-bold border-bottom pb-2 mt-4 mb-3">Desglose de Tablas</h6>
+                {loadingStats ? (
+                    <div className="text-center py-3"><div className="spinner-border text-primary" role="status"></div></div>
+                ) : (
+                    <div className="table-responsive">
+                        <table className="table table-hover table-sm border align-middle">
+                            <thead className="table-light">
+                                <tr>
+                                    <th>Nombre de la Tabla</th>
+                                    <th className="text-center">Total Registros</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {statsData.tables.map((t, index) => (
+                                    <tr key={index}>
+                                        <td className="text-capitalize"><i className="bi bi-table me-2 text-muted"></i> {t.name}</td>
+                                        <td className="text-center"><span className="badge bg-secondary rounded-pill">{t.rows}</span></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowStatsModal(false)}>Cerrar</Button>
+            </Modal.Footer>
+        </Modal>
     </>
 }
 
@@ -292,4 +374,8 @@ document.addEventListener('switch-perfil-action', (e) => {
 
 document.addEventListener('delete-perfil-action', (e) => {
     window.dispatchEvent(new CustomEvent('react-delete-perfil', { detail: e.detail }));
+});
+
+document.addEventListener('stats-perfil-action', (e) => {
+    window.dispatchEvent(new CustomEvent('react-stats-perfil', { detail: e.detail }));
 });
