@@ -14,6 +14,7 @@ export function createVentasDetalleTable() {
       descuento REAL,
       subtotal REAL,
       total REAL,
+      is_encargo INTEGER,
       status INTEGER,
       date_created TEXT,
       FOREIGN KEY (maestro_id) REFERENCES ventasMaestro(id)
