@@ -23,10 +23,24 @@ export const registerCategoriaHandlers = () => {
         try {
             const id = uuidv4()
             const stmt = db.prepare(`
-                INSERT INTO categoria (id, nombre, descripcion, sku_prefix, status) 
-                VALUES (@id, @nombre, @descripcion, @sku_prefix, 1)
+                INSERT INTO categoria (
+                    id, 
+                    nombre, 
+                    descripcion, 
+                    sku_prefix, 
+                    separador, 
+                    status
+                ) 
+                VALUES (
+                    @id, 
+                    @nombre, 
+                    @descripcion, 
+                    @sku_prefix, 
+                    @separador, 
+                    1
+                )
             `)
-            const info = stmt.run({ ...item, id })
+            const info = stmt.run({ ...item, separador: item.separador || '', id })
             return { success: true, id, changes: info.changes }
         } catch (error) {
             return { success: false, error: error.message }
@@ -39,10 +53,11 @@ export const registerCategoriaHandlers = () => {
                 UPDATE categoria SET 
                     nombre = @nombre, 
                     descripcion = @descripcion, 
-                    sku_prefix = @sku_prefix 
+                    sku_prefix = @sku_prefix,
+                    separador = @separador
                 WHERE id = @id
             `)
-            const info = stmt.run(item)
+            const info = stmt.run({ ...item, separador: item.separador || '' })
             return { success: true, changes: info.changes }
         } catch (error) {
             return { success: false, error: error.message }

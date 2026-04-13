@@ -1,201 +1,205 @@
-import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
+import Modal from 'react-bootstrap/Modal'
+import Button from 'react-bootstrap/Button'
+import Form from 'react-bootstrap/Form'
+import InputGroup from 'react-bootstrap/InputGroup'
+import { Row, Col } from 'react-bootstrap'
 
-const ProductModal = ({
-    show,
-    handleClose,
-    handleSubmit,
-    form,
-    setForm,
-    editingId
-}) => {
-
-    const handleInputChange = (field, value) => {
-        setForm({ ...form, [field]: value });
+export default function ProductModal({ show, handleClose, handleSubmit, form, setForm, editingId, categorias = [], etiquetas = [] }) {
+    
+    // --- NUEVA FUNCIÓN PARA EL CONTRASTE DE TEXTO ---
+    const getContrastText = (hexcolor) => {
+        if (!hexcolor) return '#000000';
+        const hex = hexcolor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        // Si el color es claro (>= 128), el texto será negro. Si es oscuro, será blanco.
+        return (yiq >= 128) ? '#000000' : '#ffffff';
     };
+    // ------------------------------------------------
 
-    const handleTipoChange = (nuevoTipo) => {
-        setForm({
-            ...form,
-            tipo: nuevoTipo,
-            iva: nuevoTipo === "servicio" ? 0 : form.iva,
-            stock: nuevoTipo === "servicio" ? 0 : form.stock,
-            unidad_medida: nuevoTipo === "servicio" ? "un" : form.unidad_medida,
-            allow_negative: nuevoTipo === "servicio" ? 0 : form.allow_negative
+    const etiquetasFiltradas = etiquetas.filter(tag => {
+        if (!tag.categorias_ids) return false;
+        const catIds = tag.categorias_ids.split(',');
+        return catIds.includes(form.categoria_id);
+    });
+
+    const selectedCategory = categorias.find(cat => cat.id === form.categoria_id);
+    const skuPrefix = selectedCategory?.sku_prefix;
+    const skuSeparator = selectedCategory?.separador || '';
+
+    const handleTagToggle = (tagId) => {
+        setForm(prev => {
+            const current = prev.etiquetas || [];
+            if (current.includes(tagId)) {
+                return { ...prev, etiquetas: current.filter(id => id !== tagId) };
+            } else {
+                return { ...prev, etiquetas: [...current, tagId] };
+            }
         });
     };
 
-    const isService = form.tipo === "servicio";
-
     return (
-        <Modal show={show} onHide={handleClose} size="lg" centered>
+        <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton>
                 <Modal.Title>{editingId ? 'Editar Producto' : 'Crear Producto'}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <Form onSubmit={handleSubmit}>
-                    <Col md={6}>
-                        <Form.Group className="mb-3">
-                            <Form.Label htmlFor="tipo">Tipo de producto</Form.Label>
-                            <Form.Select
-                                id='tipo'
-                                value={form.tipo}
-                                onChange={(e) => handleTipoChange(e.target.value)}
-                            >
-                                <option>Tipo de producto</option>
-                                <option value="producto">Producto</option>
-                                <option value="servicio">Servicio</option>
-                            </Form.Select>
-                        </Form.Group>
-                    </Col>
-
-                    <Row>
+                {/* ... (Todo tu formulario superior queda exactamente igual hasta llegar a las etiquetas) ... */}
+                <Form onSubmit={handleSubmit} id="productoForm">
+                    
+                    <Row className="mb-3">
                         <Col md={6}>
-                            <Form.Group className="mb-3">
-                                <Form.Label htmlFor="skuCode">Código SKU</Form.Label>
-                                <Form.Control
-                                    id='skuCode'
-                                    value={form.sku}
-                                    onChange={(e) => handleInputChange('sku', e.target.value)}
-                                    type="text"
-                                    placeholder="SKU-001"
-                                    required
-                                />
-                            </Form.Group>
-                        </Col>
-                        <Col md={6}>
-                            <Form.Group className="mb-3">
-                                <Form.Label htmlFor="nombre">Nombre</Form.Label>
-                                <Form.Control
-                                    id='nombre'
-                                    value={form.ref_name}
-                                    onChange={(e) => handleInputChange('ref_name', e.target.value)}
-                                    type="text"
-                                    placeholder="mi producto"
-                                    required
-                                />
-                            </Form.Group>
-                        </Col>
-                    </Row>
-
-                    <Row>
-                        <Col md={6}>
-                            <Form.Group className="mb-3">
-                                <Form.Label htmlFor="precio">Precio</Form.Label>
-                                <Form.Control
-                                    id='precio'
-                                    value={form.precio}
-                                    onChange={(e) => handleInputChange('precio', e.target.value)}
-                                    type="number"
-                                    placeholder="Precio del producto"
-                                    required
-                                />
-                            </Form.Group>
-                        </Col>
-                        <Col md={6}>
-                            <Form.Group className="mb-3">
-                                <Form.Label htmlFor="iva">IVA (%)</Form.Label>
-                                <Form.Control
-                                    id="iva"
-                                    value={form.iva}
-                                    onChange={(e) => handleInputChange('iva', e.target.value)}
-                                    type="number"
-                                    placeholder="Porcentaje de IVA"
-                                    disabled={isService}
-                                    required
-                                />
-                            </Form.Group>
-                        </Col>
-                    </Row>
-
-                    <Row>
-                        <Col md={6}>
-                            <Form.Group className="mb-3">
-                                <Form.Label htmlFor="initialStock">Stock inicial</Form.Label>
-                                <Form.Control
-                                    id='initialStock'
-                                    value={form.stock}
-                                    onChange={(e) => handleInputChange('stock', e.target.value)}
-                                    type="number"
-                                    placeholder="Cantidad inicial del producto"
-                                    required
-                                    disabled={isService}
-                                />
-                            </Form.Group>
-                        </Col>
-                        <Col md={6}>
-                            <Form.Group className="mb-3">
-                                <Form.Label htmlFor="unidad_medida">Unidad de medida</Form.Label>
-                                <Form.Select
-                                    id='unidad_medida'
-                                    value={form.unidad_medida}
-                                    disabled={isService}
-                                    onChange={(e) => handleInputChange('unidad_medida', e.target.value)}
-                                >
-                                    <option>Unidad de medida</option>
-                                    <option value="un">Unidad</option>
-                                    <option value="kg">Kilo Gramos (kg)</option>
-                                    <option value="g">Gramos (g)</option>
-                                    <option value="cajas">Cajas</option>
-                                </Form.Select>
-                            </Form.Group>
-                        </Col>
-                    </Row>
-
-                    <Row>
-                        <Col md={6}>
-                            <Form.Group className="mb-3">
-                                <Form.Label></Form.Label>
-                                <Form.Check
-                                    checked={form.allow_negative === 1}
-                                    onChange={(e) => handleInputChange('allow_negative', e.target.checked ? 1 : 0)}
-                                    type="switch"
-                                    id="custom-switch"
-                                    label="Permitir negativos"
-                                    disabled={isService}
-                                />
-                            </Form.Group>
-                        </Col>
-                        <Col md={6}>
-                            <Form.Group className="mb-3">
-                                <Form.Label htmlFor="status">Estado</Form.Label>
-                                <Form.Select
-                                    id='status'
-                                    value={form.status}
-                                    onChange={(e) => handleInputChange('status', e.target.value)}
-                                >
-                                    <option value="1">Activo</option>
-                                    <option value="2">Inactivo</option>
-                                </Form.Select>
-                            </Form.Group>
-                        </Col>
-                    </Row>
-
-                    <Row>
-                        <Col>
                             <Form.Group>
-                                <Form.Label htmlFor="descripcion">Descripcion</Form.Label>
-                                <Form.Control
-                                    id='descripcion'
-                                    value={form.descripcion}
-                                    onChange={(e) => handleInputChange('descripcion', e.target.value)}
-                                    as="textarea"
-                                    rows={3}
-                                />
+                                <Form.Label>Tipo de producto</Form.Label>
+                                <Form.Select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
+                                    <option value="producto">Producto</option>
+                                    <option value="servicio">Servicio</option>
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label>Categoría</Form.Label>
+                                <Form.Select value={form.categoria_id} onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}>
+                                    {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                </Form.Select>
                             </Form.Group>
                         </Col>
                     </Row>
+
+                    <Row className="mb-3">
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label>Código SKU</Form.Label>
+                                <InputGroup>
+                                    {skuPrefix && <InputGroup.Text>{skuPrefix}{skuSeparator}</InputGroup.Text>}
+                                    <Form.Control 
+                                        value={form.sku} 
+                                        onChange={(e) => setForm({ ...form, sku: e.target.value })} 
+                                        style={{ textTransform: 'uppercase' }} 
+                                    />
+                                </InputGroup>
+                            </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label>Nombre</Form.Label>
+                                <Form.Control value={form.ref_name} onChange={(e) => setForm({ ...form, ref_name: e.target.value })} required />
+                            </Form.Group>
+                        </Col>
+                    </Row>
+
+                    <Row className="mb-3">
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label>Precio</Form.Label>
+                                <Form.Control type="number" value={form.precio} onChange={(e) => setForm({ ...form, precio: e.target.value })} required />
+                            </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label>IVA (%)</Form.Label>
+                                <Form.Control type="number" value={form.iva} onChange={(e) => setForm({ ...form, iva: e.target.value })} />
+                            </Form.Group>
+                        </Col>
+                    </Row>
+
+                    <Row className="mb-3">
+                        <Col md={4}>
+                            <Form.Group>
+                                <Form.Label>Stock inicial</Form.Label>
+                                <Form.Control type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} disabled={!!editingId} />
+                            </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                            <Form.Group>
+                                <Form.Label>Stock Mínimo</Form.Label>
+                                <Form.Control type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: e.target.value })} />
+                            </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                            <Form.Group>
+                                <Form.Label>Stock Máximo</Form.Label>
+                                <Form.Control type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: e.target.value })} />
+                            </Form.Group>
+                        </Col>
+                    </Row>
+
+                    <Row className="mb-3">
+                        <Col md={6} className="d-flex align-items-center">
+                            <Form.Check 
+                                type="switch" 
+                                label="Permitir negativos" 
+                                checked={form.allow_negative === 1 || form.allow_negative === true}
+                                onChange={(e) => setForm({ ...form, allow_negative: e.target.checked ? 1 : 0 })} 
+                            />
+                        </Col>
+                        <Col md={3}>
+                            <Form.Group>
+                                <Form.Label>Unidad de medida</Form.Label>
+                                <Form.Select value={form.unidad_medida} onChange={(e) => setForm({ ...form, unidad_medida: e.target.value })}>
+                                    <option value="Unidad">Unidad</option>
+                                    <option value="Kg">Kg</option>
+                                    <option value="Litro">Litro</option>
+                                    <option value="Caja">Caja</option>
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                        <Col md={3}>
+                            <Form.Group>
+                                <Form.Label>Estado</Form.Label>
+                                <Form.Select value={form.status} onChange={(e) => setForm({ ...form, status: parseInt(e.target.value) })}>
+                                    <option value={1}>Activo</option>
+                                    <option value={2}>Inactivo</option>
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                    </Row>
+
+                    {/* SECCIÓN DE ETIQUETAS DINÁMICAS ACTUALIZADA */}
+                    {etiquetasFiltradas.length > 0 && (
+                        <div className="mb-3 p-3 bg-light border rounded">
+                            <Form.Label className="fw-bold d-block mb-2">Etiquetas de la Categoría</Form.Label>
+                            <div className="d-flex flex-wrap gap-3">
+                                {etiquetasFiltradas.map(tag => {
+                                    // CAMBIO AQUÍ: Calculamos el color del texto para esta etiqueta en específico
+                                    const textColor = getContrastText(tag.color);
+                                    
+                                    return (
+                                        <Form.Check 
+                                            key={tag.id}
+                                            type="checkbox"
+                                            id={`tag-${tag.id}`}
+                                            label={
+                                                <span 
+                                                    className="badge" 
+                                                    style={{ backgroundColor: tag.color, color: textColor }} // <-- APLICADO AQUÍ
+                                                >
+                                                    {tag.nombre}
+                                                </span>
+                                            }
+                                            checked={(form.etiquetas || []).includes(tag.id)}
+                                            onChange={() => handleTagToggle(tag.id)}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    <Form.Group className="mb-3">
+                        <Form.Label>Descripcion</Form.Label>
+                        <Form.Control as="textarea" rows={3} value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
+                    </Form.Group>
+
                 </Form>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="secondary" onClick={handleClose}>
-                    Cancelar
-                </Button>
-                <Button variant="primary" onClick={handleSubmit}>
-                    {editingId ? 'Actualizar' : 'Guardar'}
-                </Button>
+                <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
+                <Button variant="primary" type="submit" form="productoForm">Guardar</Button>
             </Modal.Footer>
         </Modal>
-    );
-};
-
-export default ProductModal;
+    )
+}

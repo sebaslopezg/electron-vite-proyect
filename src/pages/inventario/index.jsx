@@ -3,12 +3,19 @@ import DataTableComponent from '../../components/DataTableComponent'
 import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
+import { Row, Col } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 
 export const Inventario = () => {
   const [show, setShow] = useState(false)
   const [dataInTable, setDataInTable] = useState([])
   const [selectedProduct, setSelectedProduct] = useState(null)
+
+  // ESTADOS PARA LOS FILTROS
+  const [categoriasList, setCategoriasList] = useState([])
+  const [etiquetasList, setEtiquetasList] = useState([])
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterTag, setFilterTag] = useState('')
 
   const [form, setForm] = useState({ 
     cantidad: '',
@@ -21,7 +28,7 @@ export const Inventario = () => {
     increase: null
   })
 
-  // NUEVOS ESTADOS PARA EL MODAL DE HISTORIAL
+  // ESTADOS PARA EL MODAL DE HISTORIAL
   const [showHistory, setShowHistory] = useState(false)
   const [historyData, setHistoryData] = useState([])
   const [historyTitle, setHistoryTitle] = useState('')
@@ -34,14 +41,36 @@ export const Inventario = () => {
 
   const handleShow = () => setShow(true)
 
+  // ACTUALIZADO: Cargamos Inventario, Categorías y Etiquetas al mismo tiempo
   const load = async () => {
-    const data = await window.api.getInventario()
-    setDataInTable(data)
+    const [invData, cats, tags] = await Promise.all([
+        window.api.getInventario(),
+        window.api.getCategorias(),
+        window.api.getEtiquetas()
+    ]);
+    setDataInTable(invData || [])
+    setCategoriasList(cats || [])
+    setEtiquetasList(tags || [])
   }
 
   useEffect(() => { 
     load() 
   }, [])
+
+  // NUEVO: Lógica de filtrado en tiempo real
+  const filteredData = dataInTable.filter(item => {
+      // 1. Filtrar por categoría
+      if (filterCategory && item.categoria_id !== filterCategory) return false;
+      
+      // 2. Filtrar por etiqueta
+      if (filterTag) {
+          if (!item.etiquetas_ids) return false;
+          const tagsArray = item.etiquetas_ids.split(',');
+          if (!tagsArray.includes(filterTag)) return false;
+      }
+      
+      return true;
+  });
 
   const handleIncrease = async (row) => {
     setSelectedProduct(row)
@@ -73,20 +102,12 @@ export const Inventario = () => {
 
   const handleSave = async () => {
     if (!selectedProduct) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'No hay producto seleccionado'
-      })
+      Swal.fire({ icon: 'error', title: 'Error', text: 'No hay producto seleccionado' })
       return
     }
 
     if (!form.cantidad || parseFloat(form.cantidad) <= 0) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'La cantidad debe ser mayor a 0'
-      })
+      Swal.fire({ icon: 'error', title: 'Error', text: 'La cantidad debe ser mayor a 0' })
       return
     }
 
@@ -95,8 +116,8 @@ export const Inventario = () => {
         id: selectedProduct.id,
         cantidad: parseFloat(form.cantidad),
         type: form.type,
-        usuario: 'current_user', // You can replace this with actual user
-        notas: '' // Optional notes
+        usuario: 'current_user',
+        notas: '' 
       })
 
       if (result.success) {
@@ -107,21 +128,12 @@ export const Inventario = () => {
             timer: 2000
         })
         handleClose()
-        load() // Reload the table
+        load() 
       } else {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: result.error || 'No se pudo actualizar el inventario'
-        })
+        Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo actualizar el inventario' })
       }
     } catch (error) {
-      console.error('Error al guardar inventario:', error)
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Ocurrió un error al procesar la solicitud'
-      })
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Ocurrió un error al procesar la solicitud' })
     }
   }
 
@@ -129,17 +141,12 @@ export const Inventario = () => {
     setForm({ cantidad: '', type: '' })
   }
 
-  // FUNCIÓN ACTUALIZADA: Ahora abre el Modal en lugar del SweetAlert
   const viewHistory = async (row) => {
     try {
       const history = await window.api.getInventarioHistory(row.id)
       
       if (history.length === 0) {
-        Swal.fire({
-            icon: 'info',
-            title: 'Sin historial',
-            text: 'No hay movimientos registrados para este producto'
-        })
+        Swal.fire({ icon: 'info', title: 'Sin historial', text: 'No hay movimientos registrados' })
         return
       }
 
@@ -148,12 +155,7 @@ export const Inventario = () => {
       setShowHistory(true)
 
     } catch (error) {
-        console.error('Error al obtener historial:', error)
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'No se pudo obtener el historial'
-        })
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo obtener el historial' })
     }
   }
 
@@ -163,10 +165,44 @@ export const Inventario = () => {
         </div>
 
         <div className="card">
-            <div className="card-title"></div>
-            <div className="card-body">
+            <div className="card-body pt-4">
+                
+                {/* NUEVO: BARRA DE FILTROS */}
+                <div className="bg-light p-3 rounded mb-4 border">
+                    <Row className="align-items-end">
+                        <Col md={4}>
+                            <Form.Group>
+                                <Form.Label className="fw-bold"><small>Filtrar por Categoría:</small></Form.Label>
+                                <Form.Select size="sm" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                                    <option value="">Todas las categorías</option>
+                                    {categoriasList.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                            <Form.Group>
+                                <Form.Label className="fw-bold"><small>Filtrar por Etiqueta:</small></Form.Label>
+                                <Form.Select size="sm" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
+                                    <option value="">Todas las etiquetas</option>
+                                    {etiquetasList.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                        <Col md={4}>
+                            <Button 
+                                variant="outline-secondary" 
+                                size="sm"
+                                onClick={() => { setFilterCategory(''); setFilterTag(''); }}
+                                disabled={!filterCategory && !filterTag}
+                            >
+                                <i className="bi bi-x-circle me-1"></i> Limpiar Filtros
+                            </Button>
+                        </Col>
+                    </Row>
+                </div>
+
                 <DataTableComponent 
-                    data={dataInTable}
+                    data={filteredData}  // Pasamos los datos ya filtrados
                     columns={[
                         { data: 'ref_name', title: 'Nombre' },
                         { data: 'sku', title: 'Referencia / Código' },
@@ -204,16 +240,17 @@ export const Inventario = () => {
                         }
                     ]}
                     customRenders={{
+                        // ACTUALIZADO: Pintar el SKU completo con prefijo y separador
+                        sku: (data, type, row) => {
+                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+                            return `<strong>${prefix}${data}</strong>`;
+                        },
                         stock: (data, type, row) => {
-                            // Validamos contra el min_stock que viene de la base de datos
                             const minStock = row.min_stock || 5; 
-                            
-                            // Si es menor o igual al mínimo, lo pintamos de ROJO (danger)
                             const stockLevel = data <= minStock ? 'danger' : 'success';
-                            
                             return `<span class="badge bg-${stockLevel} fs-6">${data}</span>`
                         },
-                        precio: (data, type, row) => {
+                        precio: (data) => {
                             return `$${parseFloat(data).toLocaleString('es-CO', { minimumFractionDigits: 2 })}`
                         }
                     }}
@@ -263,7 +300,7 @@ export const Inventario = () => {
         </Modal>
 
         {/* MODAL 2: PARA EL HISTORIAL CON TABLA */}
-        <Modal show={showHistory} onHide={() => setShowHistory(false)} size="lg" centered>
+        <Modal show={showHistory} onHide={() => setShowHistory(false)} size="lg" centered scrollable>
             <Modal.Header closeButton>
                 <Modal.Title>{historyTitle}</Modal.Title>
             </Modal.Header>
@@ -285,7 +322,6 @@ export const Inventario = () => {
                             const val = data ? data.toLowerCase() : '';
                             let badgeClass = 'secondary';
                             
-                            // Logica para pintar de verde ingresos, y rojo salidas
                             if (val === 'ingreso' || val === 'entrada') badgeClass = 'success';
                             if (val === 'egreso' || val === 'salida') badgeClass = 'danger';
 

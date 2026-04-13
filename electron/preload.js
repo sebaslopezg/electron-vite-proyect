@@ -40,6 +40,13 @@ contextBridge.exposeInMainWorld("api", {
   //configuraciones
   getConfiguracion: () => ipcRenderer.invoke("get-configuracion"),
   updateConfiguracion: (item) => ipcRenderer.invoke("update-configuracion", item),
+  updateWindow: (data) => ipcRenderer.send("update-window", data),
+
+  // Perfiles de Datos
+  getPerfiles: () => ipcRenderer.invoke("get-perfiles"),
+  addPerfil: (data) => ipcRenderer.invoke("add-perfil", data),
+  switchPerfil: (id) => ipcRenderer.invoke("switch-perfil", id),
+  deletePerfil: (id) => ipcRenderer.invoke("delete-perfil", id),
 
   //conf almacen
   getAllConfAlmacen: () => ipcRenderer.invoke("getAll-almacenConf"),
