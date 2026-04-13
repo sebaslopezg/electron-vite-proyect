@@ -84,22 +84,14 @@ export const Encargos = () => {
         <div className="card">
             <div className="card-title"></div>
             <div className="card-body">
-
-                <div className="row">
-                    <div className="row">
-                        <div className="col">
-                            <button className='btn btn-primary'>Nuevo</button>
-                        </div>
-                    </div>
-                </div>
                 <DataTableComponent
                     data={dataInTable}
                     columns={[
-                        { data: 'documento', title: 'Documento' },
-                        { data: 'nombre', title: 'Nombre' },
-                        { data: 'telefono', title: 'Teléfono' },
-                        { data: 'direccion', title: 'Dirección' },
-                        { data: 'date_created', title: 'Fecha Creación' },
+                        { data: 'numero_encargo', title: 'Numero' },
+                        { data: 'estado_encargo', title: 'Estado' },
+                        { data: 'nombre_cliente', title: 'Cliente' },
+                        { data: 'documento_cliente', title: 'Documento cliente' },
+                        { data: 'fecha_entrega', title: 'Fecha de entrega' },
                         {
                             data: null,
                             title: 'Actions',
