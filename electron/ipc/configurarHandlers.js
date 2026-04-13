@@ -1,9 +1,7 @@
-import { ipcMain } from "electron"
-
+import { ipcMain, BrowserWindow, nativeImage } from "electron"
 import db from "../database/index.js"
 
 export const registerConfigurarHandlers = () => {
-
 
   ipcMain.handle("get-configuracion", () => {
     try {
@@ -15,45 +13,38 @@ export const registerConfigurarHandlers = () => {
     }
   })
 
-/*   ipcMain.handle("get-configuracion", async () => {
-    return new Promise((resolve, reject) => {
-      db.all(`SELECT * FROM configurar`,
-      (err, rows) => {
-        if (err) reject(err)
-        else resolve(rows)
-      })
-    })
-  }) */
-
   ipcMain.handle("update-configuracion", (_, item) => {
-    const now = new Date().toISOString()
-
-    const stmt = db.prepare(`
-      UPDATE configurar SET 
-        value=@value, 
-        date_modify=@date_modify
-        WHERE key=@key
+    try {
+      const now = new Date().toISOString()
+      const stmt = db.prepare(`
+        UPDATE configurar SET value=@value, date_modify=@date_modify WHERE key=@key
       `)
-    const info = db.run({
-      ...item,
-      date_modify:now
-    })
+      const info = stmt.run({ value: item.value, date_modify: now, key: item.key })
+      return { success: true, changes: info.changes }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
   })
 
-/*   ipcMain.handle("update-configuracion", async (_, item) => {
-
-    const  {key, value}  = item;
-    const now = new Date().toISOString()
-
-    return new Promise((resolve, reject) => {
-        db.run(
-          `UPDATE configurar SET value=?, date_modify=? WHERE key=?`,
-          [value, now, key],
-          function (err) {
-              if (err) reject(err)
-              else resolve({ changes: this.changes })
-          }
-        )
-    })
-  }) */
+  // NUEVO: Cambiar el icono y título de Windows en tiempo real
+  ipcMain.on("update-window", (_, data) => {
+    const windows = BrowserWindow.getAllWindows();
+    if (windows.length > 0) {
+      const win = windows[0];
+      
+      if (data.nombre) {
+        win.setTitle(data.nombre);
+      }
+      
+      if (data.logo) {
+        try {
+          // Convertimos el base64 que manda React a un icono nativo de Electron
+          const image = nativeImage.createFromDataURL(data.logo);
+          win.setIcon(image);
+        } catch(e) { 
+          console.error("Error configurando el icono", e) 
+        }
+      }
+    }
+  })
 }

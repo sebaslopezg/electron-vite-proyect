@@ -13,6 +13,7 @@ import pkg from "electron-updater";
 const { autoUpdater } = pkg;
 
 import { initDatabase } from "./database/init.js";
+import { registerPerfilHandlers } from "./ipc/perfilHandlers.js";
 import { registerAllHandlers } from "./ipc/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -69,6 +70,7 @@ ipcMain.on("custom-event", (event, data) => {
 
 app.whenReady().then(async () => {
   initDatabase()
+  registerPerfilHandlers()
   registerAllHandlers()
   // Watch for main process changes and restart the app automatically
   if (isDev) {

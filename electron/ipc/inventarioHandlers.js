@@ -7,16 +7,26 @@ export const registerInventarioHandler = () => {
     ipcMain.handle("get-inventario", () => {
         try {
             const stmt = db.prepare(`
-            SELECT 
-                id, 
-                ref_name, 
-                sku,
-                precio, 
-                stock, 
-                unidad_medida, 
-                descripcion
-            FROM producto WHERE status = 1 AND tipo = 'producto'
-        `)
+                SELECT 
+                    p.id, 
+                    p.ref_name, 
+                    p.sku, 
+                    p.precio, 
+                    p.stock, 
+                    p.unidad_medida, 
+                    p.descripcion, 
+                    p.min_stock,
+                    c.sku_prefix, 
+                    c.separador, 
+                    p.categoria_id, 
+                    c.nombre as categoria_nombre,
+                    GROUP_CONCAT(pe.etiqueta_id, ',') as etiquetas_ids
+                FROM producto p
+                LEFT JOIN categoria c ON p.categoria_id = c.id
+                LEFT JOIN producto_etiqueta pe ON p.id = pe.producto_id
+                WHERE p.status = 1 AND p.tipo = 'producto'
+                GROUP BY p.id
+            `)
             return stmt.all()
         } catch (error) {
             console.error("Error al intentar obtener productos:", error)

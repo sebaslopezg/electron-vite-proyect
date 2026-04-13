@@ -21,8 +21,8 @@ export default function CategoriaModal({ show, handleClose, handleSubmit, form, 
                 )}
                 
                 <Form onSubmit={handleSubmit} id="categoriaForm">
-                    <Row>
-                        <Col md={8}>
+                        <Row>
+                        <Col md={6}>
                             <Form.Group className="mb-3">
                                 <Form.Label>Nombre <span className="text-danger">*</span></Form.Label>
                                 <Form.Control
@@ -35,7 +35,7 @@ export default function CategoriaModal({ show, handleClose, handleSubmit, form, 
                                 />
                             </Form.Group>
                         </Col>
-                        <Col md={4}>
+                        <Col md={3}>
                             <Form.Group className="mb-3">
                                 <Form.Label>Prefijo SKU</Form.Label>
                                 <Form.Control
@@ -46,6 +46,19 @@ export default function CategoriaModal({ show, handleClose, handleSubmit, form, 
                                     disabled={isGeneral}
                                     maxLength={5}
                                     style={{ textTransform: 'uppercase' }}
+                                />
+                            </Form.Group>
+                        </Col>
+                        <Col md={3}>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Separador</Form.Label>
+                                <Form.Control
+                                    value={form.separador}
+                                    onChange={(e) => setForm({ ...form, separador: e.target.value })}
+                                    type="text"
+                                    placeholder="Ej: -"
+                                    disabled={isGeneral}
+                                    maxLength={2}
                                 />
                             </Form.Group>
                         </Col>

@@ -14,6 +14,7 @@ export const Categorias = () => {
         nombre: '',
         descripcion: '',
         sku_prefix: '',
+        separador: ''
     }
 
     const [form, setForm] = useState({ ...emptyForm })
@@ -63,7 +64,8 @@ export const Categorias = () => {
         setForm({
             nombre: item.nombre,
             descripcion: item.descripcion || '',
-            sku_prefix: item.sku_prefix || ''
+            sku_prefix: item.sku_prefix || '',
+            separador: item.separador || ''
         })
         setEditingId(item.id)
     }
@@ -112,7 +114,7 @@ export const Categorias = () => {
                 { 
                     data: 'sku_prefix', 
                     title: 'Prefijo SKU',
-                    render: (data) => data ? `<code>${data}</code>` : '<span class="text-muted">-</span>'
+                    render: (data, type, row) => data ? `<code>${data}${row.separador || ''}</code>` : '<span class="text-muted">-</span>'
                 },
                 { 
                     data: 'descripcion', 

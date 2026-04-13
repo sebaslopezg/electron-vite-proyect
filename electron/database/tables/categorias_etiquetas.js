@@ -10,6 +10,7 @@ export const createCategoriasEtiquetasTables = () => {
         nombre TEXT NOT NULL,
         descripcion TEXT,
         sku_prefix TEXT,
+        separador TEXT DEFAULT '-',
         status INTEGER DEFAULT 1
       );
 
@@ -45,8 +46,8 @@ export const createCategoriasEtiquetasTables = () => {
     const row = db.prepare('SELECT count(*) as count FROM categoria WHERE id = ?').get('general');
     if (row.count === 0) {
       db.prepare(`
-        INSERT INTO categoria (id, nombre, descripcion, sku_prefix, status) 
-        VALUES ('general', 'General', 'Categoría por defecto', 'GEN', 1)
+        INSERT INTO categoria (id, nombre, descripcion, sku_prefix, separador, status) 
+        VALUES ('general', 'General', 'Categoría por defecto', '', '', 1)
       `).run();
     }
 

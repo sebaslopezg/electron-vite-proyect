@@ -121,9 +121,23 @@ export const Etiquetas = () => {
                     data: 'nombre', 
                     title: 'Etiqueta',
                     render: (data, type, row) => {
-                        return `<span class="badge" style="background-color: ${row.color}; font-size: 13px;">
-                                    <i class="bi bi-tag-fill me-1"></i> ${data}
-                                </span>`;
+                        // --- AÑADIMOS LA LÓGICA AQUÍ TAMBIÉN ---
+                        let textColor = '#ffffff';
+                        if (row.color) {
+                            const hex = row.color.replace('#', '');
+                            const r = parseInt(hex.substr(0, 2), 16);
+                            const g = parseInt(hex.substr(2, 2), 16);
+                            const b = parseInt(hex.substr(4, 2), 16);
+                            const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+                            textColor = (yiq >= 128) ? '#000000' : '#ffffff';
+                        }
+                        // ----------------------------------------
+                        
+                        return `
+                            <span class="badge" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px;">
+                                <i class="bi bi-tag-fill me-1"></i> ${data}
+                            </span>
+                        `;
                     }
                 },
                 { data: 'descripcion', title: 'Descripción' },

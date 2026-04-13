@@ -40,6 +40,14 @@ contextBridge.exposeInMainWorld("api", {
   //configuraciones
   getConfiguracion: () => ipcRenderer.invoke("get-configuracion"),
   updateConfiguracion: (item) => ipcRenderer.invoke("update-configuracion", item),
+  updateWindow: (data) => ipcRenderer.send("update-window", data),
+
+  // Perfiles de Datos
+  getPerfiles: () => ipcRenderer.invoke("get-perfiles"),
+  addPerfil: (data) => ipcRenderer.invoke("add-perfil", data),
+  switchPerfil: (id) => ipcRenderer.invoke("switch-perfil", id),
+  deletePerfil: (id) => ipcRenderer.invoke("delete-perfil", id),
+  getPerfilStats: (filename) => ipcRenderer.invoke("get-perfil-stats", filename),
 
   //conf almacen
   getAllConfAlmacen: () => ipcRenderer.invoke("getAll-almacenConf"),
@@ -62,4 +70,11 @@ contextBridge.exposeInMainWorld("api", {
   addEtiqueta: (item) => ipcRenderer.invoke("add-etiqueta", item),
   updateEtiqueta: (item) => ipcRenderer.invoke("update-etiqueta", item),
   deleteEtiqueta: (id) => ipcRenderer.invoke("delete-etiqueta", id),
+
+  // Migración de Datos
+  selectDbFile: () => ipcRenderer.invoke("select-db-file"),
+  readExternalDb: (path) => ipcRenderer.invoke("read-external-db", path),
+  getInternalSchema: () => ipcRenderer.invoke("get-internal-schema"),
+  executeImport: (data) => ipcRenderer.invoke("execute-import", data),
+  previewExternalTable: (data) => ipcRenderer.invoke("preview-external-table", data),
 })
