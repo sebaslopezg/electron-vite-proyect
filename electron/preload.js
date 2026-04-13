@@ -70,4 +70,9 @@ contextBridge.exposeInMainWorld("api", {
   addEtiqueta: (item) => ipcRenderer.invoke("add-etiqueta", item),
   updateEtiqueta: (item) => ipcRenderer.invoke("update-etiqueta", item),
   deleteEtiqueta: (id) => ipcRenderer.invoke("delete-etiqueta", id),
+
+  // Migración de Datos
+  readExternalDb: (path) => ipcRenderer.invoke("read-external-db", path),
+  getInternalSchema: () => ipcRenderer.invoke("get-internal-schema"),
+  executeImport: (data) => ipcRenderer.invoke("execute-import", data),
 })
