@@ -15,10 +15,13 @@ export const Productos = () => {
 
   const [dataInTable, setDataInTable] = useState([])
 
-  const emptyForm = {
+const emptyForm = {
     ref_name: '',
     sku: '',
     stock: 0,
+    min_stock: 5,
+    max_stock: 50,
+    categoria_id: 'general',
     unidad_medida: '',
     iva: 0,
     allow_negative: '',
@@ -68,11 +71,14 @@ export const Productos = () => {
     }
   }
 
-  const handleEdit = (item) => {
+const handleEdit = (item) => {
     setForm({
       ref_name: item.ref_name,
       sku: item.sku,
       stock: item.stock,
+      min_stock: item.min_stock || 0,
+      max_stock: item.max_stock || 0,
+      categoria_id: item.categoria_id || 'general',
       unidad_medida: item.unidad_medida,
       iva: item.iva,
       allow_negative: item.allow_negative,

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
 import { useFacturas } from "../../hooks/useFacturas"
 import Modal from 'react-bootstrap/Modal'
-import { Button, Row, Col, Table } from 'react-bootstrap'
+import { Button, Row, Col, Table, Form } from 'react-bootstrap'
 
 export const VerFacturas = () => {
     const { facturas, loading, reload } = useFacturas();
@@ -12,6 +12,10 @@ export const VerFacturas = () => {
     
     const [notasFactura, setNotasFactura] = useState([])
 
+    // NUEVOS ESTADOS: Filtro de fechas
+    const [startDate, setStartDate] = useState('')
+    const [endDate, setEndDate] = useState('')
+
     const handleClose = () => {
         setShow(false)
         setFacturaSeleccionada(null)
@@ -19,20 +23,17 @@ export const VerFacturas = () => {
     }
     const handleShow = () => setShow(true)
 
-    // NUEVO EFECTO: Escuchar cuando se crea una factura para recargar automáticamente
     useEffect(() => {
         const handleNuevaFactura = () => {
-            reload(); // Ejecuta la función de recarga de tu hook
+            reload();
         };
         window.addEventListener('factura-creada', handleNuevaFactura);
         
-        // Limpiar el evento cuando el componente se desmonte
         return () => {
             window.removeEventListener('factura-creada', handleNuevaFactura);
         }
     }, [reload])
 
-    // EFECTO EXISTENTE: Clics en la tabla
     useEffect(() => {
         const handleClicks = (e) => {
             const id = e.target.getAttribute('data-id') || e.target.closest('button')?.getAttribute('data-id');
@@ -60,11 +61,65 @@ export const VerFacturas = () => {
         }
     }
 
-    return <>
-        {/* EL BOTÓN DE ACTUALIZAR FUE ELIMINADO */}
+    // LÓGICA DE FILTRADO: Comparamos las fechas seleccionadas con la de cada factura
+    const facturasFiltradas = facturas.filter(factura => {
+        // Si no hay filtro activo, devolvemos todo
+        if (!startDate && !endDate) return true;
 
+        // Extraemos solo la parte de la fecha (YYYY-MM-DD) ignorando la hora
+        const fDateStr = factura.date_created.split('T')[0]; 
+
+        // Si hay fecha de inicio y la factura es más antigua, la ocultamos
+        if (startDate && fDateStr < startDate) return false;
+        
+        // Si hay fecha de fin y la factura es más nueva, la ocultamos
+        if (endDate && fDateStr > endDate) return false;
+
+        return true;
+    });
+
+    return <>
+        {/* NUEVA SECCIÓN: Filtro de Fechas */}
+        <div className="bg-light p-3 rounded mb-4 border">
+            <Row className="align-items-end">
+                <Col md={3}>
+                    <Form.Group>
+                        <Form.Label className="fw-bold"><small>Desde:</small></Form.Label>
+                        <Form.Control 
+                            type="date" 
+                            size="sm"
+                            value={startDate} 
+                            onChange={e => setStartDate(e.target.value)} 
+                        />
+                    </Form.Group>
+                </Col>
+                <Col md={3}>
+                    <Form.Group>
+                        <Form.Label className="fw-bold"><small>Hasta:</small></Form.Label>
+                        <Form.Control 
+                            type="date" 
+                            size="sm"
+                            value={endDate} 
+                            onChange={e => setEndDate(e.target.value)} 
+                        />
+                    </Form.Group>
+                </Col>
+                <Col md={3}>
+                    <Button 
+                        variant="outline-secondary" 
+                        size="sm"
+                        onClick={() => { setStartDate(''); setEndDate(''); }}
+                        disabled={!startDate && !endDate}
+                    >
+                        <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
+                    </Button>
+                </Col>
+            </Row>
+        </div>
+
+        {/* NOTA: Ahora le pasamos 'facturasFiltradas' a la tabla, no 'facturas' */}
         <DataTableComponent
-            data={facturas}
+            data={facturasFiltradas}
             columns={[
                 { data: 'date_created', title: 'Fecha' },
                 { 

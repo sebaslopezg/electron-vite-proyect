@@ -1,5 +1,7 @@
 import { Servicios } from './Servicios';
 import { Productos } from './Productos';
+import { Categorias } from './Categorias'; 
+import { Etiquetas } from './Etiquetas';
 
 export const ProductosIndex = () => {
     return (
@@ -15,7 +17,6 @@ export const ProductosIndex = () => {
                             data-bs-target="#productos"
                             type="button"
                             role="tab"
-                            tabIndex="-1"
                         >
                             Productos
                         </button>
@@ -28,20 +29,49 @@ export const ProductosIndex = () => {
                             data-bs-target="#servicios"
                             type="button"
                             role="tab"
-                            tabIndex="-1"
                         >
                             Servicios
+                        </button>
+                    </li>
+                    <li className="nav-item" role="presentation">
+                        <button
+                            className="nav-link"
+                            id="categorias-tab"
+                            data-bs-toggle="tab"
+                            data-bs-target="#categorias"
+                            type="button"
+                            role="tab"
+                        >
+                            Categorías
+                        </button>
+                    </li>
+                    <li className="nav-item" role="presentation">
+                        <button
+                            className="nav-link"
+                            id="etiquetas-tab"
+                            data-bs-toggle="tab"
+                            data-bs-target="#etiquetas"
+                            type="button"
+                            role="tab"
+                        >
+                            Etiquetas
                         </button>
                     </li>
                 </ul>
 
                 {/* CONTENIDO DE LAS PESTAÑAS */}
                 <div className="tab-content pt-2" id="borderedTabContent">
-                    <div className="tab-pane fade show active" id="productos" role="tabpanel" aria-labelledby="productos-tab">
+                    <div className="tab-pane fade show active" id="productos" role="tabpanel">
                         <Productos />
                     </div>
-                    <div className="tab-pane fade" id="servicios" role="tabpanel" aria-labelledby="servicios-tab">
+                    <div className="tab-pane fade" id="servicios" role="tabpanel">
                         <Servicios />
+                    </div>
+                    <div className="tab-pane fade" id="categorias" role="tabpanel">
+                        <Categorias />
+                    </div>
+                    <div className="tab-pane fade" id="etiquetas" role="tabpanel">
+                        <Etiquetas />
                     </div>
                 </div>
             </div>

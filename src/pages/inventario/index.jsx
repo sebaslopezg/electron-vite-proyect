@@ -205,8 +205,13 @@ export const Inventario = () => {
                     ]}
                     customRenders={{
                         stock: (data, type, row) => {
-                            const stockLevel = data <= 0 ? 'danger' : data <= 10 ? 'warning' : 'success'
-                            return `<span class="badge bg-${stockLevel}">${data}</span>`
+                            // Validamos contra el min_stock que viene de la base de datos
+                            const minStock = row.min_stock || 5; 
+                            
+                            // Si es menor o igual al mínimo, lo pintamos de ROJO (danger)
+                            const stockLevel = data <= minStock ? 'danger' : 'success';
+                            
+                            return `<span class="badge bg-${stockLevel} fs-6">${data}</span>`
                         },
                         precio: (data, type, row) => {
                             return `$${parseFloat(data).toLocaleString('es-CO', { minimumFractionDigits: 2 })}`

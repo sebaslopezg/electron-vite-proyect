@@ -50,4 +50,16 @@ contextBridge.exposeInMainWorld("api", {
   getNotas: () => ipcRenderer.invoke("get-notas"),
   addNota: (data) => ipcRenderer.invoke("add-nota", data),
   searchFactura: (numero) => ipcRenderer.invoke("search-factura", numero),
+
+  // Categorias --
+  getCategorias: () => ipcRenderer.invoke("get-categorias"),
+  addCategoria: (item) => ipcRenderer.invoke("add-categoria", item),
+  updateCategoria: (item) => ipcRenderer.invoke("update-categoria", item),
+  deleteCategoria: (id) => ipcRenderer.invoke("delete-categoria", id),
+
+  // -- Etiquetas --
+  getEtiquetas: () => ipcRenderer.invoke("get-etiquetas"),
+  addEtiqueta: (item) => ipcRenderer.invoke("add-etiqueta", item),
+  updateEtiqueta: (item) => ipcRenderer.invoke("update-etiqueta", item),
+  deleteEtiqueta: (id) => ipcRenderer.invoke("delete-etiqueta", id),
 })
