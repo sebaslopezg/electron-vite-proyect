@@ -157,7 +157,21 @@ export const Importar = () => {
             });
 
             if (res.success) {
-                Swal.fire('¡Éxito!', `Se han importado ${res.rows} registros correctamente.`, 'success');
+                let mensajeExito = `Se han importado <strong>${res.rows}</strong> registros correctamente.`;
+                
+                if (res.fixed > 0 || res.skipped > 0) {
+                    mensajeExito += `<br/><br/><div class="text-start small text-muted">
+                        ${res.fixed > 0 ? `<i class="bi bi-wrench-adjustable me-1 text-warning"></i> <b>${res.fixed}</b> registros fueron autocorregidos (duplicados o vacíos).<br/>` : ''}
+                        ${res.skipped > 0 ? `<i class="bi bi-exclamation-triangle me-1 text-danger"></i> <b>${res.skipped}</b> registros fueron omitidos por errores incompatibles.` : ''}
+                    </div>`;
+                }
+
+                Swal.fire({
+                    title: '¡Éxito!',
+                    html: mensajeExito,
+                    icon: 'success'
+                });
+
                 setStep(1);
                 setFilePath(null);
                 setSourceTable('');

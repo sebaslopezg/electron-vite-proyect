@@ -150,8 +150,7 @@ export const registerImportHandlers = () => {
             return { success: false, error: error.message };
         }
     });
-
-    // 5. EJECUTAR LA IMPORTACIÓN
+    
     ipcMain.handle("execute-import", (_, { filePath, sourceTable, targetTable, mapping, defaultValues }) => {
         try {
             const extDb = new Database(filePath, { readonly: true });
@@ -166,6 +165,9 @@ export const registerImportHandlers = () => {
                 const insertStmt = db.prepare(`INSERT INTO ${targetTable} (${targetCols.join(', ')}) VALUES (${placeholders})`);
 
                 let count = 0;
+                let fixed = 0;
+                let skipped = 0;
+
                 for (const row of data) {
                     const values = [];
                     for (const targetCol of targetCols) {
@@ -184,14 +186,55 @@ export const registerImportHandlers = () => {
                             }
                         }
                     }
-                    insertStmt.run(values);
-                    count++;
+
+                    // Intentamos insertar la fila
+                    try {
+                        insertStmt.run(values);
+                        count++;
+                    } catch (err) {
+                        if (err.message.includes('UNIQUE constraint failed')) {
+                            const parts = err.message.split(': ');
+                            if (parts.length > 1) {
+                                const failedFields = parts[1].split(', ');
+                                
+                                failedFields.forEach(field => {
+                                    const colName = field.includes('.') ? field.split('.')[1] : field;
+                                    const colIdx = targetCols.indexOf(colName);
+                                    
+                                    if (colIdx !== -1) {
+                                        const oldVal = values[colIdx];
+                                        values[colIdx] = oldVal 
+                                            ? `${oldVal}_dup${Math.floor(Math.random() * 10000)}` 
+                                            : `sin_dato_${Math.floor(Math.random() * 100000)}`;
+                                    }
+                                });
+                                try {
+                                    insertStmt.run(values);
+                                    count++;
+                                    fixed++;
+                                } catch (e2) {
+                                    skipped++;
+                                }
+                            } else {
+                                skipped++;
+                            }
+                        } else {
+                            skipped++;
+                        }
+                    }
                 }
-                return count;
+                return { count, fixed, skipped };
             });
 
-            const rowsImported = transaction(sourceData);
-            return { success: true, rows: rowsImported };
+            // Ejecutamos la transacción
+            const stats = transaction(sourceData);
+            
+            return { 
+                success: true, 
+                rows: stats.count, 
+                fixed: stats.fixed, 
+                skipped: stats.skipped 
+            };
 
         } catch (error) {
             return { success: false, error: error.message };
