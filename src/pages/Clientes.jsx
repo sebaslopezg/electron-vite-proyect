@@ -1,48 +1,31 @@
-import DataTable from 'datatables.net-react'
-import DT from 'datatables.net-bs5'
 import { useState, useEffect } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import Swal from 'sweetalert2'
-import DataTableComponent from '../components/DataTableComponent'
-
-DataTable.use(DT);
+import CustomDataTable from '../components/DataTableComponent'
 
 export const Clientes = () => {
 
   const [show, setShow] = useState(false)
-
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
-
-  //connect to DB
-  const [items, setItems] = useState([])
-  const [dataInTable, setDataInTable] = useState([])
+  const [reloadTable, setReloadTable] = useState(0)
+  const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({
     documento: '',
     nombre: '',
     telefono: '',
     direccion: ''
   })
-  const [editingId, setEditingId] = useState(null)
-
-  const load = async () => {
-    const data = await window.api.getClientes()
-    setItems(data)
-    setDataInTable(data)
-  }
 
   const cleanForm = () => {
     setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
   }
 
-  useEffect(() => { load() }, [])
-
   const handleSubmit = async (e) => {
     e.preventDefault()
-
-    try { // <-- START TRY BLOCK
+    try {
       if (editingId) {
         await window.api.updateCliente({ ...form, id: editingId })
         Swal.fire("Actualizado", "Cliente actualizado exitosamente", "success")
@@ -51,17 +34,11 @@ export const Clientes = () => {
         await window.api.addCliente(form)
         Swal.fire("Guardado", "Cliente creado exitosamente", "success")
       }
-
-      setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
+      cleanForm()
       handleClose()
-      load()
+      setReloadTable(prev => prev + 1)
     } catch (error) {
-      console.error('Error al guardar el cliente:', error)
-      Swal.fire({
-        title: "Error",
-        text: `Error al guardar el cliente. Verifique que el Documento de identidad no exista ya. ${error.message || ''}`,
-        icon: "error"
-      })
+      Swal.fire("Error", "Error al guardar. Verifique que el Documento no exista ya.", "error")
     }
   }
 
@@ -73,6 +50,7 @@ export const Clientes = () => {
       direccion: item.direccion
     })
     setEditingId(item.id)
+    handleShow()
   }
 
   const handleDelete = async (id) => {
@@ -84,70 +62,89 @@ export const Clientes = () => {
     });
 
     if (result.isConfirmed) {
-      await window.api.deleteBitacora(id)
-      load()
+      await window.api.deleteCliente(id)
+      setReloadTable(prev => prev + 1)
     }
   }
 
-  return <>
+  useEffect(() => {
+    const handleTableClick = (e) => {
+      const editBtn = e.target.closest('.btn-edit');
+      if (editBtn) {
+        handleEdit({
+          id: editBtn.dataset.id,
+          documento: editBtn.dataset.documento,
+          nombre: editBtn.dataset.nombre,
+          telefono: editBtn.dataset.telefono,
+          direccion: editBtn.dataset.direccion
+        });
+      }
+      const delBtn = e.target.closest('.btn-delete');
+      if (delBtn) handleDelete(delBtn.dataset.id);
+    };
 
+    document.addEventListener('click', handleTableClick);
+    return () => document.removeEventListener('click', handleTableClick);
+  }, []);
+
+  return <>
     <div className="pagetitle">
       <h1>Clientes</h1>
     </div>
 
     <div className="card">
-      <div className="card-title"></div>
-      <div className="card-body">
-
-        <div className="row">
-          <div className="row">
-            <div className="col">
-              <button className='btn btn-primary' onClick={(e) => {
-                setEditingId(null)
-                cleanForm()
-                handleShow()
-              }}>Nuevo</button>
-            </div>
+      <div className="card-body pt-4">
+        <div className="row mb-4">
+          <div className="col">
+            <button className='btn btn-primary' onClick={() => {
+              setEditingId(null)
+              cleanForm()
+              handleShow()
+            }}> <i className="bi bi-plus-circle me-1"></i> Nuevo Cliente</button>
           </div>
         </div>
 
-        <DataTableComponent
-          data={dataInTable}
-          columns={[
-            { data: 'documento', title: 'Documento' },
-            { data: 'nombre', title: 'Nombre' },
-            { data: 'telefono', title: 'Teléfono' },
-            { data: 'direccion', title: 'Dirección' },
-            { data: 'date_created', title: 'Fecha Creación' },
-            {
-              data: null,
-              title: 'Actions',
-              orderable: false,
-              render: function (data, type, row) {
-                return `
-                  <button class="btn btn-sm btn-secondary me-2 btn-edit-${row.id}">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button class="btn btn-sm btn-danger btn-delete-${row.id}">
-                   <i class="bi bi-trash3"></i>
-                  </button>
+        <div className="table-responsive">
+          
+          <CustomDataTable
+            reloadKey={reloadTable}
+            ajaxData={(params) => window.api.getClientesPaginados(params)}
+            columns={[
+              { data: 'documento', title: 'Documento' },
+              { data: 'nombre', title: 'Nombre' },
+              { data: 'telefono', title: 'Teléfono' },
+              { data: 'direccion', title: 'Dirección' },
+              { 
+                data: 'date_created', 
+                title: 'Fecha Creación',
+                render: (data) => new Date(data).toLocaleDateString('es-CO')
+              },
+              {
+                data: null,
+                title: 'Acciones',
+                orderable: false,
+                render: function (data, type, row) {
+                  const safeDoc = (row.documento || '').toString().replace(/"/g, '&quot;');
+                  const safeNom = (row.nombre || '').toString().replace(/"/g, '&quot;');
+                  const safeTel = (row.telefono || '').toString().replace(/"/g, '&quot;');
+                  const safeDir = (row.direccion || '').toString().replace(/"/g, '&quot;');
+
+                  return `
+                    <button class="btn btn-sm btn-secondary me-2 btn-edit" 
+                      data-id="${row.id}" data-documento="${safeDoc}" data-nombre="${safeNom}"
+                      data-telefono="${safeTel}" data-direccion="${safeDir}">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}">
+                     <i class="bi bi-trash3"></i>
+                    </button>
                   `;
+                }
               }
-            }
-          ]}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onShow={handleShow}
-          customRenders={{
-            date_created: (data, type, row) => {
-              return new Date(data).toLocaleDateString('es-ES');
-            },
-            // Only show date_modify if needed, else remove
-            date_modify: (data, type, row) => {
-              return new Date(data).toLocaleDateString('es-ES');
-            }
-          }}
-        />
+            ]}
+          />
+
+        </div>
       </div>
     </div>
 
@@ -197,20 +194,17 @@ export const Clientes = () => {
               value={form.direccion}
               onChange={(e) => setForm({ ...form, direccion: e.target.value })}
               type="text"
-              placeholder="Enrique segoviano"
+              placeholder="Ej: Calle 1 # 2-3"
               required
             />
           </Form.Group>
         </Form>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose}>
-          Cancelar
-        </Button>
+        <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
         <Button variant="primary" onClick={handleSubmit}>
           {editingId ? 'Actualizar' : 'Guardar'}
         </Button>
-
       </Modal.Footer>
     </Modal>
   </>
