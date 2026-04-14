@@ -24,7 +24,7 @@ export const registerVentasHandlers = () => {
         }
     })
 
-ipcMain.handle("get-detalle", (_, id) => {
+    ipcMain.handle("get-detalle", (_, id) => {
         try {
             const stmtDetalle = db.prepare('SELECT * FROM ventasDetalle WHERE maestro_id = ?')
             const info = stmtDetalle.all(id)
@@ -39,14 +39,14 @@ ipcMain.handle("get-detalle", (_, id) => {
         }
     })
 
-ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
+    ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
         const transaction = db.transaction((maestroData, detallesData) => {
             const now = new Date().toISOString()
             const maestroId = uuidv4()
 
             const config = db.prepare('SELECT id, consecutivo, prefijo FROM almacen_conf LIMIT 1').get()
             if (!config) throw new Error("No se encontró configuración del almacén")
-            
+
             const nuevoNumeroFactura = config.consecutivo + 1
             const prefijoFactura = config.prefijo || ''
 
@@ -74,9 +74,9 @@ ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
                 prefijoFactura,
                 maestroData.nombre_cliente,
                 maestroData.documento_cliente,
-                maestroData.subtotal,          
-                maestroData.descuento,         
-                maestroData.iva,               
+                maestroData.subtotal,
+                maestroData.descuento,
+                maestroData.iva,
                 maestroData.total,
                 maestroData.total_recibido,
                 maestroData.saldo_pendiente,
@@ -98,9 +98,10 @@ ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
                         cantidad_producto, 
                         precio_producto, 
                         total, 
+                        is_encargo,
                         date_created
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `)
                 insertDetalle.run(
                     detalleId,
@@ -110,6 +111,7 @@ ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
                     item.cantidad,
                     item.precio,
                     item.cantidad * item.precio,
+                    item.isEncargo,
                     now
                 )
 
@@ -119,7 +121,8 @@ ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
 
                 db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.id)
 
-                const insertInventario = db.prepare(`
+                if (item.isEncargo > 0 || item.tipo === "servicios") {
+                    const insertInventario = db.prepare(`
                     INSERT INTO inventario (
                         id, 
                         producto_id, 
@@ -132,23 +135,24 @@ ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `)
-                insertInventario.run(
-                    uuidv4(),
-                    item.id,
-                    'SALIDA',
-                    'VENTA',
-                    item.cantidad,
-                    stockAnterior,
-                    stockNuevo,
-                    now
-                )
+                    insertInventario.run(
+                        uuidv4(),
+                        item.id,
+                        'SALIDA',
+                        'VENTA',
+                        item.cantidad,
+                        stockAnterior,
+                        stockNuevo,
+                        now
+                    )
+                }
             }
 
-            return { 
-                success: true, 
-                maestroId, 
-                numero_factura: nuevoNumeroFactura, 
-                prefijo: prefijoFactura 
+            return {
+                success: true,
+                maestroId,
+                numero_factura: nuevoNumeroFactura,
+                prefijo: prefijoFactura
             }
         })
 

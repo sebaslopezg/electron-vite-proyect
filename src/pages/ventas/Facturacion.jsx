@@ -21,7 +21,7 @@ export const Facturacion = () => {
   const [esPorcentaje, setEsPorcentaje] = useState(true)
   const [metodoPago, setMetodoPago] = useState('contado')
   const [cuotas, setCuotas] = useState(1)
-  
+
   // NUEVO ESTADO: Total Recibido
   const [totalRecibido, setTotalRecibido] = useState('')
 
@@ -80,13 +80,14 @@ export const Facturacion = () => {
       columns: [
         { data: 'ref_name', title: 'Nombre Referencia' },
         { data: 'sku', title: 'SKU' },
+        { data: 'stock', title: 'Stock' },
         { data: 'precio', title: 'Precio' },
         {
           data: null,
           title: 'Agregar',
           render: function (data, type, row) {
             return `<button class="btn btn-sm btn-primary btn-select-product" data-id="${row.id}">
-                    + Añadir
+                    ${row.stock > 0 ? "Agregar" : "Encargar"}
                   </button>`;
           }
         }
@@ -165,11 +166,10 @@ export const Facturacion = () => {
   const agregarAlCarrito = (prod) => {
     setCarrito((prev) => {
       const existe = prev.find(item => item.id === prod.id);
-
+      let isEncargo = '0'
       const currentQty = existe ? existe.cantidad : 0;
-      if (currentQty >= prod.stock) {
-        Swal.fire('Sin Stock', `Solo hay ${prod.stock} unidades disponibles de ${prod.ref_name}`, 'warning');
-        return prev;
+      if (currentQty >= prod.stock && prod.tipo === "producto") {
+        isEncargo = '1'
       }
 
       if (existe) {
@@ -177,7 +177,7 @@ export const Facturacion = () => {
           item.id === prod.id ? { ...item, cantidad: item.cantidad + 1 } : item
         );
       } else {
-        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva }];
+        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: isEncargo }];
       }
     });
   };
@@ -227,7 +227,7 @@ export const Facturacion = () => {
         total: totalFinal,
         total_recibido: recibidoNum,
         saldo_pendiente: saldoPendiente,
-        metodo_pago: metodoPago
+        metodo_pago: metodoPago,
       },
       detalles: carrito
     };
@@ -449,6 +449,25 @@ export const Facturacion = () => {
           </button>
         </div>
       `
+            },
+            {
+              data: null,
+              title: 'Tipo',
+              render: function (data, type, row) {
+                let badges = '';
+
+                if (row.tipo === 'producto') {
+                  badges += '<span class="badge bg-primary me-1">Producto</span>';
+                } else {
+                  badges += '<span class="badge bg-success me-1">Servicio</span>';
+                }
+
+                if (row.isEncargo > 0) {
+                  badges += '<span class="badge bg-warning text-dark me-1">Encargo</span>';
+                }
+
+                return badges;
+              }
             },
             {
               data: null,
