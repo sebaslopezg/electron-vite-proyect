@@ -165,19 +165,27 @@ export const Facturacion = () => {
 
   const agregarAlCarrito = (prod) => {
     setCarrito((prev) => {
-      const existe = prev.find(item => item.id === prod.id);
-      let isEncargo = '0'
-      const currentQty = existe ? existe.cantidad : 0;
-      if (currentQty >= prod.stock && prod.tipo === "producto") {
-        isEncargo = '1'
-      }
+      const unitsInCartWithStock = prev
+        .filter(item => item.id === prod.id && item.isEncargo === '0')
+        .reduce((acc, item) => acc + item.cantidad, 0);
+
+      const needsToBeEncargo = prod.tipo === "producto" && unitsInCartWithStock >= prod.stock;
+      const isEncargoVal = needsToBeEncargo ? '1' : '0';
+
+      const existe = prev.find(item => item.id === prod.id && item.isEncargo === isEncargoVal);
 
       if (existe) {
+        if (isEncargoVal === '0' && (existe.cantidad + 1) > prod.stock) {
+          return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: '1' }];
+        }
+
         return prev.map(item =>
-          item.id === prod.id ? { ...item, cantidad: item.cantidad + 1 } : item
+          (item.id === prod.id && item.isEncargo === isEncargoVal)
+            ? { ...item, cantidad: item.cantidad + 1 }
+            : item
         );
       } else {
-        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: isEncargo }];
+        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: isEncargoVal }];
       }
     });
   };
@@ -252,22 +260,37 @@ export const Facturacion = () => {
     setMetodoPago('contado');
   };
 
-  const updateQuantity = (id, delta) => {
-    setCarrito(prev => prev.map(item => {
-      if (item.id === id) {
-        const newQty = item.cantidad + delta;
+  const updateQuantity = (id, delta, isEncargo) => {
+    setCarrito(prev => {
+      const item = prev.find(i => i.id === id && i.isEncargo === isEncargo);
+      if (!item) return prev;
 
-        if (delta > 0 && newQty > item.stock) {
-          Swal.fire('Límite alcanzado', 'No hay más unidades en inventario', 'info');
-          return item;
-        }
+      const newQty = item.cantidad + delta;
 
-        return newQty > 0 ? { ...item, cantidad: newQty } : item;
+      if (delta > 0 && isEncargo === '0' && newQty > item.stock && item.tipo === "producto") {
+        Swal.fire({
+          title: 'Sin stock físico',
+          text: '¿Deseas agregar las unidades adicionales como un encargo?',
+          icon: 'info',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, encargar',
+          cancelButtonText: 'Cancelar'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            agregarAlCarrito(item);
+          }
+        });
+        return prev;
       }
-      return item;
-    }));
-  };
 
+      return prev.map(i => {
+        if (i.id === id && i.isEncargo === isEncargo) {
+          return newQty > 0 ? { ...i, cantidad: newQty } : i;
+        }
+        return i;
+      });
+    });
+  };
   const removeItem = (id) => {
     setCarrito(prev => prev.filter(item => item.id !== id));
   };
@@ -280,40 +303,33 @@ export const Facturacion = () => {
 
   useEffect(() => {
     const handleGlobalClicks = (e) => {
-      const id = e.target.getAttribute('data-id') || e.target.closest('button')?.getAttribute('data-id');
+      const target = e.target.closest('button') || e.target;
+      const id = target.getAttribute('data-id');
+      const isEncargo = target.getAttribute('data-encargo');
+
       if (!id) return;
 
       if (e.target.classList.contains('change-iva')) {
         const val = parseFloat(e.target.value) || 0;
         setCarrito(prev => prev.map(item =>
-          String(item.id) === String(id) ? { ...item, iva: val } : item
+          (String(item.id) === String(id) && item.isEncargo === isEncargo)
+            ? { ...item, iva: val }
+            : item
         ));
-      }
-
-      if (e.target.closest('.btn-select-product')) {
-        const selected = productos.find(p => String(p.id) === String(id));
-        if (selected) agregarAlCarrito(selected);
-      }
-
-      if (e.target.closest('.btn-select-client')) {
-        const selected = clientes.find(c => String(c.id) === String(id));
-        if (selected) {
-          setCliente(selected);
-          handleClose();
-        }
       }
 
       if (e.target.classList.contains('change-discount')) {
         const val = parseFloat(e.target.value) || 0;
-
         setCarrito(prev => prev.map(item =>
-          String(item.id) === String(id) ? { ...item, descuento: val } : item
+          (String(item.id) === String(id) && item.isEncargo === isEncargo)
+            ? { ...item, descuento: val }
+            : item
         ));
       }
 
-      if (e.target.closest('.toggle-discount-type')) {
+      if (target.closest('.toggle-discount-type')) {
         setCarrito(prev => prev.map(item => {
-          if (String(item.id) === String(id)) {
+          if (String(item.id) === String(id) && item.isEncargo === isEncargo) {
             return {
               ...item,
               tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje'
@@ -323,17 +339,35 @@ export const Facturacion = () => {
         }));
       }
 
-      if (e.target.closest('.btn-qty-plus')) updateQuantity(id, 1);
-      if (e.target.closest('.btn-qty-minus')) updateQuantity(id, -1);
-      if (e.target.closest('.btn-remove-item')) {
-        removeItem(id);
+      if (target.closest('.btn-select-product')) {
+        const selected = productos.find(p => String(p.id) === String(id));
+        if (selected) agregarAlCarrito(selected);
+      }
+
+      if (target.closest('.btn-select-client')) {
+        const selected = clientes.find(c => String(c.id) === String(id));
+        if (selected) {
+          setCliente(selected);
+          handleClose();
+        }
+      }
+
+      if (target.closest('.btn-qty-plus')) updateQuantity(id, 1, isEncargo);
+      if (target.closest('.btn-qty-minus')) updateQuantity(id, -1, isEncargo);
+
+      if (target.closest('.btn-remove-item')) {
+        setCarrito(prev => prev.filter(item =>
+          !(String(item.id) === String(id) && item.isEncargo === isEncargo)
+        ));
       }
     };
+
     document.addEventListener('input', handleGlobalClicks);
     document.addEventListener('click', handleGlobalClicks);
+
     return () => {
-      document.addEventListener('input', handleGlobalClicks);
-      document.removeEventListener('click', handleGlobalClicks)
+      document.removeEventListener('input', handleGlobalClicks);
+      document.removeEventListener('click', handleGlobalClicks);
     }
   }, [productos, clientes, carrito]);
 
@@ -415,12 +449,14 @@ export const Facturacion = () => {
               data: null,
               title: 'Cant.',
               render: (data, type, row) => `
-            <div class="btn-group btn-group-sm">
-              <button class="btn btn-outline-secondary btn-qty-minus" data-id="${row.id}">-</button>
-              <span class="btn btn-light disabled" style="width: 35px; padding: 0.25rem;">${row.cantidad}</span>
-              <button class="btn btn-outline-secondary btn-qty-plus" data-id="${row.id}">+</button>
-            </div>
-          `
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-secondary btn-qty-minus" 
+                  data-id="${row.id}" data-encargo="${row.isEncargo}">-</button>
+                  <span class="btn btn-light disabled">${row.cantidad}</span>
+                  <button class="btn btn-outline-secondary btn-qty-plus" 
+                  data-id="${row.id}" data-encargo="${row.isEncargo}">+</button>
+                </div>
+`
             },
             {
               data: 'iva',
@@ -484,13 +520,12 @@ export const Facturacion = () => {
               data: null,
               title: '',
               orderable: false,
-              render: function (data, type, row) {
-                return `
-                <button class="btn btn-sm btn-danger btn-remove-item" data-id="${row.id}">
-              <i class="bi bi-trash"></i>
-            </button>
-                `;
-              }
+              render: (data, type, row) => `
+  <button class="btn btn-sm btn-danger btn-remove-item" 
+          data-id="${row.id}" data-encargo="${row.isEncargo}">
+    <i class="bi bi-trash"></i>
+  </button>
+`
             }
           ]}
         />

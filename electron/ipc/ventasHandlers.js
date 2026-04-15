@@ -115,13 +115,13 @@ export const registerVentasHandlers = () => {
                     now
                 )
 
-                const producto = db.prepare("SELECT stock FROM producto WHERE id = ?").get(item.id)
-                const stockAnterior = producto.stock
-                const stockNuevo = stockAnterior - item.cantidad
+                if (item.isEncargo === '0' && item.tipo !== "servicio") {
+                    const producto = db.prepare("SELECT stock FROM producto WHERE id = ?").get(item.id)
+                    const stockAnterior = producto.stock
+                    const stockNuevo = stockAnterior - item.cantidad
 
-                db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.id)
+                    db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.id)
 
-                if (item.isEncargo > 0 || item.tipo === "servicios") {
                     const insertInventario = db.prepare(`
                     INSERT INTO inventario (
                         id, 
@@ -145,6 +145,36 @@ export const registerVentasHandlers = () => {
                         stockNuevo,
                         now
                     )
+                } else {
+                    const prevNum = db.prepare('SELECT COUNT(*) FROM encargos').get()
+                    const newNum = prevNum + 1
+                    const insertEncargo = db.prepare(
+                        `INSERT INTO encargos(
+                            id,
+                            id_factura,
+                            numero_factura,
+                            id_producto,
+                            numero_encargo,
+                            estado_encargo,
+                            nombre_cliente,
+                            documento_cliente,
+                            date_created,
+                            status
+                        )
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    `)
+                    insertEncargo.run(
+                        uuidv4(),
+                        maestroId,
+                        nuevoNumeroFactura,
+                        item.id,
+                        newNum,
+                        "pendiente",
+                        maestroData.nombre_cliente,
+                        maestroData.documento_cliente,
+                        now
+                    )
+
                 }
             }
 
