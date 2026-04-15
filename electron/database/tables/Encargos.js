@@ -6,7 +6,9 @@ export function createEncargosTable() {
       id TEXT PRIMARY KEY,
 
       id_factura TEXT,
-      numero_factura TEXT,
+      numero_factura INTEGER,
+      prefijo TEXT,
+
       id_producto TEXT,
       numero_encargo INTEGER,
       fecha_entrega TEXT,

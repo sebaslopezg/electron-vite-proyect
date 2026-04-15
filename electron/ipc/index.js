@@ -9,6 +9,7 @@ import { registerNotasHandlers } from "./notasHandlers.js"
 import { registerCategoriaHandlers } from "./categoriaHandlers.js"
 import { registerEtiquetaHandlers } from "./etiquetaHandlers.js"
 import { registerImportHandlers } from "./importHandlers.js";
+import { registerEncargosHandlers } from "./encargosHandler.js"
 
 export const registerAllHandlers = () => {
   registerProductoHandlers()
@@ -22,4 +23,5 @@ export const registerAllHandlers = () => {
   registerCategoriaHandlers()
   registerEtiquetaHandlers()
   registerImportHandlers()
+  registerEncargosHandlers()
 }
