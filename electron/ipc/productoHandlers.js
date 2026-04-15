@@ -24,6 +24,113 @@ export const registerProductoHandlers = () => {
     }
   })
 
+  // Paginación del lado del servidor para Productos ---
+  ipcMain.handle("get-productos-paginados", (_, dtParams) => {
+    try {
+      const limit = parseInt(dtParams.length, 10) || 10;
+      const offset = parseInt(dtParams.start, 10) || 0;
+      const searchValue = dtParams.search?.value || '';
+
+      const orderColIndex = dtParams.order?.[0]?.column || 0;
+      const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+      
+      const columnsMap = ['ref_name', 'sku', 'categoria_nombre', 'stock', 'precio', 'status'];
+      
+      let orderCol = columnsMap[orderColIndex] || 'date_created';
+      if (orderCol === 'categoria_nombre') orderCol = 'c.nombre';
+      else orderCol = `p.${orderCol}`;
+
+      let baseQuery = `
+        FROM producto p
+        LEFT JOIN categoria c ON p.categoria_id = c.id
+        WHERE p.status > 0 AND p.tipo = 'producto'
+      `;
+      
+      let queryParams = [];
+
+      if (searchValue) {
+          baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ? OR c.nombre LIKE ?)";
+          const likeParam = `%${searchValue}%`;
+          queryParams.push(likeParam, likeParam, likeParam);
+      }
+
+      const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status > 0 AND tipo = 'producto'").get();
+      const recordsTotal = totalRow.count;
+
+      const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+      const recordsFiltered = filteredRow.count;
+
+      const dataQuery = `
+        SELECT p.*,
+               c.nombre as categoria_nombre,
+               (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
+        ${baseQuery}
+        ORDER BY ${orderCol} ${orderDir} 
+        LIMIT ? OFFSET ?
+      `;
+      
+      const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+
+      return {
+          draw: dtParams.draw,
+          recordsTotal: recordsTotal,
+          recordsFiltered: recordsFiltered,
+          data: data
+      };
+    } catch (error) {
+        console.error("Error en paginación de productos: ", error);
+        return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+    }
+  });
+
+  // Paginación del lado del servidor para Servicios ---
+  ipcMain.handle("get-servicios-paginados", (_, dtParams) => {
+    try {
+      const limit = parseInt(dtParams.length, 10) || 10;
+      const offset = parseInt(dtParams.start, 10) || 0;
+      const searchValue = dtParams.search?.value || '';
+
+      const orderColIndex = dtParams.order?.[0]?.column || 0;
+      const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+      
+      const columnsMap = ['ref_name', 'sku', 'status', 'date_created', 'date_modify'];
+      const orderCol = columnsMap[orderColIndex] || 'date_created';
+
+      let baseQuery = `FROM producto WHERE status > 0 AND tipo = 'servicio'`;
+      let queryParams = [];
+
+      if (searchValue) {
+          baseQuery += " AND (ref_name LIKE ? OR sku LIKE ?)";
+          const likeParam = `%${searchValue}%`;
+          queryParams.push(likeParam, likeParam);
+      }
+
+      const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status > 0 AND tipo = 'servicio'").get();
+      const recordsTotal = totalRow.count;
+
+      const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+      const recordsFiltered = filteredRow.count;
+
+      const dataQuery = `
+        SELECT * ${baseQuery}
+        ORDER BY ${orderCol} ${orderDir} 
+        LIMIT ? OFFSET ?
+      `;
+      
+      const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+
+      return {
+          draw: dtParams.draw,
+          recordsTotal: recordsTotal,
+          recordsFiltered: recordsFiltered,
+          data: data
+      };
+    } catch (error) {
+        console.error("Error en paginación de servicios: ", error);
+        return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+    }
+  });
+
   ipcMain.handle("get-servicios", () => {
     try {
       const stmt = db.prepare(`SELECT * FROM producto WHERE status > 0 AND tipo = 'servicio'`)

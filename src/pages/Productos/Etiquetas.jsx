@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Swal from 'sweetalert2'
-import DataTableComponent from '../../components/DataTableComponent'
+import CustomDataTable from '../../components/DataTableComponent'
 import EtiquetaModal from '../../components/EtiquetaModal'
 
 export const Etiquetas = () => {
@@ -10,6 +10,7 @@ export const Etiquetas = () => {
 
     const [dataInTable, setDataInTable] = useState([])
     const [categorias, setCategorias] = useState([])
+    const [reloadTable, setReloadTable] = useState(0)
 
     const emptyForm = {
         nombre: '',
@@ -21,7 +22,6 @@ export const Etiquetas = () => {
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
 
-    // Usamos useCallback para que el useEffect no de advertencias
     const loadData = useCallback(async () => {
         const [tagsData, catsData] = await Promise.all([
             window.api.getEtiquetas(),
@@ -29,22 +29,16 @@ export const Etiquetas = () => {
         ]);
         setDataInTable(tagsData || [])
         setCategorias(catsData || [])
+        setReloadTable(prev => prev + 1)
     }, []);
 
     const cleanForm = () => setForm({ ...emptyForm })
 
     useEffect(() => { loadData() }, [loadData])
-
-    // NUEVO EFECTO: Escuchar si las categorías cambian en la otra pestaña
     useEffect(() => {
-        const handleCategoriasActualizadas = () => {
-            loadData(); // Recargamos las etiquetas y categorías silenciosamente
-        };
+        const handleCategoriasActualizadas = () => loadData();
         window.addEventListener('categorias-actualizadas', handleCategoriasActualizadas);
-        
-        return () => {
-            window.removeEventListener('categorias-actualizadas', handleCategoriasActualizadas);
-        }
+        return () => window.removeEventListener('categorias-actualizadas', handleCategoriasActualizadas);
     }, [loadData])
 
     const handleSubmit = async (e) => {
@@ -63,24 +57,11 @@ export const Etiquetas = () => {
             handleClose()
             loadData()
             
-            // NUEVO: Avisar a la pestaña de Productos que las etiquetas cambiaron
             window.dispatchEvent(new CustomEvent('etiquetas-actualizadas'));
             
         } else {
             Swal.fire('Error', result?.error || 'No se pudo guardar', 'error');
         }
-    }
-
-    const handleEdit = (item) => {
-        const categoriasArray = item.categorias_ids ? item.categorias_ids.split(',') : ['general'];
-
-        setForm({
-            nombre: item.nombre,
-            descripcion: item.descripcion || '',
-            color: item.color || '#0d6efd',
-            categorias: categoriasArray
-        })
-        setEditingId(item.id)
     }
 
     const handleDelete = async (id) => {
@@ -97,11 +78,44 @@ export const Etiquetas = () => {
             const res = await window.api.deleteEtiqueta(id)
             if (res.success) {
                 loadData()
-                // NUEVO: Avisar a la pestaña de Productos
                 window.dispatchEvent(new CustomEvent('etiquetas-actualizadas'));
             }
         }
     }
+
+    const tableContainerRef = useRef(null);
+
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const handleTableClick = (e) => {
+            const editBtn = e.target.closest('.btn-edit');
+            if (editBtn) {
+                try {
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
+                    const item = JSON.parse(rawData);
+                    
+                    const categoriasArray = item.categorias_ids ? item.categorias_ids.split(',') : ['general'];
+
+                    setForm({
+                        nombre: item.nombre || '',
+                        descripcion: item.descripcion || '',
+                        color: item.color || '#0d6efd',
+                        categorias: categoriasArray
+                    });
+                    setEditingId(item.id);
+                    handleShow();
+                } catch(err) { console.error("Error leyendo datos", err); }
+            }
+            
+            const delBtn = e.target.closest('.btn-delete');
+            if (delBtn) handleDelete(delBtn.dataset.id);
+        };
+
+        container.addEventListener('click', handleTableClick);
+        return () => container.removeEventListener('click', handleTableClick);
+    }, []);
 
     return <>
         <div className="mb-3">
@@ -114,58 +128,57 @@ export const Etiquetas = () => {
             </button>
         </div>
 
-        <DataTableComponent
-            data={dataInTable}
-            columns={[
-                { 
-                    data: 'nombre', 
-                    title: 'Etiqueta',
-                    render: (data, type, row) => {
-                        // --- AÑADIMOS LA LÓGICA AQUÍ TAMBIÉN ---
-                        let textColor = '#ffffff';
-                        if (row.color) {
-                            const hex = row.color.replace('#', '');
-                            const r = parseInt(hex.substr(0, 2), 16);
-                            const g = parseInt(hex.substr(2, 2), 16);
-                            const b = parseInt(hex.substr(4, 2), 16);
-                            const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-                            textColor = (yiq >= 128) ? '#000000' : '#ffffff';
+        <div className="table-responsive" ref={tableContainerRef}>
+            <CustomDataTable
+                reloadKey={reloadTable}
+                data={dataInTable}
+                columns={[
+                    { 
+                        data: 'nombre', 
+                        title: 'Etiqueta',
+                        render: (data, type, row) => {
+                            let textColor = '#ffffff';
+                            if (row.color) {
+                                const hex = row.color.replace('#', '');
+                                const r = parseInt(hex.substr(0, 2), 16);
+                                const g = parseInt(hex.substr(2, 2), 16);
+                                const b = parseInt(hex.substr(4, 2), 16);
+                                const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+                                textColor = (yiq >= 128) ? '#000000' : '#ffffff';
+                            }
+                            
+                            return `
+                                <span class="badge" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px;">
+                                    <i class="bi bi-tag-fill me-1"></i> ${data}
+                                </span>
+                            `;
                         }
-                        // ----------------------------------------
-                        
-                        return `
-                            <span class="badge" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px;">
-                                <i class="bi bi-tag-fill me-1"></i> ${data}
-                            </span>
-                        `;
+                    },
+                    { data: 'descripcion', title: 'Descripción' },
+                    { 
+                        data: 'categorias_nombres', 
+                        title: 'Categorías Visibles',
+                        render: (data) => data ? `<small class="text-muted">${data}</small>` : '-'
+                    },
+                    {
+                        data: null,
+                        title: 'Actions',
+                        orderable: false,
+                        render: function (data, type, row) {
+                            const safeData = encodeURIComponent(JSON.stringify(row));
+                            return `
+                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" title="Eliminar">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            `;
+                        }
                     }
-                },
-                { data: 'descripcion', title: 'Descripción' },
-                { 
-                    data: 'categorias_nombres', 
-                    title: 'Categorías Visibles',
-                    render: (data) => data ? `<small class="text-muted">${data}</small>` : '-'
-                },
-                {
-                    data: null,
-                    title: 'Actions',
-                    orderable: false,
-                    render: function (data, type, row) {
-                        return `
-                            <button class="btn btn-sm btn-secondary me-2 btn-edit-${row.id}">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger btn-delete-${row.id}">
-                                <i class="bi bi-trash3"></i>
-                            </button>
-                        `;
-                    }
-                }
-            ]}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onShow={handleShow}
-        />
+                ]}
+            />
+        </div>
 
         <EtiquetaModal
             show={show}

@@ -1,11 +1,12 @@
-import DataTable from 'datatables.net-react'
-import DT from 'datatables.net-bs5';
-import { useState, useEffect, useCallback } from 'react'
+import { 
+  useState, 
+  useEffect, 
+  useCallback, 
+  useRef 
+} from 'react'
 import Swal from 'sweetalert2'
-import DataTableComponent from '../../components/DataTableComponent'
+import CustomDataTable from '../../components/DataTableComponent'
 import ProductModal from '../../components/ProductoModal';
-
-DataTable.use(DT);
 
 export const Productos = () => {
 
@@ -13,59 +14,70 @@ export const Productos = () => {
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
 
-  const [dataInTable, setDataInTable] = useState([])
+  const [reloadTable, setReloadTable] = useState(0)
   const [categorias, setCategorias] = useState([])
   const [etiquetas, setEtiquetas] = useState([])
 
   const emptyForm = {
-    ref_name: '',
-    sku: '',
-    stock: 0,
-    min_stock: 5,
-    max_stock: 50,
-    categoria_id: 'general',
-    etiquetas: [],
-    unidad_medida: 'Unidad',
-    iva: 0,
-    allow_negative: 0,
-    descripcion: '',
-    precio: 0,
-    status: 1,
-    tipo: 'producto',
+    ref_name: '', sku: '', stock: 0, min_stock: 5, max_stock: 50,
+    categoria_id: 'general', etiquetas: [], unidad_medida: 'Unidad',
+    iva: 0, allow_negative: 0, descripcion: '', precio: 0, status: 1, tipo: 'producto',
   }
 
   const [form, setForm] = useState({ ...emptyForm })
   const [editingId, setEditingId] = useState(null)
-
-  const loadData = useCallback(async () => {
-    const [prodData, catsData, tagsData] = await Promise.all([
-      window.api.getProductos(),
+  
+  const loadSelectsData = useCallback(async () => {
+    const [catsData, tagsData] = await Promise.all([
       window.api.getCategorias(),
       window.api.getEtiquetas()
     ]);
-    setDataInTable(prodData || [])
     setCategorias(catsData || [])
     setEtiquetas(tagsData || [])
   }, []);
 
   const cleanForm = () => setForm({ ...emptyForm })
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { loadSelectsData() }, [loadSelectsData])
 
-  // Escuchamos si el usuario crea una categoría/etiqueta nueva en otra pestaña
+  const tableContainerRef = useRef(null);
+
+  // ESTE ES EL ÚNICO ESCUCHADOR DE CLICS QUE DEBE EXISTIR (AISLADO AL CONTENEDOR)
   useEffect(() => {
-      const handleUpdate = () => loadData();
-      window.addEventListener('categorias-actualizadas', handleUpdate);
-      window.addEventListener('etiquetas-actualizadas', handleUpdate);
-      return () => {
-          window.removeEventListener('categorias-actualizadas', handleUpdate);
-          window.removeEventListener('etiquetas-actualizadas', handleUpdate);
+    const container = tableContainerRef.current;
+    if (!container) return;
+
+    const handleTableClick = (e) => {
+      const editBtn = e.target.closest('.btn-edit');
+      if (editBtn) {
+        try {
+          const rawData = decodeURIComponent(editBtn.dataset.alldata);
+          const item = JSON.parse(rawData);
+          
+          const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : [];
+          setForm({
+            ref_name: item.ref_name || '', sku: item.sku || '', stock: item.stock || 0,
+            min_stock: item.min_stock || 5, max_stock: item.max_stock || 50,
+            categoria_id: item.categoria_id || 'general', etiquetas: tagsArray,
+            unidad_medida: item.unidad_medida || 'Unidad', iva: item.iva || 0,
+            allow_negative: item.allow_negative || 0, descripcion: item.descripcion || '',
+            precio: item.precio || 0, status: item.status || 1, tipo: item.tipo || 'producto'
+          });
+          setEditingId(item.id);
+          handleShow();
+        } catch(err) { console.error("Error leyendo datos", err); }
       }
-  }, [loadData])
+      
+      const delBtn = e.target.closest('.btn-delete');
+      if (delBtn) handleDelete(delBtn.dataset.id);
+    };
+
+    container.addEventListener('click', handleTableClick);
+    return () => container.removeEventListener('click', handleTableClick);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
     let result;
     if (editingId) {
       result = await window.api.updateProducto({ ...form, id: editingId })
@@ -77,33 +89,10 @@ export const Productos = () => {
         Swal.fire({ title: '¡Éxito!', text: 'Producto guardado correctamente', icon: 'success', timer: 1500 });
         cleanForm()
         handleClose()
-        loadData()
+        setReloadTable(prev => prev + 1)
     } else {
         Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error');
     }
-  }
-
-  const handleEdit = (item) => {
-    const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : [];
-
-    setForm({
-      ref_name: item.ref_name,
-      sku: item.sku,
-      stock: item.stock,
-      min_stock: item.min_stock,
-      max_stock: item.max_stock,
-      categoria_id: item.categoria_id || 'general',
-      etiquetas: tagsArray,
-      unidad_medida: item.unidad_medida,
-      iva: item.iva,
-      allow_negative: item.allow_negative,
-      descripcion: item.descripcion,
-      precio: item.precio,
-      status: item.status,
-      tipo: item.tipo
-    })
-    setEditingId(item.id)
-    handleShow() 
   }
 
   const handleDelete = async (id) => {
@@ -116,7 +105,7 @@ export const Productos = () => {
 
     if (result.isConfirmed) {
       await window.api.deleteProducto(id)
-      loadData()
+      setReloadTable(prev => prev + 1)
     }
   }
 
@@ -131,34 +120,33 @@ export const Productos = () => {
         </button>
     </div>
 
-    <DataTableComponent
-      data={dataInTable}
-      columns={[
-        { data: 'ref_name', title: 'Nombre Referencia' },
-        { data: 'sku', title: 'SKU' },
-        { data: 'categoria_nombre', title: 'Categoría', render: (data) => data || 'General' },
-        { data: 'stock', title: 'Stock', render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` },
-        { data: 'precio', title: 'Precio', render: (data) => `$${data.toLocaleString('es-CO')}` },
-        { data: 'status', title: 'Estado' },
-        {
-          data: null,
-          title: 'Acciones',
-          orderable: false,
-          render: function (data, type, row) {
-            return `
-                  <button class="btn btn-sm btn-secondary me-2 btn-edit-${row.id}"><i class="bi bi-pencil"></i></button>
-                  <button class="btn btn-sm btn-danger btn-delete-${row.id}"><i class="bi bi-trash3"></i></button>
-                  `;
+    <div className="table-responsive" ref={tableContainerRef}>
+      <CustomDataTable
+        reloadKey={reloadTable}
+        ajaxData={(params) => window.api.getProductosPaginados(params)}
+        columns={[
+          { data: 'ref_name', title: 'Nombre Referencia' },
+          { data: 'sku', title: 'SKU', render: (data) => data ? `<strong>${data.toUpperCase()}</strong>` : '-' },
+          { data: 'categoria_nombre', title: 'Categoría', render: (data) => data || 'General' },
+          { data: 'stock', title: 'Stock', render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` },
+          { data: 'precio', title: 'Precio', render: (data) => `$${(data||0).toLocaleString('es-CO')}` },
+          { data: 'status', title: 'Estado', render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` },
+          {
+            data: null,
+            title: 'Acciones',
+            orderable: false,
+            render: function (data, type, row) {
+              const safeData = encodeURIComponent(JSON.stringify(row));
+              return `
+                    <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}"><i class="bi bi-trash3"></i></button>
+                    `;
+            }
           }
-        }
-      ]}
-      onEdit={handleEdit}
-      onDelete={handleDelete}
-      customRenders={{
-        status: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>`,
-        sku: (data) => `<strong>${data.toUpperCase()}</strong>`
-      }}
-    />
+        ]}
+      />
+    </div>
+
     <ProductModal
       show={show}
       handleClose={handleClose}
