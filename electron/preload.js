@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron") //aqui se usa CommonJS porque con ES da error
+const { contextBridge, ipcRenderer } = require("electron")
 
 contextBridge.exposeInMainWorld("api", {
   ping: () => ipcRenderer.invoke("ping"),
