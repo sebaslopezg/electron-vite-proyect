@@ -132,7 +132,14 @@ export const Servicios = () => {
                 ajaxData={(params) => window.api.getServiciosPaginados(params)}
                 columns={[
                     { data: 'ref_name', title: 'Nombre Referencia' },
-                    { data: 'sku', title: 'SKU', render: (data) => data ? `<strong>${data.toUpperCase()}</strong>` : '-' },
+                    { 
+                        data: 'sku', 
+                        title: 'SKU', 
+                        render: (data, type, row) => {
+                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+                            return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+                        } 
+                    },
                     { data: 'status', title: 'Estado', render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` },
                     { data: 'date_created', title: 'Fecha Creación', render: (data) => new Date(data).toLocaleDateString('es-CO') },
                     { data: 'date_modify', title: 'Fecha Modificación', render: (data) => new Date(data).toLocaleDateString('es-CO') },

@@ -126,7 +126,14 @@ export const Productos = () => {
         ajaxData={(params) => window.api.getProductosPaginados(params)}
         columns={[
           { data: 'ref_name', title: 'Nombre Referencia' },
-          { data: 'sku', title: 'SKU', render: (data) => data ? `<strong>${data.toUpperCase()}</strong>` : '-' },
+          { 
+            data: 'sku', 
+            title: 'SKU', 
+            render: (data, type, row) => {
+              const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+              return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+            } 
+          },
           { data: 'categoria_nombre', title: 'Categoría', render: (data) => data || 'General' },
           { data: 'stock', title: 'Stock', render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` },
           { data: 'precio', title: 'Precio', render: (data) => `$${(data||0).toLocaleString('es-CO')}` },

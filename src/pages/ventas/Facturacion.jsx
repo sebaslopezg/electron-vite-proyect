@@ -21,9 +21,10 @@ export const Facturacion = () => {
   const [esPorcentaje, setEsPorcentaje] = useState(true)
   const [metodoPago, setMetodoPago] = useState('contado')
   const [cuotas, setCuotas] = useState(1)
-
-  // NUEVO ESTADO: Total Recibido
   const [totalRecibido, setTotalRecibido] = useState('')
+  const [skuInput, setSkuInput] = useState('')
+  const [docInput, setDocInput] = useState('')
+
 
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
 
@@ -54,7 +55,6 @@ export const Facturacion = () => {
   const ivaTotal = resumen.totalIva;
   const totalFinal = resumen.totalFinal;
 
-  // NUEVOS CÁLCULOS: Cambio y Saldo
   const recibidoNum = parseFloat(totalRecibido) || 0;
   const cambio = recibidoNum >= totalFinal ? recibidoNum - totalFinal : 0;
   const saldoPendiente = recibidoNum < totalFinal ? totalFinal - recibidoNum : 0;
@@ -70,6 +70,50 @@ export const Facturacion = () => {
   const loadClientes = async () => {
     const data = await window.api.getClientes()
     setClientes(data)
+  }
+
+  const handleSearchProduct = async () => {
+    if (!skuInput.trim()) {
+      handleAddProduct();
+      return;
+    }
+    
+    let currentProducts = productos;
+    if (currentProducts.length === 0) {
+      currentProducts = await window.api.getAllProductos();
+      setProductos(currentProducts);
+    }
+
+    const found = currentProducts.find(p => p.sku && p.sku.toLowerCase() === skuInput.trim().toLowerCase());
+    
+    if (found) {
+      agregarAlCarrito(found);
+      setSkuInput('');
+    } else {
+      handleAddProduct();
+    }
+  }
+
+  const handleSearchClient = async () => {
+    if (!docInput.trim()) {
+      handleAddClient();
+      return;
+    }
+
+    let currentClients = clientes;
+    if (currentClients.length === 0) {
+      currentClients = await window.api.getClientes();
+      setClientes(currentClients);
+    }
+
+    const found = currentClients.find(c => c.documento === docInput.trim());
+    
+    if (found) {
+      setCliente(found);
+      setDocInput(''); 
+    } else {
+      handleAddClient();
+    }
   }
 
   const handleAddProduct = () => {
@@ -221,7 +265,7 @@ export const Facturacion = () => {
           cancelButtonText: 'Cancelar'
         });
 
-        if (!confirm.isConfirmed) return; // Si el usuario cancela, no hacemos nada
+        if (!confirm.isConfirmed) return;
       }
     }
 
@@ -291,10 +335,7 @@ export const Facturacion = () => {
       });
     });
   };
-  const removeItem = (id) => {
-    setCarrito(prev => prev.filter(item => item.id !== id));
-  };
-
+  
   const formatCurrency = (val) => new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
@@ -302,72 +343,76 @@ export const Facturacion = () => {
   }).format(val);
 
   useEffect(() => {
-    const handleGlobalClicks = (e) => {
+    const handleGlobalEvents = (e) => {
       const target = e.target.closest('button') || e.target;
       const id = target.getAttribute('data-id');
       const isEncargo = target.getAttribute('data-encargo');
 
       if (!id) return;
 
-      if (e.target.classList.contains('change-iva')) {
-        const val = parseFloat(e.target.value) || 0;
-        setCarrito(prev => prev.map(item =>
-          (String(item.id) === String(id) && item.isEncargo === isEncargo)
-            ? { ...item, iva: val }
-            : item
-        ));
-      }
+      if (e.type === 'change') {
+        if (e.target.classList.contains('change-iva')) {
+          const val = parseFloat(e.target.value) || 0;
+          setCarrito(prev => prev.map(item =>
+            (String(item.id) === String(id) && item.isEncargo === isEncargo)
+              ? { ...item, iva: val }
+              : item
+          ));
+        }
 
-      if (e.target.classList.contains('change-discount')) {
-        const val = parseFloat(e.target.value) || 0;
-        setCarrito(prev => prev.map(item =>
-          (String(item.id) === String(id) && item.isEncargo === isEncargo)
-            ? { ...item, descuento: val }
-            : item
-        ));
-      }
-
-      if (target.closest('.toggle-discount-type')) {
-        setCarrito(prev => prev.map(item => {
-          if (String(item.id) === String(id) && item.isEncargo === isEncargo) {
-            return {
-              ...item,
-              tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje'
-            };
-          }
-          return item;
-        }));
-      }
-
-      if (target.closest('.btn-select-product')) {
-        const selected = productos.find(p => String(p.id) === String(id));
-        if (selected) agregarAlCarrito(selected);
-      }
-
-      if (target.closest('.btn-select-client')) {
-        const selected = clientes.find(c => String(c.id) === String(id));
-        if (selected) {
-          setCliente(selected);
-          handleClose();
+        if (e.target.classList.contains('change-discount')) {
+          const val = parseFloat(e.target.value) || 0;
+          setCarrito(prev => prev.map(item =>
+            (String(item.id) === String(id) && item.isEncargo === isEncargo)
+              ? { ...item, descuento: val }
+              : item
+          ));
         }
       }
 
-      if (target.closest('.btn-qty-plus')) updateQuantity(id, 1, isEncargo);
-      if (target.closest('.btn-qty-minus')) updateQuantity(id, -1, isEncargo);
+      if (e.type === 'click') {
+        if (target.closest('.toggle-discount-type')) {
+          setCarrito(prev => prev.map(item => {
+            if (String(item.id) === String(id) && item.isEncargo === isEncargo) {
+              return {
+                ...item,
+                tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje'
+              };
+            }
+            return item;
+          }));
+        }
 
-      if (target.closest('.btn-remove-item')) {
-        setCarrito(prev => prev.filter(item =>
-          !(String(item.id) === String(id) && item.isEncargo === isEncargo)
-        ));
+        if (target.closest('.btn-select-product')) {
+          const selected = productos.find(p => String(p.id) === String(id));
+          if (selected) agregarAlCarrito(selected);
+        }
+
+        if (target.closest('.btn-select-client')) {
+          const selected = clientes.find(c => String(c.id) === String(id));
+          if (selected) {
+            setCliente(selected);
+            handleClose();
+          }
+        }
+
+        if (target.closest('.btn-qty-plus')) updateQuantity(id, 1, isEncargo);
+        if (target.closest('.btn-qty-minus')) updateQuantity(id, -1, isEncargo);
+
+        if (target.closest('.btn-remove-item')) {
+          setCarrito(prev => prev.filter(item =>
+            !(String(item.id) === String(id) && item.isEncargo === isEncargo)
+          ));
+        }
       }
     };
 
-    document.addEventListener('input', handleGlobalClicks);
-    document.addEventListener('click', handleGlobalClicks);
+    document.addEventListener('change', handleGlobalEvents);
+    document.addEventListener('click', handleGlobalEvents);
 
     return () => {
-      document.removeEventListener('input', handleGlobalClicks);
-      document.removeEventListener('click', handleGlobalClicks);
+      document.removeEventListener('change', handleGlobalEvents);
+      document.removeEventListener('click', handleGlobalEvents);
     }
   }, [productos, clientes, carrito]);
 
@@ -376,10 +421,15 @@ export const Facturacion = () => {
     <Row className="justify-content-between mb-3">
       <Col xs={4}>
         <InputGroup>
-          <Button variant="primary" onClick={handleAddProduct}>
-            Agregar Producto</Button>
+          <Button variant="primary" onClick={handleSearchProduct}>
+            Agregar Producto
+          </Button>
           <Form.Control
-            placeholder="Código SKU"
+            placeholder="Código"
+            value={skuInput}
+            onChange={(e) => setSkuInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearchProduct()}
+            autoFocus
           />
         </InputGroup>
       </Col>
@@ -387,10 +437,15 @@ export const Facturacion = () => {
       <Col xs={5}>
         {!cliente ? (
           <InputGroup>
-            <Button variant="primary" onClick={handleAddClient}>
+            <Button variant="primary" onClick={handleSearchClient}>
               Agregar Cliente
             </Button>
-            <Form.Control placeholder="Buscar por documento..." />
+            <Form.Control 
+              placeholder="Buscar por documento..." 
+              value={docInput}
+              onChange={(e) => setDocInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchClient()}
+            />
           </InputGroup>
         ) : (
           <div className="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
@@ -407,8 +462,7 @@ export const Facturacion = () => {
     </Row>
 
     <Row>
-      {/* LADO IZQUIERDO: ACCIONES Y TABLA */}
-      <Col lg={8}>
+      <Col lg={8} xl={9}>
         <div className="d-flex gap-2 mb-3">
           <Button
             variant="outline-secondary"
@@ -431,108 +485,111 @@ export const Facturacion = () => {
           </Button>
         </div>
 
-        <DataTableComponent
-          data={carrito}
-          columns={[
-            { data: 'ref_name', title: 'Ref.' },
-            { data: 'sku', title: 'SKU' },
-            {
-              data: 'ref_name',
-              title: 'Stk.',
-              render: (data, type, row) => `
-          <span class="badge ${row.stock < 5 ? 'bg-danger' : 'bg-info'}">
-            ${row.stock}
-          </span>
-      `
-            },
-            {
-              data: null,
-              title: 'Cant.',
-              render: (data, type, row) => `
-                <div class="btn-group btn-group-sm">
-                  <button class="btn btn-outline-secondary btn-qty-minus" 
-                  data-id="${row.id}" data-encargo="${row.isEncargo}">-</button>
-                  <span class="btn btn-light disabled">${row.cantidad}</span>
-                  <button class="btn btn-outline-secondary btn-qty-plus" 
-                  data-id="${row.id}" data-encargo="${row.isEncargo}">+</button>
-                </div>
-`
-            },
-            {
-              data: 'iva',
-              title: 'IVA%',
-              render: (data, type, row) => `
-        <div class="input-group input-group-sm" style="width: 70px">
-          <input type="number" class="form-control change-iva text-center px-1" 
-                data-id="${row.id}" value="${row.iva || 0}">
-        </div>
-      `
-            },
-            {
-              data: 'precio',
-              title: 'Precio',
-              render: (val) => `$${(Number(val)).toLocaleString()}`
-            },
-            {
-              data: null,
-              title: 'Desc.',
-              render: (data, type, row) => `
-        <div class="input-group input-group-sm" style="width: 90px">
-          <input type="number" class="form-control change-discount px-1 text-center" 
-                data-id="${row.id}" value="${row.descuento || 0}">
-          <button class="btn btn-outline-secondary toggle-discount-type px-1" data-id="${row.id}">
-            ${row.tipoDescuento === 'porcentaje' ? '%' : '$'}
-          </button>
-        </div>
-      `
-            },
-            {
-              data: null,
-              title: 'Tipo',
-              render: function (data, type, row) {
-                let badges = '';
+        <div className="w-100 pe-2" style={{ minWidth: 0 }}>
+          <DataTableComponent
+            data={carrito}
+            columns={[
+              { data: 'ref_name', title: 'Ref.' },
+              { data: 'sku', title: 'SKU' },
+              {
+                data: 'ref_name',
+                title: 'Stk.',
+                render: (data, type, row) => `
+                  <span class="badge ${row.stock < 5 ? 'bg-danger' : 'bg-info'}">
+                    ${row.stock}
+                  </span>
+                `
+              },
+              {
+                data: null,
+                title: 'Cant.',
+                render: (data, type, row) => `
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary btn-qty-minus" 
+                    data-id="${row.id}" data-encargo="${row.isEncargo}">-</button>
+                    <span class="btn btn-light disabled">${row.cantidad}</span>
+                    <button class="btn btn-outline-secondary btn-qty-plus" 
+                    data-id="${row.id}" data-encargo="${row.isEncargo}">+</button>
+                  </div>
+                `
+              },
+              {
+                data: 'iva',
+                title: 'IVA%',
+                render: (data, type, row) => `
+                  <div class="input-group input-group-sm" style="width: 70px">
+                    <input type="number" class="form-control change-iva text-center px-1" 
+                          data-id="${row.id}" data-encargo="${row.isEncargo}" value="${row.iva || 0}"> 
+                  </div>
+                `
+              },
+              {
+                data: 'precio',
+                title: 'Precio',
+                render: (val) => `$${(Number(val)).toLocaleString()}`
+              },
+              {
+                data: null,
+                title: 'Desc.',
+                render: (data, type, row) => `
+                  <div class="input-group input-group-sm" style="width: 90px">
+                    <input type="number" class="form-control change-discount px-1 text-center" 
+                          data-id="${row.id}" data-encargo="${row.isEncargo}" value="${row.descuento || 0}">
+                    <button class="btn btn-outline-secondary toggle-discount-type px-1" 
+                            data-id="${row.id}" data-encargo="${row.isEncargo}">
+                      ${row.tipoDescuento === 'porcentaje' ? '%' : '$'}
+                    </button>
+                  </div>
+                `
+              },
+              {
+                data: null,
+                title: 'Tipo',
+                render: function (data, type, row) {
+                  let badges = '';
 
-                if (row.tipo === 'producto') {
-                  badges += '<span class="badge bg-primary me-1">Producto</span>';
-                } else {
-                  badges += '<span class="badge bg-success me-1">Servicio</span>';
+                  if (row.tipo === 'producto') {
+                    badges += '<span class="badge bg-primary me-1">Producto</span>';
+                  } else {
+                    badges += '<span class="badge bg-success me-1">Servicio</span>';
+                  }
+
+                  if (row.isEncargo > 0) {
+                    badges += '<span class="badge bg-warning text-dark me-1">Encargo</span>';
+                  }
+
+                  return badges;
                 }
-
-                if (row.isEncargo > 0) {
-                  badges += '<span class="badge bg-warning text-dark me-1">Encargo</span>';
+              },
+              {
+                data: null,
+                title: 'Total',
+                render: (data, type, row) => {
+                  const sub = row.precio * row.cantidad;
+                  const desc = row.tipoDescuento === 'porcentaje'
+                    ? sub * (row.descuento / 100)
+                    : row.descuento;
+                  return `<strong>${formatCurrency(sub - desc)}</strong>`;
                 }
-
-                return badges;
+              },
+              {
+                data: null,
+                title: '',
+                orderable: false,
+                render: (data, type, row) => `
+                  <button class="btn btn-sm btn-danger btn-remove-item" 
+                          data-id="${row.id}" data-encargo="${row.isEncargo}">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                `
               }
-            },
-            {
-              data: null,
-              title: 'Total',
-              render: (data, type, row) => {
-                const sub = row.precio * row.cantidad;
-                const desc = row.tipoDescuento === 'porcentaje'
-                  ? sub * (row.descuento / 100)
-                  : row.descuento;
-                return `<strong>${formatCurrency(sub - desc)}</strong>`;
-              }
-            },
-            {
-              data: null,
-              title: '',
-              orderable: false,
-              render: (data, type, row) => `
-  <button class="btn btn-sm btn-danger btn-remove-item" 
-          data-id="${row.id}" data-encargo="${row.isEncargo}">
-    <i class="bi bi-trash"></i>
-  </button>
-`
-            }
-          ]}
-        />
+            ]}
+          />
+        </div>
       </Col>
 
       {/* LADO DERECHO: RESUMEN DE VENTA */}
-      <Col lg={4}>
+      <Col lg={4} xl={3}>
         <div className="card shadow-sm sticky-top" style={{ top: '20px' }}>
           <div className="card-body">
             <h5 className="card-title mb-3">Resumen de Venta</h5>
@@ -567,7 +624,7 @@ export const Facturacion = () => {
 
             {/* NUEVO CAMPO: Total Recibido */}
             <Form.Group className="mb-3 bg-light p-2 rounded">
-              <Form.Label className="fw-bold"><small>Dinero Recibido (Cliente)</small></Form.Label>
+              <Form.Label className="fw-bold"><small>Dinero Recibido</small></Form.Label>
               <InputGroup size="sm">
                 <InputGroup.Text>$</InputGroup.Text>
                 <Form.Control
@@ -575,7 +632,6 @@ export const Facturacion = () => {
                   min="0"
                   value={totalRecibido}
                   onChange={(e) => setTotalRecibido(e.target.value)}
-                  placeholder="Ej: 50000"
                 />
               </InputGroup>
             </Form.Group>

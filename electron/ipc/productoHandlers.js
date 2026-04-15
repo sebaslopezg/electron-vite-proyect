@@ -63,6 +63,7 @@ export const registerProductoHandlers = () => {
       const dataQuery = `
         SELECT p.*,
                c.nombre as categoria_nombre,
+               c.sku_prefix, c.separador, /* <--- AÑADE ESTA LÍNEA */
                (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
         ${baseQuery}
         ORDER BY ${orderCol} ${orderDir} 
@@ -83,7 +84,6 @@ export const registerProductoHandlers = () => {
     }
   });
 
-  // Paginación del lado del servidor para Servicios ---
   ipcMain.handle("get-servicios-paginados", (_, dtParams) => {
     try {
       const limit = parseInt(dtParams.length, 10) || 10;
@@ -92,17 +92,22 @@ export const registerProductoHandlers = () => {
 
       const orderColIndex = dtParams.order?.[0]?.column || 0;
       const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
-      
+            
       const columnsMap = ['ref_name', 'sku', 'status', 'date_created', 'date_modify'];
-      const orderCol = columnsMap[orderColIndex] || 'date_created';
+      let orderCol = columnsMap[orderColIndex] || 'date_created';
+      orderCol = `p.${orderCol}`;
 
-      let baseQuery = `FROM producto WHERE status > 0 AND tipo = 'servicio'`;
+      let baseQuery = `
+        FROM producto p
+        LEFT JOIN categoria c ON p.categoria_id = c.id
+        WHERE p.status > 0 AND p.tipo = 'servicio'
+      `;
       let queryParams = [];
 
       if (searchValue) {
-          baseQuery += " AND (ref_name LIKE ? OR sku LIKE ?)";
-          const likeParam = `%${searchValue}%`;
-          queryParams.push(likeParam, likeParam);
+        baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ?)";
+        const likeParam = `%${searchValue}%`;
+        queryParams.push(likeParam, likeParam);
       }
 
       const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status > 0 AND tipo = 'servicio'").get();
@@ -112,22 +117,23 @@ export const registerProductoHandlers = () => {
       const recordsFiltered = filteredRow.count;
 
       const dataQuery = `
-        SELECT * ${baseQuery}
+        SELECT p.*, c.sku_prefix, c.separador
+        ${baseQuery}
         ORDER BY ${orderCol} ${orderDir} 
         LIMIT ? OFFSET ?
       `;
-      
+          
       const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
 
       return {
-          draw: dtParams.draw,
-          recordsTotal: recordsTotal,
-          recordsFiltered: recordsFiltered,
-          data: data
+        draw: dtParams.draw,
+        recordsTotal: recordsTotal,
+        recordsFiltered: recordsFiltered,
+        data: data
       };
     } catch (error) {
-        console.error("Error en paginación de servicios: ", error);
-        return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+      console.error("Error en paginación de servicios: ", error);
+      return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
     }
   });
 
@@ -155,7 +161,6 @@ export const registerProductoHandlers = () => {
       const now = new Date().toISOString()
       const status = data.status > 0 && data.status <= 2 ? data.status : 1
 
-      // 1. Insertar el Producto con los nuevos campos de stock y categoría
       db.prepare(`
         INSERT INTO producto (
           id, ref_name, sku, precio, tipo, allow_negative, stock, 
@@ -177,7 +182,6 @@ export const registerProductoHandlers = () => {
         categoria_id: data.categoria_id || 'general'
       })
 
-      // 2. Insertar las Etiquetas asociadas
       if (data.etiquetas && data.etiquetas.length > 0) {
         const insertTag = db.prepare(`INSERT INTO producto_etiqueta (producto_id, etiqueta_id) VALUES (?, ?)`)
         for (const tagId of data.etiquetas) {
@@ -185,7 +189,6 @@ export const registerProductoHandlers = () => {
         }
       }
 
-      // 3. Registrar el Stock Inicial en el Inventario (si es mayor a 0)
       if (data.stock > 0) {
         db.prepare(`
           INSERT INTO inventario (
@@ -215,7 +218,6 @@ export const registerProductoHandlers = () => {
       const now = new Date().toISOString()
       const status = data.status > 0 && data.status <= 2 ? data.status : 1
       
-      // 1. Actualizar datos del producto
       db.prepare(`
         UPDATE producto SET
           ref_name = @ref_name, sku = @sku, precio = @precio, tipo = @tipo,
@@ -233,7 +235,6 @@ export const registerProductoHandlers = () => {
         categoria_id: data.categoria_id || 'general'
       })
 
-      // 2. Limpiar etiquetas viejas y registrar las nuevas
       db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(data.id)
       if (data.etiquetas && data.etiquetas.length > 0) {
         const insertTag = db.prepare(`INSERT INTO producto_etiqueta (producto_id, etiqueta_id) VALUES (?, ?)`)
