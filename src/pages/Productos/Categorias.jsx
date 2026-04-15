@@ -129,7 +129,7 @@ export const Categorias = () => {
             </button>
         </div>
 
-        <div className="table-responsive" ref={tableContainerRef}>
+        <div ref={tableContainerRef} className="w-100 overflow-hidden">
             <CustomDataTable
                 reloadKey={reloadTable}
                 data={dataInTable}

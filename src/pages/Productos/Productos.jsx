@@ -120,7 +120,7 @@ export const Productos = () => {
         </button>
     </div>
 
-    <div className="table-responsive" ref={tableContainerRef}>
+    <div ref={tableContainerRef} className="w-100">
       <CustomDataTable
         reloadKey={reloadTable}
         ajaxData={(params) => window.api.getProductosPaginados(params)}

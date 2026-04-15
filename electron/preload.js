@@ -14,8 +14,10 @@ contextBridge.exposeInMainWorld("api", {
 
   //inventario
   getInventario: () => ipcRenderer.invoke("get-inventario"),
+  getInventarioPaginados: (params) => ipcRenderer.invoke("get-inventario-paginados", params),
   setInventario: (item) => ipcRenderer.invoke("set-inventario", item),
   getInventarioHistory: (productoId) => ipcRenderer.invoke("get-inventario-history", productoId),
+  getInventarioHistoryPaginados: (params) => ipcRenderer.invoke("get-inventario-history-paginados", params),
 
   //productos
   getProductos: () => ipcRenderer.invoke("get-productos"),

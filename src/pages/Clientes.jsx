@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react'
+import { 
+  useState, 
+  useEffect, 
+  useRef 
+} from 'react'
 import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
@@ -22,6 +26,31 @@ export const Clientes = () => {
   const cleanForm = () => {
     setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
   }
+
+  const tableContainerRef = useRef(null);
+
+  useEffect(() => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+
+    const handleTableClick = (e) => {
+      const editBtn = e.target.closest('.btn-edit');
+      if (editBtn) {
+        handleEdit({
+          id: editBtn.dataset.id,
+          documento: editBtn.dataset.documento,
+          nombre: editBtn.dataset.nombre,
+          telefono: editBtn.dataset.telefono,
+          direccion: editBtn.dataset.direccion
+        });
+      }
+      const delBtn = e.target.closest('.btn-delete');
+      if (delBtn) handleDelete(delBtn.dataset.id);
+    };
+
+    container.addEventListener('click', handleTableClick);
+    return () => container.removeEventListener('click', handleTableClick);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -104,8 +133,7 @@ export const Clientes = () => {
           </div>
         </div>
 
-        <div className="table-responsive">
-          
+        <div ref={tableContainerRef} className="w-100">
           <CustomDataTable
             reloadKey={reloadTable}
             ajaxData={(params) => window.api.getClientesPaginados(params)}

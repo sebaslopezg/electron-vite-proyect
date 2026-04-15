@@ -41,6 +41,7 @@ const CustomDataTable = ({ columns, reloadKey = 0, ajaxData, data }) => {
     destroy: true,
     language: spanishLanguage,
     responsive: true,
+    autoWidth: false, 
     serverSide: isServerSide,
     processing: isServerSide,
   };
