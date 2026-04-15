@@ -146,13 +146,14 @@ export const registerVentasHandlers = () => {
                         now
                     )
                 } else {
-                    const prevNum = db.prepare('SELECT COUNT(*) FROM encargos').get()
-                    const newNum = prevNum + 1
+                    const prevNum = db.prepare('SELECT COUNT(*) as count FROM encargos').get()
+                    const newNum = prevNum.count + 1
                     const insertEncargo = db.prepare(
                         `INSERT INTO encargos(
                             id,
                             id_factura,
                             numero_factura,
+                            prefijo,
                             id_producto,
                             numero_encargo,
                             estado_encargo,
@@ -161,12 +162,13 @@ export const registerVentasHandlers = () => {
                             date_created,
                             status
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                     `)
                     insertEncargo.run(
                         uuidv4(),
                         maestroId,
                         nuevoNumeroFactura,
+                        prefijoFactura,
                         item.id,
                         newNum,
                         "pendiente",
