@@ -172,14 +172,24 @@ export const registerNotasHandlers = () => {
     }
   });
 
-ipcMain.handle("search-factura", (_, numero_factura) => {
+  ipcMain.handle("search-factura", (_, numero_factura) => {
     try {
-      const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ?').get(numero_factura);
+      const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ? AND status > 0').get(numero_factura);
       
       if (!maestro) {
         return { success: false, message: 'Factura no encontrada' };
       }
-      const detalles = db.prepare('SELECT * FROM ventasDetalle WHERE maestro_id = ?').all(maestro.id);
+
+      const detalles = db.prepare(`
+          SELECT df.*, 
+            p.sku, 
+            c.sku_prefix, 
+            c.separador
+          FROM ventasDetalle df
+          LEFT JOIN producto p ON df.id_producto = p.id
+          LEFT JOIN categoria c ON p.categoria_id = c.id
+          WHERE df.maestro_id = ?
+      `).all(maestro.id);
       
       return { success: true, maestro, detalles };
     } catch (error) {

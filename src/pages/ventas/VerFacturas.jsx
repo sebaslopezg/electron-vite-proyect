@@ -11,8 +11,6 @@ export const VerFacturas = () => {
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
     
     const [notasFactura, setNotasFactura] = useState([])
-
-    // NUEVOS ESTADOS: Filtro de fechas
     const [startDate, setStartDate] = useState('')
     const [endDate, setEndDate] = useState('')
 
@@ -61,25 +59,19 @@ export const VerFacturas = () => {
         }
     }
 
-    // LÓGICA DE FILTRADO: Comparamos las fechas seleccionadas con la de cada factura
     const facturasFiltradas = facturas.filter(factura => {
-        // Si no hay filtro activo, devolvemos todo
         if (!startDate && !endDate) return true;
 
-        // Extraemos solo la parte de la fecha (YYYY-MM-DD) ignorando la hora
         const fDateStr = factura.date_created.split('T')[0]; 
 
-        // Si hay fecha de inicio y la factura es más antigua, la ocultamos
         if (startDate && fDateStr < startDate) return false;
         
-        // Si hay fecha de fin y la factura es más nueva, la ocultamos
         if (endDate && fDateStr > endDate) return false;
 
         return true;
     });
 
     return <>
-        {/* NUEVA SECCIÓN: Filtro de Fechas */}
         <div className="bg-light p-3 rounded mb-4 border">
             <Row className="align-items-end">
                 <Col md={3}>
@@ -117,7 +109,6 @@ export const VerFacturas = () => {
             </Row>
         </div>
 
-        {/* NOTA: Ahora le pasamos 'facturasFiltradas' a la tabla, no 'facturas' */}
         <DataTableComponent
             data={facturasFiltradas}
             columns={[
@@ -186,7 +177,6 @@ export const VerFacturas = () => {
             </Modal.Header>
             <Modal.Body>
                 
-                {/* CABECERA DEL MODAL */}
                 {facturaSeleccionada && (
                     <div className="bg-light p-3 rounded mb-3 border">
                         <Row>
@@ -210,10 +200,19 @@ export const VerFacturas = () => {
                     </div>
                 )}
 
-                {/* TABLA DE PRODUCTOS */}
                 <DataTableComponent
                     data={detalleData}
                     columns={[
+                        { 
+                          data: null,
+                          title: 'SKU',
+                          render: (data, type, row) => {
+                            if (!row.sku) return '<span class="text-muted" title="Producto eliminado del catálogo">Sin SKU</span>'; 
+                            
+                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+                            return `<strong>${prefix}${row.sku.toUpperCase()}</strong>`;
+                          }
+                        },
                         { data: 'nombre_producto', title: 'Producto' },
                         { data: 'precio_producto', title: 'V. Unitario' },
                         { data: 'cantidad_producto', title: 'Cantidad' },
@@ -225,7 +224,6 @@ export const VerFacturas = () => {
                     }}
                 />
 
-                {/* PIE DEL MODAL: Resumen Financiero */}
                 {facturaSeleccionada && (
                     <div className="mt-3 p-3 bg-light rounded border text-end">
                         <p className="mb-1"><strong>Subtotal:</strong> ${(facturaSeleccionada.subtotal || 0).toLocaleString('es-CO')}</p>
@@ -236,7 +234,6 @@ export const VerFacturas = () => {
                     </div>
                 )}
 
-                {/* NUEVA SECCIÓN: NOTAS APLICADAS */}
                 {notasFactura.length > 0 && (
                     <div className="mt-4">
                         <h6 className="text-danger fw-bold border-bottom pb-2">

@@ -84,7 +84,14 @@ export const Facturacion = () => {
       setProductos(currentProducts);
     }
 
-    const found = currentProducts.find(p => p.sku && p.sku.toLowerCase() === skuInput.trim().toLowerCase());
+    const searchStr = skuInput.trim().toLowerCase();
+
+    const found = currentProducts.find(p => {
+      if (!p.sku) return false;
+      const fullSku = p.sku_prefix ? `${p.sku_prefix}${p.separador || ''}${p.sku}` : p.sku;
+      
+      return fullSku.toLowerCase() === searchStr || p.sku.toLowerCase() === searchStr;
+    });
     
     if (found) {
       agregarAlCarrito(found);
@@ -123,7 +130,14 @@ export const Facturacion = () => {
       title: 'Agregar Producto',
       columns: [
         { data: 'ref_name', title: 'Nombre Referencia' },
-        { data: 'sku', title: 'SKU' },
+        { 
+          data: 'sku', 
+          title: 'SKU',
+          render: (data, type, row) => {
+            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+            return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+          }
+        },
         { data: 'stock', title: 'Stock' },
         { data: 'precio', title: 'Precio' },
         {
@@ -489,8 +503,15 @@ export const Facturacion = () => {
           <DataTableComponent
             data={carrito}
             columns={[
-              { data: 'ref_name', title: 'Ref.' },
-              { data: 'sku', title: 'SKU' },
+            { data: 'ref_name', title: 'Ref.' },
+              { 
+                data: 'sku', 
+                title: 'SKU',
+                render: (data, type, row) => {
+                  const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+                  return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+                }
+              },
               {
                 data: 'ref_name',
                 title: 'Stk.',
