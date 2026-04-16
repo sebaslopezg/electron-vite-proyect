@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
+import { Button, Form, FormGroup, Modal } from "react-bootstrap"
+import Swal from "sweetalert2"
 
 export const Encargos = () => {
     const [show, setShow] = useState(false)
@@ -10,58 +12,39 @@ export const Encargos = () => {
     const [items, setItems] = useState([])
     const [dataInTable, setDataInTable] = useState([])
     const [form, setForm] = useState({
-        documento: '',
-        nombre: '',
-        telefono: '',
-        direccion: ''
+        fecha_entrega: '',
+        estado_encargo: '',
+        descripcion: ''
     })
     const [editingId, setEditingId] = useState(null)
 
     const load = async () => {
-        const data = await window.api.getEncargos()
-        console.log(data);
-
+        const data = await window.api.getEncargosPendientes()
         setItems(data)
         setDataInTable(data)
     }
 
     const cleanForm = () => {
-        setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
+        setForm({ fecha_entrega: '', estado_encargo: '', descripcion: '' })
     }
+
 
     const handleSubmit = async (e) => {
         e.preventDefault()
 
-        try {
-            if (editingId) {
-                await window.api.updateCliente({ ...form, id: editingId })
-                Swal.fire("Actualizado", "Cliente actualizado exitosamente", "success")
-                setEditingId(null)
-            } else {
-                await window.api.addCliente(form)
-                Swal.fire("Guardado", "Cliente creado exitosamente", "success")
-            }
+        const result = await window.api.updateEncargo({ ...form, id: editingId })
 
-            setForm({ documento: '', nombre: '', telefono: '', direccion: '' })
+        if (result && result.success) {
+            Swal.fire({ title: '¡Éxito!', text: 'Encargo agendado correctamente', icon: 'success', timer: 1500 });
+            cleanForm()
             handleClose()
             load()
-        } catch (error) {
-            console.error('Error al guardar el cliente:', error)
-            Swal.fire({
-                title: "Error",
-                text: `Error al guardar el cliente. Verifique que el Documento de identidad no exista ya. ${error.message || ''}`,
-                icon: "error"
-            })
+        } else {
+            Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error');
         }
     }
 
     const handleEdit = (item) => {
-        setForm({
-            documento: item.documento,
-            nombre: item.nombre,
-            telefono: item.telefono,
-            direccion: item.direccion
-        })
         setEditingId(item.id)
     }
 
@@ -74,7 +57,7 @@ export const Encargos = () => {
         });
 
         if (result.isConfirmed) {
-            await window.api.deleteBitacora(id)
+            await window.api.deleteEncargo(id)
             load()
         }
     }
@@ -140,6 +123,51 @@ export const Encargos = () => {
                         }
                     }}
                 />
+                <Modal show={show} onHide={handleClose} size="md" centered>
+                    <Modal.Header closeButton>
+                        <Modal.Title>Completar encargo</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <Form onSubmit={(e) => {
+                            e.preventDefault()
+                            handleSave()
+                        }}>
+                            <Form.Group className="mb-3">
+                                <Form.Label htmlFor="cantidad">Fecha</Form.Label>
+                                <Form.Control
+                                    id="fecha_entrega"
+                                    value={form.fecha_entrega}
+                                    onChange={(e) => setForm({ ...form, fecha_entrega: e.target.value, estado_encargo: 'agendado' })}
+                                    type="date"
+                                    placeholder="DD/MM/AAAA"
+                                    required
+                                    autoFocus
+                                />
+                            </Form.Group>
+                            <FormGroup>
+                                <Form.Label>Descripción</Form.Label>
+                                <Form.Control
+                                    id="descripcion"
+                                    value={form.descripcion}
+                                    onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+                                    as="textarea"
+                                    rows={3}
+                                    placeholder="Agregar descripción"
+                                    required
+                                    autoFocus
+                                />
+                            </FormGroup>
+                        </Form>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" onClick={handleClose}>
+                            Cancelar
+                        </Button>
+                        <Button variant="primary" onClick={handleSubmit}>
+                            Guardar
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
             </div>
         </div>
     </>)

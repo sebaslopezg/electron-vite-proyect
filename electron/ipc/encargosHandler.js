@@ -4,9 +4,19 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 
 export const registerEncargosHandlers = () => {
-    ipcMain.handle("get-encargos", () => {
+    ipcMain.handle("get-encargosPendientes", () => {
         try {
-            const stmt = db.prepare(`SELECT * FROM encargos WHERE status > 0`)
+            const stmt = db.prepare(`SELECT * FROM encargos WHERE status > 0 AND estado_encargo = 'pendiente'`)
+            return stmt.all()
+        } catch (error) {
+            console.error("Error al intentar obtener encargos:", error)
+            return []
+        }
+    })
+
+    ipcMain.handle("get-encargosAgendados", () => {
+        try {
+            const stmt = db.prepare(`SELECT * FROM encargos WHERE status > 0 AND estado_encargo = 'agendado'`)
             return stmt.all()
         } catch (error) {
             console.error("Error al intentar obtener encargos:", error)
@@ -21,7 +31,7 @@ export const registerEncargosHandlers = () => {
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
 
             const stmt = db.prepare(`
-        INSERT INTO producto (
+        INSERT INTO encargos (
             id,
             id_factura,
             numero_encargo,
@@ -65,15 +75,18 @@ export const registerEncargosHandlers = () => {
             const now = new Date().toISOString()
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
             const stmt = db.prepare(`
-        UPDATE encargo SET
+        UPDATE encargos SET
             fecha_entrega = @fecha_entrega,
             estado_encargo = @estado_encargo,
+            descripcion = @descripcion,
+            date_modify = @date_modify,
+            modify_by = @modify_by
         WHERE id = @id
       `)
-
             const info = stmt.run({
                 ...item,
                 date_modify: now,
+                modify_by: item.modify_by || "system",
                 status: status
             })
 
@@ -89,7 +102,7 @@ export const registerEncargosHandlers = () => {
         try {
             const now = new Date().toISOString();
             const stmt = db.prepare(`
-        UPDATE encargo
+        UPDATE encargos
         SET 
           status = 0,
           date_modify = @date_modify,
