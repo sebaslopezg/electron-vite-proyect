@@ -34,6 +34,75 @@ export const registerInventarioHandler = () => {
         }
     })
 
+    ipcMain.handle("get-inventario-paginados", (_, dtParams) => {
+        try {
+            const limit = parseInt(dtParams.length, 10) || 10;
+            const offset = parseInt(dtParams.start, 10) || 0;
+            const searchValue = dtParams.search?.value || '';
+
+            const filterCategory = dtParams.customCategory || '';
+            const filterTag = dtParams.customTag || '';
+
+            const orderColIndex = dtParams.order?.[0]?.column || 0;
+            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+            
+            const columnsMap = ['ref_name', 'sku', 'stock', 'precio'];
+            let orderCol = columnsMap[orderColIndex] || 'ref_name';
+            orderCol = `p.${orderCol}`;
+
+            let baseQuery = `
+                FROM producto p
+                LEFT JOIN categoria c ON p.categoria_id = c.id
+                WHERE p.status = 1 AND p.tipo = 'producto'
+            `;
+            let queryParams = [];
+
+            if (searchValue) {
+                baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ?)";
+                const likeParam = `%${searchValue}%`;
+                queryParams.push(likeParam, likeParam);
+            }
+
+            if (filterCategory) {
+                baseQuery += " AND p.categoria_id = ?";
+                queryParams.push(filterCategory);
+            }
+
+            if (filterTag) {
+                baseQuery += " AND EXISTS (SELECT 1 FROM producto_etiqueta pe2 WHERE pe2.producto_id = p.id AND pe2.etiqueta_id = ?)";
+                queryParams.push(filterTag);
+            }
+
+            const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status = 1 AND tipo = 'producto'").get();
+            const recordsTotal = totalRow.count;
+
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+            const recordsFiltered = filteredRow.count;
+
+            const dataQuery = `
+                SELECT 
+                    p.id, p.ref_name, p.sku, p.precio, p.stock, p.unidad_medida, p.descripcion, p.min_stock,
+                    c.sku_prefix, c.separador, p.categoria_id, c.nombre as categoria_nombre,
+                    (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
+                ${baseQuery}
+                ORDER BY ${orderCol} ${orderDir} 
+                LIMIT ? OFFSET ?
+            `;
+            
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+
+            return {
+                draw: dtParams.draw,
+                recordsTotal: recordsTotal,
+                recordsFiltered: recordsFiltered,
+                data: data
+            };
+        } catch (error) {
+            console.error("Error en paginación de inventario: ", error);
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+        }
+    });
+
     ipcMain.handle("set-inventario", (_, item) => {
 
         const transaction = db.transaction((item) => {
@@ -52,8 +121,6 @@ export const registerInventarioHandler = () => {
             const stockAnterior = currentProduct.stock
             let stockNuevo
 
-            // Calculate new stock based on movement type
-            // tipo_movimiento could be: 'entrada', 'salida', 'ajuste', etc.
             if (item.type === 'ingreso') {
                 stockNuevo = stockAnterior + item.cantidad
             } else if (item.type === 'egreso') {
@@ -64,7 +131,6 @@ export const registerInventarioHandler = () => {
                 throw new Error(`Tipo de movimiento no válido: ${item.type}`)
             }
 
-            // Update producto stock
             const updateStock = db.prepare(`
           UPDATE producto SET 
             stock = ?,
@@ -133,7 +199,6 @@ export const registerInventarioHandler = () => {
         })
 
         try {
-            // Execute the transaction
             const result = transaction(item)
             return result
         } catch (error) {
@@ -145,7 +210,6 @@ export const registerInventarioHandler = () => {
         }
     })
 
-    // Get inventario history for a product
     ipcMain.handle("get-inventario-history", (_, productoId) => {
         try {
             const stmt = db.prepare(`
@@ -164,4 +228,55 @@ export const registerInventarioHandler = () => {
             return []
         }
     })
+
+    // Paginación del lado del servidor para Historial ---
+    ipcMain.handle("get-inventario-history-paginados", (_, dtParams) => {
+        try {
+            const limit = parseInt(dtParams.length, 10) || 10;
+            const offset = parseInt(dtParams.start, 10) || 0;
+            const searchValue = dtParams.search?.value || '';
+            
+            const productoId = dtParams.productoId; 
+            if (!productoId) throw new Error("Se requiere el ID del producto");
+
+            const orderColIndex = dtParams.order?.[0]?.column || 0;
+            const orderDir = dtParams.order?.[0]?.dir === 'asc' ? 'ASC' : 'DESC'; 
+            
+            const columnsMap = ['fecha', 'tipo_movimiento', 'cantidad', 'stock_anterior', 'stock_nuevo', 'usuario', 'notas'];
+            let orderCol = columnsMap[orderColIndex] || 'fecha';
+
+            let baseQuery = `FROM inventario WHERE producto_id = ?`;
+            let queryParams = [productoId];
+
+            if (searchValue) {
+                baseQuery += " AND (tipo_movimiento LIKE ? OR usuario LIKE ? OR notas LIKE ?)";
+                const likeParam = `%${searchValue}%`;
+                queryParams.push(likeParam, likeParam, likeParam);
+            }
+
+            const totalRow = db.prepare("SELECT COUNT(*) as count FROM inventario WHERE producto_id = ?").get(productoId);
+            const recordsTotal = totalRow.count;
+
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+            const recordsFiltered = filteredRow.count;
+
+            const dataQuery = `
+                SELECT * ${baseQuery}
+                ORDER BY ${orderCol} ${orderDir} 
+                LIMIT ? OFFSET ?
+            `;
+            
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+
+            return {
+                draw: dtParams.draw,
+                recordsTotal: recordsTotal,
+                recordsFiltered: recordsFiltered,
+                data: data
+            };
+        } catch (error) {
+            console.error("Error en paginación de historial: ", error);
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+        }
+    });
 }

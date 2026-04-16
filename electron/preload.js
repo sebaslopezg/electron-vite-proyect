@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron") //aqui se usa CommonJS porque con ES da error
+const { contextBridge, ipcRenderer } = require("electron")
 
 contextBridge.exposeInMainWorld("api", {
   ping: () => ipcRenderer.invoke("ping"),
@@ -14,12 +14,16 @@ contextBridge.exposeInMainWorld("api", {
 
   //inventario
   getInventario: () => ipcRenderer.invoke("get-inventario"),
+  getInventarioPaginados: (params) => ipcRenderer.invoke("get-inventario-paginados", params),
   setInventario: (item) => ipcRenderer.invoke("set-inventario", item),
   getInventarioHistory: (productoId) => ipcRenderer.invoke("get-inventario-history", productoId),
+  getInventarioHistoryPaginados: (params) => ipcRenderer.invoke("get-inventario-history-paginados", params),
 
   //productos
   getProductos: () => ipcRenderer.invoke("get-productos"),
+  getProductosPaginados: (params) => ipcRenderer.invoke("get-productos-paginados", params),
   getServicios: () => ipcRenderer.invoke("get-servicios"),
+  getServiciosPaginados: (params) => ipcRenderer.invoke("get-servicios-paginados", params),
   getAllProductos: () => ipcRenderer.invoke("get-allProductos"),
   addProducto: (item) => ipcRenderer.invoke("add-producto", item),
   updateProducto: (item) => ipcRenderer.invoke("update-producto", item),
@@ -34,6 +38,7 @@ contextBridge.exposeInMainWorld("api", {
 
   //clientes
   getClientes: () => ipcRenderer.invoke("get-clientes"),
+  getClientesPaginados: (params) => ipcRenderer.invoke("get-clientes-paginados", params),
   addCliente: (item) => ipcRenderer.invoke("add-cliente", item),
   updateCliente: (item) => ipcRenderer.invoke("update-cliente", item),
   deleteCliente: (item) => ipcRenderer.invoke("delete-cliente", item),

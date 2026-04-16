@@ -24,6 +24,119 @@ export const registerProductoHandlers = () => {
     }
   })
 
+  // Paginación del lado del servidor para Productos ---
+  ipcMain.handle("get-productos-paginados", (_, dtParams) => {
+    try {
+      const limit = parseInt(dtParams.length, 10) || 10;
+      const offset = parseInt(dtParams.start, 10) || 0;
+      const searchValue = dtParams.search?.value || '';
+
+      const orderColIndex = dtParams.order?.[0]?.column || 0;
+      const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+      
+      const columnsMap = ['ref_name', 'sku', 'categoria_nombre', 'stock', 'precio', 'status'];
+      
+      let orderCol = columnsMap[orderColIndex] || 'date_created';
+      if (orderCol === 'categoria_nombre') orderCol = 'c.nombre';
+      else orderCol = `p.${orderCol}`;
+
+      let baseQuery = `
+        FROM producto p
+        LEFT JOIN categoria c ON p.categoria_id = c.id
+        WHERE p.status > 0 AND p.tipo = 'producto'
+      `;
+      
+      let queryParams = [];
+
+      if (searchValue) {
+          baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ? OR c.nombre LIKE ?)";
+          const likeParam = `%${searchValue}%`;
+          queryParams.push(likeParam, likeParam, likeParam);
+      }
+
+      const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status > 0 AND tipo = 'producto'").get();
+      const recordsTotal = totalRow.count;
+
+      const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+      const recordsFiltered = filteredRow.count;
+
+      const dataQuery = `
+        SELECT p.*,
+               c.nombre as categoria_nombre,
+               c.sku_prefix, c.separador, /* <--- AÑADE ESTA LÍNEA */
+               (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
+        ${baseQuery}
+        ORDER BY ${orderCol} ${orderDir} 
+        LIMIT ? OFFSET ?
+      `;
+      
+      const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+
+      return {
+          draw: dtParams.draw,
+          recordsTotal: recordsTotal,
+          recordsFiltered: recordsFiltered,
+          data: data
+      };
+    } catch (error) {
+        console.error("Error en paginación de productos: ", error);
+        return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+    }
+  });
+
+  ipcMain.handle("get-servicios-paginados", (_, dtParams) => {
+    try {
+      const limit = parseInt(dtParams.length, 10) || 10;
+      const offset = parseInt(dtParams.start, 10) || 0;
+      const searchValue = dtParams.search?.value || '';
+
+      const orderColIndex = dtParams.order?.[0]?.column || 0;
+      const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+            
+      const columnsMap = ['ref_name', 'sku', 'status', 'date_created', 'date_modify'];
+      let orderCol = columnsMap[orderColIndex] || 'date_created';
+      orderCol = `p.${orderCol}`;
+
+      let baseQuery = `
+        FROM producto p
+        LEFT JOIN categoria c ON p.categoria_id = c.id
+        WHERE p.status > 0 AND p.tipo = 'servicio'
+      `;
+      let queryParams = [];
+
+      if (searchValue) {
+        baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ?)";
+        const likeParam = `%${searchValue}%`;
+        queryParams.push(likeParam, likeParam);
+      }
+
+      const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status > 0 AND tipo = 'servicio'").get();
+      const recordsTotal = totalRow.count;
+
+      const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+      const recordsFiltered = filteredRow.count;
+
+      const dataQuery = `
+        SELECT p.*, c.sku_prefix, c.separador
+        ${baseQuery}
+        ORDER BY ${orderCol} ${orderDir} 
+        LIMIT ? OFFSET ?
+      `;
+          
+      const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+
+      return {
+        draw: dtParams.draw,
+        recordsTotal: recordsTotal,
+        recordsFiltered: recordsFiltered,
+        data: data
+      };
+    } catch (error) {
+      console.error("Error en paginación de servicios: ", error);
+      return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+    }
+  });
+
   ipcMain.handle("get-servicios", () => {
     try {
       const stmt = db.prepare(`SELECT * FROM producto WHERE status > 0 AND tipo = 'servicio'`)
@@ -48,7 +161,6 @@ export const registerProductoHandlers = () => {
       const now = new Date().toISOString()
       const status = data.status > 0 && data.status <= 2 ? data.status : 1
 
-      // 1. Insertar el Producto con los nuevos campos de stock y categoría
       db.prepare(`
         INSERT INTO producto (
           id, ref_name, sku, precio, tipo, allow_negative, stock, 
@@ -70,7 +182,6 @@ export const registerProductoHandlers = () => {
         categoria_id: data.categoria_id || 'general'
       })
 
-      // 2. Insertar las Etiquetas asociadas
       if (data.etiquetas && data.etiquetas.length > 0) {
         const insertTag = db.prepare(`INSERT INTO producto_etiqueta (producto_id, etiqueta_id) VALUES (?, ?)`)
         for (const tagId of data.etiquetas) {
@@ -78,7 +189,6 @@ export const registerProductoHandlers = () => {
         }
       }
 
-      // 3. Registrar el Stock Inicial en el Inventario (si es mayor a 0)
       if (data.stock > 0) {
         db.prepare(`
           INSERT INTO inventario (
@@ -108,7 +218,6 @@ export const registerProductoHandlers = () => {
       const now = new Date().toISOString()
       const status = data.status > 0 && data.status <= 2 ? data.status : 1
       
-      // 1. Actualizar datos del producto
       db.prepare(`
         UPDATE producto SET
           ref_name = @ref_name, sku = @sku, precio = @precio, tipo = @tipo,
@@ -126,7 +235,6 @@ export const registerProductoHandlers = () => {
         categoria_id: data.categoria_id || 'general'
       })
 
-      // 2. Limpiar etiquetas viejas y registrar las nuevas
       db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(data.id)
       if (data.etiquetas && data.etiquetas.length > 0) {
         const insertTag = db.prepare(`INSERT INTO producto_etiqueta (producto_id, etiqueta_id) VALUES (?, ?)`)

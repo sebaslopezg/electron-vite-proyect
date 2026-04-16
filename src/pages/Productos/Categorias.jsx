@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
-import DataTableComponent from '../../components/DataTableComponent'
+import CustomDataTable from '../../components/DataTableComponent'
 import CategoriaModal from '../../components/CategoriaModal'
 
 export const Categorias = () => {
@@ -9,6 +9,7 @@ export const Categorias = () => {
     const handleShow = () => setShow(true);
 
     const [dataInTable, setDataInTable] = useState([])
+    const [reloadTable, setReloadTable] = useState(0)
 
     const emptyForm = {
         nombre: '',
@@ -23,6 +24,7 @@ export const Categorias = () => {
     const load = async () => {
         const data = await window.api.getCategorias()
         setDataInTable(data)
+        setReloadTable(prev => prev + 1)
     };
 
     const cleanForm = () => setForm({ ...emptyForm })
@@ -52,22 +54,11 @@ export const Categorias = () => {
             handleClose()
             load()
             
-            // NUEVO: Avisar a todo el sistema que las categorías cambiaron
             window.dispatchEvent(new CustomEvent('categorias-actualizadas'));
             
         } else {
             Swal.fire('Error', result?.error || 'No se pudo guardar', 'error');
         }
-    }
-
-    const handleEdit = (item) => {
-        setForm({
-            nombre: item.nombre,
-            descripcion: item.descripcion || '',
-            sku_prefix: item.sku_prefix || '',
-            separador: item.separador || ''
-        })
-        setEditingId(item.id)
     }
 
     const handleDelete = async (id) => {
@@ -88,13 +79,44 @@ export const Categorias = () => {
             const res = await window.api.deleteCategoria(id)
             if (res.success) {
                 load()
-                // NUEVO: Avisar también al borrar
                 window.dispatchEvent(new CustomEvent('categorias-actualizadas'));
             } else {
                 Swal.fire('No se puede eliminar', res.error, 'error')
             }
         }
     }
+
+    const tableContainerRef = useRef(null);
+
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const handleTableClick = (e) => {
+            const editBtn = e.target.closest('.btn-edit');
+            if (editBtn) {
+                try {
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
+                    const item = JSON.parse(rawData);
+                    
+                    setForm({
+                        nombre: item.nombre || '',
+                        descripcion: item.descripcion || '',
+                        sku_prefix: item.sku_prefix || '',
+                        separador: item.separador || ''
+                    });
+                    setEditingId(item.id);
+                    handleShow();
+                } catch(err) { console.error("Error leyendo datos", err); }
+            }
+            
+            const delBtn = e.target.closest('.btn-delete');
+            if (delBtn) handleDelete(delBtn.dataset.id);
+        };
+
+        container.addEventListener('click', handleTableClick);
+        return () => container.removeEventListener('click', handleTableClick);
+    }, []);
 
     return <>
         <div className="mb-3">
@@ -107,46 +129,47 @@ export const Categorias = () => {
             </button>
         </div>
 
-        <DataTableComponent
-            data={dataInTable}
-            columns={[
-                { data: 'nombre', title: 'Categoría' },
-                { 
-                    data: 'sku_prefix', 
-                    title: 'Prefijo SKU',
-                    render: (data, type, row) => data ? `<code>${data}${row.separador || ''}</code>` : '<span class="text-muted">-</span>'
-                },
-                { 
-                    data: 'descripcion', 
-                    title: 'Descripción',
-                    render: (data) => data || '<span class="text-muted">-</span>'
-                },
-                { 
-                    data: 'cant_productos', 
-                    title: 'Productos Asociados',
-                    render: (data) => `<span class="badge bg-secondary">${data}</span>`
-                },
-                {
-                    data: null,
-                    title: 'Actions',
-                    orderable: false,
-                    render: function (data, type, row) {
-                        const isGeneral = row.id === 'general';
-                        return `
-                            <button class="btn btn-sm btn-secondary me-2 btn-edit-${row.id}" title="Editar">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger btn-delete-${row.id}" ${isGeneral ? 'disabled' : ''} title="Eliminar">
-                                <i class="bi bi-trash3"></i>
-                            </button>
-                        `;
+        <div ref={tableContainerRef} className="w-100 overflow-hidden">
+            <CustomDataTable
+                reloadKey={reloadTable}
+                data={dataInTable}
+                columns={[
+                    { data: 'nombre', title: 'Categoría' },
+                    { 
+                        data: 'sku_prefix', 
+                        title: 'Prefijo SKU',
+                        render: (data, type, row) => data ? `<code>${data}${row.separador || ''}</code>` : '<span class="text-muted">-</span>'
+                    },
+                    { 
+                        data: 'descripcion', 
+                        title: 'Descripción',
+                        render: (data) => data || '<span class="text-muted">-</span>'
+                    },
+                    { 
+                        data: 'cant_productos', 
+                        title: 'Productos Asociados',
+                        render: (data) => `<span class="badge bg-secondary">${data || 0}</span>`
+                    },
+                    {
+                        data: null,
+                        title: 'Actions',
+                        orderable: false,
+                        render: function (data, type, row) {
+                            const isGeneral = row.id === 'general';
+                            const safeData = encodeURIComponent(JSON.stringify(row));
+                            return `
+                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" ${isGeneral ? 'disabled' : ''} title="Eliminar">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            `;
+                        }
                     }
-                }
-            ]}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onShow={handleShow}
-        />
+                ]}
+            />
+        </div>
 
         <CategoriaModal
             show={show}

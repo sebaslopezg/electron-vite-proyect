@@ -1,53 +1,70 @@
-import { useEffect, useState } from 'react';
-import DataTableComponent from '../../components/DataTableComponent'
+import { useState, useEffect, useRef } from 'react';
+import Swal from 'sweetalert2'
+import CustomDataTable from '../../components/DataTableComponent'
 import ProductModal from '../../components/ProductoModal';
 
 export const Servicios = () => {
-    const [dataInTable, setDataInTable] = useState([])
     const [show, setShow] = useState(false);
-    const [items, setItems] = useState([])
-
     const handleClose = () => setShow(false);
     const handleShow = () => setShow(true);
+
+    const [reloadTable, setReloadTable] = useState(0)
 
     const emptyForm = {
         ref_name: '',
         sku: '',
         stock: 0,
-        unidad_medida: '',
+        unidad_medida: 'Unidad',
         iva: 0,
-        allow_negative: '',
+        allow_negative: 0,
         descripcion: '',
         precio: 0,
         status: 1,
-        tipo: '',
+        tipo: 'servicio',
+        categoria_id: 'general',
+        etiquetas: []
     }
 
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
+    const [categorias, setCategorias] = useState([])
+    const [etiquetas, setEtiquetas] = useState([])
 
-    const load = async () => {
-        const data = await window.api.getServicios()
-        setItems(data)
-        setDataInTable(data)
-    };
+    useEffect(() => {
+        const loadExtras = async () => {
+            const [cats, tags] = await Promise.all([
+                window.api.getCategorias(),
+                window.api.getEtiquetas()
+            ]);
+            setCategorias(cats || []);
+            setEtiquetas(tags || []);
+        }
+        loadExtras();
+    }, []);
 
-    useEffect(() => { load() }, [])
+    const cleanForm = () => setForm({ ...emptyForm })
 
-    const handleEdit = (item) => {
-        setForm({
-            ref_name: item.ref_name,
-            sku: item.sku,
-            stock: item.stock,
-            unidad_medida: item.unidad_medida,
-            iva: item.iva,
-            allow_negative: item.allow_negative,
-            descripcion: item.descripcion,
-            precio: item.precio,
-            status: item.status,
-            tipo: item.tipo
-        })
-        setEditingId(item.id)
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        let result;
+        if (editingId) {
+            result = await window.api.updateProducto({ ...form, id: editingId })
+        } else {
+            result = await window.api.addProducto(form)
+        }
+
+        if (result && result.success) {
+            Swal.fire({ title: '¡Éxito!', text: 'Servicio guardado correctamente', icon: 'success', timer: 1500 });
+            cleanForm()
+            handleClose()
+            setReloadTable(prev => prev + 1)
+        } else {
+            Swal.fire('Error', result?.error || 'No se pudo guardar el servicio', 'error');
+        }
+    }
+
+    const handleEdit = (id) => {
+        handleShow(); 
     }
 
     const handleDelete = async (id) => {
@@ -60,69 +77,92 @@ export const Servicios = () => {
 
         if (result.isConfirmed) {
             await window.api.deleteProducto(id)
-            load()
+            setReloadTable(prev => prev + 1)
         }
     }
 
-    const handleSubmit = async (e) => {
+    const tableContainerRef = useRef(null);
 
-        e.preventDefault()
-        if (editingId) {
-            await window.api.updateProducto({ ...form, id: editingId })
-            setEditingId(null)
-        } else {
-            await window.api.addProducto(form)
-        }
-        cleanForm()
-        handleClose()
-        load()
-    }
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const handleTableClick = (e) => {
+            const editBtn = e.target.closest('.btn-edit');
+            if (editBtn) {
+                try {
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
+                    const item = JSON.parse(rawData);
+                    const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : [];
+                    
+                    setForm({
+                        ref_name: item.ref_name || '', sku: item.sku || '', stock: item.stock || 0,
+                        unidad_medida: item.unidad_medida || 'Unidad', iva: item.iva || 0,
+                        allow_negative: item.allow_negative || 0, descripcion: item.descripcion || '',
+                        precio: item.precio || 0, status: item.status || 1, tipo: item.tipo || 'servicio',
+                        categoria_id: item.categoria_id || 'general', etiquetas: tagsArray
+                    });
+                    setEditingId(item.id);
+                    handleShow();
+                } catch(err) { console.error("Error leyendo datos", err); }
+            }
+            
+            const delBtn = e.target.closest('.btn-delete');
+            if (delBtn) handleDelete(delBtn.dataset.id);
+        };
+
+        container.addEventListener('click', handleTableClick);
+        return () => container.removeEventListener('click', handleTableClick);
+    }, []);
 
     return (<>
-        <DataTableComponent
-            data={dataInTable}
-            columns={[
-                { data: 'ref_name', title: 'Nombre Referencia' },
-                { data: 'sku', title: 'SKU' },
-                { data: 'status', title: 'Estado' },
-                { data: 'date_created', title: 'Fecha Creación' },
-                { data: 'date_modify', title: 'Fecha Modificación' },
-                {
-                    data: null,
-                    title: 'Actions',
-                    orderable: false,
-                    render: function (data, type, row) {
-                        return `
-                  <button class="btn btn-sm btn-secondary me-2 btn-edit-${row.id}">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                  <button class="btn btn-sm btn-danger btn-delete-${row.id}">
-                   <i class="bi bi-trash3"></i>
-                  </button>
-                  `;
+        <div className="mb-3">
+            <button className='btn btn-primary' onClick={() => {
+                setEditingId(null)
+                cleanForm()
+                handleShow()
+            }}>
+                <i className="bi bi-plus-circle me-2"></i>Nuevo Servicio
+            </button>
+        </div>
+
+        <div ref={tableContainerRef}>
+            <CustomDataTable
+                reloadKey={reloadTable}
+                ajaxData={(params) => window.api.getServiciosPaginados(params)}
+                columns={[
+                    { data: 'ref_name', title: 'Nombre Referencia' },
+                    { 
+                        data: 'sku', 
+                        title: 'SKU', 
+                        render: (data, type, row) => {
+                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+                            return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+                        } 
+                    },
+                    { data: 'status', title: 'Estado', render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` },
+                    { data: 'date_created', title: 'Fecha Creación', render: (data) => new Date(data).toLocaleDateString('es-CO') },
+                    { data: 'date_modify', title: 'Fecha Modificación', render: (data) => new Date(data).toLocaleDateString('es-CO') },
+                    {
+                        data: null,
+                        title: 'Acciones',
+                        orderable: false,
+                        render: function (data, type, row) {
+                            const safeData = encodeURIComponent(JSON.stringify(row));
+                            return `
+                            <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}">
+                            <i class="bi bi-trash3"></i>
+                            </button>
+                            `;
+                        }
                     }
-                }
-            ]}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onShow={handleShow}
-            customRenders={{
-                status: (data, type, row) => {
-                    const badgeClass = data === 1 ? 'bg-success' : 'bg-danger';
-                    const statusName = data === 1 ? 'Activo' : 'Inactivo'
-                    return `<span class="badge ${badgeClass}">${statusName}</span>`;
-                },
-                date_created: (data, type, row) => {
-                    return new Date(data).toLocaleDateString('es-ES');
-                },
-                date_modify: (data, type, row) => {
-                    return new Date(data).toLocaleDateString('es-ES');
-                },
-                sku: (data, type, row) => {
-                    return `<strong>${data.toUpperCase()}</strong>`;
-                }
-            }}
-        />
+                ]}
+            />
+        </div>
+        
         <ProductModal
             show={show}
             handleClose={handleClose}
@@ -130,6 +170,8 @@ export const Servicios = () => {
             form={form}
             setForm={setForm}
             editingId={editingId}
+            categorias={categorias}
+            etiquetas={etiquetas}
         />
     </>)
 }
