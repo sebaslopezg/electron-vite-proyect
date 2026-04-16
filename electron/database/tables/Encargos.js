@@ -10,9 +10,13 @@ export function createEncargosTable() {
       prefijo TEXT,
 
       id_producto TEXT,
+      nombre_producto TEXT,
+      cantidad_producto TEXT,
+
       numero_encargo INTEGER,
       fecha_entrega TEXT,
       estado_encargo TEXT,
+      descripcion TEXT,
       
       nombre_almacen TEXT,
       nombre_cliente TEXT,
