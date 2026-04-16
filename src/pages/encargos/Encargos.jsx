@@ -9,7 +9,8 @@ export const Encargos = () => {
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
 
-    const [items, setItems] = useState([])
+    const [dataPendiente, setDataPendiente] = useState([])
+    const [dataAgendado, setDataAgendado] = useState([])
     const [dataInTable, setDataInTable] = useState([])
     const [form, setForm] = useState({
         fecha_entrega: '',
@@ -19,15 +20,16 @@ export const Encargos = () => {
     const [editingId, setEditingId] = useState(null)
 
     const load = async () => {
-        const data = await window.api.getEncargosPendientes()
-        setItems(data)
+        const dataPend = await window.api.getEncargosPendientes()
+        const dataAgend = await window.api.getEncargosAgendados()
+        setDataPendiente(dataPend)
+        setDataAgendado(dataAgend)
         setDataInTable(data)
     }
 
     const cleanForm = () => {
         setForm({ fecha_entrega: '', estado_encargo: '', descripcion: '' })
     }
-
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -68,13 +70,13 @@ export const Encargos = () => {
 
     return (<>
         <div className="pagetitle">
-            <h1>Encargos</h1>
+            <h1>Por agendar</h1>
         </div>
         <div className="card">
             <div className="card-title"></div>
             <div className="card-body">
                 <DataTableComponent
-                    data={dataInTable}
+                    data={dataPendiente}
                     columns={[
                         { data: 'numero_encargo', title: 'N° encargo' },
                         {

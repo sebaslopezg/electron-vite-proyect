@@ -24,7 +24,7 @@ export const IndexEncargos = () => {
                 aria-selected="false"
                 tabindex="-1"
               >
-                Encargos por agendar
+                Encargos
               </button>
             </li>
             <li className="nav-item" role="presentation">
