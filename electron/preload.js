@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld("api", {
 
   //notas - credito/debito
   getNotas: () => ipcRenderer.invoke("get-notas"),
+  getNotaDetalle: (id) => ipcRenderer.invoke('get-nota-detalle', id),
   addNota: (data) => ipcRenderer.invoke("add-nota", data),
   searchFactura: (numero) => ipcRenderer.invoke("search-factura", numero),
 

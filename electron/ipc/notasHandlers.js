@@ -172,18 +172,52 @@ export const registerNotasHandlers = () => {
     }
   });
 
-ipcMain.handle("search-factura", (_, numero_factura) => {
+  ipcMain.handle("search-factura", (_, numero_factura) => {
     try {
-      const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ?').get(numero_factura);
+      const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ? AND status > 0').get(numero_factura);
       
       if (!maestro) {
         return { success: false, message: 'Factura no encontrada' };
       }
-      const detalles = db.prepare('SELECT * FROM ventasDetalle WHERE maestro_id = ?').all(maestro.id);
+
+      const detalles = db.prepare(`
+          SELECT df.*, 
+            p.sku, 
+            c.sku_prefix, 
+            c.separador
+          FROM ventasDetalle df
+          LEFT JOIN producto p ON df.id_producto = p.id
+          LEFT JOIN categoria c ON p.categoria_id = c.id
+          WHERE df.maestro_id = ?
+      `).all(maestro.id);
       
       return { success: true, maestro, detalles };
     } catch (error) {
       console.error("Error buscando factura:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("get-nota-detalle", (_, notaId) => {
+    try {
+      const stmt = db.prepare(`
+          SELECT ni.*, 
+            p.sku, 
+            c.sku_prefix, 
+            c.separador
+          FROM nota_item ni
+          LEFT JOIN producto p ON ni.id_producto = p.id
+          LEFT JOIN categoria c ON p.categoria_id = c.id
+          WHERE ni.id_nota = ?
+      `);
+      
+      const detalles = stmt.all(notaId);
+      const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
+      const configuracion = confStmt.get();
+
+      return { success: true, data: detalles, configuracion: configuracion };
+    } catch (error) {
+      console.error("Error obteniendo detalles de nota:", error);
       return { success: false, error: error.message };
     }
   });

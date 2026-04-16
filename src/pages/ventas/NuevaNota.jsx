@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
@@ -6,7 +6,6 @@ import Form from 'react-bootstrap/Form';
 import DataTableComponent from '../../components/DataTableComponent';
 
 export const NuevaNota = ({ onBack, onSuccess }) => {
-    // 1. Estados del formulario y la BD
     const [formData, setFormData] = useState({
         tipo_nota: 'Crédito',
         motivo_dian: 'Devolución de parte de los bienes',
@@ -15,18 +14,16 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
         afecta_inventario: true
     });
 
-    const [facturaCargada, setFacturaCargada] = useState(null); // Guarda la data de ventasMaestro
-    const [productosDisponibles, setProductosDisponibles] = useState([]); // Guarda los ventasDetalle
-    const [items, setItems] = useState([]); // Los productos agregados a la tabla de la nota
+    const [facturaCargada, setFacturaCargada] = useState(null);
+    const [productosDisponibles, setProductosDisponibles] = useState([]);
+    const [items, setItems] = useState([]);
     
-    // 2. Estados del Modal
     const [showModal, setShowModal] = useState(false);
     const [itemForm, setItemForm] = useState({ id_producto: '', cantidad: 1 });
 
     const motivosCredito = ["Devolución de parte de los bienes", "Anulación de factura electrónica", "Rebaja total", "Descuento parcial"];
     const motivosDebito = ["Intereses", "Gastos por cobrar", "Cambio del valor"];
 
-    // 3. Cálculos automáticos de totales
     const totales = items.reduce((acc, item) => {
         return {
             base: acc.base + (item.subtotal || 0),
@@ -40,7 +37,6 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
         setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
     };
 
-    // 4. LÓGICA: Buscar Factura en el backend
     const handleSearchFactura = async () => {
         if (!formData.numero_factura_origen) {
             Swal.fire('Atención', 'Ingrese un número de factura', 'warning');
@@ -52,7 +48,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
         if (result.success) {
             setFacturaCargada(result.maestro);
             setProductosDisponibles(result.detalles);
-            setItems([]); // Limpiar la tabla si busca otra factura
+            setItems([]);
             Swal.fire({ icon: 'success', title: 'Factura Encontrada', text: `Cliente: ${result.maestro.nombre_cliente}`, timer: 1500 });
         } else {
             Swal.fire('Error', result.message || 'Factura no encontrada', 'error');
@@ -61,18 +57,15 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
         }
     };
 
-    // 5. LÓGICA: Modal y Agregar a la tabla
     const handleCloseModal = () => setShowModal(false);
     const handleOpenModal = () => {
         if(productosDisponibles.length > 0) {
-            // Seleccionar por defecto el primer producto en el select
             setItemForm({ id_producto: productosDisponibles[0].id_producto, cantidad: 1 });
         }
         setShowModal(true);
     };
 
     const handleConfirmAddItem = () => {
-        // Encontrar el producto original en la factura
         const prodFactura = productosDisponibles.find(p => p.id_producto === itemForm.id_producto);
         if (!prodFactura) return;
 
@@ -89,14 +82,16 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             Swal.fire('Atención', 'Este producto ya está en la nota', 'warning'); return;
         }
 
-        // Crear el nuevo item para la tabla (Tu DataTable necesita la prop 'id' para el botón eliminar)
         const newItem = {
             id: prodFactura.id_producto, 
             id_producto: prodFactura.id_producto,
+            sku: prodFactura.sku,
+            sku_prefix: prodFactura.sku_prefix,
+            separador: prodFactura.separador,
             nombre_producto: prodFactura.nombre_producto,
             cantidad: cantAAgregar,
             precio_unitario: prodFactura.precio_producto,
-            iva_percent: (prodFactura.iva || 19) / 100, // Ajustar según cómo guardes el IVA (19 o 0.19)
+            iva_percent: (prodFactura.iva || 19) / 100,
             get subtotal() { return this.cantidad * this.precio_unitario; },
             get total() { return this.subtotal * (1 + this.iva_percent); }
         };
@@ -106,10 +101,27 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
     };
 
     const handleDeleteItem = (id_producto_eliminar) => {
-        setItems(items.filter(item => item.id !== id_producto_eliminar));
+        setItems(prevItems => prevItems.filter(item => item.id !== id_producto_eliminar));
     };
 
-    // 6. Enviar al Backend
+    const tableContainerRef = useRef(null);
+
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const handleTableClick = (e) => {
+            const delBtn = e.target.closest('.btn-delete-item');
+            if (delBtn) {
+                const id = delBtn.dataset.id;
+                handleDeleteItem(id);
+            }
+        };
+
+        container.addEventListener('click', handleTableClick);
+        return () => container.removeEventListener('click', handleTableClick);
+    }, [items]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (items.length === 0) {
@@ -119,14 +131,13 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
         const payload = {
             tipo_nota: formData.tipo_nota,
             prefijo: formData.tipo_nota === 'Crédito' ? 'NC' : 'ND',
-            numero_nota: Math.floor(Math.random() * 1000) + 1, // Cambiar por consecutivo real
+            numero_nota: Math.floor(Math.random() * 1000) + 1,
             id_factura_origen: facturaCargada.id, 
             numero_factura_origen: facturaCargada.numero_factura.toString(),
 
             documento_cliente: facturaCargada.documento_cliente || '',
             nombre_cliente: facturaCargada.nombre_cliente || 'Cliente Mostrador',
 
-            //id_cliente: facturaCargada.id_cliente || '0', 
             motivo_dian: formData.motivo_dian,
             observaciones: formData.observaciones,
             total_base: totales.base,
@@ -187,13 +198,11 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                             </select>
                         </div>
                         
-                        {/* Muestra información si la factura está cargada */}
                         {facturaCargada && (
                             <div className="col-12 mt-2">
                                 <div className="alert alert-info py-2 m-0">
                                     <strong>Factura Seleccionada:</strong> {facturaCargada.prefijo || ''}{facturaCargada.numero_factura} | 
                                     <strong> Cliente:</strong> {facturaCargada.nombre_cliente} | 
-                                    {/* Calculamos el total sumando los detalles, ya que ventasMaestro no tiene columna de total */}
                                     <strong> Total Original:</strong> ${
                                         productosDisponibles
                                             .reduce((sum, item) => sum + (item.total || 0), 0)
@@ -218,30 +227,49 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                     <div className="mb-4">
                         <div className="d-flex justify-content-between align-items-end mb-2">
                             <h6 className="fw-bold mb-0">Detalle de la Nota</h6>
-                            {/* EL BOTÓN ESTÁ DESHABILITADO HASTA QUE SE CARGUE UNA FACTURA */}
                             <button type="button" className="btn btn-success btn-sm" disabled={!facturaCargada} onClick={handleOpenModal}>
                                 <i className="bi bi-plus me-1"></i> Agregar Ítem
                             </button>
                         </div>
                         
-                        {/* AQUÍ ESTÁ TU DATATABLE COMPONENT */}
-                        <DataTableComponent 
-                            data={items}
-                            onDelete={handleDeleteItem}
-                            columns={[
-                                { data: 'nombre_producto', title: 'Producto' },
-                                { data: 'cantidad', title: 'Cant.' },
-                                { data: 'precio_unitario', title: 'V. Unitario' },
-                                { data: 'iva_percent', title: 'IVA' },
-                                { data: 'total', title: 'Total' },
-                                { data: null, title: 'Acciones', orderable: false }
-                            ]}
-                            customRenders={{
-                                precio_unitario: (data) => `$${parseFloat(data).toLocaleString('es-CO')}`,
-                                iva_percent: (data) => `${(parseFloat(data) * 100).toFixed(0)}%`,
-                                total: (data) => `<strong>$${parseFloat(data).toLocaleString('es-CO')}</strong>`
-                            }}
-                        />
+                        <div ref={tableContainerRef}>
+                            <DataTableComponent 
+                                data={items}
+                                columns={[
+                                    { 
+                                        data: 'sku', 
+                                        title: 'SKU',
+                                        render: (data, type, row) => {
+                                            if (!data) return '-'; 
+                                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+                                            return `<strong>${prefix}${data.toUpperCase()}</strong>`;
+                                        }
+                                    },
+                                    { data: 'nombre_producto', title: 'Producto' },
+                                    { data: 'cantidad', title: 'Cant.' },
+                                    { data: 'precio_unitario', title: 'V. Unitario' },
+                                    { data: 'iva_percent', title: 'IVA' },
+                                    { data: 'total', title: 'Total' },
+                                    { 
+                                        data: null, 
+                                        title: 'Acciones', 
+                                        orderable: false,
+                                        render: function (data, type, row) {
+                                            return `
+                                                <button type="button" class="btn btn-sm btn-danger btn-delete-item" data-id="${row.id}">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            `;
+                                        }
+                                    }
+                                ]}
+                                customRenders={{
+                                    precio_unitario: (data) => `$${parseFloat(data).toLocaleString('es-CO')}`,
+                                    iva_percent: (data) => `${(parseFloat(data) * 100).toFixed(0)}%`,
+                                    total: (data) => `<strong>$${parseFloat(data).toLocaleString('es-CO')}</strong>`
+                                }}
+                            />
+                        </div>
                     </div>
 
                     <div className="row justify-content-end">
@@ -263,7 +291,6 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                 </form>
             </div>
 
-            {/* MODAL PARA SELECCIONAR PRODUCTOS DE LA FACTURA */}
             <Modal show={showModal} onHide={handleCloseModal} centered>
                 <Modal.Header closeButton>
                     <Modal.Title>Agregar Producto a Nota</Modal.Title>
@@ -278,7 +305,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                             >
                                 {productosDisponibles.map((prod, idx) => (
                                     <option key={idx} value={prod.id_producto}>
-                                        {prod.nombre_producto} (Vendidos: {prod.cantidad_producto})
+                                        {prod.sku_prefix ? `${prod.sku_prefix}${prod.separador || ''}` : ''}{prod.sku || ''} - {prod.nombre_producto} (Vendidos: {prod.cantidad_producto})
                                     </option>
                                 ))}
                             </Form.Select>

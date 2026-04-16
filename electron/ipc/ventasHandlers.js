@@ -24,20 +24,32 @@ export const registerVentasHandlers = () => {
         }
     })
 
-    ipcMain.handle("get-detalle", (_, id) => {
+    ipcMain.handle("get-detalle", (_, facturaId) => {
         try {
-            const stmtDetalle = db.prepare('SELECT * FROM ventasDetalle WHERE maestro_id = ?')
-            const info = stmtDetalle.all(id)
+            const stmt = db.prepare(`
+                SELECT df.*, 
+                    p.sku, 
+                    c.sku_prefix, 
+                    c.separador
+                FROM ventasDetalle df
+                LEFT JOIN producto p ON df.id_producto = p.id
+                LEFT JOIN categoria c ON p.categoria_id = c.id
+                WHERE df.maestro_id = ?
+            `);
+            
+            const detalles = stmt.all(facturaId);
+            const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`);
+            const notas = notasStmt.all(facturaId);
 
-            const stmtNotas = db.prepare('SELECT * FROM nota WHERE id_factura_origen = ? AND status = 1')
-            const notas = stmtNotas.all(id)
+            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
+            const configuracion = confStmt.get();
 
-            return { success: true, data: info, notas: notas }
+            return { success: true, data: detalles, notas: notas, configuracion: configuracion };
         } catch (error) {
-            console.error("Error al obtener detalle:", error)
-            return { success: false, error: error.message }
+            console.error("Error obteniendo detalles:", error);
+            return { success: false, error: error.message };
         }
-    })
+    });
 
     ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
         const transaction = db.transaction((maestroData, detallesData) => {
@@ -176,7 +188,6 @@ export const registerVentasHandlers = () => {
                         maestroData.documento_cliente,
                         now
                     )
-
                 }
             }
 
