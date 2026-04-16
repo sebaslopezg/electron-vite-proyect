@@ -12,13 +12,11 @@ export const VerFacturas = () => {
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
     const [notasFactura, setNotasFactura] = useState([])
     
-    // Filtros de fecha
     const [startDate, setStartDate] = useState('')
     const [endDate, setEndDate] = useState('')
 
     const [almacenConf, setAlmacenConf] = useState(null)
     
-    // Estados para el Modal de Vista Previa
     const [showPreview, setShowPreview] = useState(false)
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
 
@@ -289,7 +287,6 @@ export const VerFacturas = () => {
             </Modal.Footer>
         </Modal>
 
-        {/* INVOCAMOS AL COMPONENTE EXTERNO */}
         <ImpresorFactura 
             show={showPreview} 
             onClose={handleCerrarPreview} 

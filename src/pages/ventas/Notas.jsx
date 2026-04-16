@@ -4,19 +4,16 @@ import Swal from 'sweetalert2'
 import { NuevaNota } from './NuevaNota.jsx'
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col } from 'react-bootstrap'
-// IMPORTAMOS EL NUEVO COMPONENTE
 import { ImpresorNota } from '../../components/ImpresorNota'
 
 export const Notas = () => {
     const [notasData, setNotasData] = useState([])
     const [showForm, setShowForm] = useState(false) 
 
-    // --- ESTADOS PARA EL MODAL DE DETALLES ---
     const [showModal, setShowModal] = useState(false)
     const [notaSeleccionada, setNotaSeleccionada] = useState(null)
     const [detalleData, setDetalleData] = useState([])
 
-    // --- NUEVOS ESTADOS PARA IMPRESIÓN ---
     const [almacenConf, setAlmacenConf] = useState(null)
     const [showPreview, setShowPreview] = useState(false)
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
@@ -46,14 +43,13 @@ export const Notas = () => {
         const response = await window.api.getNotaDetalle(row.id)
         if (response.success) {
             setDetalleData(response.data)
-            setAlmacenConf(response.configuracion || null) // Guardamos la config
+            setAlmacenConf(response.configuracion || null)
             setShowModal(true)
         } else {
             Swal.fire('Error', 'No se pudieron cargar los detalles de la nota', 'error')
         }
     }
 
-    // NUEVA FUNCIÓN: Imprimir directamente desde la tabla principal
     const imprimirDirecto = async (row) => {
         setNotaSeleccionada(row)
         
@@ -67,14 +63,12 @@ export const Notas = () => {
         }
     }
 
-    // Cierra detalles y abre Preview
     const handlePrepararImpresion = () => {
         setShowModal(false); 
         setAbiertoDesdeDetalles(true);
         setShowPreview(true);
     }
 
-    // Cierra Preview de forma inteligente
     const handleCerrarPreview = () => {
         setShowPreview(false);
         if (abiertoDesdeDetalles) {
@@ -189,9 +183,6 @@ export const Notas = () => {
                 />
             </div>
 
-            {/* ==================================================================== */}
-            {/* MODAL DE DETALLES DE LA NOTA */}
-            {/* ==================================================================== */}
             <Modal show={showModal} onHide={handleCloseModal} size="lg" centered scrollable>
                 <Modal.Header closeButton className="bg-light">
                     <Modal.Title>
@@ -276,8 +267,6 @@ export const Notas = () => {
                     <Button variant="secondary" onClick={handleCloseModal}>Cerrar</Button>
                 </Modal.Footer>
             </Modal>
-
-            {/* INVOCAMOS AL NUEVO COMPONENTE EXTERNO */}
             <ImpresorNota 
                 show={showPreview} 
                 onClose={handleCerrarPreview} 
