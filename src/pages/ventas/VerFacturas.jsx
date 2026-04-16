@@ -182,8 +182,7 @@ export const VerFacturas = () => {
             }}
         />
 
-        {/* MODAL DE DETALLES */}
-        <Modal show={show} onHide={handleClose} size="lg" centered>
+        <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton>
                 <Modal.Title>
                     Detalles de la Factura {facturaSeleccionada ? `${facturaSeleccionada.prefijo || ''}${facturaSeleccionada.numero_factura}` : ''}                

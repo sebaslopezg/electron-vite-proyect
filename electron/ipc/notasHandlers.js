@@ -198,4 +198,28 @@ export const registerNotasHandlers = () => {
     }
   });
 
+  ipcMain.handle("get-nota-detalle", (_, notaId) => {
+    try {
+      const stmt = db.prepare(`
+          SELECT ni.*, 
+            p.sku, 
+            c.sku_prefix, 
+            c.separador
+          FROM nota_item ni
+          LEFT JOIN producto p ON ni.id_producto = p.id
+          LEFT JOIN categoria c ON p.categoria_id = c.id
+          WHERE ni.id_nota = ?
+      `);
+      
+      const detalles = stmt.all(notaId);
+      const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
+      const configuracion = confStmt.get();
+
+      return { success: true, data: detalles, configuracion: configuracion };
+    } catch (error) {
+      console.error("Error obteniendo detalles de nota:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
 };
