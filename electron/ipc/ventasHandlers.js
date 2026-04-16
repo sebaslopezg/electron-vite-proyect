@@ -31,17 +31,20 @@ export const registerVentasHandlers = () => {
                     p.sku, 
                     c.sku_prefix, 
                     c.separador
-                FROM ventasDetalle df /* <-- Nombre correcto de la tabla */
-                LEFT JOIN producto p ON df.id_producto = p.id /* <-- Columna correcta: id_producto */
+                FROM ventasDetalle df
+                LEFT JOIN producto p ON df.id_producto = p.id
                 LEFT JOIN categoria c ON p.categoria_id = c.id
-                WHERE df.maestro_id = ? /* <-- Columna correcta: maestro_id */
+                WHERE df.maestro_id = ?
             `);
             
             const detalles = stmt.all(facturaId);
             const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`);
             const notas = notasStmt.all(facturaId);
 
-            return { success: true, data: detalles, notas: notas };
+            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
+            const configuracion = confStmt.get();
+
+            return { success: true, data: detalles, notas: notas, configuracion: configuracion };
         } catch (error) {
             console.error("Error obteniendo detalles:", error);
             return { success: false, error: error.message };
@@ -185,7 +188,6 @@ export const registerVentasHandlers = () => {
                         maestroData.documento_cliente,
                         now
                     )
-
                 }
             }
 
