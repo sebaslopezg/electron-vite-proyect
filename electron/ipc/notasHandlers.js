@@ -29,10 +29,17 @@ export const registerNotasHandlers = () => {
       const notaId = uuidv4();
       const currentUser = notaData.usuario || 'system';
 
-      const config = db.prepare('SELECT id, consecutivo_nota FROM almacen_conf LIMIT 1').get()
+      const config = db.prepare('SELECT id, consecutivo_nota, consecutivo_nota_debito FROM almacen_conf LIMIT 1').get()
       if (!config) throw new Error("No se encontró configuración del almacén")
       
-      const nuevoNumeroNota = config.consecutivo_nota + 1
+      const prefijoCalculado = notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND';
+      
+      let nuevoNumeroNota = 0;
+      if (notaData.tipo_nota === 'Crédito') {
+          nuevoNumeroNota = config.consecutivo_nota + 1;
+      } else {
+          nuevoNumeroNota = config.consecutivo_nota_debito + 1;
+      }
 
       const insertNota = db.prepare(`
         INSERT INTO nota (
@@ -78,14 +85,12 @@ export const registerNotasHandlers = () => {
       insertNota.run({
         id: notaId,
         tipo_nota: notaData.tipo_nota,
-        prefijo: notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND',
+        prefijo: prefijoCalculado,
         numero_nota: nuevoNumeroNota,
         id_factura_origen: notaData.id_factura_origen,
         numero_factura_origen: notaData.numero_factura_origen,
-        
         documento_cliente: notaData.documento_cliente || '',
         nombre_cliente: notaData.nombre_cliente || '',
-        
         motivo_dian: notaData.motivo_dian,
         observaciones: notaData.observaciones || '',
         total_base: notaData.total_base,
@@ -95,7 +100,11 @@ export const registerNotasHandlers = () => {
         usuario: currentUser
       });
 
-      db.prepare('UPDATE almacen_conf SET consecutivo_nota = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
+      if (notaData.tipo_nota === 'Crédito') {
+          db.prepare('UPDATE almacen_conf SET consecutivo_nota = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
+      } else {
+          db.prepare('UPDATE almacen_conf SET consecutivo_nota_debito = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
+      }
 
       const insertItem = db.prepare(`
         INSERT INTO nota_item (
@@ -154,7 +163,7 @@ export const registerNotasHandlers = () => {
               stock_nuevo: stockNuevo,
               fecha: now,
               usuario: currentUser,
-              notas: `Asociado a Nota ${notaData.prefijo}-${notaData.numero_nota}`
+              notas: `Asociado a Nota ${prefijoCalculado}-${nuevoNumeroNota}` 
             });
           }
         }
@@ -171,6 +180,7 @@ export const registerNotasHandlers = () => {
       return { success: false, error: error.message };
     }
   });
+
 
   ipcMain.handle("search-factura", (_, numero_factura) => {
     try {

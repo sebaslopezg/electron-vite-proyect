@@ -9,6 +9,7 @@ import {
   Col
 } from 'react-bootstrap'
 import Modal from 'react-bootstrap/Modal'
+import { ImpresorFactura } from './components/ImpresorFactura'
 
 export const Facturacion = () => {
   const [productos, setProductos] = useState([])
@@ -20,7 +21,6 @@ export const Facturacion = () => {
   const [descuento, setDescuento] = useState(0)
   const [esPorcentaje, setEsPorcentaje] = useState(true)
   
-  // NUEVOS ESTADOS SEPARADOS
   const [tipoPago, setTipoPago] = useState('contado')
   const [metodoPago, setMetodoPago] = useState('Efectivo')
   
@@ -29,21 +29,41 @@ export const Facturacion = () => {
   const [skuInput, setSkuInput] = useState('')
   const [docInput, setDocInput] = useState('')
 
+  const [showPreviewImpresion, setShowPreviewImpresion] = useState(false);
+  const [facturaParaImprimir, setFacturaParaImprimir] = useState(null);
+  const [detallesParaImprimir, setDetallesParaImprimir] = useState([]);
+  const [almacenConfParaImprimir, setAlmacenConfParaImprimir] = useState(null);
+
+  const [categoriasList, setCategoriasList] = useState([])
+  const [etiquetasList, setEtiquetasList] = useState([])
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterTag, setFilterTag] = useState('')
+
+  const loadInitialData = async () => {
+    const prods = await window.api.getAllProductos();
+    setProductos(prods);
+
+    const clis = await window.api.getClientes();
+    setClientes(clis);
+
+    const cats = await window.api.getCategorias();
+    const tags = await window.api.getEtiquetas();
+    setCategoriasList(cats || []);
+    setEtiquetasList(tags || []);
+  }
+
+  useEffect(() => {
+    loadInitialData();
+  }, [])
+
 
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
-
-  const valorDescuento = esPorcentaje
-    ? subtotal * (descuento / 100)
-    : descuento
+  const valorDescuento = esPorcentaje ? subtotal * (descuento / 100) : descuento
 
   const resumen = carrito.reduce((acc, item) => {
     const bruto = item.precio * item.cantidad;
-    const ahorro = item.tipoDescuento === 'porcentaje'
-      ? bruto * (item.descuento / 100)
-      : item.descuento * item.cantidad
-
+    const ahorro = item.tipoDescuento === 'porcentaje' ? bruto * (item.descuento / 100) : item.descuento * item.cantidad
     const baseIndividual = bruto - ahorro
-
     const tasaIva = (Number(item.iva) || 0) / 100;
     const ivaIndividual = baseIndividual * tasaIva;
 
@@ -51,30 +71,30 @@ export const Facturacion = () => {
     acc.totalDescuentos += ahorro;
     acc.totalIva += ivaIndividual;
     acc.totalFinal += (baseIndividual + ivaIndividual);
-
     return acc
   }, { subtotal: 0, totalDescuentos: 0, totalIva: 0, totalFinal: 0 })
 
   const subtotalNeto = resumen.subtotal - resumen.totalDescuentos;
   const ivaTotal = resumen.totalIva;
   const totalFinal = resumen.totalFinal;
-
   const recibidoNum = parseFloat(totalRecibido) || 0;
   const cambio = recibidoNum >= totalFinal ? recibidoNum - totalFinal : 0;
   const saldoPendiente = recibidoNum < totalFinal ? totalFinal - recibidoNum : 0;
 
-  const handleClose = () => setShow(false)
+  const handleClose = () => {
+    setShow(false);
+    setFilterCategory('');
+    setFilterTag('');
+  }
   const handleShow = () => setShow(true)
 
-  const loadProductos = async () => {
-    const data = await window.api.getAllProductos()
-    setProductos(data)
+  const handleClosePreviewImpresion = () => {
+    setShowPreviewImpresion(false);
+    setFacturaParaImprimir(null);
+    setDetallesParaImprimir([]);
+    setAlmacenConfParaImprimir(null);
   }
 
-  const loadClientes = async () => {
-    const data = await window.api.getClientes()
-    setClientes(data)
-  }
 
   const handleSearchProduct = async () => {
     if (!skuInput.trim()) {
@@ -93,7 +113,6 @@ export const Facturacion = () => {
     const found = currentProducts.find(p => {
       if (!p.sku) return false;
       const fullSku = p.sku_prefix ? `${p.sku_prefix}${p.separador || ''}${p.sku}` : p.sku;
-      
       return fullSku.toLowerCase() === searchStr || p.sku.toLowerCase() === searchStr;
     });
     
@@ -128,10 +147,9 @@ export const Facturacion = () => {
   }
 
   const handleAddProduct = () => {
-    loadProductos()
     setModalData({
       type: 'producto',
-      title: 'Agregar Producto',
+      title: 'Catálogo de Productos',
       columns: [
         { data: 'ref_name', title: 'Nombre Referencia' },
         { 
@@ -143,14 +161,45 @@ export const Facturacion = () => {
           }
         },
         { data: 'stock', title: 'Stock' },
-        { data: 'precio', title: 'Precio' },
+        { 
+          data: 'precio', 
+          title: 'Precio',
+          render: (data) => `$${parseFloat(data||0).toLocaleString('es-CO')}`
+        },
+        {
+          data: null,
+          title: 'Agregar',
+          orderable: false,
+          render: function (data, type, row) {
+            const safeData = encodeURIComponent(JSON.stringify(row));
+            return `<button class="btn btn-sm btn-primary btn-select-product" data-alldata="${safeData}">
+              <i class="bi bi-cart-plus me-1"></i> ${row.stock > 0 ? "Agregar" : "Encargar"}
+            </button>`;
+          }
+        }
+      ]
+    })
+    handleShow()
+  }
+
+  const handleAddClient = () => {
+    setModalData({
+      type: 'cliente',
+      title: 'Seleccionar Cliente',
+      columns: [
+        { data: 'nombre', title: 'Nombre' },
+        { data: 'documento', title: 'Documento' },
+        { data: 'telefono', title: 'Telefono' },
         {
           data: null,
           title: 'Agregar',
           render: function (data, type, row) {
-            return `<button class="btn btn-sm btn-primary btn-select-product" data-id="${row.id}">
-                    ${row.stock > 0 ? "Agregar" : "Encargar"}
-                  </button>`;
+            const safeData = encodeURIComponent(JSON.stringify(row));
+            return `
+                  <button class="btn btn-sm btn-success btn-select-client" data-alldata="${safeData}">
+                    Agregar
+                  </button>
+                  `;
           }
         }
       ]
@@ -160,7 +209,6 @@ export const Facturacion = () => {
 
   const aplicarDescuentoMasivo = () => {
     if (carrito.length === 0) return;
-
     Swal.fire({
       title: 'Descuento General',
       text: 'Ingresa el porcentaje de descuento para todos los productos:',
@@ -173,11 +221,8 @@ export const Facturacion = () => {
       if (result.isConfirmed && result.value) {
         const pct = parseFloat(result.value);
         setCarrito(prev => prev.map(item => ({
-          ...item,
-          descuento: pct,
-          tipoDescuento: 'porcentaje'
+          ...item, descuento: pct, tipoDescuento: 'porcentaje'
         })));
-
         Swal.fire('Aplicado', `${pct}% de descuento aplicado a la carreta`, 'success');
       }
     });
@@ -199,31 +244,6 @@ export const Facturacion = () => {
       }
     });
   };
-
-  const handleAddClient = () => {
-    loadClientes()
-    setModalData({
-      type: 'cliente',
-      title: 'Agregar cliente',
-      columns: [
-        { data: 'nombre', title: 'Nombre' },
-        { data: 'documento', title: 'Documento' },
-        { data: 'telefono', title: 'Telefono' },
-        {
-          data: null,
-          title: 'Agregar',
-          render: function (data, type, row) {
-            return `
-                  <button class="btn btn-sm btn-success btn-select-client" data-id="${row.id}">
-                    Agregar
-                  </button>
-                  `;
-          }
-        }
-      ]
-    })
-    handleShow()
-  }
 
   const agregarAlCarrito = (prod) => {
     setCarrito((prev) => {
@@ -256,20 +276,15 @@ export const Facturacion = () => {
     if (carrito.length === 0) return
 
     if (!cliente) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Falta el Cliente',
-        text: 'Por favor seleccione o busque un cliente antes de generar la factura.'
-      });
+      Swal.fire({ icon: 'warning', title: 'Falta el Cliente', text: 'Por favor seleccione o busque un cliente.' });
       return;
     }
 
     if (recibidoNum < totalFinal) {
       if (tipoPago === 'contado') {
-        Swal.fire('Atención', 'El cliente no ha entregado el monto completo. Si es un abono, por favor cambie el "Tipo de Pago" a Crédito.', 'warning');
+        Swal.fire('Atención', 'El cliente no ha entregado el monto completo. Si es un abono, cambie el "Tipo de Pago" a Crédito.', 'warning');
         return;
       }
-
       if (tipoPago === 'credito') {
         const confirm = await Swal.fire({
           title: 'Venta con saldo pendiente',
@@ -281,23 +296,16 @@ export const Facturacion = () => {
           confirmButtonText: 'Sí, guardar',
           cancelButtonText: 'Cancelar'
         });
-
         if (!confirm.isConfirmed) return;
       }
     }
 
     const data = {
       maestro: {
-        nombre_cliente: cliente?.nombre,
-        documento_cliente: cliente?.documento,
-        subtotal: subtotal,
-        descuento: valorDescuento,
-        iva: ivaTotal,
-        total: totalFinal,
-        total_recibido: recibidoNum,
-        saldo_pendiente: saldoPendiente,
-        tipo_pago: tipoPago, // Pasamos el nuevo campo
-        metodo_pago: metodoPago,
+        nombre_cliente: cliente?.nombre, documento_cliente: cliente?.documento,
+        subtotal: subtotal, descuento: valorDescuento, iva: ivaTotal, total: totalFinal,
+        total_recibido: recibidoNum, saldo_pendiente: saldoPendiente,
+        tipo_pago: tipoPago, metodo_pago: metodoPago,
       },
       detalles: carrito
     };
@@ -305,61 +313,65 @@ export const Facturacion = () => {
     const result = await window.api.createVenta(data)
 
     if (result.success) {
-      Swal.fire('Venta exitosa', `Factura ${result.prefijo}${result.numero_factura} creada`, 'success')
-      loadProductos()
-      cleanForm();
-      window.dispatchEvent(new CustomEvent('factura-creada'));
+      const printData = await window.api.getDetalle(result.maestroId);
+      const facturaGenerada = {
+          id: result.maestroId, numero_factura: result.numero_factura, prefijo: result.prefijo,
+          date_created: new Date().toISOString(), nombre_cliente: cliente.nombre, documento_cliente: cliente.documento,
+          subtotal: subtotal, descuento: valorDescuento, iva: ivaTotal, total_factura: totalFinal,
+          total_recibido: recibidoNum, saldo_pendiente: saldoPendiente, tipo_pago: tipoPago, metodo_pago: metodoPago
+      };
+
+      Swal.fire({
+          title: '¡Venta Exitosa!',
+          text: `Factura ${result.prefijo || ''}${printData.configuracion?.separador || ''}${result.numero_factura} generada. ¿Deseas imprimirla?`,
+          icon: 'success', showCancelButton: true, confirmButtonColor: '#198754', cancelButtonColor: '#6c757d',
+          confirmButtonText: '<i class="bi bi-printer me-2"></i>Imprimir', cancelButtonText: 'Cerrar'
+      }).then((res) => {
+          if (res.isConfirmed && printData.success) {
+              setFacturaParaImprimir(facturaGenerada);
+              setDetallesParaImprimir(printData.data);
+              setAlmacenConfParaImprimir(printData.configuracion);
+              setShowPreviewImpresion(true);
+          }
+          
+          loadInitialData();
+          cleanForm();
+          window.dispatchEvent(new CustomEvent('factura-creada'));
+      });
     } else {
       Swal.fire('Error', result.error, 'error')
     }
   }
 
   const cleanForm = () => {
-    setCarrito([]);
-    setCliente(null);
-    setDescuento(0);
-    setTotalRecibido('');
-    setTipoPago('contado');
-    setMetodoPago('Efectivo');
+    setCarrito([]); setCliente(null); setDescuento(0);
+    setTotalRecibido(''); setTipoPago('contado'); setMetodoPago('Efectivo');
   };
 
   const updateQuantity = (id, delta, isEncargo) => {
     setCarrito(prev => {
       const item = prev.find(i => i.id === id && i.isEncargo === isEncargo);
       if (!item) return prev;
-
       const newQty = item.cantidad + delta;
 
       if (delta > 0 && isEncargo === '0' && newQty > item.stock && item.tipo === "producto") {
         Swal.fire({
-          title: 'Sin stock físico',
-          text: '¿Deseas agregar las unidades adicionales como un encargo?',
-          icon: 'info',
-          showCancelButton: true,
-          confirmButtonText: 'Sí, encargar',
-          cancelButtonText: 'Cancelar'
+          title: 'Sin stock físico', text: '¿Deseas agregar las unidades adicionales como un encargo?',
+          icon: 'info', showCancelButton: true, confirmButtonText: 'Sí, encargar', cancelButtonText: 'Cancelar'
         }).then((result) => {
-          if (result.isConfirmed) {
-            agregarAlCarrito(item);
-          }
+          if (result.isConfirmed) agregarAlCarrito(item);
         });
         return prev;
       }
 
       return prev.map(i => {
-        if (i.id === id && i.isEncargo === isEncargo) {
-          return newQty > 0 ? { ...i, cantidad: newQty } : i;
-        }
+        if (i.id === id && i.isEncargo === isEncargo) return newQty > 0 ? { ...i, cantidad: newQty } : i;
         return i;
       });
     });
   };
   
-  const formatCurrency = (val) => new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0
-  }).format(val);
+  const formatCurrency = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val);
 
   useEffect(() => {
     const handleGlobalEvents = (e) => {
@@ -367,61 +379,48 @@ export const Facturacion = () => {
       const id = target.getAttribute('data-id');
       const isEncargo = target.getAttribute('data-encargo');
 
-      if (!id) return;
-
-      if (e.type === 'change') {
+      if (e.type === 'change' && id) {
         if (e.target.classList.contains('change-iva')) {
           const val = parseFloat(e.target.value) || 0;
-          setCarrito(prev => prev.map(item =>
-            (String(item.id) === String(id) && item.isEncargo === isEncargo)
-              ? { ...item, iva: val }
-              : item
-          ));
+          setCarrito(prev => prev.map(item => (String(item.id) === String(id) && item.isEncargo === isEncargo) ? { ...item, iva: val } : item));
         }
-
         if (e.target.classList.contains('change-discount')) {
           const val = parseFloat(e.target.value) || 0;
-          setCarrito(prev => prev.map(item =>
-            (String(item.id) === String(id) && item.isEncargo === isEncargo)
-              ? { ...item, descuento: val }
-              : item
-          ));
+          setCarrito(prev => prev.map(item => (String(item.id) === String(id) && item.isEncargo === isEncargo) ? { ...item, descuento: val } : item));
         }
       }
 
       if (e.type === 'click') {
-        if (target.closest('.toggle-discount-type')) {
+        if (target.closest('.toggle-discount-type') && id) {
           setCarrito(prev => prev.map(item => {
             if (String(item.id) === String(id) && item.isEncargo === isEncargo) {
-              return {
-                ...item,
-                tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje'
-              };
+              return { ...item, tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje' };
             }
             return item;
           }));
         }
 
         if (target.closest('.btn-select-product')) {
-          const selected = productos.find(p => String(p.id) === String(id));
-          if (selected) agregarAlCarrito(selected);
-        }
-
-        if (target.closest('.btn-select-client')) {
-          const selected = clientes.find(c => String(c.id) === String(id));
-          if (selected) {
-            setCliente(selected);
-            handleClose();
+          const btn = target.closest('.btn-select-product');
+          if (btn.dataset.alldata) {
+            const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata));
+            agregarAlCarrito(selected);
           }
         }
 
-        if (target.closest('.btn-qty-plus')) updateQuantity(id, 1, isEncargo);
-        if (target.closest('.btn-qty-minus')) updateQuantity(id, -1, isEncargo);
+        if (target.closest('.btn-select-client')) {
+          const btn = target.closest('.btn-select-client');
+          if (btn.dataset.alldata) {
+             const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata));
+             setCliente(selected);
+             handleClose();
+          }
+        }
 
-        if (target.closest('.btn-remove-item')) {
-          setCarrito(prev => prev.filter(item =>
-            !(String(item.id) === String(id) && item.isEncargo === isEncargo)
-          ));
+        if (target.closest('.btn-qty-plus') && id) updateQuantity(id, 1, isEncargo);
+        if (target.closest('.btn-qty-minus') && id) updateQuantity(id, -1, isEncargo);
+        if (target.closest('.btn-remove-item') && id) {
+          setCarrito(prev => prev.filter(item => !(String(item.id) === String(id) && item.isEncargo === isEncargo)));
         }
       }
     };
@@ -441,10 +440,10 @@ export const Facturacion = () => {
       <Col xs={4}>
         <InputGroup>
           <Button variant="primary" onClick={handleSearchProduct}>
-            Agregar Producto
+            <i className="bi bi-search me-1"></i> Buscar Producto
           </Button>
           <Form.Control
-            placeholder="Código"
+            placeholder="Código de Barras"
             value={skuInput}
             onChange={(e) => setSkuInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearchProduct()}
@@ -457,7 +456,7 @@ export const Facturacion = () => {
         {!cliente ? (
           <InputGroup>
             <Button variant="primary" onClick={handleSearchClient}>
-              Agregar Cliente
+              <i className="bi bi-person-add me-1"></i> Buscar Cliente
             </Button>
             <Form.Control 
               placeholder="Buscar por documento..." 
@@ -573,17 +572,9 @@ export const Facturacion = () => {
                 title: 'Tipo',
                 render: function (data, type, row) {
                   let badges = '';
-
-                  if (row.tipo === 'producto') {
-                    badges += '<span class="badge bg-primary me-1">Producto</span>';
-                  } else {
-                    badges += '<span class="badge bg-success me-1">Servicio</span>';
-                  }
-
-                  if (row.isEncargo > 0) {
-                    badges += '<span class="badge bg-warning text-dark me-1">Encargo</span>';
-                  }
-
+                  if (row.tipo === 'producto') badges += '<span class="badge bg-primary me-1">Producto</span>';
+                  else badges += '<span class="badge bg-success me-1">Servicio</span>';
+                  if (row.isEncargo > 0) badges += '<span class="badge bg-warning text-dark me-1">Encargo</span>';
                   return badges;
                 }
               },
@@ -592,9 +583,7 @@ export const Facturacion = () => {
                 title: 'Total',
                 render: (data, type, row) => {
                   const sub = row.precio * row.cantidad;
-                  const desc = row.tipoDescuento === 'porcentaje'
-                    ? sub * (row.descuento / 100)
-                    : row.descuento;
+                  const desc = row.tipoDescuento === 'porcentaje' ? sub * (row.descuento / 100) : row.descuento;
                   return `<strong>${formatCurrency(sub - desc)}</strong>`;
                 }
               },
@@ -614,7 +603,6 @@ export const Facturacion = () => {
         </div>
       </Col>
 
-      {/* LADO DERECHO: RESUMEN DE VENTA */}
       <Col lg={4} xl={3}>
         <div className="card shadow-sm sticky-top" style={{ top: '20px' }}>
           <div className="card-body">
@@ -675,16 +663,11 @@ export const Facturacion = () => {
               </div>
             )}
 
-            {/* SEPARADOS: Tipo de Pago y Método de Pago */}
             <Row className="border-top pt-3">
                 <Col xs={6}>
                     <Form.Group className="mb-3">
                     <Form.Label><small className="fw-bold">Tipo de Pago</small></Form.Label>
-                    <Form.Select
-                        size="sm"
-                        value={tipoPago}
-                        onChange={(e) => setTipoPago(e.target.value)}
-                    >
+                    <Form.Select size="sm" value={tipoPago} onChange={(e) => setTipoPago(e.target.value)}>
                         <option value="contado">Contado</option>
                         <option value="credito">Crédito</option>
                     </Form.Select>
@@ -693,11 +676,7 @@ export const Facturacion = () => {
                 <Col xs={6}>
                     <Form.Group className="mb-3">
                     <Form.Label><small className="fw-bold">Método</small></Form.Label>
-                    <Form.Select
-                        size="sm"
-                        value={metodoPago}
-                        onChange={(e) => setMetodoPago(e.target.value)}
-                    >
+                    <Form.Select size="sm" value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}>
                         <option value="Efectivo">Efectivo</option>
                         <option value="Datafono">Datafono</option>
                         <option value="Transaccion Bancaria">Transacción</option>
@@ -710,18 +689,10 @@ export const Facturacion = () => {
               <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
                 <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
                 <InputGroup size="sm">
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    max="72"
-                    value={cuotas}
-                    onChange={(e) => setCuotas(Math.max(1, parseInt(e.target.value) || 1))}
-                  />
+                  <Form.Control type="number" min="1" max="72" value={cuotas} onChange={(e) => setCuotas(Math.max(1, parseInt(e.target.value) || 1))} />
                   <InputGroup.Text>Días</InputGroup.Text>
                 </InputGroup>
-                <Form.Text className="text-muted">
-                  Aplica para saldos pendientes
-                </Form.Text>
+                <Form.Text className="text-muted">Aplica para saldos pendientes</Form.Text>
               </Form.Group>
             )}
 
@@ -740,18 +711,66 @@ export const Facturacion = () => {
       </Col>
     </Row>
 
-    <Modal show={show} onHide={handleClose} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>{modalData.title}</Modal.Title>
+    <Modal show={show} onHide={handleClose} size="xl" centered>
+      <Modal.Header closeButton className="bg-light">
+        <Modal.Title className="fs-5">{modalData.title}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {show && (
-          <DataTableComponent
-            key={modalData.type}
-            data={modalData.type === 'producto' ? productos : clientes}
-            columns={modalData.columns}
-          />
+        
+        {show && modalData.type === 'producto' && (
+          <>
+            <div className="bg-light p-3 rounded mb-3 border">
+              <Row className="align-items-end">
+                <Col md={5}>
+                  <Form.Group>
+                    <Form.Label className="fw-bold"><small>Categoría:</small></Form.Label>
+                    <Form.Select size="sm" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                      <option value="">Todas</option>
+                      {categoriasList.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={5}>
+                  <Form.Group>
+                    <Form.Label className="fw-bold"><small>Etiqueta:</small></Form.Label>
+                    <Form.Select size="sm" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
+                      <option value="">Todas</option>
+                      {etiquetasList.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={2}>
+                  <Button variant="outline-secondary" size="sm" className="w-100" onClick={() => { setFilterCategory(''); setFilterTag(''); }} disabled={!filterCategory && !filterTag}>
+                    <i className="bi bi-x-circle me-1"></i>Limpiar
+                  </Button>
+                </Col>
+              </Row>
+            </div>
+
+            <div className="w-100 overflow-hidden">
+                <DataTableComponent
+                  key={`prod-modal-${filterCategory}-${filterTag}`}
+                  ajaxData={(params) => {
+                    params.customCategory = filterCategory;
+                    params.customTag = filterTag;
+                    return window.api.getProductosPaginados(params); 
+                  }}
+                  columns={modalData.columns}
+                />
+            </div>
+          </>
         )}
+
+        {show && modalData.type === 'cliente' && (
+          <div className="w-100 overflow-hidden">
+            <DataTableComponent
+              key={modalData.type}
+              data={clientes}
+              columns={modalData.columns}
+            />
+          </div>
+        )}
+
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={handleClose}>
@@ -759,6 +778,15 @@ export const Facturacion = () => {
         </Button>
       </Modal.Footer>
     </Modal>
+
+    <ImpresorFactura 
+        show={showPreviewImpresion} 
+        onClose={handleClosePreviewImpresion} 
+        factura={facturaParaImprimir} 
+        detalles={detallesParaImprimir} 
+        almacenConf={almacenConfParaImprimir} 
+        textoVolver="Volver a Facturación" 
+    />
 
   </>
 }

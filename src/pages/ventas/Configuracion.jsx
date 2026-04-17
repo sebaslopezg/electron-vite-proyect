@@ -8,16 +8,18 @@ export const Configuracion = ({ data, onReload }) => {
         id:'', 
         nombre_almacen:'', 
         nit_almacen:'',
-        logo_almacen:'',
+        logo_almacen:'', 
         direccion_almacen:'', 
         telefono_almacen:'',
+        email_almacen: '',
         prefijo:'',
-        separador: '',
+        separador: '', 
         resolucionDian:'',
         nombreFactura:'',
         footer_factura:'',
         consecutivo:'',
         consecutivo_nota: '',
+        consecutivo_nota_debito: '',
     })
 
     const fileInputRef = useRef(null);
@@ -31,13 +33,15 @@ export const Configuracion = ({ data, onReload }) => {
                 logo_almacen: data.logo_almacen || '',
                 direccion_almacen: data.direccion_almacen || '',
                 telefono_almacen: data.telefono_almacen || '',
+                email_almacen: data.email_almacen || '',
                 prefijo: data.prefijo || '',
                 separador: data.separador || '',
                 resolucionDian: data.resolucionDian || '',
                 nombreFactura: data.nombreFactura || '',
                 footer_factura: data.footer_factura || '',
                 consecutivo: data.consecutivo || '',
-                consecutivo_nota: data.consecutivo_nota || ''
+                consecutivo_nota: data.consecutivo_nota || '',
+                consecutivo_nota_debito: data.consecutivo_nota_debito || ''
             })
         }
     }, [data])
@@ -70,7 +74,7 @@ export const Configuracion = ({ data, onReload }) => {
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) {
+            if (file.size > 2 * 1024 * 1024) { 
                 Swal.fire('Error', 'La imagen es demasiado grande. Máximo 2MB.', 'error');
                 return;
             }
@@ -91,7 +95,6 @@ export const Configuracion = ({ data, onReload }) => {
                                 
         <Form onSubmit={handleSubmit}>
             
-            {/* SECCIÓN DEL LOGO */}
             <Card className="mb-4 bg-light border-0 shadow-sm">
                 <Card.Body className="d-flex align-items-center">
                     <div className="me-4" style={{ width: '120px', height: '120px', border: '2px dashed #ccc', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: 'white' }}>
@@ -182,6 +185,20 @@ export const Configuracion = ({ data, onReload }) => {
                     </Form.Group>
                 </Col>
             </Row>
+            <Row>
+                <Col md={6}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="almacenEmail" className="fw-bold">Correo Electrónico (Email)</Form.Label>
+                        <Form.Control
+                            id="almacenEmail"
+                            value={form.email_almacen}
+                            onChange={(e) => setForm({ ...form, email_almacen: e.target.value })}
+                            type="email"
+                            placeholder="contacto@mialmacen.com"
+                        />
+                    </Form.Group>
+                </Col>
+            </Row>
 
             <hr className="my-4" />
             <h5 className="card-title text-success"><i className="bi bi-receipt me-2"></i>Datos de Facturación y Notas</h5>
@@ -214,7 +231,6 @@ export const Configuracion = ({ data, onReload }) => {
                     </Form.Group>
                 </Col>
                 
-                {/* PREFIJO Y SEPARADOR JUNTOS */}
                 <Col md={2}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="almacenPrefijo" className="fw-bold text-primary">Prefijo</Form.Label>
@@ -260,11 +276,24 @@ export const Configuracion = ({ data, onReload }) => {
 
                 <Col md={3}>
                     <Form.Group className="mb-3">
-                        <Form.Label htmlFor="almacenConsecutivoNota" className="fw-bold">Consecutivo Notas</Form.Label>
+                        <Form.Label htmlFor="almacenConsecutivoNota" className="fw-bold">Consecutivo Nota Crédito</Form.Label>
                         <Form.Control
                             id="almacenConsecutivoNota"
                             value={form.consecutivo_nota}
                             onChange={(e) => setForm({ ...form, consecutivo_nota: e.target.value })}
+                            type="number"
+                            required
+                        />
+                    </Form.Group>
+                </Col>
+                
+                <Col md={3}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="almacenConsecutivoNotaDebito" className="fw-bold">Consecutivo Nota Débito</Form.Label>
+                        <Form.Control
+                            id="almacenConsecutivoNotaDebito"
+                            value={form.consecutivo_nota_debito}
+                            onChange={(e) => setForm({ ...form, consecutivo_nota_debito: e.target.value })}
                             type="number"
                             required
                         />
