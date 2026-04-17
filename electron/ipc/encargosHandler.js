@@ -36,7 +36,7 @@ export const registerEncargosHandlers = () => {
             id_factura,
             numero_encargo,
             fecha_entrega,
-            estado_encargo,
+            id_estado,
             nombre_almacen,
             nombre_cliente,
             status,
@@ -46,7 +46,7 @@ export const registerEncargosHandlers = () => {
             @id_factura,
             @numero_encargo,
             @fecha_entrega,
-            @estado_encargo,
+            @id_estado,
             @nombre_almacen,
             @nombre_cliente,
             @status,
@@ -77,7 +77,7 @@ export const registerEncargosHandlers = () => {
             const stmt = db.prepare(`
         UPDATE encargos SET
             fecha_entrega = @fecha_entrega,
-            estado_encargo = @estado_encargo,
+            id_estado = @id_estado,
             descripcion = @descripcion,
             date_modify = @date_modify,
             modify_by = @modify_by

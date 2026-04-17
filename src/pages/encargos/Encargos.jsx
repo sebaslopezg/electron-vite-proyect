@@ -9,8 +9,7 @@ export const Encargos = () => {
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
 
-    const [dataPendiente, setDataPendiente] = useState([])
-    const [dataAgendado, setDataAgendado] = useState([])
+    const [items, setItems] = useState([])
     const [dataInTable, setDataInTable] = useState([])
     const [form, setForm] = useState({
         fecha_entrega: '',
@@ -20,10 +19,8 @@ export const Encargos = () => {
     const [editingId, setEditingId] = useState(null)
 
     const load = async () => {
-        const dataPend = await window.api.getEncargosPendientes()
-        const dataAgend = await window.api.getEncargosAgendados()
-        setDataPendiente(dataPend)
-        setDataAgendado(dataAgend)
+        const data = await window.api.getEncargosPendientes()
+        setItems(data)
         setDataInTable(data)
     }
 
@@ -69,108 +66,102 @@ export const Encargos = () => {
     }, [])
 
     return (<>
-        <div className="pagetitle">
-            <h1>Por agendar</h1>
-        </div>
-        <div className="card">
-            <div className="card-title"></div>
-            <div className="card-body">
-                <DataTableComponent
-                    data={dataPendiente}
-                    columns={[
-                        { data: 'numero_encargo', title: 'N° encargo' },
-                        {
-                            data: null,
-                            title: 'N° Factura',
-                            render: (data, type, row) => `${row.prefijo || ''}${row.numero_factura}`
-                        },
-                        { data: 'estado_encargo', title: 'Estado' },
-                        { data: 'nombre_cliente', title: 'Cliente' },
-                        { data: 'documento_cliente', title: 'Documento cliente' },
-                        {
-                            data: 'fecha_entrega',
-                            title: 'Fecha de entrega',
-                            orderable: false,
-                            render: function (data, type, row) {
-                                return `
+        <div className="w-100">
+            <DataTableComponent
+                data={dataInTable}
+                columns={[
+                    { data: 'numero_encargo', title: 'N° encargo' },
+                    {
+                        data: null,
+                        title: 'N° Factura',
+                        render: (data, type, row) => `${row.prefijo || ''}${row.numero_factura}`
+                    },
+                    { data: 'estado_encargo', title: 'Estado' },
+                    { data: 'nombre_cliente', title: 'Cliente' },
+                    { data: 'documento_cliente', title: 'Documento cliente' },
+                    {
+                        data: 'fecha_entrega',
+                        title: 'Fecha de entrega',
+                        orderable: false,
+                        render: function (data, type, row) {
+                            return `
                                 <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
                                     Agendar
                                   </button>
                                 `
-                            }
-                        },
-                        {
-                            data: null,
-                            title: 'Actions',
-                            orderable: false,
-                            render: function (data, type, row) {
-                                return `
+                        }
+                    },
+                    {
+                        data: null,
+                        title: 'Actions',
+                        orderable: false,
+                        render: function (data, type, row) {
+                            return `
                                   <button class="btn btn-sm btn-danger btn-delete-${row.id}">
                                    <i class="bi bi-trash3"></i>
                                   </button>
                                   `;
-                            }
                         }
-                    ]}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onShow={handleShow}
-                    customRenders={{
-                        date_created: (data, type, row) => {
-                            return new Date(data).toLocaleDateString('es-ES');
-                        },
-                        // Only show date_modify if needed, else remove
-                        date_modify: (data, type, row) => {
-                            return new Date(data).toLocaleDateString('es-ES');
-                        }
-                    }}
-                />
-                <Modal show={show} onHide={handleClose} size="md" centered>
-                    <Modal.Header closeButton>
-                        <Modal.Title>Completar encargo</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form onSubmit={(e) => {
-                            e.preventDefault()
-                            handleSave()
-                        }}>
-                            <Form.Group className="mb-3">
-                                <Form.Label htmlFor="cantidad">Fecha</Form.Label>
-                                <Form.Control
-                                    id="fecha_entrega"
-                                    value={form.fecha_entrega}
-                                    onChange={(e) => setForm({ ...form, fecha_entrega: e.target.value, estado_encargo: 'agendado' })}
-                                    type="date"
-                                    placeholder="DD/MM/AAAA"
-                                    required
-                                    autoFocus
-                                />
-                            </Form.Group>
-                            <FormGroup>
-                                <Form.Label>Descripción</Form.Label>
-                                <Form.Control
-                                    id="descripcion"
-                                    value={form.descripcion}
-                                    onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-                                    as="textarea"
-                                    rows={3}
-                                    placeholder="Agregar descripción"
-                                    required
-                                    autoFocus
-                                />
-                            </FormGroup>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button variant="secondary" onClick={handleClose}>
-                            Cancelar
-                        </Button>
-                        <Button variant="primary" onClick={handleSubmit}>
-                            Guardar
-                        </Button>
-                    </Modal.Footer>
-                </Modal>
-            </div>
+                    }
+                ]}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onShow={handleShow}
+                customRenders={{
+                    date_created: (data, type, row) => {
+                        return new Date(data).toLocaleDateString('es-ES');
+                    },
+                    // Only show date_modify if needed, else remove
+                    date_modify: (data, type, row) => {
+                        return new Date(data).toLocaleDateString('es-ES');
+                    }
+                }}
+            />
+            <Modal show={show} onHide={handleClose} size="md" centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Completar encargo</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form onSubmit={(e) => {
+                        e.preventDefault()
+                        handleSave()
+                    }}>
+                        <Form.Group className="mb-3">
+                            <Form.Label htmlFor="cantidad">Fecha</Form.Label>
+                            <Form.Control
+                                id="fecha_entrega"
+                                value={form.fecha_entrega}
+                                onChange={(e) => setForm({ ...form, fecha_entrega: e.target.value, estado_encargo: 'agendado' })}
+                                type="date"
+                                placeholder="DD/MM/AAAA"
+                                required
+                                autoFocus
+                            />
+                        </Form.Group>
+                        <FormGroup>
+                            <Form.Label>Descripción</Form.Label>
+                            <Form.Control
+                                id="descripcion"
+                                value={form.descripcion}
+                                onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+                                as="textarea"
+                                rows={3}
+                                placeholder="Agregar descripción"
+                                required
+                                autoFocus
+                            />
+                        </FormGroup>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleClose}>
+                        Cancelar
+                    </Button>
+                    <Button variant="primary" onClick={handleSubmit}>
+                        Guardar
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     </>)
 }
