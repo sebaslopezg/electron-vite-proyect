@@ -35,7 +35,7 @@ export const Calendario = () => {
   }, []);
 
   const loadEncargos = async () => {
-    const data = await window.api.getEncargosAgendados();
+    const data = await window.api.getEncargos();
 
     const formatted = data.map((e) => ({
       id: e.id,

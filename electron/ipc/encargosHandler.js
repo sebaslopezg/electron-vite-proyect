@@ -6,7 +6,11 @@ import db from "../database/index.js"
 export const registerEncargosHandlers = () => {
     ipcMain.handle("get-encargos", () => {
         try {
-            const stmt = db.prepare(`SELECT * FROM encargos WHERE status > 0`)
+            const stmt = db.prepare(`
+                SELECT * FROM encargos en
+                LEFT JOIN estadoEncargo es ON en.estado_id = es.id
+                WHERE en.status > 0
+                `)
             return stmt.all()
         } catch (error) {
             console.error("Error al intentar obtener encargos:", error)
@@ -23,24 +27,30 @@ export const registerEncargosHandlers = () => {
             const stmt = db.prepare(`
         INSERT INTO encargos (
             id,
-            id_factura,
+            factura_id,
+            producto_id
+            estado_id,
+            almacen_id,
+            cliente_id,
+            numero_factura,
+            cantidad_producto,
             numero_encargo,
             fecha_entrega,
-            id_estado,
-            nombre_estado,
-            nombre_almacen,
-            nombre_cliente,
+            descripcion,
             status,
             date_created
         ) VALUES (
             @id,
-            @id_factura,
+            @factura_id,
+            @producto_id
+            @estado_id,
+            @almacen_id,
+            @cliente_id,
+            @numero_factura,
+            @cantidad_producto,
             @numero_encargo,
             @fecha_entrega,
-            @id_estado,
-            @nombre_estado,
-            @nombre_almacen,
-            @nombre_cliente,
+            @descripcion,
             @status,
             @date_created,
         )
@@ -69,8 +79,7 @@ export const registerEncargosHandlers = () => {
             const stmt = db.prepare(`
         UPDATE encargos SET
             fecha_entrega = @fecha_entrega,
-            id_estado = @id_estado,
-            nombre_estado = @nombre_estado,
+            estado_id = @estado_id,
             descripcion = @descripcion,
             date_modify = @date_modify,
             modify_by = @modify_by

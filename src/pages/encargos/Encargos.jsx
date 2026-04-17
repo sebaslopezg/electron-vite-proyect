@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
-import { Button, Form, FormGroup, Modal } from "react-bootstrap"
+import { Button, Col, Form, FormGroup, Modal } from "react-bootstrap"
 import Swal from "sweetalert2"
 
 export const Encargos = () => {
@@ -13,10 +13,13 @@ export const Encargos = () => {
     const [dataInTable, setDataInTable] = useState([])
     const [form, setForm] = useState({
         fecha_entrega: '',
-        estado_encargo: '',
-        descripcion: ''
+        descripcion: '',
+        id_estado: ''
     })
     const [editingId, setEditingId] = useState(null)
+    const [estados, setEstados] = useState([])
+
+    const tableContainerRef = useRef(null);
 
     const load = async () => {
         const data = await window.api.getEncargos()
@@ -24,12 +27,20 @@ export const Encargos = () => {
         setDataInTable(data)
     }
 
+    const loadSelectData = async () => {
+        const data = await window.api.getEstados()
+        console.log(data);
+
+        setEstados(data)
+    }
+
     const cleanForm = () => {
-        setForm({ fecha_entrega: '', estado_encargo: '', descripcion: '' })
+        setForm({ fecha_entrega: '', descripcion: '', id_estado: '' })
     }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        console.log(form);
 
         const result = await window.api.updateEncargo({ ...form, id: editingId })
 
@@ -63,10 +74,39 @@ export const Encargos = () => {
 
     useEffect(() => {
         load()
+        loadSelectData()
     }, [])
 
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const handleTableClick = (e) => {
+            const editBtn = e.target.closest('.btn-edit');
+            if (editBtn) {
+                try {
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
+                    const item = JSON.parse(rawData);
+                    setForm({
+                        fecha_entrega: item.fecha_entrega,
+                        descripcion: item.descripcion,
+                        id_estado: item.id_estado || 'pendiente'
+                    });
+                    setEditingId(item.id);
+                    handleShow();
+                } catch (err) { console.error("Error leyendo datos", err); }
+            }
+
+            const delBtn = e.target.closest('.btn-delete');
+            if (delBtn) handleDelete(delBtn.dataset.id);
+        };
+
+        container.addEventListener('click', handleTableClick);
+        return () => container.removeEventListener('click', handleTableClick);
+    }, []);
+
     return (<>
-        <div className="w-100">
+        <div ref={tableContainerRef} className="w-100">
             <DataTableComponent
                 data={dataInTable}
                 columns={[
@@ -76,7 +116,7 @@ export const Encargos = () => {
                         title: 'N° Factura',
                         render: (data, type, row) => `${row.prefijo || ''}${row.numero_factura}`
                     },
-                    { data: 'nombre_estado', title: 'Estado' },
+                    { data: 'titulo', title: 'Estado' },
                     { data: 'nombre_cliente', title: 'Cliente' },
                     { data: 'documento_cliente', title: 'Documento cliente' },
                     {
@@ -84,8 +124,9 @@ export const Encargos = () => {
                         title: 'Fecha de entrega',
                         orderable: false,
                         render: function (data, type, row) {
+                            const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
-                                <button class="btn btn-sm btn-warning me-2 btn-edit-${row.id}">
+                                <button class="btn btn-sm btn-warning me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
                                     Agendar
                                   </button>
                                 `
@@ -93,14 +134,15 @@ export const Encargos = () => {
                     },
                     {
                         data: null,
-                        title: 'Actions',
+                        title: 'Acciones',
                         orderable: false,
                         render: function (data, type, row) {
+                            const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
-                                  <button class="btn btn-sm btn-danger btn-delete-${row.id}">
-                                   <i class="bi bi-trash3"></i>
-                                  </button>
-                                  `;
+                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            `;
                         }
                     }
                 ]}
@@ -150,6 +192,16 @@ export const Encargos = () => {
                                 required
                                 autoFocus
                             />
+                        </FormGroup>
+                        <FormGroup>
+                            <Col md={6}>
+                                <Form.Group>
+                                    <Form.Label>Estado</Form.Label>
+                                    <Form.Select value={form.id_estado} onChange={(e) => setForm({ ...form, id_estado: e.target.value })}>
+                                        {estados.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+                                    </Form.Select>
+                                </Form.Group>
+                            </Col>
                         </FormGroup>
                     </Form>
                 </Modal.Body>

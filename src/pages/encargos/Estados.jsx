@@ -26,7 +26,13 @@ export const Estados = () => {
         setDataInTable(data)
     }
 
-    const cleanForm = () => setForm({ ...form })
+    const cleanForm = () => setForm({
+        titulo: '',
+        descripcion: '',
+        color: '',
+        allow_calendar: ''
+    })
+
     useEffect(() => { loadData() }, [])
 
     const handleSubmit = async (e) => {
@@ -46,6 +52,7 @@ export const Estados = () => {
         } else {
             Swal.fire('Error', result?.error || 'No se pudo guardar', 'error');
         }
+        cleanForm()
     }
 
     const handleDelete = async (id) => {
@@ -137,7 +144,7 @@ export const Estados = () => {
                     },
                     { data: 'descripcion', title: 'Descripción' },
                     {
-                        data: 'descripcion',
+                        data: 'allow_calendar',
                         title: 'Mostrar en calendario',
                         render: (data, type, row) => {
                             return `${data > '0' ? 'Si' : 'No'}`
@@ -145,7 +152,7 @@ export const Estados = () => {
                     },
                     {
                         data: null,
-                        title: 'Actions',
+                        title: 'Acciones',
                         orderable: false,
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));

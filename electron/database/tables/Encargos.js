@@ -5,22 +5,18 @@ export function createEncargosTable() {
     CREATE TABLE IF NOT EXISTS encargos (
       id TEXT PRIMARY KEY,
 
-      id_factura TEXT,
-      numero_factura INTEGER,
-      prefijo TEXT,
+      factura_id TEXT,
+      producto_id TEXT,
+      estado_id TEXT,
+      almacen_id TEXT,
+      cliente_id TEXT,
 
-      id_producto TEXT,
-      nombre_producto TEXT,
+      numero_factura INTEGER,
       cantidad_producto TEXT,
 
       numero_encargo INTEGER,
       fecha_entrega TEXT,
-      id_estado TEXT,
       descripcion TEXT,
-      
-      nombre_almacen TEXT,
-      nombre_cliente TEXT,
-      documento_cliente TEXT,
 
       status INTEGER,
       date_created TEXT,
