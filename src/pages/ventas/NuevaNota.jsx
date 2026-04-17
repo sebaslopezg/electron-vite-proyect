@@ -43,7 +43,14 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             return;
         }
 
-        const result = await window.api.searchFactura(formData.numero_factura_origen);
+        const numeroLimpio = formData.numero_factura_origen.replace(/\D/g, '');
+
+        if (!numeroLimpio) {
+            Swal.fire('Atención', 'Asegúrese de incluir el número de la factura', 'warning');
+            return;
+        }
+
+        const result = await window.api.searchFactura(numeroLimpio);
         
         if (result.success) {
             setFacturaCargada(result.maestro);
@@ -71,7 +78,6 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
 
         const cantAAgregar = parseFloat(itemForm.cantidad);
 
-        // Validaciones
         if (cantAAgregar <= 0) {
             Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'error'); return;
         }
@@ -185,7 +191,21 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                         <div className="col-md-3">
                             <label className="form-label fw-bold">N° Factura Origen</label>
                             <div className="input-group">
-                                <input type="number" className="form-control" name="numero_factura_origen" value={formData.numero_factura_origen} onChange={handleChange} required />
+                                <input 
+                                    type="text" 
+                                    className="form-control" 
+                                    name="numero_factura_origen" 
+                                    value={formData.numero_factura_origen} 
+                                    onChange={handleChange} 
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSearchFactura();
+                                        }
+                                    }}
+                                    placeholder="Ej: F-123"
+                                    required 
+                                />
                                 <button className="btn btn-primary" type="button" onClick={handleSearchFactura}>
                                     <i className="bi bi-search"></i>
                                 </button>
@@ -201,7 +221,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                         {facturaCargada && (
                             <div className="col-12 mt-2">
                                 <div className="alert alert-info py-2 m-0">
-                                    <strong>Factura Seleccionada:</strong> {facturaCargada.prefijo || ''}{facturaCargada.numero_factura} | 
+                                    <strong>Factura Seleccionada:</strong> {facturaCargada.prefijo || ''}{facturaCargada.separador || ''}{facturaCargada.numero_factura} | 
                                     <strong> Cliente:</strong> {facturaCargada.nombre_cliente} | 
                                     <strong> Total Original:</strong> ${
                                         productosDisponibles
