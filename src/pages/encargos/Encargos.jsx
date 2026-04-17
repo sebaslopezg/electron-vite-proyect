@@ -19,7 +19,7 @@ export const Encargos = () => {
     const [editingId, setEditingId] = useState(null)
 
     const load = async () => {
-        const data = await window.api.getEncargosPendientes()
+        const data = await window.api.getEncargos()
         setItems(data)
         setDataInTable(data)
     }
@@ -76,7 +76,7 @@ export const Encargos = () => {
                         title: 'N° Factura',
                         render: (data, type, row) => `${row.prefijo || ''}${row.numero_factura}`
                     },
-                    { data: 'estado_encargo', title: 'Estado' },
+                    { data: 'nombre_estado', title: 'Estado' },
                     { data: 'nombre_cliente', title: 'Cliente' },
                     { data: 'documento_cliente', title: 'Documento cliente' },
                     {

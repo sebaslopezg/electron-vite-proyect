@@ -8,3 +8,11 @@
 Encargos:
 - id del producto
 - quién lo creó, cuando loc reó y quién lo modificó
+
+
+Ventas:
+ - Que los valores en moneda aparezcan formateados en las tablas
+ - Abonos
+ - Permitir imprimir cuando se realice la venta
+ - Agregar los datos faltantes a facturas
+ - Agregar filtro de productos en modal de productos de venta

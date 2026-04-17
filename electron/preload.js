@@ -30,8 +30,7 @@ contextBridge.exposeInMainWorld("api", {
   deleteProducto: (item) => ipcRenderer.invoke("delete-producto", item),
 
   //encargos
-  getEncargosPendientes: () => ipcRenderer.invoke("get-encargosPendientes"),
-  getEncargosAgendados: () => ipcRenderer.invoke("get-encargosAgendados"),
+  getEncargos: () => ipcRenderer.invoke("get-encargos"),
   addEncargo: (item) => ipcRenderer.invoke("add-encargo", item),
   updateEncargo: (item) => ipcRenderer.invoke("update-encargo", item),
   deleteEncargo: (item) => ipcRenderer.invoke("delete-encargo", item),
@@ -96,4 +95,8 @@ contextBridge.exposeInMainWorld("api", {
   getInternalSchema: () => ipcRenderer.invoke("get-internal-schema"),
   executeImport: (data) => ipcRenderer.invoke("execute-import", data),
   previewExternalTable: (data) => ipcRenderer.invoke("preview-external-table", data),
+
+  // Cartera y cobranzas
+  getCartera: () => ipcRenderer.invoke("get-cartera"),
+  addAbono: (data) => ipcRenderer.invoke("add-abono", data),
 })
