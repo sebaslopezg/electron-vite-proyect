@@ -100,60 +100,58 @@ export const Cartera = () => {
         return () => container.removeEventListener('click', handleTableClick);
     }, [carteraData]);
 
-    return (
-        <div className="container-fluid p-4">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <h2 className="text-primary fw-bold"><i className="bi bi-wallet2 me-2"></i>Cuentas por Cobrar (Cartera)</h2>
-            </div>
+    return <>
 
-            <div className="bg-white p-4 rounded shadow-sm border border-danger border-opacity-25 mb-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 className="text-secondary mb-1">Total Pendiente de Cobro</h5>
-                    <p className="text-muted mb-0 small">Dinero en la calle por facturas a crédito</p>
-                </div>
-                <div className="fs-1 fw-bold text-danger">
-                    ${carteraData.reduce((acc, curr) => acc + (curr.saldo_pendiente || 0), 0).toLocaleString('es-CO')}
-                </div>
-            </div>
+    <div className="pagetitle">
+      <h1><i className="bi bi-wallet2 me-2"></i>Cartera</h1>
+    </div>
+    <div className="card">
+        <div className="card-body pt-4">
+            <h5 className="text-secondary mb-1">Total Pendiente de Cobro</h5>
+            ${carteraData.reduce((acc, curr) => acc + (curr.saldo_pendiente || 0), 0).toLocaleString('es-CO')}
 
-            <div className="bg-white p-4 rounded shadow-sm border">
-                <div ref={tableContainerRef} className="w-100 overflow-hidden">
-                    <DataTableComponent 
-                        data={carteraData}
-                        columns={[
-                            { 
-                                data: null, title: 'N° Factura',
-                                render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
-                            },
-                            { data: 'nombre_cliente', title: 'Cliente' },
-                            { data: 'documento_cliente', title: 'Doc / NIT' },
-                            { 
-                                data: 'date_created', title: 'Fecha Venta',
-                                render: (data) => new Date(data).toLocaleDateString('es-CO')
-                            },
-                            { 
-                                data: 'total_factura', title: 'Total Venta',
-                                render: (data) => `$${parseFloat(data).toLocaleString('es-CO')}`
-                            },
-                            { 
-                                data: 'saldo_pendiente', title: 'Deuda Pendiente',
-                                render: (data) => `<strong class="text-danger fs-6">$${parseFloat(data).toLocaleString('es-CO')}</strong>`
-                            },
-                            {
-                                data: null, title: 'Acciones', orderable: false,
-                                render: function (data, type, row) {
-                                    const safeData = encodeURIComponent(JSON.stringify(row));
-                                    return `
-                                        <button class="btn btn-sm btn-success text-white btn-pay-item" data-alldata="${safeData}" title="Registrar Pago">
-                                            <i class="bi bi-cash-coin me-1"></i> Recibir Pago
-                                        </button>
-                                    `;
-                                }
+            <div ref={tableContainerRef} className="w-100 overflow-hidden">
+                <DataTableComponent 
+                    data={carteraData}
+                    columns={[
+                        { 
+                            data: null, title: 'N° Factura',
+                            render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
+                        },
+                        { data: 'documento_cliente', title: 'Doc / NIT' },
+                        { data: 'nombre_cliente', title: 'Cliente' },
+                        { 
+                            data: 'date_created', title: 'Fecha Venta',
+                            render: (data) => new Date(data).toLocaleDateString('es-CO')
+                        },
+                        { 
+                            data: 'total_factura', title: 'Total Venta',
+                            render: (data) => `$${parseFloat(data).toLocaleString('es-CO')}`
+                        },
+                        { 
+                            data: 'saldo_pendiente', title: 'Deuda Pendiente',
+                            render: (data) => `<strong class="text-danger fs-6">$${parseFloat(data).toLocaleString('es-CO')}</strong>`
+                        },
+                        {
+                            data: null, title: 'Acciones', orderable: false,
+                            render: function (data, type, row) {
+                                const safeData = encodeURIComponent(JSON.stringify(row));
+                                return `
+                                    <button class="btn btn-sm btn-success text-white btn-pay-item" data-alldata="${safeData}" title="Registrar Pago">
+                                        <i class="bi bi-cash-coin me-1"></i> Abonar
+                                    </button>
+                                `;
                             }
-                        ]}
-                    />
-                </div>
+                        }
+                    ]}
+                />
             </div>
+        </div>
+    </div>
+
+        <div className="container-fluid p-4">
+
+
 
             <Modal show={showModal} onHide={handleCloseModal} centered>
                 <Modal.Header closeButton className="bg-success text-white">
@@ -227,5 +225,5 @@ export const Cartera = () => {
                 </Form>
             </Modal>
         </div>
-    )
+    </>
 }
