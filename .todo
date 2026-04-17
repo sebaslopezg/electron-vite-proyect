@@ -12,7 +12,6 @@ Encargos:
 
 modificaciones generales:
 
- - Corregir el numero de nota credito que aparece en el historial de inventarios
  - Agregar el prefijo a la busqueda dela nota credito
  - Agregar filtro de productos en modal de productos de venta
  - Hacer que las facturas sean inmutables para mantener los datos historicos
