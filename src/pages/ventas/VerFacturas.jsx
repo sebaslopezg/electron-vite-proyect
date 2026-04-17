@@ -3,7 +3,7 @@ import DataTableComponent from "../../components/DataTableComponent"
 import { useFacturas } from "../../hooks/useFacturas"
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col, Form } from 'react-bootstrap'
-import { ImpresorFactura } from "../../components/ImpresorFactura"
+import { ImpresorFactura } from "./components/ImpresorFactura"
 
 export const VerFacturas = () => {
     const { facturas, loading, reload } = useFacturas();
@@ -100,6 +100,17 @@ export const VerFacturas = () => {
         return true;
     });
 
+    // NUEVA FUNCIÓN: Determina el color del badge según la deuda
+    const getBadgeClassPago = (factura) => {
+        if (!factura) return 'bg-primary';
+        if (factura.tipo_pago === 'credito') {
+            if (!factura.total_recibido || factura.total_recibido === 0) return 'bg-danger'; // Sin abonos (Rojo)
+            if (factura.saldo_pendiente > 0) return 'bg-warning text-dark'; // Con abonos pero con deuda (Amarillo)
+            return 'bg-success'; // Pagado totalmente (Verde)
+        }
+        return 'bg-primary'; // Contado (Azul)
+    };
+
     return <>
         <div className="bg-light p-3 rounded mb-4 border">
             <Row className="align-items-end">
@@ -147,7 +158,7 @@ export const VerFacturas = () => {
                     data: null, title: 'Estado', orderable: false,
                     render: function (data, type, row) {
                         let badges = '';
-                        if (row.metodo_pago === 'credito') {
+                        if (row.tipo_pago === 'credito') {
                             if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge bg-danger me-1">Crédito (Sin Abonos)</span>';
                             else if (row.saldo_pendiente > 0) badges += '<span class="badge bg-warning text-dark me-1">Crédito (Abonado)</span>';
                             else badges += '<span class="badge bg-success me-1">Crédito (Pagado)</span>';
@@ -201,7 +212,14 @@ export const VerFacturas = () => {
                                 <p className="mb-0"><strong>Documento:</strong> {facturaSeleccionada.documento_cliente}</p>
                             </Col>
                             <Col md={6} className="text-end">
-                                <p className="mb-1"><strong>Método de Pago:</strong> <span className="badge bg-secondary text-capitalize">{facturaSeleccionada.metodo_pago}</span></p>
+                                <p className="mb-1">
+                                    <strong>Pago:</strong>{' '}
+                                    {/* SE APLICA LA FUNCIÓN DEL COLOR DINÁMICO AQUÍ */}
+                                    <span className={`badge ${getBadgeClassPago(facturaSeleccionada)} text-capitalize me-1`}>
+                                        {facturaSeleccionada.tipo_pago}
+                                    </span>
+                                    <span className="badge bg-secondary text-capitalize">{facturaSeleccionada.metodo_pago}</span>
+                                </p>
                                 <p className="mb-0">
                                     <strong>Deuda Pendiente:</strong>{' '}
                                     <span className={facturaSeleccionada.saldo_pendiente > 0 ? 'text-danger fw-bold' : 'text-success fw-bold'}>

@@ -30,6 +30,7 @@ export function createVentasMaestroTable() {
       total_factura REAL,
       total_recibido REAL,
       saldo_pendiente REAL,
+      tipo_pago TEXT,    -- NUEVO CAMPO AÑADIDO
       metodo_pago TEXT,
 
       status INTEGER,
@@ -38,4 +39,10 @@ export function createVentasMaestroTable() {
       modify_by TEXT
     )
   `)
+
+  try {
+      db.exec("ALTER TABLE ventasMaestro ADD COLUMN tipo_pago TEXT DEFAULT 'contado'");
+  } catch (e) {
+      console.log(`Error intentando actualizar tabla: ${e}`)
+  }
 }

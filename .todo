@@ -30,6 +30,4 @@ modificaciones generales:
 
  - Agregar correo electronico a la cabecera de facturas
 
- - En facturacion añadir tipo de pago como contado/credito y método de pago (tarjeta, efectivo...)
-
  - Hacer que el metodo de pago sea configurable, es decir, que se puedan agregar y quitar metodos de pago (en conf almacen)

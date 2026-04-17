@@ -19,7 +19,11 @@ export const Facturacion = () => {
   const [modalData, setModalData] = useState({ title: '', columns: [], type: '' })
   const [descuento, setDescuento] = useState(0)
   const [esPorcentaje, setEsPorcentaje] = useState(true)
-  const [metodoPago, setMetodoPago] = useState('contado')
+  
+  // NUEVOS ESTADOS SEPARADOS
+  const [tipoPago, setTipoPago] = useState('contado')
+  const [metodoPago, setMetodoPago] = useState('Efectivo')
+  
   const [cuotas, setCuotas] = useState(1)
   const [totalRecibido, setTotalRecibido] = useState('')
   const [skuInput, setSkuInput] = useState('')
@@ -261,16 +265,15 @@ export const Facturacion = () => {
     }
 
     if (recibidoNum < totalFinal) {
-      if (metodoPago === 'contado') {
-        Swal.fire('Atención', 'Por favor establezca el plazo de la factura', 'warning');
-        setMetodoPago('credito');
+      if (tipoPago === 'contado') {
+        Swal.fire('Atención', 'El cliente no ha entregado el monto completo. Si es un abono, por favor cambie el "Tipo de Pago" a Crédito.', 'warning');
         return;
       }
 
-      if (metodoPago === 'credito') {
+      if (tipoPago === 'credito') {
         const confirm = await Swal.fire({
           title: 'Venta con saldo pendiente',
-          text: '¿Esta venta irá a la sección de abonos, seguro que desea guardar la factura?',
+          text: '¿Esta venta irá a la sección de cartera, seguro que desea guardar la factura?',
           icon: 'question',
           showCancelButton: true,
           confirmButtonColor: '#3085d6',
@@ -293,6 +296,7 @@ export const Facturacion = () => {
         total: totalFinal,
         total_recibido: recibidoNum,
         saldo_pendiente: saldoPendiente,
+        tipo_pago: tipoPago, // Pasamos el nuevo campo
         metodo_pago: metodoPago,
       },
       detalles: carrito
@@ -315,7 +319,8 @@ export const Facturacion = () => {
     setCliente(null);
     setDescuento(0);
     setTotalRecibido('');
-    setMetodoPago('contado');
+    setTipoPago('contado');
+    setMetodoPago('Efectivo');
   };
 
   const updateQuantity = (id, delta, isEncargo) => {
@@ -643,7 +648,6 @@ export const Facturacion = () => {
               <span className="h5 text-primary">{formatCurrency(totalFinal)}</span>
             </div>
 
-            {/* NUEVO CAMPO: Total Recibido */}
             <Form.Group className="mb-3 bg-light p-2 rounded">
               <Form.Label className="fw-bold"><small>Dinero Recibido</small></Form.Label>
               <InputGroup size="sm">
@@ -657,7 +661,6 @@ export const Facturacion = () => {
               </InputGroup>
             </Form.Group>
 
-            {/* MOSTRAR CAMBIO (Si el cliente paga con un billete más grande) */}
             {recibidoNum > totalFinal && (
               <div className="d-flex justify-content-between mb-3 text-success">
                 <strong>Cambio a devolver:</strong>
@@ -665,7 +668,6 @@ export const Facturacion = () => {
               </div>
             )}
 
-            {/* MOSTRAR SALDO PENDIENTE (Si el cliente entrega menos dinero) */}
             {recibidoNum > 0 && recibidoNum < totalFinal && (
               <div className="d-flex justify-content-between mb-3 text-warning">
                 <strong>Saldo pendiente (Deuda):</strong>
@@ -673,19 +675,38 @@ export const Facturacion = () => {
               </div>
             )}
 
-            <Form.Group className="mb-3 border-top pt-3">
-              <Form.Label><small>Método de Pago</small></Form.Label>
-              <Form.Select
-                size="sm"
-                value={metodoPago}
-                onChange={(e) => setMetodoPago(e.target.value)}
-              >
-                <option value="contado">Contado</option>
-                <option value="credito">Crédito (Abonos)</option>
-              </Form.Select>
-            </Form.Group>
+            {/* SEPARADOS: Tipo de Pago y Método de Pago */}
+            <Row className="border-top pt-3">
+                <Col xs={6}>
+                    <Form.Group className="mb-3">
+                    <Form.Label><small className="fw-bold">Tipo de Pago</small></Form.Label>
+                    <Form.Select
+                        size="sm"
+                        value={tipoPago}
+                        onChange={(e) => setTipoPago(e.target.value)}
+                    >
+                        <option value="contado">Contado</option>
+                        <option value="credito">Crédito</option>
+                    </Form.Select>
+                    </Form.Group>
+                </Col>
+                <Col xs={6}>
+                    <Form.Group className="mb-3">
+                    <Form.Label><small className="fw-bold">Método</small></Form.Label>
+                    <Form.Select
+                        size="sm"
+                        value={metodoPago}
+                        onChange={(e) => setMetodoPago(e.target.value)}
+                    >
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Datafono">Datafono</option>
+                        <option value="Transaccion Bancaria">Transacción</option>
+                    </Form.Select>
+                    </Form.Group>
+                </Col>
+            </Row>
 
-            {metodoPago === 'credito' && (
+            {tipoPago === 'credito' && (
               <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
                 <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
                 <InputGroup size="sm">

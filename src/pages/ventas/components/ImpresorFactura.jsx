@@ -14,6 +14,8 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
     const renderRecibo = () => {
         if (!factura || !almacenConf) return null;
 
+        const numFactura = `${factura.prefijo || ''}${almacenConf.separador || ''}${factura.numero_factura}`;
+
         if (tipoImpresion === 'pos') {
             return (
                 <div className="formato-pos text-black">
@@ -24,7 +26,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                         <div>Tel: {almacenConf.telefono_almacen}</div>
                         <div className="mt-1"><small>{almacenConf.resolucionDian}</small></div>
                         <div className="mt-2 fw-bold border-top border-bottom border-dark py-1">
-                            FACTURA N° {factura.prefijo || ''}{factura.numero_factura}
+                            FACTURA N° {numFactura}
                         </div>
                         <div>{new Date(factura.date_created).toLocaleString('es-CO')}</div>
                     </div>
@@ -53,7 +55,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                         </tbody>
                     </table>
 
-                    <div className="mt-2 text-end">
+                    <div className="mt-2 text-end border-bottom border-dark pb-2">
                         <div>Subtotal: ${(factura.subtotal || 0).toLocaleString('es-CO')}</div>
                         {factura.descuento > 0 && <div>Desc: -${(factura.descuento || 0).toLocaleString('es-CO')}</div>}
                         <div>IVA: ${(factura.iva || 0).toLocaleString('es-CO')}</div>
@@ -61,6 +63,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                     </div>
 
                     <div className="mt-2">
+                        <div className="text-capitalize"><strong>Pago:</strong> {factura.tipo_pago} ({factura.metodo_pago})</div>
                         <div>Recibido: ${(factura.total_recibido || 0).toLocaleString('es-CO')}</div>
                         <div>Cambio/Saldo: ${(factura.saldo_pendiente || 0).toLocaleString('es-CO')}</div>
                     </div>
@@ -73,16 +76,26 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
         } else {
             return (
                 <div className="formato-a4 text-black">
-                    <div className="d-flex justify-content-between align-items-center mb-4 border-bottom border-2 border-dark pb-3">
-                        <div>
-                            <h2 className="fw-bold text-uppercase">{almacenConf.nombre_almacen}</h2>
-                            <div><strong>NIT:</strong> {almacenConf.nit_almacen}</div>
-                            <div>{almacenConf.direccion_almacen} | Tel: {almacenConf.telefono_almacen}</div>
-                            <div className="mt-1 text-muted"><small>{almacenConf.resolucionDian}</small></div>
+                    <div className="d-flex justify-content-between align-items-start mb-4 border-bottom border-2 border-dark pb-3">
+                        <div className="d-flex align-items-center">
+                            {almacenConf.logo_almacen && (
+                                <img 
+                                    src={almacenConf.logo_almacen} 
+                                    alt="Logo" 
+                                    style={{ maxHeight: '80px', maxWidth: '150px' }} 
+                                    className="me-4 rounded" 
+                                />
+                            )}
+                            <div>
+                                <h2 className="fw-bold text-uppercase mb-1">{almacenConf.nombre_almacen}</h2>
+                                <div><strong>NIT:</strong> {almacenConf.nit_almacen}</div>
+                                <div>{almacenConf.direccion_almacen} | Tel: {almacenConf.telefono_almacen}</div>
+                                <div className="mt-1 text-muted"><small>{almacenConf.resolucionDian}</small></div>
+                            </div>
                         </div>
                         <div className="text-end">
                             <h3 className="mb-0 text-secondary text-uppercase">{almacenConf.nombreFactura}</h3>
-                            <h4 className="text-danger fw-bold">N° {factura.prefijo || ''}{factura.numero_factura}</h4>
+                            <h4 className="text-danger fw-bold">N° {numFactura}</h4>
                             <div>Fecha Emisión: {new Date(factura.date_created).toLocaleString('es-CO')}</div>
                         </div>
                     </div>
@@ -90,10 +103,10 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                     <div className="card border-dark mb-4">
                         <div className="card-body py-2">
                             <Row>
-                                <Col sm={6}><strong>Cliente:</strong> {factura.nombre_cliente}</Col>
-                                <Col sm={6}><strong>CC/NIT:</strong> {factura.documento_cliente}</Col>
-                                <Col sm={6}><strong>Método de Pago:</strong> <span className="text-capitalize">{factura.metodo_pago}</span></Col>
-                                <Col sm={6}><strong>Estado:</strong> {factura.saldo_pendiente > 0 ? 'Con saldo pendiente' : 'Pagado totalmente'}</Col>
+                                <Col sm={5}><strong>Cliente:</strong> {factura.nombre_cliente}</Col>
+                                <Col sm={3}><strong>CC/NIT:</strong> {factura.documento_cliente}</Col>
+                                <Col sm={2}><strong>Tipo:</strong> <span className="text-capitalize">{factura.tipo_pago}</span></Col>
+                                <Col sm={2}><strong>Método:</strong> <span className="text-capitalize">{factura.metodo_pago}</span></Col>
                             </Row>
                         </div>
                     </div>

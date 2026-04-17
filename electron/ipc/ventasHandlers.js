@@ -75,10 +75,11 @@ export const registerVentasHandlers = () => {
                     total_factura, 
                     total_recibido, 
                     saldo_pendiente,
+                    tipo_pago,
                     metodo_pago,
                     date_created, 
                     status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             `)
             insertMaestro.run(
                 maestroId,
@@ -92,6 +93,7 @@ export const registerVentasHandlers = () => {
                 maestroData.total,
                 maestroData.total_recibido,
                 maestroData.saldo_pendiente,
+                maestroData.tipo_pago,
                 maestroData.metodo_pago,
                 now
             )
