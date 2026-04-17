@@ -42,7 +42,6 @@ export const Productos = () => {
 
   const tableContainerRef = useRef(null);
 
-  // ESTE ES EL ÚNICO ESCUCHADOR DE CLICS QUE DEBE EXISTIR (AISLADO AL CONTENEDOR)
   useEffect(() => {
     const container = tableContainerRef.current;
     if (!container) return;
@@ -145,9 +144,9 @@ export const Productos = () => {
             render: function (data, type, row) {
               const safeData = encodeURIComponent(JSON.stringify(row));
               return `
-                    <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}"><i class="bi bi-trash3"></i></button>
-                    `;
+                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}"><i class="bi bi-trash3"></i></button>
+              `;
             }
           }
         ]}

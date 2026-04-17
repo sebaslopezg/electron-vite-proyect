@@ -33,6 +33,7 @@ export const registerNotasHandlers = () => {
       if (!config) throw new Error("No se encontró configuración del almacén")
       
       const nuevoNumeroNota = config.consecutivo_nota + 1
+      const prefijoCalculado = notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND';
 
       const insertNota = db.prepare(`
         INSERT INTO nota (
@@ -78,7 +79,7 @@ export const registerNotasHandlers = () => {
       insertNota.run({
         id: notaId,
         tipo_nota: notaData.tipo_nota,
-        prefijo: notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND',
+        prefijo: prefijoCalculado,
         numero_nota: nuevoNumeroNota,
         id_factura_origen: notaData.id_factura_origen,
         numero_factura_origen: notaData.numero_factura_origen,
@@ -154,7 +155,7 @@ export const registerNotasHandlers = () => {
               stock_nuevo: stockNuevo,
               fecha: now,
               usuario: currentUser,
-              notas: `Asociado a Nota ${notaData.prefijo}-${notaData.numero_nota}`
+              notas: `Asociado a Nota ${prefijoCalculado}-${nuevoNumeroNota}` 
             });
           }
         }

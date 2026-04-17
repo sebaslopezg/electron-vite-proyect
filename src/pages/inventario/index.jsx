@@ -167,8 +167,6 @@ export const Inventario = () => {
                 <div ref={tableContainerRef} className="w-100 overflow-hidden">
                     <CustomDataTable 
                         key={`inv-${filterCategory}-${filterTag}-${reloadTable}`} 
-                        
-                        // --- MAGIA: Inyectamos los filtros en la petición ---
                         ajaxData={(params) => {
                             params.customCategory = filterCategory;
                             params.customTag = filterTag;
@@ -213,7 +211,6 @@ export const Inventario = () => {
             </div>
         </div>
 
-        {/* MODALES: Quedan exactamente igual */}
         <Modal show={show} onHide={handleClose} size="sm" centered>
             <Modal.Header closeButton>
                 <Modal.Title className="fs-6">{modalInfo.title}</Modal.Title>
