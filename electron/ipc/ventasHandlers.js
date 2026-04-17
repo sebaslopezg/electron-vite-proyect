@@ -6,10 +6,10 @@ export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-maestro", () => {
         try {
-            // CAMBIO AQUÍ: Subconsulta para obtener las notas aplicadas
             const stmt = db.prepare(`
                 SELECT 
                     v.*,
+                    (SELECT separador FROM almacen_conf LIMIT 1) AS separador,
                     (SELECT GROUP_CONCAT(tipo_nota, ' y ') 
                      FROM nota 
                      WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas

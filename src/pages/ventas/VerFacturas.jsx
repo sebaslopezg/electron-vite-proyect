@@ -100,15 +100,14 @@ export const VerFacturas = () => {
         return true;
     });
 
-    // NUEVA FUNCIÓN: Determina el color del badge según la deuda
     const getBadgeClassPago = (factura) => {
         if (!factura) return 'bg-primary';
         if (factura.tipo_pago === 'credito') {
-            if (!factura.total_recibido || factura.total_recibido === 0) return 'bg-danger'; // Sin abonos (Rojo)
-            if (factura.saldo_pendiente > 0) return 'bg-warning text-dark'; // Con abonos pero con deuda (Amarillo)
-            return 'bg-success'; // Pagado totalmente (Verde)
+            if (!factura.total_recibido || factura.total_recibido === 0) return 'bg-danger';
+            if (factura.saldo_pendiente > 0) return 'bg-warning text-dark';
+            return 'bg-success';
         }
-        return 'bg-primary'; // Contado (Azul)
+        return 'bg-primary';
     };
 
     return <>
@@ -150,7 +149,7 @@ export const VerFacturas = () => {
                 { data: 'date_created', title: 'Fecha' },
                 { 
                     data: null, title: 'N° Factura',
-                    render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
+                    render: (data, type, row) => `<strong>${row.prefijo || ''}${row.separador || ''}${row.numero_factura}</strong>`
                 },
                 { data: 'documento_cliente', title: 'Doc Cliente' },
                 { data: 'nombre_cliente', title: 'Nombre Cliente' },
@@ -194,7 +193,7 @@ export const VerFacturas = () => {
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton>
                 <Modal.Title>
-                    Detalles de la Factura {facturaSeleccionada ? `${facturaSeleccionada.prefijo || ''}${facturaSeleccionada.numero_factura}` : ''}                
+                    Detalles de la Factura {facturaSeleccionada ? `${facturaSeleccionada.prefijo || ''}${facturaSeleccionada.separador || ''}${facturaSeleccionada.numero_factura}` : ''}                
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>

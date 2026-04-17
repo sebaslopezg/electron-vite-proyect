@@ -24,10 +24,8 @@ modificaciones generales:
 
  - Agregar el prefijo a la busqueda dela nota credito
 
- - Agregar el separador a las facturas
-
  - Hacer que las facturas sean inmutables para mantener los datos historicos
 
- - Agregar correo electronico a la cabecera de facturas
-
  - Hacer que el metodo de pago sea configurable, es decir, que se puedan agregar y quitar metodos de pago (en conf almacen)
+
+ - añadir las imagenes a las facturas

@@ -46,8 +46,9 @@ export const registerAlmacenConfigHandlers = () => {
                     logo_almacen = @logo_almacen,
                     direccion_almacen = @direccion_almacen,
                     telefono_almacen = @telefono_almacen,
+                    email_almacen = @email_almacen, -- NUEVO CAMPO AÑADIDO AL UPDATE
                     prefijo = @prefijo,
-                    separador = @separador, -- NUEVO CAMPO
+                    separador = @separador, 
                     resolucionDian = @resolucionDian,
                     nombreFactura = @nombreFactura,
                     footer_factura = @footer_factura,
@@ -59,7 +60,8 @@ export const registerAlmacenConfigHandlers = () => {
                 `)
             const info = stmt.run({
                 ...item,
-                separador: item.separador || '',
+                separador: item.separador || '', 
+                email_almacen: item.email_almacen || '',
                 date_modify: now,
                 modify_by: user
             })

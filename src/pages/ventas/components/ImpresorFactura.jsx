@@ -24,6 +24,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                         <div>NIT: {almacenConf.nit_almacen}</div>
                         <div>{almacenConf.direccion_almacen}</div>
                         <div>Tel: {almacenConf.telefono_almacen}</div>
+                        {almacenConf.email_almacen && <div>Email: {almacenConf.email_almacen}</div>}
                         <div className="mt-1"><small>{almacenConf.resolucionDian}</small></div>
                         <div className="mt-2 fw-bold border-top border-bottom border-dark py-1">
                             FACTURA N° {numFactura}
@@ -90,6 +91,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                                 <h2 className="fw-bold text-uppercase mb-1">{almacenConf.nombre_almacen}</h2>
                                 <div><strong>NIT:</strong> {almacenConf.nit_almacen}</div>
                                 <div>{almacenConf.direccion_almacen} | Tel: {almacenConf.telefono_almacen}</div>
+                                {almacenConf.email_almacen && <div>Email: {almacenConf.email_almacen}</div>}
                                 <div className="mt-1 text-muted"><small>{almacenConf.resolucionDian}</small></div>
                             </div>
                         </div>
