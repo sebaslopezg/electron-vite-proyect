@@ -6,7 +6,6 @@ export const registerProductoHandlers = () => {
 
   ipcMain.handle("get-productos", () => {
     try {
-      // NUEVO: Agregamos GROUP_CONCAT para traer las etiquetas asociadas
       const stmt = db.prepare(`
         SELECT p.*,
                c.nombre as categoria_nombre,
@@ -40,6 +39,10 @@ export const registerProductoHandlers = () => {
       if (orderCol === 'categoria_nombre') orderCol = 'c.nombre';
       else orderCol = `p.${orderCol}`;
 
+      // NUEVO: Recibir variables de filtro
+      const customCategory = dtParams.customCategory;
+      const customTag = dtParams.customTag;
+
       let baseQuery = `
         FROM producto p
         LEFT JOIN categoria c ON p.categoria_id = c.id
@@ -48,10 +51,22 @@ export const registerProductoHandlers = () => {
       
       let queryParams = [];
 
+      // NUEVO: Aplicar filtro de categoría
+      if (customCategory) {
+          baseQuery += " AND p.categoria_id = ?";
+          queryParams.push(customCategory);
+      }
+
+      // NUEVO: Aplicar filtro de etiqueta (buscando en la tabla intermedia)
+      if (customTag) {
+          baseQuery += " AND EXISTS (SELECT 1 FROM producto_etiqueta pe WHERE pe.producto_id = p.id AND pe.etiqueta_id = ?)";
+          queryParams.push(customTag);
+      }
+
       if (searchValue) {
-          baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ? OR c.nombre LIKE ?)";
-          const likeParam = `%${searchValue}%`;
-          queryParams.push(likeParam, likeParam, likeParam);
+        baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ? OR c.nombre LIKE ?)";
+        const likeParam = `%${searchValue}%`;
+        queryParams.push(likeParam, likeParam, likeParam);
       }
 
       const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status > 0 AND tipo = 'producto'").get();
@@ -63,7 +78,7 @@ export const registerProductoHandlers = () => {
       const dataQuery = `
         SELECT p.*,
                c.nombre as categoria_nombre,
-               c.sku_prefix, c.separador, /* <--- AÑADE ESTA LÍNEA */
+               c.sku_prefix, c.separador,
                (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
         ${baseQuery}
         ORDER BY ${orderCol} ${orderDir} 
