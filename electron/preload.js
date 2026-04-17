@@ -90,4 +90,8 @@ contextBridge.exposeInMainWorld("api", {
   getInternalSchema: () => ipcRenderer.invoke("get-internal-schema"),
   executeImport: (data) => ipcRenderer.invoke("execute-import", data),
   previewExternalTable: (data) => ipcRenderer.invoke("preview-external-table", data),
+
+  // Cartera y cobranzas
+  getCartera: () => ipcRenderer.invoke("get-cartera"),
+  addAbono: (data) => ipcRenderer.invoke("add-abono", data),
 })

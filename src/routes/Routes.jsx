@@ -7,6 +7,7 @@ import { ConfiguracionIndex as Configuracion } from '../pages/Configuracion/inde
 import { Bitacoras } from '../pages/Bitacoras'
 import { ProductosIndex } from '../pages/Productos'
 import { IndexEncargos } from '../pages/encargos/Index'
+import { Cartera } from '../pages/cartera/Cartera';
 
 export const MainRoutes = () => {
 
@@ -16,6 +17,7 @@ export const MainRoutes = () => {
             <Route path="/ventas" element={<Ventas />} />
             <Route path="/inventario" element={<Inventario />} />
             <Route path="/clientes" element={<Clientes />} />
+            <Route path="/cartera" element={<Cartera />} />
             <Route path="/productos" element={<ProductosIndex />} />
             <Route path="/encargos" element={<IndexEncargos />} />
             <Route path="/bitacoras" element={<Bitacoras />} />
