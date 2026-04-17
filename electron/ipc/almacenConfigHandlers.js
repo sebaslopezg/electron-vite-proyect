@@ -46,7 +46,7 @@ export const registerAlmacenConfigHandlers = () => {
                     logo_almacen = @logo_almacen,
                     direccion_almacen = @direccion_almacen,
                     telefono_almacen = @telefono_almacen,
-                    email_almacen = @email_almacen, -- NUEVO CAMPO AÑADIDO AL UPDATE
+                    email_almacen = @email_almacen,
                     prefijo = @prefijo,
                     separador = @separador, 
                     resolucionDian = @resolucionDian,
@@ -54,6 +54,7 @@ export const registerAlmacenConfigHandlers = () => {
                     footer_factura = @footer_factura,
                     consecutivo = @consecutivo,
                     consecutivo_nota = @consecutivo_nota,
+                    consecutivo_nota_debito = @consecutivo_nota_debito,
                     date_modify = @date_modify,
                     modify_by = @modify_by
                     WHERE id = @id

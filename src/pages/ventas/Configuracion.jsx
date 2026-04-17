@@ -19,6 +19,7 @@ export const Configuracion = ({ data, onReload }) => {
         footer_factura:'',
         consecutivo:'',
         consecutivo_nota: '',
+        consecutivo_nota_debito: '',
     })
 
     const fileInputRef = useRef(null);
@@ -39,7 +40,8 @@ export const Configuracion = ({ data, onReload }) => {
                 nombreFactura: data.nombreFactura || '',
                 footer_factura: data.footer_factura || '',
                 consecutivo: data.consecutivo || '',
-                consecutivo_nota: data.consecutivo_nota || ''
+                consecutivo_nota: data.consecutivo_nota || '',
+                consecutivo_nota_debito: data.consecutivo_nota_debito || ''
             })
         }
     }, [data])
@@ -274,11 +276,24 @@ export const Configuracion = ({ data, onReload }) => {
 
                 <Col md={3}>
                     <Form.Group className="mb-3">
-                        <Form.Label htmlFor="almacenConsecutivoNota" className="fw-bold">Consecutivo Notas</Form.Label>
+                        <Form.Label htmlFor="almacenConsecutivoNota" className="fw-bold">Consecutivo Nota Crédito</Form.Label>
                         <Form.Control
                             id="almacenConsecutivoNota"
                             value={form.consecutivo_nota}
                             onChange={(e) => setForm({ ...form, consecutivo_nota: e.target.value })}
+                            type="number"
+                            required
+                        />
+                    </Form.Group>
+                </Col>
+                
+                <Col md={3}>
+                    <Form.Group className="mb-3">
+                        <Form.Label htmlFor="almacenConsecutivoNotaDebito" className="fw-bold">Consecutivo Nota Débito</Form.Label>
+                        <Form.Control
+                            id="almacenConsecutivoNotaDebito"
+                            value={form.consecutivo_nota_debito}
+                            onChange={(e) => setForm({ ...form, consecutivo_nota_debito: e.target.value })}
                             type="number"
                             required
                         />
