@@ -12,20 +12,11 @@ Encargos:
 
 modificaciones generales:
 
- - Que los valores en moneda aparezcan formateados en las tablas
-
- - Hacer que los valores de moneda sean configurables
- 
- - Permitir imprimir cuando se realice la venta
-
- - Agregar filtro de productos en modal de productos de venta
-
  - Corregir el numero de nota credito que aparece en el historial de inventarios
-
  - Agregar el prefijo a la busqueda dela nota credito
-
+ - Agregar filtro de productos en modal de productos de venta
  - Hacer que las facturas sean inmutables para mantener los datos historicos
-
- - Hacer que el metodo de pago sea configurable, es decir, que se puedan agregar y quitar metodos de pago (en conf almacen)
-
  - añadir las imagenes a las facturas
+ - Hacer que los valores de moneda sean configurables
+ - Que los valores en moneda aparezcan formateados en las tablas
+ - Hacer que el metodo de pago sea configurable, es decir, que se puedan agregar y quitar metodos de pago (en conf almacen)

@@ -9,6 +9,7 @@ import {
   Col
 } from 'react-bootstrap'
 import Modal from 'react-bootstrap/Modal'
+import { ImpresorFactura } from './components/ImpresorFactura'
 
 export const Facturacion = () => {
   const [productos, setProductos] = useState([])
@@ -20,7 +21,6 @@ export const Facturacion = () => {
   const [descuento, setDescuento] = useState(0)
   const [esPorcentaje, setEsPorcentaje] = useState(true)
   
-  // NUEVOS ESTADOS SEPARADOS
   const [tipoPago, setTipoPago] = useState('contado')
   const [metodoPago, setMetodoPago] = useState('Efectivo')
   
@@ -29,6 +29,10 @@ export const Facturacion = () => {
   const [skuInput, setSkuInput] = useState('')
   const [docInput, setDocInput] = useState('')
 
+  const [showPreviewImpresion, setShowPreviewImpresion] = useState(false);
+  const [facturaParaImprimir, setFacturaParaImprimir] = useState(null);
+  const [detallesParaImprimir, setDetallesParaImprimir] = useState([]);
+  const [almacenConfParaImprimir, setAlmacenConfParaImprimir] = useState(null);
 
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
 
@@ -65,6 +69,13 @@ export const Facturacion = () => {
 
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
+
+  const handleClosePreviewImpresion = () => {
+    setShowPreviewImpresion(false);
+    setFacturaParaImprimir(null);
+    setDetallesParaImprimir([]);
+    setAlmacenConfParaImprimir(null);
+  }
 
   const loadProductos = async () => {
     const data = await window.api.getAllProductos()
@@ -296,7 +307,7 @@ export const Facturacion = () => {
         total: totalFinal,
         total_recibido: recibidoNum,
         saldo_pendiente: saldoPendiente,
-        tipo_pago: tipoPago, // Pasamos el nuevo campo
+        tipo_pago: tipoPago,
         metodo_pago: metodoPago,
       },
       detalles: carrito
@@ -305,10 +316,46 @@ export const Facturacion = () => {
     const result = await window.api.createVenta(data)
 
     if (result.success) {
-      Swal.fire('Venta exitosa', `Factura ${result.prefijo}${result.numero_factura} creada`, 'success')
-      loadProductos()
-      cleanForm();
-      window.dispatchEvent(new CustomEvent('factura-creada'));
+      const printData = await window.api.getDetalle(result.maestroId);
+
+      const facturaGenerada = {
+          id: result.maestroId,
+          numero_factura: result.numero_factura,
+          prefijo: result.prefijo,
+          date_created: new Date().toISOString(),
+          nombre_cliente: cliente.nombre,
+          documento_cliente: cliente.documento,
+          subtotal: subtotal,
+          descuento: valorDescuento,
+          iva: ivaTotal,
+          total_factura: totalFinal,
+          total_recibido: recibidoNum,
+          saldo_pendiente: saldoPendiente,
+          tipo_pago: tipoPago,
+          metodo_pago: metodoPago
+      };
+
+      Swal.fire({
+          title: '¡Venta Exitosa!',
+          text: `Factura ${result.prefijo || ''}${printData.configuracion?.separador || ''}${result.numero_factura} generada. ¿Deseas imprimirla?`,
+          icon: 'success',
+          showCancelButton: true,
+          confirmButtonColor: '#198754',
+          cancelButtonColor: '#6c757d',
+          confirmButtonText: '<i class="bi bi-printer me-2"></i>Imprimir',
+          cancelButtonText: 'Cerrar'
+      }).then((res) => {
+          if (res.isConfirmed && printData.success) {
+              setFacturaParaImprimir(facturaGenerada);
+              setDetallesParaImprimir(printData.data);
+              setAlmacenConfParaImprimir(printData.configuracion);
+              setShowPreviewImpresion(true);
+          }
+          
+          loadProductos()
+          cleanForm();
+          window.dispatchEvent(new CustomEvent('factura-creada'));
+      });
     } else {
       Swal.fire('Error', result.error, 'error')
     }
@@ -399,7 +446,7 @@ export const Facturacion = () => {
               };
             }
             return item;
-          }));
+          })); // <--- ¡AQUÍ ESTABA EL ERROR EN TU CÓDIGO ORIGINAL!
         }
 
         if (target.closest('.btn-select-product')) {
@@ -675,7 +722,6 @@ export const Facturacion = () => {
               </div>
             )}
 
-            {/* SEPARADOS: Tipo de Pago y Método de Pago */}
             <Row className="border-top pt-3">
                 <Col xs={6}>
                     <Form.Group className="mb-3">
@@ -759,6 +805,15 @@ export const Facturacion = () => {
         </Button>
       </Modal.Footer>
     </Modal>
+
+    <ImpresorFactura 
+        show={showPreviewImpresion} 
+        onClose={handleClosePreviewImpresion} 
+        factura={facturaParaImprimir} 
+        detalles={detallesParaImprimir} 
+        almacenConf={almacenConfParaImprimir} 
+        textoVolver="Volver a Facturación" 
+    />
 
   </>
 }
