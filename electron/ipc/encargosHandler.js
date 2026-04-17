@@ -4,19 +4,9 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 
 export const registerEncargosHandlers = () => {
-    ipcMain.handle("get-encargosPendientes", () => {
+    ipcMain.handle("get-encargos", () => {
         try {
-            const stmt = db.prepare(`SELECT * FROM encargos WHERE status > 0 AND estado_encargo = 'pendiente'`)
-            return stmt.all()
-        } catch (error) {
-            console.error("Error al intentar obtener encargos:", error)
-            return []
-        }
-    })
-
-    ipcMain.handle("get-encargosAgendados", () => {
-        try {
-            const stmt = db.prepare(`SELECT * FROM encargos WHERE status > 0 AND estado_encargo = 'agendado'`)
+            const stmt = db.prepare(`SELECT * FROM encargos WHERE status > 0`)
             return stmt.all()
         } catch (error) {
             console.error("Error al intentar obtener encargos:", error)
@@ -36,7 +26,8 @@ export const registerEncargosHandlers = () => {
             id_factura,
             numero_encargo,
             fecha_entrega,
-            estado_encargo,
+            id_estado,
+            nombre_estado,
             nombre_almacen,
             nombre_cliente,
             status,
@@ -46,7 +37,8 @@ export const registerEncargosHandlers = () => {
             @id_factura,
             @numero_encargo,
             @fecha_entrega,
-            @estado_encargo,
+            @id_estado,
+            @nombre_estado,
             @nombre_almacen,
             @nombre_cliente,
             @status,
@@ -77,7 +69,8 @@ export const registerEncargosHandlers = () => {
             const stmt = db.prepare(`
         UPDATE encargos SET
             fecha_entrega = @fecha_entrega,
-            estado_encargo = @estado_encargo,
+            id_estado = @id_estado,
+            nombre_estado = @nombre_estado,
             descripcion = @descripcion,
             date_modify = @date_modify,
             modify_by = @modify_by

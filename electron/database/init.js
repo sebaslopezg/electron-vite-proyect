@@ -11,6 +11,7 @@ import { createNotasTables } from './tables/notas.js'
 import { createEncargosTable } from './tables/Encargos.js'
 import { createCategoriasEtiquetasTables } from './tables/categorias_etiquetas.js'
 import { appDb, switchTenantDb } from "./index.js";
+import { createEstadoEncargoTable } from './tables/estadoEncargo.js'
 
 
 export const initDatabase = () => {
@@ -34,7 +35,7 @@ export const initDatabase = () => {
         }
         const activeProfile = appDb.prepare("SELECT filename FROM perfiles WHERE is_active = 1").get();
 
-        switchTenantDb(activeProfile.filename); 
+        switchTenantDb(activeProfile.filename);
 
         // CREAR TODAS LAS TABLAS DE LA TIENDA ---
         // A partir de aquí, todas estas funciones usarán el dbProxy automáticamente
@@ -51,6 +52,7 @@ export const initDatabase = () => {
         createNotasTables()
         createEncargosTable()
         createCategoriasEtiquetasTables()
+        createEstadoEncargoTable()
         //await runMigrations()
 
         console.log(`Conectado al perfil: ${activeProfile.filename}`);

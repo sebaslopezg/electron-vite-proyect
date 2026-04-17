@@ -15,7 +15,7 @@ export function createEncargosTable() {
 
       numero_encargo INTEGER,
       fecha_entrega TEXT,
-      estado_encargo TEXT,
+      id_estado TEXT,
       descripcion TEXT,
       
       nombre_almacen TEXT,

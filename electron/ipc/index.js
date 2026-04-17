@@ -10,6 +10,7 @@ import { registerCategoriaHandlers } from "./categoriaHandlers.js"
 import { registerEtiquetaHandlers } from "./etiquetaHandlers.js"
 import { registerImportHandlers } from "./importHandlers.js";
 import { registerEncargosHandlers } from "./encargosHandler.js"
+import { registerEstadoHandlers } from "./estadosEncargoHandler.js"
 import { registerCarteraHandlers } from "./carteraHandlers.js"
 
 export const registerAllHandlers = () => {
@@ -25,5 +26,6 @@ export const registerAllHandlers = () => {
   registerEtiquetaHandlers()
   registerImportHandlers()
   registerEncargosHandlers()
+  registerEstadoHandlers()
   registerCarteraHandlers()
 }

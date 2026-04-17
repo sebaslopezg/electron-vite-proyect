@@ -36,7 +36,7 @@ export const registerVentasHandlers = () => {
                 LEFT JOIN categoria c ON p.categoria_id = c.id
                 WHERE df.maestro_id = ?
             `);
-            
+
             const detalles = stmt.all(facturaId);
             const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`);
             const notas = notasStmt.all(facturaId);
@@ -167,14 +167,15 @@ export const registerVentasHandlers = () => {
                             numero_factura,
                             prefijo,
                             id_producto,
+                            nombre_producto,
+                            cantidad_producto,
                             numero_encargo,
-                            estado_encargo,
                             nombre_cliente,
                             documento_cliente,
                             date_created,
                             status
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                     `)
                     insertEncargo.run(
                         uuidv4(),
@@ -182,8 +183,9 @@ export const registerVentasHandlers = () => {
                         nuevoNumeroFactura,
                         prefijoFactura,
                         item.id,
+                        item.ref_name,
+                        item.cantidad,
                         newNum,
-                        "pendiente",
                         maestroData.nombre_cliente,
                         maestroData.documento_cliente,
                         now
