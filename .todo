@@ -12,8 +12,9 @@ Encargos:
 
 Ventas:
  - Que los valores en moneda aparezcan formateados en las tablas
- - Abonos
  
  - Permitir imprimir cuando se realice la venta
  - Agregar los datos faltantes a facturas
  - Agregar filtro de productos en modal de productos de venta
+
+ - Corregir el numero de nota credito que aparece en el historial de inventarios

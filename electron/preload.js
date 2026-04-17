@@ -98,5 +98,6 @@ contextBridge.exposeInMainWorld("api", {
 
   // Cartera y cobranzas
   getCartera: () => ipcRenderer.invoke("get-cartera"),
+  getAbonos: () => ipcRenderer.invoke("get-abonos"),
   addAbono: (data) => ipcRenderer.invoke("add-abono", data),
 })

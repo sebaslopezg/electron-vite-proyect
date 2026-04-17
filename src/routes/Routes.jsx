@@ -7,7 +7,7 @@ import { ConfiguracionIndex as Configuracion } from '../pages/Configuracion/inde
 import { Bitacoras } from '../pages/Bitacoras'
 import { ProductosIndex } from '../pages/Productos'
 import { IndexEncargos } from '../pages/encargos/Index'
-import { Cartera } from '../pages/cartera/Cartera';
+import { Cartera } from '../pages/cartera/Index';
 
 export const MainRoutes = () => {
 

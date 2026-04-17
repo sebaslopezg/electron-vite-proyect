@@ -59,4 +59,28 @@ export const registerCarteraHandlers = () => {
             return { success: false, error: error.message };
         }
     });
+
+    ipcMain.handle("get-abonos", () => {
+        try {
+            const stmt = db.prepare(`
+                SELECT a.*, 
+                    v.prefijo, 
+                    v.numero_factura, 
+                    v.nombre_cliente, 
+                    v.documento_cliente,
+                    v.saldo_pendiente
+                FROM abonos_ventas a
+                LEFT JOIN ventasMaestro v ON a.maestro_id = v.id
+                ORDER BY a.date_created DESC
+            `);
+            const abonos = stmt.all();
+            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
+            const configuracion = confStmt.get();
+
+            return { success: true, data: abonos, configuracion: configuracion };
+        } catch (error) {
+            console.error("Error obteniendo el historial de abonos:", error);
+            return { success: false, data: [] };
+        }
+    });
 };
