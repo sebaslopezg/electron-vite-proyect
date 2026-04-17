@@ -10,11 +10,26 @@ Encargos:
 - quién lo creó, cuando loc reó y quién lo modificó
 
 
-Ventas:
+modificaciones generales:
+
  - Que los valores en moneda aparezcan formateados en las tablas
+
+ - Hacer que los valores de moneda sean configurables
  
  - Permitir imprimir cuando se realice la venta
- - Agregar los datos faltantes a facturas
+
  - Agregar filtro de productos en modal de productos de venta
 
  - Corregir el numero de nota credito que aparece en el historial de inventarios
+
+ - Agregar el prefijo a la busqueda dela nota credito
+
+ - Agregar el separador a las facturas
+
+ - Hacer que las facturas sean inmutables para mantener los datos historicos
+
+ - Agregar correo electronico a la cabecera de facturas
+
+ - En facturacion añadir tipo de pago como contado/credito y método de pago (tarjeta, efectivo...)
+
+ - Hacer que el metodo de pago sea configurable, es decir, que se puedan agregar y quitar metodos de pago (en conf almacen)

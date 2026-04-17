@@ -13,7 +13,6 @@ export const registerAlmacenConfigHandlers = () => {
         }
     })
 
-    //para llamar solo una row (revisar si puede funcionar)
     ipcMain.handle("getOne-almacenConf", (_, id) =>{
         try {
             const stmt = db.prepare("SELECT * FROM almacen_conf WHERE id = @id AND status > 0")
@@ -26,8 +25,8 @@ export const registerAlmacenConfigHandlers = () => {
 
     ipcMain.handle("update-consecutivoFactura" ,(_, item) =>{
         try {
-            const stmt = db.prepare(`UPDATE almacen_conf SET consecutivo = @consecutivo, WHERE id = @id`)
-            const info = db.run({...item})
+            const stmt = db.prepare(`UPDATE almacen_conf SET consecutivo = @consecutivo WHERE id = @id`)
+            const info = stmt.run({...item})
             return { success: true, changes: info.changes }
         } catch (error) {
             console.error("Error al intentar actualizar datos: ", error)
@@ -35,7 +34,7 @@ export const registerAlmacenConfigHandlers = () => {
         }
     })
 
-ipcMain.handle("update-almacenConf", (_, item) => {
+    ipcMain.handle("update-almacenConf", (_, item) => {
         try {
             const now = new Date().toISOString()
             const user = 'system'
@@ -48,17 +47,19 @@ ipcMain.handle("update-almacenConf", (_, item) => {
                     direccion_almacen = @direccion_almacen,
                     telefono_almacen = @telefono_almacen,
                     prefijo = @prefijo,
+                    separador = @separador, -- NUEVO CAMPO
                     resolucionDian = @resolucionDian,
                     nombreFactura = @nombreFactura,
                     footer_factura = @footer_factura,
                     consecutivo = @consecutivo,
-                    consecutivo_nota = @consecutivo_nota, -- NUEVO CAMPO
+                    consecutivo_nota = @consecutivo_nota,
                     date_modify = @date_modify,
                     modify_by = @modify_by
                     WHERE id = @id
                 `)
             const info = stmt.run({
                 ...item,
+                separador: item.separador || '',
                 date_modify: now,
                 modify_by: user
             })

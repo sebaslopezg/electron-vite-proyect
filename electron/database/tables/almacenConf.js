@@ -10,6 +10,7 @@ export const createAlmacenConfTable = () => {
       direccion_almacen: 'Enrique Segoviano',
       telefono_almacen: '3106019954',
       prefijo: 'F',
+      separador: '-',
       resolucionDian: 'Res DIAN',
       nombreFactura: 'Factura de venta',
       footer_factura: 'Gracias por su compra',
@@ -31,11 +32,12 @@ export const createAlmacenConfTable = () => {
         direccion_almacen TEXT,
         telefono_almacen TEXT,
         prefijo TEXT,
+        separador TEXT, -- NUEVO CAMPO
         resolucionDian TEXT,
         nombreFactura TEXT,
         footer_factura TEXT,
         consecutivo INTEGER,
-        consecutivo_nota INTEGER, -- NUEVO CAMPO
+        consecutivo_nota INTEGER,
         status INTEGER,
         date_created TEXT,
         date_modify TEXT,
@@ -43,20 +45,53 @@ export const createAlmacenConfTable = () => {
       ); 
     `)
 
+    try {
+      db.exec("ALTER TABLE almacen_conf ADD COLUMN separador TEXT DEFAULT '-'");
+    } catch (e) {
+      //Error xD
+    }
+
     const countStmt = db.prepare(`SELECT count(*) as count FROM almacen_conf`)
     const row = countStmt.get()
 
     if (row.count === 0) {
       const insertStmt = db.prepare(`
         INSERT INTO almacen_conf (
-          id, nombre_almacen, nit_almacen, logo_almacen, direccion_almacen, 
-          telefono_almacen, prefijo, resolucionDian, nombreFactura, footer_factura, 
-          consecutivo, consecutivo_nota, status, date_created, date_modify, modify_by
+          id, 
+          nombre_almacen, 
+          nit_almacen, 
+          logo_almacen, 
+          direccion_almacen, 
+          telefono_almacen, 
+          prefijo, 
+          separador, 
+          resolucionDian, 
+          nombreFactura, 
+          footer_factura, 
+          consecutivo, 
+          consecutivo_nota, 
+          status, 
+          date_created, 
+          date_modify, 
+          modify_by
         )
         VALUES (
-            @id, @nombre_almacen, @nit_almacen, @logo_almacen, @direccion_almacen, 
-            @telefono_almacen, @prefijo, @resolucionDian, @nombreFactura, @footer_factura, 
-            @consecutivo, @consecutivo_nota, @status, @date_created, @date_modify, @modify_by
+          @id, 
+          @nombre_almacen, 
+          @nit_almacen, 
+          @logo_almacen, 
+          @direccion_almacen, 
+          @telefono_almacen, 
+          @prefijo, @separador, 
+          @resolucionDian, 
+          @nombreFactura, 
+          @footer_factura, 
+          @consecutivo, 
+          @consecutivo_nota, 
+          @status, 
+          @date_created, 
+          @date_modify, 
+          @modify_by
         )
       `)
 
