@@ -7,8 +7,22 @@ export const registerEncargosHandlers = () => {
     ipcMain.handle("get-encargos", () => {
         try {
             const stmt = db.prepare(`
-                SELECT * FROM encargos en
+                SELECT en.id,
+                    en.encargo_numero, 
+                    en.factura_numero, 
+                    en.cliente_nombre, 
+                    en.cliente_documento,
+					en.descripcion,
+                    en.fecha_entrega, 
+					en.producto_cantidad,
+                    es.titulo as estado_titulo, 
+                    es.id as estado_id,
+                    es.allow_calendar,
+                    es.color as estado_color,
+					p.ref_name as producto_nombre
+                    FROM encargos en
                 LEFT JOIN estadoEncargo es ON en.estado_id = es.id
+				LEFT JOIN producto p ON en.producto_id = p.id
                 WHERE en.status > 0
                 `)
             return stmt.all()
@@ -32,9 +46,11 @@ export const registerEncargosHandlers = () => {
             estado_id,
             almacen_id,
             cliente_id,
-            numero_factura,
-            cantidad_producto,
-            numero_encargo,
+            cliente_nombre,
+            cliente_documento,
+            factura_numero,
+            producto_cantidad,
+            encargo_numero,
             fecha_entrega,
             descripcion,
             status,
@@ -46,9 +62,11 @@ export const registerEncargosHandlers = () => {
             @estado_id,
             @almacen_id,
             @cliente_id,
-            @numero_factura,
-            @cantidad_producto,
-            @numero_encargo,
+            @cliente_nombre,
+            @cliente_documento,
+            @factura_numero,
+            @producto_cantidad,
+            @encargo_numero,
             @fecha_entrega,
             @descripcion,
             @status,

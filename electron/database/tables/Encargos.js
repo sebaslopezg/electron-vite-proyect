@@ -11,10 +11,13 @@ export function createEncargosTable() {
       almacen_id TEXT,
       cliente_id TEXT,
 
-      numero_factura INTEGER,
-      cantidad_producto TEXT,
+      cliente_nombre TEXT,
+      cliente_documento TEXT,
 
-      numero_encargo INTEGER,
+      factura_numero INTEGER,
+      producto_cantidad REAL,
+
+      encargo_numero INTEGER,
       fecha_entrega TEXT,
       descripcion TEXT,
 

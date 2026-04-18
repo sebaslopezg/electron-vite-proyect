@@ -14,7 +14,7 @@ export const Encargos = () => {
     const [form, setForm] = useState({
         fecha_entrega: '',
         descripcion: '',
-        id_estado: ''
+        estado_id: ''
     })
     const [editingId, setEditingId] = useState(null)
     const [estados, setEstados] = useState([])
@@ -23,25 +23,22 @@ export const Encargos = () => {
 
     const load = async () => {
         const data = await window.api.getEncargos()
+
         setItems(data)
         setDataInTable(data)
     }
 
     const loadSelectData = async () => {
         const data = await window.api.getEstados()
-        console.log(data);
-
         setEstados(data)
     }
 
     const cleanForm = () => {
-        setForm({ fecha_entrega: '', descripcion: '', id_estado: '' })
+        setForm({ fecha_entrega: '', descripcion: '', estado_id: '' })
     }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        console.log(form);
-
         const result = await window.api.updateEncargo({ ...form, id: editingId })
 
         if (result && result.success) {
@@ -90,7 +87,7 @@ export const Encargos = () => {
                     setForm({
                         fecha_entrega: item.fecha_entrega,
                         descripcion: item.descripcion,
-                        id_estado: item.id_estado || 'pendiente'
+                        estado_id: item.estado_id || 'pendiente'
                     });
                     setEditingId(item.id);
                     handleShow();
@@ -110,15 +107,16 @@ export const Encargos = () => {
             <DataTableComponent
                 data={dataInTable}
                 columns={[
-                    { data: 'numero_encargo', title: 'N° encargo' },
+                    { data: 'encargo_numero', title: 'N° encargo' },
                     {
-                        data: null,
-                        title: 'N° Factura',
-                        render: (data, type, row) => `${row.prefijo || ''}${row.numero_factura}`
+                        data: 'factura_numero', title: 'N° Factura',
                     },
-                    { data: 'titulo', title: 'Estado' },
-                    { data: 'nombre_cliente', title: 'Cliente' },
-                    { data: 'documento_cliente', title: 'Documento cliente' },
+                    {
+                        data: 'estado_titulo',
+                        title: 'Estado'
+                    },
+                    { data: 'cliente_nombre', title: 'Cliente' },
+                    { data: 'cliente_documento', title: 'Documento cliente' },
                     {
                         data: 'fecha_entrega',
                         title: 'Fecha de entrega',
@@ -197,7 +195,7 @@ export const Encargos = () => {
                             <Col md={6}>
                                 <Form.Group>
                                     <Form.Label>Estado</Form.Label>
-                                    <Form.Select value={form.id_estado} onChange={(e) => setForm({ ...form, id_estado: e.target.value })}>
+                                    <Form.Select value={form.estado_id} onChange={(e) => setForm({ ...form, estado_id: e.target.value })}>
                                         {estados.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
                                     </Form.Select>
                                 </Form.Group>

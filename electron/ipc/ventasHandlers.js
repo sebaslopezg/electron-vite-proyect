@@ -165,31 +165,29 @@ export const registerVentasHandlers = () => {
                     const insertEncargo = db.prepare(
                         `INSERT INTO encargos(
                             id,
-                            id_factura,
-                            numero_factura,
-                            prefijo,
-                            id_producto,
-                            nombre_producto,
-                            cantidad_producto,
-                            numero_encargo,
-                            nombre_cliente,
-                            documento_cliente,
+                            factura_id,
+                            producto_id,
+                            estado_id,
+                            cliente_nombre,
+                            cliente_documento,
+                            factura_numero,
+                            producto_cantidad,
+                            encargo_numero,
                             date_created,
                             status
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                     `)
                     insertEncargo.run(
                         uuidv4(),
                         maestroId,
-                        nuevoNumeroFactura,
-                        prefijoFactura,
                         item.id,
-                        item.ref_name,
-                        item.cantidad,
-                        newNum,
+                        'pendiente',
                         maestroData.nombre_cliente,
                         maestroData.documento_cliente,
+                        nuevoNumeroFactura,
+                        item.cantidad,
+                        newNum,
                         now
                     )
                 }
