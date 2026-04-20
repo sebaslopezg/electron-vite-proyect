@@ -19,10 +19,13 @@ export const registerEncargosHandlers = () => {
                     es.id as estado_id,
                     es.allow_calendar,
                     es.color as estado_color,
-					p.ref_name as producto_nombre
+                    es.icon_data as icon,
+					p.ref_name as producto_nombre,
+					vm.prefijo 
                     FROM encargos en
                 LEFT JOIN estadoEncargo es ON en.estado_id = es.id
 				LEFT JOIN producto p ON en.producto_id = p.id
+				LEFT JOIN ventasMaestro vm ON en.factura_id = vm.id
                 WHERE en.status > 0
                 `)
             return stmt.all()

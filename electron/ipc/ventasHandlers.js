@@ -37,7 +37,7 @@ export const registerVentasHandlers = () => {
                 WHERE df.maestro_id = ?
             `);
             const detalles = stmt.all(facturaId);
-            
+
             const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`);
             const notas = notasStmt.all(facturaId);
             const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE id = ?').get(facturaId) || {};
@@ -54,7 +54,7 @@ export const registerVentasHandlers = () => {
                 nombreFactura: maestro.titulo_documento || currentConf.nombreFactura,
                 footer_factura: maestro.footer || currentConf.footer_factura,
                 separador: maestro.separador || currentConf.separador,
-                logo_almacen: currentConf.logo_almacen 
+                logo_almacen: currentConf.logo_almacen
             };
 
             return { success: true, data: detalles, notas: notas, configuracion: configuracionSnapshot };
@@ -176,16 +176,31 @@ export const registerVentasHandlers = () => {
                     const newNum = prevNum.count + 1
                     const insertEncargo = db.prepare(
                         `INSERT INTO encargos(
-                            id, id_factura, numero_factura, prefijo, id_producto,
-                            nombre_producto, cantidad_producto, numero_encargo,
-                            nombre_cliente, documento_cliente, date_created, status
+                            id,
+                            factura_id,
+                            producto_id,
+                            estado_id,
+                            cliente_nombre,
+                            cliente_documento,
+                            factura_numero,
+                            producto_cantidad,
+                            encargo_numero,
+                            date_created,
+                            status
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                     `)
                     insertEncargo.run(
-                        uuidv4(), maestroId, nuevoNumeroFactura, prefijoFactura,
-                        item.id, item.ref_name, item.cantidad, newNum,
-                        maestroData.nombre_cliente, maestroData.documento_cliente, now
+                        uuidv4(),
+                        maestroId,
+                        item.id,
+                        'pendiente',
+                        maestroData.nombre_cliente,
+                        maestroData.documento_cliente,
+                        nuevoNumeroFactura,
+                        item.cantidad,
+                        newNum,
+                        now
                     )
                 }
             }

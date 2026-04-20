@@ -25,6 +25,7 @@ export const registerEstadoHandlers = () => {
                     descripcion,
                     color,
                     allow_calendar,
+                    icon_data,
                     status, 
                     date_created
                     )
@@ -34,6 +35,7 @@ export const registerEstadoHandlers = () => {
                     @descripcion,
                     @color,
                     @allow_calendar,
+                    @icon_data,
                     @status, 
                     @date_created
                     )
@@ -64,6 +66,7 @@ export const registerEstadoHandlers = () => {
                     descripcion=@descripcion,
                     color=@color,
                     allow_calendar=@allow_calendar,
+                    icon_data=@icon_data,
                     status=@status, 
                     modify_by=@modify_by,
                     date_modify=@date_modify

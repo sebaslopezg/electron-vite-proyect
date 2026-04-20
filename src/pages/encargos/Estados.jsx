@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import CustomDataTable from "../../components/DataTableComponent"
-import { Button, Col, Form, Modal, Row } from "react-bootstrap"
+import { Button, Col, Form, FormGroup, Modal, Row } from "react-bootstrap"
 import Swal from "sweetalert2"
 
 export const Estados = () => {
@@ -16,9 +16,36 @@ export const Estados = () => {
         titulo: '',
         descripcion: '',
         color: '',
-        allow_calendar: ''
+        allow_calendar: '',
+        icon_data: ''
     })
     const [editingId, setEditingId] = useState(null)
+    const iconos = [
+        {
+            data: "bi-check-circle",
+        },
+        {
+            data: "bi-clock",
+        },
+        {
+            data: "bi-exclamation-triangle",
+        },
+        {
+            data: "bi-x-circle",
+        },
+        {
+            data: "bi-arrow-counterclockwise",
+        },
+        {
+            data: "bi-trash",
+        },
+        {
+            data: "bi-question-circle",
+        },
+        {
+            data: "bi bi-three-dots",
+        },
+    ];
 
     const loadData = async () => {
         const data = await window.api.getEstados()
@@ -30,12 +57,15 @@ export const Estados = () => {
         titulo: '',
         descripcion: '',
         color: '',
-        allow_calendar: ''
+        allow_calendar: '',
+        icon_data: ''
     })
 
     useEffect(() => { loadData() }, [])
 
     const handleSubmit = async (e) => {
+        console.log(form);
+
         e.preventDefault()
         let result;
         if (editingId) {
@@ -88,7 +118,8 @@ export const Estados = () => {
                         titulo: item.titulo || '',
                         descripcion: item.descripcion || '',
                         color: item.color || '#0d6efd',
-                        allow_calendar: item.allow_calendar
+                        allow_calendar: item.allow_calendar,
+                        icon_data: item.icon_data || ''
                     });
                     setEditingId(item.id);
                     handleShow();
@@ -137,7 +168,7 @@ export const Estados = () => {
 
                             return `
                                 <span class="badge" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px;">
-                                    <i class="bi bi-tag-fill me-1"></i> ${data}
+                                    <i class="${row.icon_data || 'bi bi-tag-fill'} me-1"></i> ${data}
                                 </span>
                             `;
                         }
@@ -203,7 +234,7 @@ export const Estados = () => {
                         </Col>
                     </Row>
 
-                    <Form.Group className="mb-3">
+                    <FormGroup className="mb-3">
                         <Form.Label>Descripción</Form.Label>
                         <Form.Control
                             as="textarea"
@@ -211,17 +242,48 @@ export const Estados = () => {
                             value={form.descripcion}
                             onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
                         />
+                    </FormGroup>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Seleccionar Icono</Form.Label>
+                        <div
+                            className="d-flex flex-wrap gap-2 p-3 border rounded bg-light"
+                            style={{ maxHeight: '200px', overflowY: 'auto' }}
+                        >
+                            {iconos.map((i) => (
+                                <div
+                                    key={i.data}
+                                    onClick={() => setForm({ ...form, icon_data: i.data })}
+                                    className={`
+                                        d-flex align-items-center justify-content-center rounded-circle cursor-pointer transition-all
+                                        ${form.icon_data === i.data
+                                            ? 'bg-primary text-white shadow border-primary'
+                                            : 'bg-white text-secondary border hover-bg-light'}
+                                    `}
+                                    style={{
+                                        width: '45px',
+                                        height: '45px',
+                                        fontSize: '1.2rem',
+                                        cursor: 'pointer',
+                                        border: '2px solid transparent',
+                                        transition: '0.2s ease'
+                                    }}
+                                >
+                                    <i className={`bi ${i.data}`}></i>
+                                </div>
+                            ))}
+                        </div>
                     </Form.Group>
-                    <Form.Group>
+                    <FormGroup>
                         <Col md={6} className="d-flex align-items-center">
                             <Form.Check
+                                disabled={form.id === 'pendiente'}
                                 type="switch"
                                 label="Mostrar en calendario"
                                 checked={form.allow_calendar === 1 || form.allow_calendar === true}
                                 onChange={(e) => setForm({ ...form, allow_calendar: e.target.checked ? 1 : 0 })}
                             />
                         </Col>
-                    </Form.Group>
+                    </FormGroup>
                 </Form>
             </Modal.Body>
             <Modal.Footer>

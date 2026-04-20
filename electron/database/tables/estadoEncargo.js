@@ -9,6 +9,7 @@ export function createEstadoEncargoTable() {
       descripcion TEXT,
       color TEXT,
       allow_calendar INTEGER,
+      icon_data TEXT,
 
       status INTEGER,
       date_created TEXT,
@@ -19,8 +20,8 @@ export function createEstadoEncargoTable() {
   const row = db.prepare('SELECT count(*) as count FROM estadoEncargo WHERE id = ?').get('pendiente');
   if (row.count === 0) {
     db.prepare(`
-        INSERT INTO estadoEncargo (id, titulo, descripcion, color, allow_calendar, status) 
-        VALUES ('pendiente', 'pendiente', 'Estado por defecto', '#df4949', '0', 1)
+        INSERT INTO estadoEncargo (id, titulo, descripcion, color, allow_calendar, icon_data, status) 
+        VALUES ('pendiente', 'pendiente', 'Estado por defecto', '#df4949', '0', 'bi bi-three-dots', 1)
       `).run();
   }
 }

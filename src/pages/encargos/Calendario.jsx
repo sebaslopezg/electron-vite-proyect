@@ -5,6 +5,7 @@ import esLocale from "@fullcalendar/core/locales/es";
 import { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
 import { Button, Col, Modal, Row } from "react-bootstrap";
+import { EncargoDetalles } from "../../components/EncargoDetalles";
 
 function renderEventContent(eventInfo) {
   return (
@@ -62,8 +63,6 @@ export const Calendario = () => {
         borderColor: "transparent",
         extendedProps: { ...e },
       }));
-    console.log(formatted);
-
     setEventos(formatted);
   };
 
@@ -95,32 +94,11 @@ export const Calendario = () => {
         height="75vh"
         eventClassNames="p-1 shadow-sm"
       />
-      <Modal show={show} onHide={handleClose} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Detalles del encargo</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Row>
-            <Col md={6}>
-              <p className="mb-1">
-                <strong>Fecha de entrega:</strong>{' '}
-                <span className="badge bg-primary text-capitalize">{encargoSel.fecha_entrega}</span>
-              </p>
-              <p className="mb-1"><strong>Estado del encargo:</strong> {encargoSel.estado_titulo}</p>
-              <p className="mb-1"><strong>Cliente:</strong> {encargoSel.cliente_nombre}</p>
-              <p className="mb-0"><strong>Documento:</strong> {encargoSel.cliente_documento}</p>
-              <p className="mb-1"><strong>Descripción:</strong> {encargoSel.descripcion}</p>
-              <p className="mb-1"><strong>Producto:</strong> {encargoSel.producto_nombre}</p>
-              <p className="mb-1"><strong>cantidad:</strong> {encargoSel.producto_cantidad}</p>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose}>
-            Cerrar
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <EncargoDetalles
+        show={show}
+        handleClose={handleClose}
+        encargoData={encargoSel}
+      />
     </div>
   );
 };

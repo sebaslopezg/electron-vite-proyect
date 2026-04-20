@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
 import { Button, Col, Form, FormGroup, Modal } from "react-bootstrap"
 import Swal from "sweetalert2"
+import { EncargoDetalles } from "../../components/EncargoDetalles"
 
 export const Encargos = () => {
     const [show, setShow] = useState(false)
+    const [showInfo, setShowInfo] = useState(false)
 
-    const handleClose = () => setShow(false)
+    const handleClose = () => setShow(false) || setShowInfo(false)
     const handleShow = () => setShow(true)
+    const handleShowInfo = () => setShowInfo(true)
 
     const [items, setItems] = useState([])
     const [dataInTable, setDataInTable] = useState([])
@@ -18,6 +21,7 @@ export const Encargos = () => {
     })
     const [editingId, setEditingId] = useState(null)
     const [estados, setEstados] = useState([])
+    const [encargoSel, setEncargoSel] = useState([])
 
     const tableContainerRef = useRef(null);
 
@@ -53,6 +57,12 @@ export const Encargos = () => {
 
     const handleEdit = (item) => {
         setEditingId(item.id)
+    }
+
+    const handleInfo = (item) => {
+        console.log(item);
+
+        setEncargoSel(item)
     }
 
     const handleDelete = async (id) => {
@@ -94,8 +104,13 @@ export const Encargos = () => {
                 } catch (err) { console.error("Error leyendo datos", err); }
             }
 
-            const delBtn = e.target.closest('.btn-delete');
-            if (delBtn) handleDelete(delBtn.dataset.id);
+            const infoBtn = e.target.closest('.btn-info');
+            if (infoBtn) {
+                const rawData = decodeURIComponent(infoBtn.dataset.alldata);
+                const item = JSON.parse(rawData);
+                handleInfo(item);
+                handleShowInfo()
+            }
         };
 
         container.addEventListener('click', handleTableClick);
@@ -113,7 +128,24 @@ export const Encargos = () => {
                     },
                     {
                         data: 'estado_titulo',
-                        title: 'Estado'
+                        title: 'Estado',
+                        render: (data, type, row) => {
+                            let textColor = '#ffffff';
+                            if (row.color) {
+                                const hex = row.color.replace('#', '');
+                                const r = parseInt(hex.substr(0, 2), 16);
+                                const g = parseInt(hex.substr(2, 2), 16);
+                                const b = parseInt(hex.substr(4, 2), 16);
+                                const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+                                textColor = (yiq >= 128) ? '#000000' : '#ffffff';
+                            }
+
+                            return `
+                                <span class="badge" style="background-color: ${row.estado_color}; color: ${textColor}; font-size: 13px;">
+                                    <i class="${row.icon || 'bi bi-tag-fill'} me-1"></i> ${data}
+                                </span>
+                            `;
+                        }
                     },
                     { data: 'cliente_nombre', title: 'Cliente' },
                     { data: 'cliente_documento', title: 'Documento cliente' },
@@ -124,9 +156,9 @@ export const Encargos = () => {
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
-                                <button class="btn btn-sm btn-warning me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
+                            ${row.fecha_entrega ? data : `<button class="btn btn-sm btn-warning me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
                                     Agendar
-                                  </button>
+                                  </button>`}
                                 `
                         }
                     },
@@ -140,6 +172,9 @@ export const Encargos = () => {
                                 <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </button>
+                                <button class="btn btn-sm btn-info me-2 btn-info" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
+                                    <i class="bi bi-eye"></i>
+                                </button>
                             `;
                         }
                     }
@@ -151,7 +186,6 @@ export const Encargos = () => {
                     date_created: (data, type, row) => {
                         return new Date(data).toLocaleDateString('es-ES');
                     },
-                    // Only show date_modify if needed, else remove
                     date_modify: (data, type, row) => {
                         return new Date(data).toLocaleDateString('es-ES');
                     }
@@ -212,6 +246,11 @@ export const Encargos = () => {
                     </Button>
                 </Modal.Footer>
             </Modal>
+            <EncargoDetalles
+                show={showInfo}
+                handleClose={handleClose}
+                encargoData={encargoSel}
+            />
         </div>
     </>)
 }
