@@ -3,13 +3,13 @@ import db from "../index.js"
 export const createConfigurarTable = () => {
   const now = new Date().toISOString()
 
-  // Configuración general por defecto
   const confApp = {
     nombre: 'Caedro',
-    logo: '' // Aquí guardaremos la imagen en base64
+    logo: '',
+    moneda: 'COP',
+    formato_numero: 'es-CO'
   }
 
-  // 1. Crear tabla
   db.exec(`
     CREATE TABLE IF NOT EXISTS configurar (
       key TEXT PRIMARY KEY,
@@ -20,7 +20,6 @@ export const createConfigurarTable = () => {
     )
   `);
 
-  // 2. Insertar configuración por defecto si no existe
   try {
     const row = db.prepare("SELECT count(*) as count FROM configurar WHERE key = 'confApp'").get();
     if (row.count === 0) {

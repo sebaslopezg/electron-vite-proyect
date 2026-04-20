@@ -4,6 +4,7 @@ import { useFacturas } from "../../hooks/useFacturas"
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
+import { getCurrencySymbol } from '../../utils/currencies'
 
 export const VerFacturas = () => {
     const { facturas, loading, reload } = useFacturas();
@@ -19,6 +20,41 @@ export const VerFacturas = () => {
     
     const [showPreview, setShowPreview] = useState(false)
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
+
+    // ESTADO GLOBAL DE LA APP
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+    const loadConfig = async () => {
+        const configData = await window.api.getConfiguracion();
+        const confAppRaw = configData.find(c => c.key === 'confApp');
+        if (confAppRaw) {
+            try {
+                const parsed = JSON.parse(confAppRaw.value);
+                setAppConfig({
+                    moneda: parsed.moneda || 'COP',
+                    formato_numero: parsed.formato_numero || 'es-CO'
+                });
+            } catch(e) {}
+        }
+    };
+
+    useEffect(() => {
+        loadConfig();
+        window.addEventListener('config-actualizada', loadConfig);
+        return () => window.removeEventListener('config-actualizada', loadConfig);
+    }, []);
+
+    // FUNCIÓN DE MONEDA PARA LA VISTA EN PANTALLA (Ignora el snapshot, usa config en vivo)
+    const formatCurrency = (val) => {
+        const numeroFormateado = new Intl.NumberFormat(appConfig.formato_numero, { 
+            style: 'decimal', 
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2 
+        }).format(val || 0);
+        
+        const simbolo = getCurrencySymbol(appConfig.moneda);
+        return `${simbolo}${numeroFormateado}`;
+    };
 
     const handleClose = () => {
         setShow(false)
@@ -38,11 +74,8 @@ export const VerFacturas = () => {
             const id = e.target.getAttribute('data-id') || e.target.closest('button')?.getAttribute('data-id');
             if (!id) return;
             
-            if (e.target.closest('.btn-see-item')) {
-                verDetalle(id);
-            } else if (e.target.closest('.btn-print-item')) {
-                imprimirDirecto(id);
-            }
+            if (e.target.closest('.btn-see-item')) verDetalle(id);
+            else if (e.target.closest('.btn-print-item')) imprimirDirecto(id);
         }
         document.addEventListener('click', handleClicks);
         return () => document.removeEventListener('click', handleClicks)
@@ -116,19 +149,13 @@ export const VerFacturas = () => {
                 <Col md={3}>
                     <Form.Group>
                         <Form.Label className="fw-bold"><small>Desde:</small></Form.Label>
-                        <Form.Control 
-                            type="date" size="sm" value={startDate} 
-                            onChange={e => setStartDate(e.target.value)} 
-                        />
+                        <Form.Control type="date" size="sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
                     </Form.Group>
                 </Col>
                 <Col md={3}>
                     <Form.Group>
                         <Form.Label className="fw-bold"><small>Hasta:</small></Form.Label>
-                        <Form.Control 
-                            type="date" size="sm" value={endDate} 
-                            onChange={e => setEndDate(e.target.value)} 
-                        />
+                        <Form.Control type="date" size="sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </Form.Group>
                 </Col>
                 <Col md={3}>
@@ -144,9 +171,20 @@ export const VerFacturas = () => {
         </div>
 
         <DataTableComponent
+            key={`facturas-main-${appConfig.moneda}-${appConfig.formato_numero}`}
             data={facturasFiltradas}
             columns={[
-                { data: 'date_created', title: 'Fecha' },
+                { 
+                    data: 'date_created', 
+                    title: 'Fecha',
+                    render: (data) => {
+                        if (!data) return '-';
+                        return new Date(data).toLocaleString(appConfig.formato_numero, {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                        });
+                    }
+                },
                 { 
                     data: null, title: 'N° Factura',
                     render: (data, type, row) => `<strong>${row.prefijo || ''}${row.separador || ''}${row.numero_factura}</strong>`
@@ -185,9 +223,6 @@ export const VerFacturas = () => {
                     }
                 }
             ]}
-            customRenders={{
-                date_created: (data) => new Date(data).toLocaleDateString('es-ES')
-            }}
         />
 
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
@@ -213,7 +248,6 @@ export const VerFacturas = () => {
                             <Col md={6} className="text-end">
                                 <p className="mb-1">
                                     <strong>Pago:</strong>{' '}
-                                    {/* SE APLICA LA FUNCIÓN DEL COLOR DINÁMICO AQUÍ */}
                                     <span className={`badge ${getBadgeClassPago(facturaSeleccionada)} text-capitalize me-1`}>
                                         {facturaSeleccionada.tipo_pago}
                                     </span>
@@ -222,7 +256,7 @@ export const VerFacturas = () => {
                                 <p className="mb-0">
                                     <strong>Deuda Pendiente:</strong>{' '}
                                     <span className={facturaSeleccionada.saldo_pendiente > 0 ? 'text-danger fw-bold' : 'text-success fw-bold'}>
-                                        ${(facturaSeleccionada.saldo_pendiente || 0).toLocaleString('es-CO')}
+                                        {formatCurrency(facturaSeleccionada.saldo_pendiente)}
                                     </span>
                                 </p>
                             </Col>
@@ -231,6 +265,7 @@ export const VerFacturas = () => {
                 )}
 
                 <DataTableComponent
+                    key={`detalle-${appConfig.moneda}-${appConfig.formato_numero}-${facturaSeleccionada?.id}`}
                     data={detalleData}
                     columns={[
                         { 
@@ -242,25 +277,30 @@ export const VerFacturas = () => {
                           }
                         },
                         { data: 'nombre_producto', title: 'Producto' },
-                        { data: 'precio_producto', title: 'V. Unitario' },
+                        { 
+                          data: 'precio_producto', 
+                          title: 'V. Unitario',
+                          render: (data) => formatCurrency(data) // RENDER DIRECTO, infalible
+                        },
                         { data: 'cantidad_producto', title: 'Cantidad' },
-                        { data: 'total', title: 'Total' },
+                        { 
+                          data: 'total', 
+                          title: 'Total',
+                          render: (data) => `<strong>${formatCurrency(data)}</strong>` // RENDER DIRECTO, infalible
+                        },
                     ]}
-                    customRenders={{
-                        precio_producto: (data) => `$${parseFloat(data).toLocaleString('es-CO')}`,
-                        total: (data) => `<strong>$${parseFloat(data).toLocaleString('es-CO')}</strong>`
-                    }}
                 />
 
                 {facturaSeleccionada && (
                     <div className="mt-3 p-3 bg-light rounded border text-end">
-                        <p className="mb-1"><strong>Subtotal:</strong> ${(facturaSeleccionada.subtotal || 0).toLocaleString('es-CO')}</p>
-                        <p className="mb-1 text-danger"><strong>Descuentos:</strong> -${(facturaSeleccionada.descuento || 0).toLocaleString('es-CO')}</p>
-                        <p className="mb-2"><strong>IVA:</strong> ${(facturaSeleccionada.iva || 0).toLocaleString('es-CO')}</p>
+                        <p className="mb-1"><strong>Subtotal:</strong> {formatCurrency(facturaSeleccionada.subtotal)}</p>
+                        <p className="mb-1 text-danger"><strong>Descuentos:</strong> -{formatCurrency(facturaSeleccionada.descuento)}</p>
+                        <p className="mb-2"><strong>IVA:</strong> {formatCurrency(facturaSeleccionada.iva)}</p>
                         <hr className="my-2" />
-                        <h4 className="mb-0 text-primary"><strong>Total Factura:</strong> ${(facturaSeleccionada.total_factura || 0).toLocaleString('es-CO')}</h4>
+                        <h4 className="mb-0 text-primary"><strong>Total Factura:</strong> {formatCurrency(facturaSeleccionada.total_factura)}</h4>
                     </div>
                 )}
+                
                 {notasFactura.length > 0 && (
                     <div className="mt-4">
                         <h6 className="text-danger fw-bold border-bottom border-danger pb-2">
@@ -286,10 +326,16 @@ export const VerFacturas = () => {
                                                     Nota {nota.tipo_nota}
                                                 </span>
                                             </td>
-                                            <td>{new Date(nota.date_created).toLocaleDateString('es-CO')}</td>
+                                            <td>
+                                                {new Date(nota.date_created).toLocaleString(appConfig.formato_numero, {
+                                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                                    hour: '2-digit', minute: '2-digit', hour12: true
+                                                })}
+                                            </td>
                                             <td><small className="text-muted">{nota.motivo_dian}</small></td>
                                             <td className={`text-end ${nota.tipo_nota === 'Crédito' ? 'text-danger fw-bold' : 'text-primary fw-bold'}`}>
-                                                {nota.tipo_nota === 'Crédito' ? '-' : '+'}${(nota.total_final || 0).toLocaleString('es-CO')}
+                                                {nota.tipo_nota === 'Crédito' ? '-' : '+'}
+                                                {formatCurrency(nota.total_final)} 
                                             </td>
                                         </tr>
                                     ))}

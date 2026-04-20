@@ -26,7 +26,6 @@ export const registerConfigurarHandlers = () => {
     }
   })
 
-  // NUEVO: Cambiar el icono y título de Windows en tiempo real
   ipcMain.on("update-window", (_, data) => {
     const windows = BrowserWindow.getAllWindows();
     if (windows.length > 0) {
@@ -38,7 +37,6 @@ export const registerConfigurarHandlers = () => {
       
       if (data.logo) {
         try {
-          // Convertimos el base64 que manda React a un icono nativo de Electron
           const image = nativeImage.createFromDataURL(data.logo);
           win.setIcon(image);
         } catch(e) { 

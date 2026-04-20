@@ -1,6 +1,6 @@
 import { General } from './General';
 import { Datos } from './Datos';
-import { Importar } from './Importar'; // <--- IMPORTACIÓN
+import { Importar } from './Importar';
 
 export const ConfiguracionIndex = () => {
     return (

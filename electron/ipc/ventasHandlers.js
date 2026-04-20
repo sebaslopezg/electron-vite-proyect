@@ -54,7 +54,8 @@ export const registerVentasHandlers = () => {
                 nombreFactura: maestro.titulo_documento || currentConf.nombreFactura,
                 footer_factura: maestro.footer || currentConf.footer_factura,
                 separador: maestro.separador || currentConf.separador,
-                logo_almacen: currentConf.logo_almacen
+                logo_almacen: currentConf.logo_almacen,
+                imprimir_logo_pos: currentConf.imprimir_logo_pos
             };
 
             return { success: true, data: detalles, notas: notas, configuracion: configuracionSnapshot };
@@ -101,11 +102,14 @@ export const registerVentasHandlers = () => {
                     saldo_pendiente_original,
                     tipo_pago,
                     metodo_pago,
+                    moneda,
+                    formato_numero,
                     date_created, 
                     status
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+                    ?, ?, ?, 1
                 )
             `)
             insertMaestro.run(
@@ -133,6 +137,8 @@ export const registerVentasHandlers = () => {
                 maestroData.saldo_pendiente,
                 maestroData.tipo_pago,
                 maestroData.metodo_pago,
+                maestroData.moneda,
+                maestroData.formato_numero,
                 now
             )
 

@@ -20,6 +20,7 @@ export const Configuracion = ({ data, onReload }) => {
         consecutivo:'',
         consecutivo_nota: '',
         consecutivo_nota_debito: '',
+        imprimir_logo_pos: false
     })
 
     const fileInputRef = useRef(null);
@@ -41,7 +42,8 @@ export const Configuracion = ({ data, onReload }) => {
                 footer_factura: data.footer_factura || '',
                 consecutivo: data.consecutivo || '',
                 consecutivo_nota: data.consecutivo_nota || '',
-                consecutivo_nota_debito: data.consecutivo_nota_debito || ''
+                consecutivo_nota_debito: data.consecutivo_nota_debito || '',
+                imprimir_logo_pos: data.imprimir_logo_pos === 1
             })
         }
     }, [data])
@@ -104,23 +106,37 @@ export const Configuracion = ({ data, onReload }) => {
                             <i className="bi bi-image text-muted fs-1"></i>
                         )}
                     </div>
-                    <div>
+                    <div className="flex-grow-1">
                         <h6 className="fw-bold">Logotipo del Almacén (Opcional)</h6>
-                        <p className="text-muted small mb-2">Se utilizará en las facturas y recibos impresos en formato A4.</p>
-                        <input 
-                            type="file" 
-                            accept="image/png, image/jpeg, image/webp" 
-                            className="d-none" 
-                            ref={fileInputRef}
-                            onChange={handleImageUpload}
-                        />
-                        <Button variant="outline-primary" size="sm" className="me-2" onClick={() => fileInputRef.current.click()}>
-                            <i className="bi bi-upload me-1"></i> Subir Imagen
-                        </Button>
-                        {form.logo_almacen && (
-                            <Button variant="outline-danger" size="sm" onClick={() => setForm({...form, logo_almacen: ''})}>
-                                <i className="bi bi-trash"></i>
+                        <p className="text-muted small mb-2">Se utilizará en las facturas impresas en formato A4.</p>
+                        
+                        <div className="mb-3">
+                            <input 
+                                type="file" 
+                                accept="image/png, image/jpeg, image/webp" 
+                                className="d-none" 
+                                ref={fileInputRef}
+                                onChange={handleImageUpload}
+                            />
+                            <Button variant="outline-primary" size="sm" className="me-2" onClick={() => fileInputRef.current.click()}>
+                                <i className="bi bi-upload me-1"></i> Subir Imagen
                             </Button>
+                            {form.logo_almacen && (
+                                <Button variant="outline-danger" size="sm" onClick={() => setForm({...form, logo_almacen: ''})}>
+                                    <i className="bi bi-trash"></i>
+                                </Button>
+                            )}
+                        </div>
+
+                        {form.logo_almacen && (
+                            <Form.Check 
+                                type="switch"
+                                id="imprimir-logo-pos"
+                                label="Imprimir logo también en facturas de tirilla (POS)"
+                                checked={form.imprimir_logo_pos}
+                                onChange={(e) => setForm({ ...form, imprimir_logo_pos: e.target.checked })}
+                                className="fw-bold text-secondary mt-2"
+                            />
                         )}
                     </div>
                 </Card.Body>

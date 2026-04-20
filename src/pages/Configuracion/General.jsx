@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button, Form, Row, Col } from 'react-bootstrap';
 import Swal from 'sweetalert2';
+import { CURRENCIES } from '../../utils/currencies';
 
 export const General = () => {
-    const [form, setForm] = useState({ nombre: '', logo: '' });
+    const [form, setForm] = useState({ 
+        nombre: '', 
+        logo: '',
+        moneda: 'COP',
+        formato_numero: 'es-CO'
+    });
     const fileInputRef = useRef(null);
 
     const load = async () => {
@@ -12,7 +18,12 @@ export const General = () => {
         if (appConf) {
             try {
                 const parsed = JSON.parse(appConf.value);
-                setForm({ nombre: parsed.nombre || '', logo: parsed.logo || '' });
+                setForm({ 
+                    nombre: parsed.nombre || '', 
+                    logo: parsed.logo || '',
+                    moneda: parsed.moneda || 'COP',
+                    formato_numero: parsed.formato_numero || 'es-CO'
+                });
             } catch (error) { console.error(error) }
         }
     }
@@ -65,12 +76,52 @@ export const General = () => {
                 
                 <Col md={8}>
                     <h5 className="card-title p-0 mb-3">Datos del Entorno Actual</h5>
-                    <Form.Group className="mb-3">
+                    <Form.Group className="mb-4">
                         <Form.Label htmlFor="appName">Nombre del Sistema / Empresa</Form.Label>
-                        <Form.Control id="appName" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} type="text" required/>
+                        <Form.Control 
+                            id="appName" 
+                            value={form.nombre} 
+                            onChange={(e) => setForm({ ...form, nombre: e.target.value })} 
+                            type="text" 
+                            required
+                        />
                         <Form.Text className="text-muted">Este nombre y logo se guardarán exclusivamente para el Perfil de Datos actual.</Form.Text>
                     </Form.Group>
-                    <Button variant="primary" type="submit" size="lg" className="mt-3">Guardar Cambios</Button>
+
+                    <h5 className="card-title p-0 mb-3 border-top pt-3">Formato de Moneda</h5>
+                    <Row>
+                        <Col md={6}>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Símbolo de Moneda</Form.Label>
+                                <Form.Select 
+                                    value={form.moneda} 
+                                    onChange={(e) => setForm({ ...form, moneda: e.target.value })}
+                                >
+                                    {CURRENCIES.map(c => (
+                                        <option key={c.code} value={c.code}>{c.label}</option>
+                                    ))}
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                        
+                        <Col md={6}>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Separador de Miles y Decimales</Form.Label>
+                                <Form.Select 
+                                    value={form.formato_numero} 
+                                    onChange={(e) => setForm({ ...form, formato_numero: e.target.value })}
+                                >
+                                    <option value="es-CO">1.000,00 (Punto miles, Coma decimales)</option>
+                                    <option value="en-US">1,000.00 (Coma miles, Punto decimales)</option>
+                                    <option value="fr-FR">1 000,00 (Espacio miles, Coma decimales)</option>
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+                    </Row>
+
+                    <Button variant="primary" type="submit" size="lg" className="mt-3">
+                        Guardar Cambios
+                    </Button>
                 </Col>
             </Row>
         </Form>
