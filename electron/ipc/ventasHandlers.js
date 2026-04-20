@@ -174,11 +174,6 @@ export const registerVentasHandlers = () => {
                 } else {
                     const prevNum = db.prepare('SELECT COUNT(*) as count FROM encargos').get()
                     const newNum = prevNum.count + 1
-                    
-                    // ==========================================
-                    // CONFLICTO RESUELTO AQUÍ: 
-                    // Se mantiene la estructura HEAD (tu versión)
-                    // ==========================================
                     const insertEncargo = db.prepare(
                         `INSERT INTO encargos(
                             id, id_factura, numero_factura, prefijo, id_producto,
