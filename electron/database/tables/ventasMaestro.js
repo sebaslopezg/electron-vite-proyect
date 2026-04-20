@@ -31,8 +31,8 @@ export function createVentasMaestroTable() {
       total_factura REAL,
       total_recibido REAL,
       saldo_pendiente REAL,
-      total_recibido_original REAL, -- SNAPSHOT DEL PAGO
-      saldo_pendiente_original REAL, -- SNAPSHOT DE LA DEUDA
+      total_recibido_original REAL,
+      saldo_pendiente_original REAL,
       tipo_pago TEXT,
       metodo_pago TEXT,
 

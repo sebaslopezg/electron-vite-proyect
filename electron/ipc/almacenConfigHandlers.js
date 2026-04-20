@@ -55,6 +55,7 @@ export const registerAlmacenConfigHandlers = () => {
                     consecutivo = @consecutivo,
                     consecutivo_nota = @consecutivo_nota,
                     consecutivo_nota_debito = @consecutivo_nota_debito,
+                    imprimir_logo_pos = @imprimir_logo_pos,
                     date_modify = @date_modify,
                     modify_by = @modify_by
                     WHERE id = @id
@@ -63,6 +64,7 @@ export const registerAlmacenConfigHandlers = () => {
                 ...item,
                 separador: item.separador || '', 
                 email_almacen: item.email_almacen || '',
+                imprimir_logo_pos: item.imprimir_logo_pos ? 1 : 0, 
                 date_modify: now,
                 modify_by: user
             })

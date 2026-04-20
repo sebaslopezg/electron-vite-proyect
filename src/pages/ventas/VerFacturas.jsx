@@ -146,7 +146,18 @@ export const VerFacturas = () => {
         <DataTableComponent
             data={facturasFiltradas}
             columns={[
-                { data: 'date_created', title: 'Fecha' },
+                { 
+                    data: 'date_created', 
+                    title: 'Fecha',
+                    render: (data) => {
+                        if (!data) return '-';
+                        const date = new Date(data);
+                        return date.toLocaleString('es-CO', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                        });
+                    }
+                },
                 { 
                     data: null, title: 'N° Factura',
                     render: (data, type, row) => `<strong>${row.prefijo || ''}${row.separador || ''}${row.numero_factura}</strong>`
@@ -185,9 +196,6 @@ export const VerFacturas = () => {
                     }
                 }
             ]}
-            customRenders={{
-                date_created: (data) => new Date(data).toLocaleDateString('es-ES')
-            }}
         />
 
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
@@ -213,7 +221,6 @@ export const VerFacturas = () => {
                             <Col md={6} className="text-end">
                                 <p className="mb-1">
                                     <strong>Pago:</strong>{' '}
-                                    {/* SE APLICA LA FUNCIÓN DEL COLOR DINÁMICO AQUÍ */}
                                     <span className={`badge ${getBadgeClassPago(facturaSeleccionada)} text-capitalize me-1`}>
                                         {facturaSeleccionada.tipo_pago}
                                     </span>
@@ -286,7 +293,12 @@ export const VerFacturas = () => {
                                                     Nota {nota.tipo_nota}
                                                 </span>
                                             </td>
-                                            <td>{new Date(nota.date_created).toLocaleDateString('es-CO')}</td>
+                                            <td>
+                                                {new Date(nota.date_created).toLocaleString('es-CO', {
+                                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                                    hour: '2-digit', minute: '2-digit', hour12: true
+                                                })}
+                                            </td>
                                             <td><small className="text-muted">{nota.motivo_dian}</small></td>
                                             <td className={`text-end ${nota.tipo_nota === 'Crédito' ? 'text-danger fw-bold' : 'text-primary fw-bold'}`}>
                                                 {nota.tipo_nota === 'Crédito' ? '-' : '+'}${(nota.total_final || 0).toLocaleString('es-CO')}

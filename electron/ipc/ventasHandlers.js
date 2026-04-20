@@ -54,7 +54,8 @@ export const registerVentasHandlers = () => {
                 nombreFactura: maestro.titulo_documento || currentConf.nombreFactura,
                 footer_factura: maestro.footer || currentConf.footer_factura,
                 separador: maestro.separador || currentConf.separador,
-                logo_almacen: currentConf.logo_almacen 
+                logo_almacen: currentConf.logo_almacen,
+                imprimir_logo_pos: currentConf.imprimir_logo_pos 
             };
 
             return { success: true, data: detalles, notas: notas, configuracion: configuracionSnapshot };
