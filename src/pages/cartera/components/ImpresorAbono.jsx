@@ -1,10 +1,22 @@
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { BaseImpresor } from '../../../components/BaseImpresor';
+import { getCurrencySymbol } from '../../../utils/currencies';
 
 export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }) => {
     
     if (!abono || !almacenConf) return null;
+
+    const formatCurrency = (val) => {
+        const numeroFormateado = new Intl.NumberFormat(almacenConf.formato_numero || 'es-CO', {
+            style: 'decimal',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(val || 0);
+
+        const simbolo = getCurrencySymbol(almacenConf.moneda || 'COP');
+        return `${simbolo}${numeroFormateado}`;
+    };
 
     const facturaRef = `${abono.prefijo || ''}${almacenConf.separador || ''}${abono.numero_factura}`;
 
@@ -37,7 +49,7 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
 
             <div className="border border-dark p-2 mb-2 bg-light text-center">
                 <div className="fs-6 mb-1">VALOR RECIBIDO</div>
-                <h4 className="fw-bold m-0">${(abono.valor || 0).toLocaleString('es-CO')}</h4>
+                <h4 className="fw-bold m-0">{formatCurrency(abono.valor)}</h4>
             </div>
 
             <div className="mb-3 mt-2">
@@ -94,7 +106,7 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
                     <div className="card border-success h-100 bg-light">
                         <div className="card-body text-center d-flex flex-column justify-content-center">
                             <p className="mb-1 fw-bold text-secondary">Abono a Factura N° {facturaRef}</p>
-                            <h2 className="text-success fw-bold m-0">${(abono.valor || 0).toLocaleString('es-CO')}</h2>
+                            <h2 className="text-success fw-bold m-0">{formatCurrency(abono.valor)}</h2>
                         </div>
                     </div>
                 </Col>

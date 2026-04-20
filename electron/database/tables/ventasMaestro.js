@@ -35,6 +35,8 @@ export function createVentasMaestroTable() {
       saldo_pendiente_original REAL,
       tipo_pago TEXT,
       metodo_pago TEXT,
+      moneda TEXT,
+      formato_numero TEXT,
 
       status INTEGER,
       date_created TEXT,
@@ -56,4 +58,6 @@ export function createVentasMaestroTable() {
   try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN footer TEXT DEFAULT ''"); } catch (e) {}
   try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN total_recibido_original REAL DEFAULT 0"); } catch (e) {}
   try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN saldo_pendiente_original REAL DEFAULT 0"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN moneda TEXT DEFAULT 'COP'"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN formato_numero TEXT DEFAULT 'es-CO'"); } catch (e) {}
 }

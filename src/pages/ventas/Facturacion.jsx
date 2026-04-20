@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
-import {
-  Button,
-  InputGroup,
-  Form,
-  Row,
-  Col
-} from 'react-bootstrap'
+import { Button, InputGroup, Form, Row, Col } from 'react-bootstrap'
 import Modal from 'react-bootstrap/Modal'
 import { ImpresorFactura } from './components/ImpresorFactura'
+import { getCurrencySymbol } from '../../utils/currencies'
 
 export const Facturacion = () => {
   const [productos, setProductos] = useState([])
@@ -39,6 +34,8 @@ export const Facturacion = () => {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTag, setFilterTag] = useState('')
 
+  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
   const loadInitialData = async () => {
     const prods = await window.api.getAllProductos();
     setProductos(prods);
@@ -50,12 +47,33 @@ export const Facturacion = () => {
     const tags = await window.api.getEtiquetas();
     setCategoriasList(cats || []);
     setEtiquetasList(tags || []);
+
+    const configData = await window.api.getConfiguracion();
+    const confAppRaw = configData.find(c => c.key === 'confApp');
+    if (confAppRaw) {
+        try {
+            const parsed = JSON.parse(confAppRaw.value);
+            setAppConfig({
+                moneda: parsed.moneda || 'COP',
+                formato_numero: parsed.formato_numero || 'es-CO'
+            });
+        } catch(e) { console.error("Error parseando confApp", e) }
+    }
   }
 
   useEffect(() => {
     loadInitialData();
   }, [])
 
+  const formatCurrency = (val) => {
+      const numeroFormateado = new Intl.NumberFormat(appConfig.formato_numero, { 
+          style: 'decimal', 
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2 
+      }).format(val || 0);
+      const simbolo = getCurrencySymbol(appConfig.moneda);
+      return `${simbolo}${numeroFormateado}`;
+  };
 
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
   const valorDescuento = esPorcentaje ? subtotal * (descuento / 100) : descuento
@@ -94,7 +112,6 @@ export const Facturacion = () => {
     setDetallesParaImprimir([]);
     setAlmacenConfParaImprimir(null);
   }
-
 
   const handleSearchProduct = async () => {
     if (!skuInput.trim()) {
@@ -164,7 +181,7 @@ export const Facturacion = () => {
         { 
           data: 'precio', 
           title: 'Precio',
-          render: (data) => `$${parseFloat(data||0).toLocaleString('es-CO')}`
+          render: (data) => formatCurrency(data) 
         },
         {
           data: null,
@@ -306,6 +323,7 @@ export const Facturacion = () => {
         subtotal: subtotal, descuento: valorDescuento, iva: ivaTotal, total: totalFinal,
         total_recibido: recibidoNum, saldo_pendiente: saldoPendiente,
         tipo_pago: tipoPago, metodo_pago: metodoPago,
+        moneda: appConfig.moneda, formato_numero: appConfig.formato_numero 
       },
       detalles: carrito
     };
@@ -318,7 +336,8 @@ export const Facturacion = () => {
           id: result.maestroId, numero_factura: result.numero_factura, prefijo: result.prefijo,
           date_created: new Date().toISOString(), nombre_cliente: cliente.nombre, documento_cliente: cliente.documento,
           subtotal: subtotal, descuento: valorDescuento, iva: ivaTotal, total_factura: totalFinal,
-          total_recibido: recibidoNum, saldo_pendiente: saldoPendiente, tipo_pago: tipoPago, metodo_pago: metodoPago
+          total_recibido: recibidoNum, saldo_pendiente: saldoPendiente, tipo_pago: tipoPago, metodo_pago: metodoPago,
+          moneda: appConfig.moneda, formato_numero: appConfig.formato_numero 
       };
 
       Swal.fire({
@@ -370,8 +389,6 @@ export const Facturacion = () => {
       });
     });
   };
-  
-  const formatCurrency = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val);
 
   useEffect(() => {
     const handleGlobalEvents = (e) => {
@@ -505,6 +522,7 @@ export const Facturacion = () => {
 
         <div className="w-100 pe-2" style={{ minWidth: 0 }}>
           <DataTableComponent
+            key={`cart-table-${appConfig.moneda}-${appConfig.formato_numero}`} 
             data={carrito}
             columns={[
             { data: 'ref_name', title: 'Ref.' },
@@ -551,7 +569,7 @@ export const Facturacion = () => {
               {
                 data: 'precio',
                 title: 'Precio',
-                render: (val) => `$${(Number(val)).toLocaleString()}`
+                render: (val) => formatCurrency(val) 
               },
               {
                 data: null,
@@ -562,7 +580,7 @@ export const Facturacion = () => {
                           data-id="${row.id}" data-encargo="${row.isEncargo}" value="${row.descuento || 0}">
                     <button class="btn btn-outline-secondary toggle-discount-type px-1" 
                             data-id="${row.id}" data-encargo="${row.isEncargo}">
-                      ${row.tipoDescuento === 'porcentaje' ? '%' : '$'}
+                      ${row.tipoDescuento === 'porcentaje' ? '%' : getCurrencySymbol(appConfig.moneda)}
                     </button>
                   </div>
                 `
@@ -639,7 +657,7 @@ export const Facturacion = () => {
             <Form.Group className="mb-3 bg-light p-2 rounded">
               <Form.Label className="fw-bold"><small>Dinero Recibido</small></Form.Label>
               <InputGroup size="sm">
-                <InputGroup.Text>$</InputGroup.Text>
+                <InputGroup.Text>{getCurrencySymbol(appConfig.moneda)}</InputGroup.Text>
                 <Form.Control
                   type="number"
                   min="0"
@@ -749,7 +767,7 @@ export const Facturacion = () => {
 
             <div className="w-100 overflow-hidden">
                 <DataTableComponent
-                  key={`prod-modal-${filterCategory}-${filterTag}`}
+                  key={`prod-modal-${filterCategory}-${filterTag}-${appConfig.moneda}`}
                   ajaxData={(params) => {
                     params.customCategory = filterCategory;
                     params.customTag = filterTag;

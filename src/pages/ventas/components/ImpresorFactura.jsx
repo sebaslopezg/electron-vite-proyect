@@ -1,10 +1,22 @@
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { BaseImpresor } from '../../../components/BaseImpresor';
+import { getCurrencySymbol } from '../../../utils/currencies';
 
 export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf, textoVolver }) => {
     
     if (!factura || !almacenConf) return null;
+
+    const formatCurrency = (val) => {
+        const numeroFormateado = new Intl.NumberFormat(factura.formato_numero || 'es-CO', {
+            style: 'decimal',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        }).format(val || 0);
+
+        const simbolo = getCurrencySymbol(factura.moneda || 'COP');
+        return `${simbolo}${numeroFormateado}`;
+    };
 
     const numFactura = `${factura.prefijo || ''}${almacenConf.separador || ''}${factura.numero_factura}`;
     const totalRecibidoReal = factura.total_recibido_original ?? factura.total_recibido;
@@ -48,23 +60,23 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                         <tr key={idx}>
                             <td className="text-start align-top">{item.cantidad_producto}</td>
                             <td className="text-start pe-1">{item.nombre_producto}</td>
-                            <td className="text-end align-top">${(item.total).toLocaleString('es-CO')}</td>
+                            <td className="text-end align-top">{formatCurrency(item.total)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
 
             <div className="mt-2 text-end border-bottom border-dark pb-2">
-                <div>Subtotal: ${(factura.subtotal || 0).toLocaleString('es-CO')}</div>
-                {factura.descuento > 0 && <div>Desc: -${(factura.descuento || 0).toLocaleString('es-CO')}</div>}
-                <div>IVA: ${(factura.iva || 0).toLocaleString('es-CO')}</div>
-                <h6 className="fw-bold mt-1 fs-6">TOTAL: ${(factura.total_factura || 0).toLocaleString('es-CO')}</h6>
+                <div>Subtotal: {formatCurrency(factura.subtotal)}</div>
+                {factura.descuento > 0 && <div>Desc: -{formatCurrency(factura.descuento)}</div>}
+                <div>IVA: {formatCurrency(factura.iva)}</div>
+                <h6 className="fw-bold mt-1 fs-6">TOTAL: {formatCurrency(factura.total_factura)}</h6>
             </div>
 
             <div className="mt-2">
                 <div className="text-capitalize"><strong>Pago:</strong> {factura.tipo_pago} ({factura.metodo_pago})</div>
-                <div>Recibido: ${(totalRecibidoReal || 0).toLocaleString('es-CO')}</div>
-                <div>Cambio/Saldo: ${(saldoPendienteReal || 0).toLocaleString('es-CO')}</div>
+                <div>Recibido: {formatCurrency(totalRecibidoReal)}</div>
+                <div>Cambio/Saldo: {formatCurrency(saldoPendienteReal)}</div>
             </div>
 
             <div className="text-center mt-3 border-top border-dark pt-2">
@@ -122,8 +134,8 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                             <td>{item.sku_prefix || ''}{item.separador || ''}{item.sku}</td>
                             <td className="text-start">{item.nombre_producto}</td>
                             <td>{item.cantidad_producto}</td>
-                            <td className="text-end">${(item.precio_producto || 0).toLocaleString('es-CO')}</td>
-                            <td className="text-end fw-bold">${(item.total || 0).toLocaleString('es-CO')}</td>
+                            <td className="text-end">{formatCurrency(item.precio_producto)}</td>
+                            <td className="text-end fw-bold">{formatCurrency(item.total)}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -133,12 +145,12 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 <Col sm={5}>
                     <table className="table table-sm table-borderless text-end fs-6">
                         <tbody>
-                            <tr><td><strong>Subtotal:</strong></td><td>${(factura.subtotal || 0).toLocaleString('es-CO')}</td></tr>
-                            {factura.descuento > 0 && <tr><td><strong>Descuento:</strong></td><td className="text-danger">-${(factura.descuento || 0).toLocaleString('es-CO')}</td></tr>}
-                            <tr><td><strong>IVA:</strong></td><td>${(factura.iva || 0).toLocaleString('es-CO')}</td></tr>
-                            <tr className="border-top border-dark border-2"><td className="fs-5"><strong>Total:</strong></td><td className="fs-5 fw-bold">${(factura.total_factura || 0).toLocaleString('es-CO')}</td></tr>
-                            <tr><td><strong className="text-muted fs-6">Recibido:</strong></td><td className="text-muted fs-6">${(totalRecibidoReal || 0).toLocaleString('es-CO')}</td></tr>
-                            <tr><td><strong className="text-muted fs-6">Saldo/Cambio:</strong></td><td className="text-muted fs-6">${(saldoPendienteReal || 0).toLocaleString('es-CO')}</td></tr>
+                            <tr><td><strong>Subtotal:</strong></td><td>{formatCurrency(factura.subtotal)}</td></tr>
+                            {factura.descuento > 0 && <tr><td><strong>Descuento:</strong></td><td className="text-danger">-{formatCurrency(factura.descuento)}</td></tr>}
+                            <tr><td><strong>IVA:</strong></td><td>{formatCurrency(factura.iva)}</td></tr>
+                            <tr className="border-top border-dark border-2"><td className="fs-5"><strong>Total:</strong></td><td className="fs-5 fw-bold">{formatCurrency(factura.total_factura)}</td></tr>
+                            <tr><td><strong className="text-muted fs-6">Recibido:</strong></td><td className="text-muted fs-6">{formatCurrency(totalRecibidoReal)}</td></tr>
+                            <tr><td><strong className="text-muted fs-6">Saldo/Cambio:</strong></td><td className="text-muted fs-6">{formatCurrency(saldoPendienteReal)}</td></tr>
                         </tbody>
                     </table>
                 </Col>
