@@ -6,6 +6,7 @@ export function createVentasMaestroTable() {
       id TEXT PRIMARY KEY,
       numero_factura INTEGER,
       prefijo TEXT,
+      separador TEXT,
       resolucion_dian TEXT,
       titulo_documento TEXT,
       
@@ -30,7 +31,9 @@ export function createVentasMaestroTable() {
       total_factura REAL,
       total_recibido REAL,
       saldo_pendiente REAL,
-      tipo_pago TEXT,    -- NUEVO CAMPO AÑADIDO
+      total_recibido_original REAL, -- SNAPSHOT DEL PAGO
+      saldo_pendiente_original REAL, -- SNAPSHOT DE LA DEUDA
+      tipo_pago TEXT,
       metodo_pago TEXT,
 
       status INTEGER,
@@ -40,9 +43,17 @@ export function createVentasMaestroTable() {
     )
   `)
 
-  try {
-      db.exec("ALTER TABLE ventasMaestro ADD COLUMN tipo_pago TEXT DEFAULT 'contado'");
-  } catch (e) {
-      console.log(`Error intentando actualizar tabla: ${e}`)
-  }
+  // Migraciones
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN tipo_pago TEXT DEFAULT 'contado'"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN separador TEXT DEFAULT '-'"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN resolucion_dian TEXT DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN titulo_documento TEXT DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN nombre_almacen TEXT DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN nit_almacen TEXT DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN direccion_almacen TEXT DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN telefono_almacen TEXT DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN email_almacen TEXT DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN footer TEXT DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN total_recibido_original REAL DEFAULT 0"); } catch (e) {}
+  try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN saldo_pendiente_original REAL DEFAULT 0"); } catch (e) {}
 }

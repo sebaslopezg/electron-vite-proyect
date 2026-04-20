@@ -16,6 +16,9 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
 
         const numFactura = `${factura.prefijo || ''}${almacenConf.separador || ''}${factura.numero_factura}`;
 
+        const totalRecibidoReal = factura.total_recibido_original ?? factura.total_recibido;
+        const saldoPendienteReal = factura.saldo_pendiente_original ?? factura.saldo_pendiente;
+
         if (tipoImpresion === 'pos') {
             return (
                 <div className="formato-pos text-black">
@@ -27,7 +30,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                         {almacenConf.email_almacen && <div>Email: {almacenConf.email_almacen}</div>}
                         <div className="mt-1"><small>{almacenConf.resolucionDian}</small></div>
                         <div className="mt-2 fw-bold border-top border-bottom border-dark py-1">
-                            FACTURA N° {numFactura}
+                            {almacenConf.nombreFactura} N° {numFactura}
                         </div>
                         <div>{new Date(factura.date_created).toLocaleString('es-CO')}</div>
                     </div>
@@ -65,8 +68,8 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
 
                     <div className="mt-2">
                         <div className="text-capitalize"><strong>Pago:</strong> {factura.tipo_pago} ({factura.metodo_pago})</div>
-                        <div>Recibido: ${(factura.total_recibido || 0).toLocaleString('es-CO')}</div>
-                        <div>Cambio/Saldo: ${(factura.saldo_pendiente || 0).toLocaleString('es-CO')}</div>
+                        <div>Recibido: ${(totalRecibidoReal || 0).toLocaleString('es-CO')}</div>
+                        <div>Cambio/Saldo: ${(saldoPendienteReal || 0).toLocaleString('es-CO')}</div>
                     </div>
 
                     <div className="text-center mt-3 border-top border-dark pt-2">
@@ -144,6 +147,9 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                                     {factura.descuento > 0 && <tr><td><strong>Descuento:</strong></td><td className="text-danger">-${(factura.descuento || 0).toLocaleString('es-CO')}</td></tr>}
                                     <tr><td><strong>IVA:</strong></td><td>${(factura.iva || 0).toLocaleString('es-CO')}</td></tr>
                                     <tr className="border-top border-dark border-2"><td className="fs-5"><strong>Total:</strong></td><td className="fs-5 fw-bold">${(factura.total_factura || 0).toLocaleString('es-CO')}</td></tr>
+                                    
+                                    <tr><td><strong className="text-muted fs-6">Recibido:</strong></td><td className="text-muted fs-6">${(totalRecibidoReal || 0).toLocaleString('es-CO')}</td></tr>
+                                    <tr><td><strong className="text-muted fs-6">Saldo/Cambio:</strong></td><td className="text-muted fs-6">${(saldoPendienteReal || 0).toLocaleString('es-CO')}</td></tr>
                                 </tbody>
                             </table>
                         </Col>
