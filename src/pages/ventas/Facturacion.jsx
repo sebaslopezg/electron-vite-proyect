@@ -36,33 +36,37 @@ export const Facturacion = () => {
 
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
 
+  const loadConfig = async () => {
+      const configData = await window.api.getConfiguracion();
+      const confAppRaw = configData.find(c => c.key === 'confApp');
+      if (confAppRaw) {
+          try {
+              const parsed = JSON.parse(confAppRaw.value);
+              setAppConfig({
+                  moneda: parsed.moneda || 'COP',
+                  formato_numero: parsed.formato_numero || 'es-CO'
+              });
+          } catch(e) {}
+      }
+  };
+
   const loadInitialData = async () => {
     const prods = await window.api.getAllProductos();
     setProductos(prods);
-
     const clis = await window.api.getClientes();
     setClientes(clis);
-
     const cats = await window.api.getCategorias();
     const tags = await window.api.getEtiquetas();
     setCategoriasList(cats || []);
     setEtiquetasList(tags || []);
-
-    const configData = await window.api.getConfiguracion();
-    const confAppRaw = configData.find(c => c.key === 'confApp');
-    if (confAppRaw) {
-        try {
-            const parsed = JSON.parse(confAppRaw.value);
-            setAppConfig({
-                moneda: parsed.moneda || 'COP',
-                formato_numero: parsed.formato_numero || 'es-CO'
-            });
-        } catch(e) { console.error("Error parseando confApp", e) }
-    }
+    
+    await loadConfig();
   }
 
   useEffect(() => {
     loadInitialData();
+    window.addEventListener('config-actualizada', loadConfig);
+    return () => window.removeEventListener('config-actualizada', loadConfig);
   }, [])
 
   const formatCurrency = (val) => {
@@ -181,7 +185,7 @@ export const Facturacion = () => {
         { 
           data: 'precio', 
           title: 'Precio',
-          render: (data) => formatCurrency(data) 
+          render: (data, type, row) => formatCurrency(row.precio) 
         },
         {
           data: null,
@@ -213,10 +217,10 @@ export const Facturacion = () => {
           render: function (data, type, row) {
             const safeData = encodeURIComponent(JSON.stringify(row));
             return `
-                  <button class="btn btn-sm btn-success btn-select-client" data-alldata="${safeData}">
-                    Agregar
-                  </button>
-                  `;
+              <button class="btn btn-sm btn-success btn-select-client" data-alldata="${safeData}">
+                Agregar
+              </button>
+            `;
           }
         }
       ]
@@ -569,7 +573,7 @@ export const Facturacion = () => {
               {
                 data: 'precio',
                 title: 'Precio',
-                render: (val) => formatCurrency(val) 
+                render: (data, type, row) => formatCurrency(row.precio) 
               },
               {
                 data: null,
