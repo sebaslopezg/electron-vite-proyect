@@ -1,6 +1,7 @@
 import { General } from './General';
 import { Datos } from './Datos';
 import { Importar } from './Importar';
+import { Exportar } from './Exportar';
 
 export const ConfiguracionIndex = () => {
     return (
@@ -25,6 +26,11 @@ export const ConfiguracionIndex = () => {
                                 <i className="bi bi-cloud-upload me-1"></i> Importar Datos
                             </button>
                         </li>
+                        <li className="nav-item" role="presentation">
+                            <button className="nav-link text-info" data-bs-toggle="tab" data-bs-target="#exportar" type="button" role="tab">
+                                <i className="bi bi-cloud-download me-1"></i> Exportar Datos
+                            </button>
+                        </li>
                     </ul>
 
                     <div className="tab-content pt-4">
@@ -36,6 +42,9 @@ export const ConfiguracionIndex = () => {
                         </div>
                         <div className="tab-pane fade" id="importar" role="tabpanel">
                             <Importar />
+                        </div>
+                        <div className="tab-pane fade" id="exportar" role="tabpanel">
+                            <Exportar />
                         </div>
                     </div>
                 </div>

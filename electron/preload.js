@@ -100,4 +100,7 @@ contextBridge.exposeInMainWorld("api", {
   getCartera: () => ipcRenderer.invoke("get-cartera"),
   getAbonos: () => ipcRenderer.invoke("get-abonos"),
   addAbono: (data) => ipcRenderer.invoke("add-abono", data),
+
+  // Exportación de Datos
+  exportDatabase: () => ipcRenderer.invoke('export-db'),
 })

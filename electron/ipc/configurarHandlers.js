@@ -30,17 +30,17 @@ export const registerConfigurarHandlers = () => {
     const windows = BrowserWindow.getAllWindows();
     if (windows.length > 0) {
       const win = windows[0];
-      
+
       if (data.nombre) {
         win.setTitle(data.nombre);
       }
-      
+
       if (data.logo) {
         try {
           const image = nativeImage.createFromDataURL(data.logo);
           win.setIcon(image);
-        } catch(e) { 
-          console.error("Error configurando el icono", e) 
+        } catch (e) {
+          console.error("Error configurando el icono", e)
         }
       }
     }

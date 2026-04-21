@@ -1,10 +1,10 @@
-import { 
-  app, 
-  BrowserWindow, 
-  ipcMain, 
-  Menu, 
-  globalShortcut, 
-  dialog 
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  globalShortcut,
+  dialog
 } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -109,7 +109,7 @@ app.on("activate", () => {
 
 //mensaje
 autoUpdater.on('update-available', () => {
-dialog.showMessageBox(mainWindow, {
+  dialog.showMessageBox(mainWindow, {
     type: 'info',
     title: 'Actualización',
     message: '¡Nueva actualización disponible!',
@@ -119,13 +119,13 @@ dialog.showMessageBox(mainWindow, {
 
 autoUpdater.on('update-downloaded', () => {
   dialog.showMessageBox(mainWindow, {
-      type: 'question',
-      title: 'Actualización lista',
-      message: 'La actualización se ha descargado. ¿Reiniciar ahora?',
-      buttons: ['Si', 'No']
-    }).then((result) => {
-      if (result.response === 0) {
-        autoUpdater.quitAndInstall()
-      }
-    })
+    type: 'question',
+    title: 'Actualización lista',
+    message: 'La actualización se ha descargado. ¿Reiniciar ahora?',
+    buttons: ['Si', 'No']
+  }).then((result) => {
+    if (result.response === 0) {
+      autoUpdater.quitAndInstall()
+    }
+  })
 })
