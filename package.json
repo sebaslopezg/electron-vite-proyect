@@ -70,7 +70,7 @@
     "cross-env": "^10.0.0",
     "electron": "^38.6.0",
     "electron-builder": "^26.0.12",
-    "electron-rebuild": "^3.2.9",
+    "electron-rebuild": "^2.0.3",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
