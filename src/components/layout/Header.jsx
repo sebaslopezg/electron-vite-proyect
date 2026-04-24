@@ -1,10 +1,42 @@
 import { useState, useEffect } from 'react';
-import logo from './../../assets/favicon.png'
+import defaultLogo from './../../assets/favicon.png'
 
-// Header Component with interactivity
 export const Header = () => {
     const [searchBarShow, setSearchBarShow] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // NUEVO: Estados del nombre y logo
+    const [appName, setAppName] = useState('Caedro');
+    const [appLogo, setAppLogo] = useState(defaultLogo);
+
+    const loadConfig = async () => {
+        try {
+            const data = await window.api.getConfiguracion();
+            const appConf = data.find(r => r.key === 'confApp');
+            if (appConf && appConf.value) {
+                const parsed = JSON.parse(appConf.value);
+                if (parsed.nombre) setAppName(parsed.nombre);
+                if (parsed.logo) setAppLogo(parsed.logo);
+                
+                // Actualizar documento principal por si recargan la página
+                document.title = parsed.nombre || 'Caedro';
+                if (window.api.updateWindow) window.api.updateWindow({ nombre: parsed.nombre, logo: parsed.logo });
+            }
+        } catch (error) {
+            console.error("Error cargando configuración en Header:", error);
+        }
+    };
+
+    useEffect(() => {
+        // Cargar al inicio
+        loadConfig();
+        
+        // Escuchar cambios guardados en la página de Configuración
+        const handleUpdate = () => loadConfig();
+        window.addEventListener('config-actualizada', handleUpdate);
+        
+        return () => window.removeEventListener('config-actualizada', handleUpdate);
+    }, []);
 
     const handleSidebarToggle = () => {
         document.body.classList.toggle('toggle-sidebar');
@@ -15,41 +47,19 @@ export const Header = () => {
         setSearchBarShow(!searchBarShow);
     };
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        console.log('Searching for:', searchQuery);
-        // Add your search logic here
-    };
-
     return (
         <header id="header" className="header fixed-top d-flex align-items-center">
             <div className="d-flex align-items-center justify-content-between">
                 <a href="index.html" className="logo d-flex align-items-center">
-                    <img src={logo} alt="" />
-                    <span className="d-none d-lg-block">Caedro</span>
+                    {/* AQUI SE MUESTRA EL LOGO Y NOMBRE DINÁMICO */}
+                    <img src={appLogo} alt="Logo" style={{ maxHeight: '40px', objectFit: 'contain' }} />
+                    <span className="d-none d-lg-block ms-2">{appName}</span>
                 </a>
                 <i 
-                    className="bi bi-list toggle-sidebar-btn" 
+                    className="bi bi-list toggle-sidebar-btn ms-3" 
                     onClick={handleSidebarToggle}
                     style={{ cursor: 'pointer' }}
                 ></i>
-            </div>
-
-            <div className={`search-bar ${searchBarShow ? 'search-bar-show' : ''}`}>
-                <div className="search-form d-flex align-items-center">
-                    <input 
-                        type="text" 
-                        name="query" 
-                        placeholder="Buscar" 
-                        title="Enter search keyword"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSearch(e)}
-                    />
-                    <button type="button" title="Search" onClick={handleSearch}>
-                        <i className="bi bi-search"></i>
-                    </button>
-                </div>
             </div>
 
             <nav className="header-nav ms-auto">
@@ -64,7 +74,7 @@ export const Header = () => {
                         </a>
                     </li>
 
-                    <li className="nav-item dropdown">
+{/*                     <li className="nav-item dropdown">
                         <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
                             <i className="bi bi-bell"></i>
                             <span className="badge bg-primary badge-number">4</span>
@@ -225,8 +235,10 @@ export const Header = () => {
                                 </a>
                             </li>
                         </ul>
-                    </li>
+                    </li> */}
                 </ul>
+
+
             </nav>
         </header>
     );

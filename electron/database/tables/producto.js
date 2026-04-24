@@ -6,18 +6,26 @@ export const createProductoTable = () => {
       id TEXT PRIMARY KEY,
       ref_name TEXT,
       sku TEXT,
+      tipo TEXT,
       precio REAL,
       allow_negative INTEGER,
       stock REAL,
+      
+      -- new
+      min_stock REAL DEFAULT 5,
+      max_stock REAL DEFAULT 100,
+      categoria_id TEXT DEFAULT 'general',
+      
       iva REAL,
       unidad_medida TEXT,
       descripcion TEXT,
       status INTEGER,
       date_created TEXT,
       date_modify TEXT,
-      modify_by TEXT
+      modify_by TEXT,
+
+      FOREIGN KEY(categoria_id) REFERENCES categoria(id)
     );
-    -- Create indexes for fields you search by often!
     CREATE INDEX IF NOT EXISTS idx_producto_ref ON producto(ref_name);
     CREATE INDEX IF NOT EXISTS idx_producto_sku ON producto(sku);
   `)

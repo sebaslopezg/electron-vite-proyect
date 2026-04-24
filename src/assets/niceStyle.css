@@ -1231,3 +1231,13 @@ h6 {
   font-size: 13px;
   color: #012970;
 }
+
+
+/*-----------------------------------------------------------
+# Iconos select
+------------------------------------------------------------*/
+
+.hover-bg-light:hover {
+  background-color: #e3f1ff !important;
+  border-color: #c2d7ec !important;
+}

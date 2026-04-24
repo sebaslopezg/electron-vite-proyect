@@ -13,7 +13,6 @@ export const registerAlmacenConfigHandlers = () => {
         }
     })
 
-    //para llamar solo una row (revisar si puede funcionar)
     ipcMain.handle("getOne-almacenConf", (_, id) =>{
         try {
             const stmt = db.prepare("SELECT * FROM almacen_conf WHERE id = @id AND status > 0")
@@ -26,8 +25,8 @@ export const registerAlmacenConfigHandlers = () => {
 
     ipcMain.handle("update-consecutivoFactura" ,(_, item) =>{
         try {
-            const stmt = db.prepare(`UPDATE almacen_conf SET consecutivo = @consecutivo, WHERE id = @id`)
-            const info = db.run({...item})
+            const stmt = db.prepare(`UPDATE almacen_conf SET consecutivo = @consecutivo WHERE id = @id`)
+            const info = stmt.run({...item})
             return { success: true, changes: info.changes }
         } catch (error) {
             console.error("Error al intentar actualizar datos: ", error)
@@ -47,19 +46,27 @@ export const registerAlmacenConfigHandlers = () => {
                     logo_almacen = @logo_almacen,
                     direccion_almacen = @direccion_almacen,
                     telefono_almacen = @telefono_almacen,
+                    email_almacen = @email_almacen,
                     prefijo = @prefijo,
+                    separador = @separador, 
                     resolucionDian = @resolucionDian,
                     nombreFactura = @nombreFactura,
                     footer_factura = @footer_factura,
                     consecutivo = @consecutivo,
+                    consecutivo_nota = @consecutivo_nota,
+                    consecutivo_nota_debito = @consecutivo_nota_debito,
+                    imprimir_logo_pos = @imprimir_logo_pos,
                     date_modify = @date_modify,
                     modify_by = @modify_by
                     WHERE id = @id
                 `)
             const info = stmt.run({
                 ...item,
-                date_modify:now,
-                modify_by:user
+                separador: item.separador || '', 
+                email_almacen: item.email_almacen || '',
+                imprimir_logo_pos: item.imprimir_logo_pos ? 1 : 0, 
+                date_modify: now,
+                modify_by: user
             })
             return { success: true, changes: info.changes }
         } catch (error) {

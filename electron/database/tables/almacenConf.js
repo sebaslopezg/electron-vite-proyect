@@ -2,18 +2,23 @@ import db from "../index.js"
 import { v4 as uuidv4 } from 'uuid'
 
 export const createAlmacenConfTable = () => {
-  try{
+  try {
     const conf = {
       nombre_almacen: 'Caedro',
       nit_almacen: '9001100',
       logo_almacen: '',
-      direccion_almacen: 'Entique segoviano',
+      direccion_almacen: 'Enrique Segoviano',
       telefono_almacen: '3106019954',
+      email_almacen: '',
       prefijo: 'F',
-      resolucionDian: 'res Dian',
+      separador: '-', 
+      resolucionDian: 'Res DIAN',
       nombreFactura: 'Factura de venta',
-      footer_factura: 'footer de la factura',
+      footer_factura: 'Gracias por su compra',
       consecutivo: 0,
+      consecutivo_nota: 0,
+      consecutivo_nota_debito: 0,
+      imprimir_logo_pos: 0
     }
 
     const now = new Date().toISOString()
@@ -29,52 +34,89 @@ export const createAlmacenConfTable = () => {
         logo_almacen TEXT,
         direccion_almacen TEXT,
         telefono_almacen TEXT,
+        email_almacen TEXT,
         prefijo TEXT,
+        separador TEXT, 
         resolucionDian TEXT,
         nombreFactura TEXT,
         footer_factura TEXT,
         consecutivo INTEGER,
+        consecutivo_nota INTEGER,
+        consecutivo_nota_debito INTEGER,
+        imprimir_logo_pos INTEGER,
         status INTEGER,
         date_created TEXT,
         date_modify TEXT,
         modify_by TEXT
       ); 
-      -- Optional: Add an index if you frequently query by a unique name/nit
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_almacen_nit ON almacen_conf(nit_almacen);
     `)
-    console.log("Table almacen_conf created or confirmed.")
+
+    // Migraciones 
+    try { db.exec("ALTER TABLE almacen_conf ADD COLUMN separador TEXT DEFAULT '-'"); } catch (e) {}
+    try { db.exec("ALTER TABLE almacen_conf ADD COLUMN email_almacen TEXT DEFAULT ''"); } catch (e) {}
+    try { db.exec("ALTER TABLE almacen_conf ADD COLUMN consecutivo_nota_debito INTEGER DEFAULT 0"); } catch (e) {}
+    try { db.exec("ALTER TABLE almacen_conf ADD COLUMN imprimir_logo_pos INTEGER DEFAULT 0"); } catch (e) {}
 
     const countStmt = db.prepare(`SELECT count(*) as count FROM almacen_conf`)
     const row = countStmt.get()
 
     if (row.count === 0) {
-      console.log("Table empty, inserting default configuration...")
-                
       const insertStmt = db.prepare(`
         INSERT INTO almacen_conf (
-          id, nombre_almacen, nit_almacen, logo_almacen, direccion_almacen, 
-          telefono_almacen, prefijo, resolucionDian, nombreFactura, footer_factura, 
-          consecutivo, status, date_created, date_modify, modify_by
+          id,
+          nombre_almacen,
+          nit_almacen,
+          logo_almacen,
+          direccion_almacen,
+          telefono_almacen,
+          email_almacen,
+          prefijo,
+          separador,
+          resolucionDian,
+          nombreFactura,
+          footer_factura,
+          consecutivo,
+          consecutivo_nota,
+          consecutivo_nota_debito,
+          imprimir_logo_pos,
+          status,
+          date_created,
+          date_modify,
+          modify_by
         )
         VALUES (
-            @id, @nombre_almacen, @nit_almacen, @logo_almacen, @direccion_almacen, 
-            @telefono_almacen, @prefijo, @resolucionDian, @nombreFactura, @footer_factura, 
-            @consecutivo, @status, @date_created, @date_modify, @modify_by
+            @id,
+            @nombre_almacen,
+            @nit_almacen,
+            @logo_almacen,
+            @direccion_almacen,
+            @telefono_almacen,
+            @email_almacen,
+            @prefijo,
+            @separador,
+            @resolucionDian,
+            @nombreFactura,
+            @footer_factura,
+            @consecutivo,
+            @consecutivo_nota,
+            @consecutivo_nota_debito,
+            @imprimir_logo_pos,
+            @status,
+            @date_created,
+            @date_modify,
+            @modify_by
         )
       `)
 
       insertStmt.run({
           id,
-          ...conf, // Spreads all properties from the 'conf' object
+          ...conf,
           status,
           date_created: now,
           date_modify: now,
           modify_by: user
       })
-    } else {
-      console.log("Configuration already exists. Skipping insert.")
     }
-
   } catch (error) {
       console.error('Database initialization error in almacenConf:', error)
   }

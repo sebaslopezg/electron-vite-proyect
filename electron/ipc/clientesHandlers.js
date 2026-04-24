@@ -67,8 +67,8 @@ export const registerClientesHandlers = () => {
                     documento=@documento, 
                     telefono=@telefono, 
                     direccion=@direccion,  
-                    date_modify=@date_modify
-                    modify_by = @modify_by
+                    date_modify=@date_modify,
+                    modify_by = @modify_by,
                     status = @status
                     WHERE id=@id
                 `)
@@ -87,11 +87,11 @@ export const registerClientesHandlers = () => {
         }
     })
 
-    ipcMain.handle("delete-cliente", () => {
+    ipcMain.handle("delete-cliente", (_, id) => {
         try {
             const now = new Date().toISOString()
             const stmt = db.prepare(`
-            UPDATE producto SET 
+            UPDATE clientes SET /* <--- CORREGIDO: Decía producto */
                   status = 0,
                   date_modify = @date_modify,
                   modify_by = @modify_by
@@ -99,6 +99,7 @@ export const registerClientesHandlers = () => {
             `)
 
             const info = stmt.run({
+                id: id, /* <--- CORREGIDO: Faltaba pasarle el ID */
                 date_modify:now,
                 modify_by: 'system'
             })
@@ -114,74 +115,47 @@ export const registerClientesHandlers = () => {
         }
     })
 
-/*     ipcMain.handle("add-cliente", async (_, item) => {
+    // Paginación del lado del servidor (Server-Side Processing) ---
+    ipcMain.handle("get-clientes-paginados", (_, dtParams) => {
+        try {
+            // 1. FORZAMOS A ENTEROS (SQLite lanza error si recibe un string aquí)
+            const limit = parseInt(dtParams.length, 10) || 10;
+            const offset = parseInt(dtParams.start, 10) || 0;
+            const searchValue = dtParams.search?.value || '';
 
-        const { nombre, documento, telefono, direccion } = item
+            const orderColIndex = dtParams.order?.[0]?.column || 0;
+            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+            
+            const columnsMap = ['documento', 'nombre', 'telefono', 'direccion', 'date_created'];
+            const orderCol = columnsMap[orderColIndex] || 'date_created';
 
-        const now = new Date().toISOString()
-        const status = 1
-        const id = uuidv4()
+            let baseQuery = "FROM clientes WHERE status > 0";
+            let queryParams = [];
 
-        return new Promise((resolve, reject) => {
-            db.run(
-                `INSERT INTO clientes (
-                    id, 
-                    nombre, 
-                    documento, 
-                    telefono, 
-                    direccion, 
-                    status, 
-                    date_created, 
-                    date_modify
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [id, nombre, documento, telefono, direccion, status, now, now],
-                function (err) {
-                    if (err) {
-                        reject(err)
-                        console.error('DB ERROR:', err) // LOG ERROR
-                    }else {
-                        resolve({ id: this.lastID })
-                    }
-                }
-            )
-        })
-    }) */
+            if (searchValue) {
+                baseQuery += " AND (nombre LIKE ? OR documento LIKE ? OR telefono LIKE ? OR direccion LIKE ?)";
+                const likeParam = `%${searchValue}%`;
+                queryParams.push(likeParam, likeParam, likeParam, likeParam);
+            }
 
-/*     ipcMain.handle("update-cliente", async (_, item) => {
-        const {id, nombre, documento, telefono, direccion } = item;
-        const date_modify = new Date().toISOString();
-        return new Promise((resolve, reject) => {
-            db.run(
-                `UPDATE clientes SET 
-                    nombre=?, 
-                    documento=?, 
-                    telefono=?, 
-                    direccion=?,  
-                    date_modify=? 
-                    WHERE id=?`,
-                [nombre, documento, telefono, direccion, date_modify, id],
-                function (err) {
-                    if (err) reject(err)
-                    else resolve({ changes: this.changes })
-                }
-            )
-        })
-    }) */
+            const totalRow = db.prepare("SELECT COUNT(*) as count FROM clientes WHERE status > 0").get();
+            const recordsTotal = totalRow.count;
 
-/*     ipcMain.handle("delete-cliente", async (_, id) => {
-        const status = 0
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+            const recordsFiltered = filteredRow.count;
 
-        return new Promise((resolve, reject) => {
-            db.run(
-                `UPDATE clientes SET status = ? WHERE id = ?`,
-                [status, id],
-                function (err) {
-                if (err) reject(err);
-                    else resolve({ changes: this.changes });
-                }
-            )
-        })
-    }) */
+            const dataQuery = `SELECT * ${baseQuery} ORDER BY ${orderCol} ${orderDir} LIMIT ? OFFSET ?`;
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
 
+            return {
+                draw: dtParams.draw,
+                recordsTotal: recordsTotal,
+                recordsFiltered: recordsFiltered,
+                data: data
+            };
+        } catch (error) {
+            console.error("Error crítico en paginación: ", error);
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+        }
+    });
 }

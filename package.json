@@ -13,6 +13,9 @@
     "dist": "npm run build:react && electron-builder"
   },
   "dependencies": {
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
     "better-sqlite3": "^12.5.0",
     "bootstrap": "^5.3.8",
     "datatables.net-bs5": "^2.3.4",

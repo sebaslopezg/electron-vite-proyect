@@ -1,41 +1,33 @@
-import path from "path"
-import Database from 'better-sqlite3'
-import { app } from "electron"
-import fs from 'fs'
+import Database from 'better-sqlite3';
+import path from 'path';
+import { app } from 'electron';
+import fs from 'fs';
 
-const userDataPath = app.getPath('userData')
-const dbName = 'data.db'
-const dbPath = path.join(userDataPath, dbName)
+const dbDir = path.join(app.getPath("userData"), "app2");
+if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
-const isPackaged = app.isPackaged
-const resourcesPath = isPackaged
-  ? process.resourcesPath // Production path
-  : path.join(app.getAppPath(), 'electron'); // Dev path
+// BASE DE DATOS DEL SISTEMA (Siempre es data.db)
+export const appDb = new Database(path.join(dbDir, "data.db"));
 
-const templateDbPath = path.join(resourcesPath, dbName)
+// BASE DE DATOS DEL NEGOCIO (Dinámica)
+let tenantDbInstance = null;
 
-if (!fs.existsSync(dbPath)) {
-  if (fs.existsSync(templateDbPath)) {
-    fs.copyFileSync(templateDbPath, dbPath);
-    console.log("Database copied to User Data folder.");
-  } else {
-    fs.writeFileSync(dbPath, ''); 
-  }
+export const switchTenantDb = (filename) => {
+    if (tenantDbInstance) {
+        tenantDbInstance.close();
+    }
+    tenantDbInstance = new Database(path.join(dbDir, filename));
+    tenantDbInstance.pragma('foreign_keys = ON'); // Habilitar relaciones seguras
+    return tenantDbInstance;
 }
 
-const db = new Database(dbPath)
+// PROXY
+const dbProxy = new Proxy({}, {
+    get: (target, prop) => {
+        if (!tenantDbInstance) throw new Error("Ningún perfil de base de datos ha sido cargado.");
+        const value = tenantDbInstance[prop];
+        return typeof value === 'function' ? value.bind(tenantDbInstance) : value;
+    }
+});
 
-db.pragma('journal_mode = WAL')
-console.log(`Connected to database at: ${dbPath}`)
-
-/* const dbPath =
-  app && app.isPackaged
-    ? path.join(process.resourcesPath, "data.db")
-    : path.join(process.cwd(), "electron", "data.db");
-
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) console.error("SQLite error:", err)
-  else console.log("Connected to DB at", dbPath)
-}); */
-
-export default db
+export default dbProxy;

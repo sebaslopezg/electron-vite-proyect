@@ -4,3 +4,22 @@
 - probar todos los cruds con las nuevas implementaciones. (tecnicamente resuelto)
 - Crear crud para inventarios
 - implementar maestro detalle mejorado en ventas
+
+Encargos:
+- id del producto
+- quién lo creó, cuando loc reó y quién lo modificó
+
+
+modificaciones generales:
+
+ - Que los valores en moneda aparezcan formateados en las tablas
+ - Hacer que el metodo de pago sea configurable, es decir, que se puedan agregar y quitar metodos de pago (en conf almacen)
+
+ - Probar importar datos de facturas (lidiar con relaciones en mysql)
+
+ Pa despues:
+
+ - Separar todas las modales de sus archivos en componentes pa que esos archivos no sean tan largos
+ - integrar todos los try catch de las tablas en los campos normales para limpiar todos los archivos de tablas.
+ - comenzar a usar las versiones de la app con la actualizacion y manejo de actualizaciones
+ - Permitir exportar datos desde la configuracion
