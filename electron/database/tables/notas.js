@@ -11,7 +11,6 @@ export const createNotasTables = () => {
         id_factura_origen TEXT NOT NULL,
         numero_factura_origen TEXT NOT NULL,
         
-        -- CAMBIOS AQUÍ: Guardamos los datos del cliente directamente (igual que en ventasMaestro)
         documento_cliente TEXT,
         nombre_cliente TEXT,
         
@@ -20,13 +19,14 @@ export const createNotasTables = () => {
         total_base REAL NOT NULL,
         total_iva REAL NOT NULL,
         total_final REAL NOT NULL,
+        moneda TEXT DEFAULT 'COP',
+        formato_numero TEXT DEFAULT 'es-CO',
         status INTEGER NOT NULL DEFAULT 1,
         date_created TEXT NOT NULL,
         date_modify TEXT NOT NULL,
         modify_by TEXT NOT NULL,
 
         FOREIGN KEY(id_factura_origen) REFERENCES ventasMaestro(id)
-        -- ELIMINAMOS la Foreign Key de clientes
       );
 
       CREATE UNIQUE INDEX IF NOT EXISTS idx_nota_numero ON nota(prefijo, numero_nota);
@@ -49,6 +49,10 @@ export const createNotasTables = () => {
 
       CREATE INDEX IF NOT EXISTS idx_notaitem_nota ON nota_item(id_nota);
     `);
+
+    try { db.exec("ALTER TABLE nota ADD COLUMN moneda TEXT DEFAULT 'COP'"); } catch (e) {}
+    try { db.exec("ALTER TABLE nota ADD COLUMN formato_numero TEXT DEFAULT 'es-CO'"); } catch (e) {}
+
     console.log("Tablas 'nota' y 'nota_item' creadas correctamente.");
   } catch (error) {
     console.error("Error creando tablas de Notas:", error);

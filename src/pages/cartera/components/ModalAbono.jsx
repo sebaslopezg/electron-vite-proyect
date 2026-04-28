@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import Swal from 'sweetalert2'
+import { formatCurrency } from '../../../utils/currencies'
 
-export const ModalAbono = ({ show, onClose, factura, onSuccess }) => {
+export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => {
     const [abonoForm, setAbonoForm] = useState({
         valor: '',
         metodo_pago: 'Efectivo',
         observaciones: ''
     })
+    
     useEffect(() => {
         if (factura) {
             setAbonoForm({
@@ -29,12 +31,12 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess }) => {
 
         if (valorAbono <= 0) return Swal.fire('Error', 'El valor a abonar debe ser mayor a 0', 'error')
         if (valorAbono > factura.saldo_pendiente) {
-            return Swal.fire('Error', `El abono no supera la deuda actual ($${factura.saldo_pendiente.toLocaleString('es-CO')})`, 'error')
+            return Swal.fire('Error', `El abono no puede superar la deuda actual`, 'error')
         }
 
         const confirm = await Swal.fire({
             title: '¿Confirmar Abono?',
-            text: `Se registrará un pago de $${valorAbono.toLocaleString('es-CO')} a la factura ${factura.prefijo || ''}${factura.numero_factura}`,
+            text: `Se registrará un pago de ${formatCurrency(valorAbono, appConfig.formato_numero, appConfig.moneda)} a la factura ${factura.prefijo || ''}${factura.numero_factura}`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Sí, registrar pago',
@@ -76,14 +78,14 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess }) => {
                         <div>Factura: {factura.prefijo || ''}{factura.numero_factura}</div>
                         <hr className="my-2 border-warning" />
                         <div className="fs-5 mt-2 text-danger">
-                            Deuda Actual: <strong>${factura.saldo_pendiente.toLocaleString('es-CO')}</strong>
+                            Deuda Actual: <strong>{formatCurrency(factura.saldo_pendiente, appConfig.formato_numero, appConfig.moneda)}</strong>
                         </div>
                     </div>
 
                     <Row className="g-3">
                         <Col md={12}>
                             <Form.Group>
-                                <Form.Label className="fw-bold">Monto a Recibir ($)</Form.Label>
+                                <Form.Label className="fw-bold">Monto a Recibir</Form.Label>
                                 <Form.Control 
                                     type="number" 
                                     size="lg"

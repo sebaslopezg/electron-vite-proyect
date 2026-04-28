@@ -1,21 +1,34 @@
+import { useState, useEffect } from 'react';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { BaseImpresor } from './BaseImpresor';
-import { getCurrencySymbol } from '../utils/currencies';
+import { getCurrencySymbol, formatCurrency } from '../utils/currencies';
 
 export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, textoVolver }) => {
     
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+    useEffect(() => {
+        const loadConfig = async () => {
+            const configData = await window.api.getConfiguracion();
+            const confAppRaw = configData.find(c => c.key === 'confApp');
+            if (confAppRaw) {
+                try {
+                    const parsed = JSON.parse(confAppRaw.value);
+                    setAppConfig({
+                        moneda: parsed.moneda || 'COP',
+                        formato_numero: parsed.formato_numero || 'es-CO'
+                    });
+                } catch(e) {}
+            }
+        };
+        if (show) loadConfig(); 
+    }, [show]);
+
     if (!nota || !almacenConf) return null;
 
-    const formatCurrency = (val) => {
-        const numeroFormateado = new Intl.NumberFormat(almacenConf.formato_numero || 'es-CO', {
-            style: 'decimal',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2
-        }).format(val || 0);
-
-        const simbolo = getCurrencySymbol(almacenConf.moneda || 'COP');
-        return `${simbolo}${numeroFormateado}`;
+    const renderCurrency = (val) => {
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
     };
 
     const tituloNota = `NOTA ${nota.tipo_nota.toUpperCase()}`;
@@ -38,7 +51,10 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
                 <div className="mt-2 fw-bold border-top border-bottom border-dark py-1">
                     {tituloNota} N° {nota.prefijo}-{nota.numero_nota}
                 </div>
-                <div>{new Date(nota.date_created).toLocaleString('es-CO')}</div>
+                <div>{new Date(nota.date_created).toLocaleString(appConfig.formato_numero, {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                })}</div>
             </div>
 
             <div className="mb-2">
@@ -63,16 +79,16 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
                         <tr key={idx}>
                             <td className="text-start align-top">{item.cantidad}</td>
                             <td className="text-start pe-1">{item.nombre_producto}</td>
-                            <td className="text-end align-top">{formatCurrency(item.total)}</td>
+                            <td className="text-end align-top">{renderCurrency(item.total)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
 
             <div className="mt-2 text-end">
-                <div>Subtotal: {formatCurrency(nota.total_base)}</div>
-                <div>IVA: {formatCurrency(nota.total_iva)}</div>
-                <h6 className="fw-bold mt-1 fs-6">TOTAL: {formatCurrency(nota.total_final)}</h6>
+                <div>Subtotal: {renderCurrency(nota.total_base)}</div>
+                <div>IVA: {renderCurrency(nota.total_iva)}</div>
+                <h6 className="fw-bold mt-1 fs-6">TOTAL: {renderCurrency(nota.total_final)}</h6>
             </div>
 
             {nota.observaciones && (
@@ -105,7 +121,10 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
                 <div className="text-end">
                     <h3 className="mb-0 text-secondary text-uppercase">{tituloNota}</h3>
                     <h4 className="text-danger fw-bold">N° {nota.prefijo}-{nota.numero_nota}</h4>
-                    <div>Fecha Emisión: {new Date(nota.date_created).toLocaleString('es-CO')}</div>
+                    <div>Fecha Emisión: {new Date(nota.date_created).toLocaleString(appConfig.formato_numero, {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                    })}</div>
                 </div>
             </div>
 
@@ -136,8 +155,8 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
                             <td>{item.sku_prefix || ''}{item.separador || ''}{item.sku}</td>
                             <td className="text-start">{item.nombre_producto}</td>
                             <td>{item.cantidad}</td>
-                            <td className="text-end">{formatCurrency(item.precio_unitario)}</td>
-                            <td className="text-end fw-bold">{formatCurrency(item.total)}</td>
+                            <td className="text-end">{renderCurrency(item.precio_unitario)}</td>
+                            <td className="text-end fw-bold">{renderCurrency(item.total)}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -155,12 +174,12 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
                 <Col sm={5}>
                     <table className="table table-sm table-borderless text-end fs-6">
                         <tbody>
-                            <tr><td><strong>Subtotal:</strong></td><td>{formatCurrency(nota.total_base)}</td></tr>
-                            <tr><td><strong>IVA:</strong></td><td>{formatCurrency(nota.total_iva)}</td></tr>
+                            <tr><td><strong>Subtotal:</strong></td><td>{renderCurrency(nota.total_base)}</td></tr>
+                            <tr><td><strong>IVA:</strong></td><td>{renderCurrency(nota.total_iva)}</td></tr>
                             <tr className="border-top border-dark border-2">
                                 <td className="fs-5"><strong>Total:</strong></td>
                                 <td className={`fs-5 fw-bold ${nota.tipo_nota === 'Crédito' ? 'text-danger' : 'text-primary'}`}>
-                                    {nota.tipo_nota === 'Crédito' ? '-' : '+'}{formatCurrency(nota.total_final).replace(getCurrencySymbol(almacenConf.moneda || 'COP'), '')}
+                                    {nota.tipo_nota === 'Crédito' ? '-' : '+'}{renderCurrency(nota.total_final).replace(getCurrencySymbol(appConfig.moneda), '')}
                                 </td>
                             </tr>
                         </tbody>

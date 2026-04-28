@@ -4,7 +4,7 @@ import { useFacturas } from "../../hooks/useFacturas"
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
-import { getCurrencySymbol } from '../../utils/currencies'
+import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
 
 export const VerFacturas = () => {
     const { facturas, loading, reload } = useFacturas();
@@ -45,15 +45,8 @@ export const VerFacturas = () => {
     }, []);
 
     // FUNCIÓN DE MONEDA PARA LA VISTA EN PANTALLA (Ignora el snapshot, usa config en vivo)
-    const formatCurrency = (val) => {
-        const numeroFormateado = new Intl.NumberFormat(appConfig.formato_numero, { 
-            style: 'decimal', 
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2 
-        }).format(val || 0);
-        
-        const simbolo = getCurrencySymbol(appConfig.moneda);
-        return `${simbolo}${numeroFormateado}`;
+    const _formatCurrency = (val) => {
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
     };
 
     const handleClose = () => {
@@ -256,7 +249,7 @@ export const VerFacturas = () => {
                                 <p className="mb-0">
                                     <strong>Deuda Pendiente:</strong>{' '}
                                     <span className={facturaSeleccionada.saldo_pendiente > 0 ? 'text-danger fw-bold' : 'text-success fw-bold'}>
-                                        {formatCurrency(facturaSeleccionada.saldo_pendiente)}
+                                        {_formatCurrency(facturaSeleccionada.saldo_pendiente)}
                                     </span>
                                 </p>
                             </Col>
@@ -280,24 +273,24 @@ export const VerFacturas = () => {
                         { 
                           data: 'precio_producto', 
                           title: 'V. Unitario',
-                          render: (data) => formatCurrency(data) // RENDER DIRECTO, infalible
+                          render: (data) => _formatCurrency(data) // RENDER DIRECTO, infalible
                         },
                         { data: 'cantidad_producto', title: 'Cantidad' },
                         { 
                           data: 'total', 
                           title: 'Total',
-                          render: (data) => `<strong>${formatCurrency(data)}</strong>` // RENDER DIRECTO, infalible
+                          render: (data) => `<strong>${_formatCurrency(data)}</strong>` // RENDER DIRECTO, infalible
                         },
                     ]}
                 />
 
                 {facturaSeleccionada && (
                     <div className="mt-3 p-3 bg-light rounded border text-end">
-                        <p className="mb-1"><strong>Subtotal:</strong> {formatCurrency(facturaSeleccionada.subtotal)}</p>
-                        <p className="mb-1 text-danger"><strong>Descuentos:</strong> -{formatCurrency(facturaSeleccionada.descuento)}</p>
-                        <p className="mb-2"><strong>IVA:</strong> {formatCurrency(facturaSeleccionada.iva)}</p>
+                        <p className="mb-1"><strong>Subtotal:</strong> {_formatCurrency(facturaSeleccionada.subtotal)}</p>
+                        <p className="mb-1 text-danger"><strong>Descuentos:</strong> -{_formatCurrency(facturaSeleccionada.descuento)}</p>
+                        <p className="mb-2"><strong>IVA:</strong> {_formatCurrency(facturaSeleccionada.iva)}</p>
                         <hr className="my-2" />
-                        <h4 className="mb-0 text-primary"><strong>Total Factura:</strong> {formatCurrency(facturaSeleccionada.total_factura)}</h4>
+                        <h4 className="mb-0 text-primary"><strong>Total Factura:</strong> {_formatCurrency(facturaSeleccionada.total_factura)}</h4>
                     </div>
                 )}
                 
@@ -335,7 +328,7 @@ export const VerFacturas = () => {
                                             <td><small className="text-muted">{nota.motivo_dian}</small></td>
                                             <td className={`text-end ${nota.tipo_nota === 'Crédito' ? 'text-danger fw-bold' : 'text-primary fw-bold'}`}>
                                                 {nota.tipo_nota === 'Crédito' ? '-' : '+'}
-                                                {formatCurrency(nota.total_final)} 
+                                                {_formatCurrency(nota.total_final)} 
                                             </td>
                                         </tr>
                                     ))}

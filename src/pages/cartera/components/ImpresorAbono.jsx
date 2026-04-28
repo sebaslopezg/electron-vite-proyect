@@ -1,21 +1,34 @@
+import { useState, useEffect } from 'react';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { BaseImpresor } from '../../../components/BaseImpresor';
-import { getCurrencySymbol } from '../../../utils/currencies';
+import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies';
 
 export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }) => {
     
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+    useEffect(() => {
+        const loadConfig = async () => {
+            const configData = await window.api.getConfiguracion();
+            const confAppRaw = configData.find(c => c.key === 'confApp');
+            if (confAppRaw) {
+                try {
+                    const parsed = JSON.parse(confAppRaw.value);
+                    setAppConfig({
+                        moneda: parsed.moneda || 'COP',
+                        formato_numero: parsed.formato_numero || 'es-CO'
+                    });
+                } catch(e) {}
+            }
+        };
+        if (show) loadConfig(); 
+    }, [show]);
+
     if (!abono || !almacenConf) return null;
 
-    const formatCurrency = (val) => {
-        const numeroFormateado = new Intl.NumberFormat(almacenConf.formato_numero || 'es-CO', {
-            style: 'decimal',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2
-        }).format(val || 0);
-
-        const simbolo = getCurrencySymbol(almacenConf.moneda || 'COP');
-        return `${simbolo}${numeroFormateado}`;
+    const renderCurrency = (val) => {
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
     };
 
     const facturaRef = `${abono.prefijo || ''}${almacenConf.separador || ''}${abono.numero_factura}`;
@@ -36,7 +49,11 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
                 <div className="mt-2 fw-bold border-top border-bottom border-dark py-1 fs-6">
                     RECIBO DE CAJA
                 </div>
-                <div>Fecha: {new Date(abono.date_created).toLocaleString('es-CO')}</div>
+                {/* FECHA POS EN VIVO */}
+                <div>Fecha: {new Date(abono.date_created).toLocaleString(appConfig.formato_numero, {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                })}</div>
             </div>
 
             <div className="mb-3">
@@ -49,7 +66,7 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
 
             <div className="border border-dark p-2 mb-2 bg-light text-center">
                 <div className="fs-6 mb-1">VALOR RECIBIDO</div>
-                <h4 className="fw-bold m-0">{formatCurrency(abono.valor)}</h4>
+                <h4 className="fw-bold m-0">{renderCurrency(abono.valor)}</h4>
             </div>
 
             <div className="mb-3 mt-2">
@@ -87,7 +104,11 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
                 </div>
                 <div className="text-end">
                     <h3 className="mb-0 text-success text-uppercase fw-bold">Recibo de Caja</h3>
-                    <div>Fecha: {new Date(abono.date_created).toLocaleString('es-CO')}</div>
+                    {/* FECHA A4 EN VIVO */}
+                    <div>Fecha: {new Date(abono.date_created).toLocaleString(appConfig.formato_numero, {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                    })}</div>
                 </div>
             </div>
 
@@ -106,7 +127,7 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
                     <div className="card border-success h-100 bg-light">
                         <div className="card-body text-center d-flex flex-column justify-content-center">
                             <p className="mb-1 fw-bold text-secondary">Abono a Factura N° {facturaRef}</p>
-                            <h2 className="text-success fw-bold m-0">{formatCurrency(abono.valor)}</h2>
+                            <h2 className="text-success fw-bold m-0">{renderCurrency(abono.valor)}</h2>
                         </div>
                     </div>
                 </Col>

@@ -4,8 +4,27 @@ import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import DataTableComponent from '../../components/DataTableComponent';
+import { formatCurrency } from '../../utils/currencies';
 
 export const NuevaNota = ({ onBack, onSuccess }) => {
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+    const loadConfig = async () => {
+        const configData = await window.api.getConfiguracion();
+        const confAppRaw = configData.find(c => c.key === 'confApp');
+        if (confAppRaw) {
+            try {
+                const parsed = JSON.parse(confAppRaw.value);
+                setAppConfig({
+                    moneda: parsed.moneda || 'COP',
+                    formato_numero: parsed.formato_numero || 'es-CO'
+                });
+            } catch(e) {}
+        }
+    };
+
+    useEffect(() => { loadConfig(); }, []);
+
     const [formData, setFormData] = useState({
         tipo_nota: 'Crédito',
         motivo_dian: 'Devolución de parte de los bienes',
@@ -149,6 +168,8 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             total_base: totales.base,
             total_iva: totales.iva,
             total_final: totales.final,
+            moneda: appConfig.moneda,
+            formato_numero: appConfig.formato_numero,
             afecta_inventario: formData.afecta_inventario,
             usuario: "Admin",
             items: items.map(item => ({
@@ -223,10 +244,12 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                                 <div className="alert alert-info py-2 m-0">
                                     <strong>Factura Seleccionada:</strong> {facturaCargada.prefijo || ''}{facturaCargada.separador || ''}{facturaCargada.numero_factura} | 
                                     <strong> Cliente:</strong> {facturaCargada.nombre_cliente} | 
-                                    <strong> Total Original:</strong> ${
-                                        productosDisponibles
-                                            .reduce((sum, item) => sum + (item.total || 0), 0)
-                                            .toLocaleString('es-CO')
+                                    <strong> Total Original:</strong> {
+                                        formatCurrency(
+                                            productosDisponibles.reduce((sum, item) => sum + (item.total || 0), 0),
+                                            appConfig.formato_numero,
+                                            appConfig.moneda
+                                        )
                                     }
                                 </div>
                             </div>
@@ -284,9 +307,9 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                                     }
                                 ]}
                                 customRenders={{
-                                    precio_unitario: (data) => `$${parseFloat(data).toLocaleString('es-CO')}`,
+                                    precio_unitario: (data) => formatCurrency(data, appConfig.formato_numero, appConfig.moneda),
                                     iva_percent: (data) => `${(parseFloat(data) * 100).toFixed(0)}%`,
-                                    total: (data) => `<strong>$${parseFloat(data).toLocaleString('es-CO')}</strong>`
+                                    total: (data) => `<strong>${formatCurrency(data, appConfig.formato_numero, appConfig.moneda)}</strong>`
                                 }}
                             />
                         </div>
@@ -296,10 +319,10 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                         <div className="col-md-4">
                             <table className="table table-sm table-borderless text-end fs-5">
                                 <tbody>
-                                    <tr><td className="fw-bold">Subtotal:</td><td>${totales.base.toLocaleString('es-CO')}</td></tr>
-                                    <tr><td className="fw-bold">IVA:</td><td>${totales.iva.toLocaleString('es-CO')}</td></tr>
+                                    <tr><td className="fw-bold">Subtotal:</td><td>{formatCurrency(totales.base, appConfig.formato_numero, appConfig.moneda)}</td></tr>
+                                    <tr><td className="fw-bold">IVA:</td><td>{formatCurrency(totales.iva, appConfig.formato_numero, appConfig.moneda)}</td></tr>
                                     <tr className="border-top border-2 border-dark">
-                                        <td className="fw-bold fs-4">Total:</td><td className="fw-bold fs-4 text-primary">${totales.final.toLocaleString('es-CO')}</td>
+                                        <td className="fw-bold fs-4">Total:</td><td className="fw-bold fs-4 text-primary">{formatCurrency(totales.final, appConfig.formato_numero, appConfig.moneda)}</td>
                                     </tr>
                                 </tbody>
                             </table>

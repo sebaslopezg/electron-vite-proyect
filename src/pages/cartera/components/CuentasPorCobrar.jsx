@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import DataTableComponent from '../../../components/DataTableComponent'
+import { formatCurrency } from '../../../utils/currencies'
 
-export const TabCuentasPorCobrar = ({ carteraData, onOpenModal }) => {
+export const TabCuentasPorCobrar = ({ carteraData, onOpenModal, appConfig }) => {
     const tableCobrarRef = useRef(null);
 
     useEffect(() => {
@@ -25,6 +26,7 @@ export const TabCuentasPorCobrar = ({ carteraData, onOpenModal }) => {
         <div className="animation-fade-in">
             <div ref={tableCobrarRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
+                    key={`cobrar-${appConfig.moneda}-${appConfig.formato_numero}`}
                     data={carteraData}
                     columns={[
                         { 
@@ -35,15 +37,15 @@ export const TabCuentasPorCobrar = ({ carteraData, onOpenModal }) => {
                         { data: 'nombre_cliente', title: 'Cliente' },
                         { 
                             data: 'date_created', title: 'Fecha Venta',
-                            render: (data) => new Date(data).toLocaleDateString('es-CO')
+                            render: (data) => new Date(data).toLocaleDateString(appConfig.formato_numero)
                         },
                         { 
                             data: 'total_factura', title: 'Total Venta',
-                            render: (data) => `$${parseFloat(data).toLocaleString('es-CO')}`
+                            render: (data) => formatCurrency(data, appConfig.formato_numero, appConfig.moneda)
                         },
                         { 
                             data: 'saldo_pendiente', title: 'Deuda Pendiente',
-                            render: (data) => `<strong class="text-danger fs-6">$${parseFloat(data).toLocaleString('es-CO')}</strong>`
+                            render: (data) => `<strong class="text-danger fs-6">${formatCurrency(data, appConfig.formato_numero, appConfig.moneda)}</strong>`
                         },
                         {
                             data: null, title: 'Acciones', orderable: false,

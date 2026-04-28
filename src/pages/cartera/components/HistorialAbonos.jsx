@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import DataTableComponent from '../../../components/DataTableComponent'
 import { ImpresorAbono } from './ImpresorAbono'
+import { formatCurrency } from '../../../utils/currencies'
 
-export const TabHistorialAbonos = ({ abonosData, almacenConf }) => {
+export const TabHistorialAbonos = ({ abonosData, almacenConf, appConfig }) => {
     const tableAbonosRef = useRef(null);    
     const [showPreview, setShowPreview] = useState(false);
     const [abonoSeleccionado, setAbonoSeleccionado] = useState(null);
@@ -30,11 +31,12 @@ export const TabHistorialAbonos = ({ abonosData, almacenConf }) => {
 
             <div ref={tableAbonosRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
+                    key={`historial-${appConfig.moneda}-${appConfig.formato_numero}`}
                     data={abonosData}
                     columns={[
                         { 
                             data: 'date_created', title: 'Fecha Abono',
-                            render: (data) => new Date(data).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
+                            render: (data) => new Date(data).toLocaleString(appConfig.formato_numero, { dateStyle: 'short', timeStyle: 'short' })
                         },
                         { 
                             data: null, title: 'Factura Pagada',
@@ -47,7 +49,7 @@ export const TabHistorialAbonos = ({ abonosData, almacenConf }) => {
                         },
                         { 
                             data: 'valor', title: 'Valor Abonado',
-                            render: (data) => `<strong class="text-success fs-6">+$${parseFloat(data).toLocaleString('es-CO')}</strong>`
+                            render: (data) => `<strong class="text-success fs-6">+${formatCurrency(data, appConfig.formato_numero, appConfig.moneda)}</strong>`
                         },
                         { data: 'usuario', title: 'Cajero' },
                         {

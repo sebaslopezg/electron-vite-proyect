@@ -10,9 +10,24 @@ export const Cartera = () => {
     const [abonosData, setAbonosData] = useState([])
     const [almacenConf, setAlmacenConf] = useState(null)
     const [activeTab, setActiveTab] = useState('cobrar') 
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
 
     const [showModal, setShowModal] = useState(false)
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
+
+    const loadConfig = async () => {
+        const configData = await window.api.getConfiguracion();
+        const confAppRaw = configData.find(c => c.key === 'confApp');
+        if (confAppRaw) {
+            try {
+                const parsed = JSON.parse(confAppRaw.value);
+                setAppConfig({
+                    moneda: parsed.moneda || 'COP',
+                    formato_numero: parsed.formato_numero || 'es-CO'
+                });
+            } catch(e) {}
+        }
+    };
 
     const loadDatos = async () => {
         const cuentas = await window.api.getCartera()
@@ -28,7 +43,10 @@ export const Cartera = () => {
     }
 
     useEffect(() => {
-        loadDatos()
+        loadDatos();
+        loadConfig();
+        window.addEventListener('config-actualizada', loadConfig);
+        return () => window.removeEventListener('config-actualizada', loadConfig);
     }, [])
 
     const handleOpenModal = (factura) => {
@@ -74,6 +92,7 @@ export const Cartera = () => {
                             <TabCuentasPorCobrar 
                                 carteraData={carteraData} 
                                 onOpenModal={handleOpenModal} 
+                                appConfig={appConfig}
                             />
                         )}
                         
@@ -81,6 +100,7 @@ export const Cartera = () => {
                             <TabHistorialAbonos 
                                 abonosData={abonosData} 
                                 almacenConf={almacenConf}
+                                appConfig={appConfig}
                             />
                         )}
                     </div>
@@ -89,12 +109,12 @@ export const Cartera = () => {
             </div>
         </section>
 
-        {/* MODAL EXTERNO */}
         <ModalAbono 
             show={showModal} 
             onClose={handleCloseModal} 
             factura={facturaSeleccionada} 
             onSuccess={loadDatos} 
+            appConfig={appConfig}
         />
     </>
 }

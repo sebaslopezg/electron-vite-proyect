@@ -11,5 +11,16 @@ export const CURRENCIES = [
 
 export const getCurrencySymbol = (code) => {
     const currency = CURRENCIES.find(c => c.code === code);
-    return currency ? currency.symbol : '$';
+    return currency ? currency.symbol : '$'; 
+};
+
+export const formatCurrency = (val, locale = 'es-CO', currencyCode = 'COP') => {
+    const numeroFormateado = new Intl.NumberFormat(locale, { 
+        style: 'decimal', 
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2 
+    }).format(val || 0);
+    
+    const simbolo = getCurrencySymbol(currencyCode);
+    return `${simbolo}${numeroFormateado}`;
 };

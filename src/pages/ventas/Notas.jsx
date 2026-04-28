@@ -5,6 +5,7 @@ import { NuevaNota } from './NuevaNota.jsx'
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col } from 'react-bootstrap'
 import { ImpresorNota } from '../../components/ImpresorNota'
+import { getCurrencySymbol } from '../../utils/currencies'
 
 export const Notas = () => {
     const [notasData, setNotasData] = useState([])
@@ -18,6 +19,33 @@ export const Notas = () => {
     const [showPreview, setShowPreview] = useState(false)
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
 
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+    const loadConfig = async () => {
+        const configData = await window.api.getConfiguracion();
+        const confAppRaw = configData.find(c => c.key === 'confApp');
+        if (confAppRaw) {
+            try {
+                const parsed = JSON.parse(confAppRaw.value);
+                setAppConfig({
+                    moneda: parsed.moneda || 'COP',
+                    formato_numero: parsed.formato_numero || 'es-CO'
+                });
+            } catch(e) {}
+        }
+    };
+
+    const formatCurrency = (val) => {
+        const numeroFormateado = new Intl.NumberFormat(appConfig.formato_numero, { 
+            style: 'decimal', 
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2 
+        }).format(val || 0);
+        
+        const simbolo = getCurrencySymbol(appConfig.moneda);
+        return `${simbolo}${numeroFormateado}`;
+    };
+
     const loadNotas = async () => {
         try {
             const data = await window.api.getNotas() 
@@ -28,7 +56,10 @@ export const Notas = () => {
     }
 
     useEffect(() => {
-        loadNotas()
+        loadNotas();
+        loadConfig();
+        window.addEventListener('config-actualizada', loadConfig);
+        return () => window.removeEventListener('config-actualizada', loadConfig);
     }, [])
 
     const handleCloseModal = () => {
@@ -94,7 +125,7 @@ export const Notas = () => {
                 const item = JSON.parse(rawData);
 
                 if (btn.classList.contains('btn-view')) handleViewDetails(item);
-                else if (btn.classList.contains('btn-print')) imprimirDirecto(item); // Cambiado a imprimirDirecto
+                else if (btn.classList.contains('btn-print')) imprimirDirecto(item); 
                 
             } catch(err) { console.error("Error leyendo datos del botón", err); }
         };
@@ -125,6 +156,7 @@ export const Notas = () => {
 
             <div ref={tableContainerRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
+                    key={`notas-main-${appConfig.moneda}-${appConfig.formato_numero}`}
                     data={notasData}
                     columns={[
                         { 
@@ -151,7 +183,12 @@ export const Notas = () => {
                         { 
                             data: 'date_created', 
                             title: 'Fecha',
-                            render: (data) => new Date(data).toLocaleDateString('es-CO')
+                            render: (data) => {
+                                if (!data) return '-';
+                                return new Date(data).toLocaleString(appConfig.formato_numero, {
+                                    day: '2-digit', month: '2-digit', year: 'numeric'
+                                });
+                            }
                         },
                         { data: 'motivo_dian', title: 'Motivo' },
                         { 
@@ -160,7 +197,7 @@ export const Notas = () => {
                             render: (data, type, row) => {
                                 const color = row.tipo_nota === 'Crédito' ? 'text-danger' : 'text-primary';
                                 const sign = row.tipo_nota === 'Crédito' ? '-' : '+';
-                                return `<strong class="${color}">${sign}$${parseFloat(data).toLocaleString('es-CO', { minimumFractionDigits: 0 })}</strong>`;
+                                return `<strong class="${color}">${sign}${formatCurrency(data)}</strong>`;
                             }
                         },
                         {
@@ -190,7 +227,6 @@ export const Notas = () => {
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    {/* BOTÓN ÚNICO DE IMPRESIÓN */}
                     <div className="d-flex justify-content-end mb-3">
                         <Button variant="primary" onClick={handlePrepararImpresion}>
                             <i className="bi bi-printer me-2"></i> Imprimir Nota
@@ -220,6 +256,7 @@ export const Notas = () => {
                     )}
 
                     <DataTableComponent
+                        key={`detalle-nota-${appConfig.moneda}-${appConfig.formato_numero}-${notaSeleccionada?.id}`}
                         data={detalleData}
                         columns={[
                             { 
@@ -232,25 +269,31 @@ export const Notas = () => {
                             },
                             { data: 'nombre_producto', title: 'Producto' },
                             { data: 'cantidad', title: 'Cant.' },
-                            { data: 'precio_unitario', title: 'V. Unitario' },
+                            { 
+                              data: 'precio_unitario', 
+                              title: 'V. Unitario',
+                              render: (data) => formatCurrency(data)
+                            },
                             { data: 'iva_percent', title: 'IVA' },
-                            { data: 'total', title: 'Total' },
+                            { 
+                              data: 'total', 
+                              title: 'Total',
+                              render: (data) => `<strong>${formatCurrency(data)}</strong>`
+                            },
                         ]}
                         customRenders={{
-                            precio_unitario: (data) => `$${parseFloat(data).toLocaleString('es-CO')}`,
                             iva_percent: (data) => `${(parseFloat(data) * 100).toFixed(0)}%`,
-                            total: (data) => `<strong>$${parseFloat(data).toLocaleString('es-CO')}</strong>`
                         }}
                     />
 
                     {notaSeleccionada && (
                         <div className="mt-3 p-3 bg-light rounded border text-end">
-                            <p className="mb-1"><strong>Subtotal:</strong> ${(notaSeleccionada.total_base || 0).toLocaleString('es-CO')}</p>
-                            <p className="mb-2"><strong>IVA:</strong> ${(notaSeleccionada.total_iva || 0).toLocaleString('es-CO')}</p>
+                            <p className="mb-1"><strong>Subtotal:</strong> {formatCurrency(notaSeleccionada.total_base)}</p>
+                            <p className="mb-2"><strong>IVA:</strong> {formatCurrency(notaSeleccionada.total_iva)}</p>
                             <hr className="my-2" />
                             <h4 className={`mb-0 ${notaSeleccionada.tipo_nota === 'Crédito' ? 'text-danger' : 'text-primary'}`}>
                                 <strong>Total {notaSeleccionada.tipo_nota === 'Crédito' ? 'a favor del cliente' : 'a cobrar'}:</strong> 
-                                {' '}{notaSeleccionada.tipo_nota === 'Crédito' ? '-' : '+'}${(notaSeleccionada.total_final || 0).toLocaleString('es-CO')}
+                                {' '}{notaSeleccionada.tipo_nota === 'Crédito' ? '-' : '+'}{formatCurrency(notaSeleccionada.total_final)}
                             </h4>
                         </div>
                     )}
@@ -258,7 +301,7 @@ export const Notas = () => {
                     {notaSeleccionada && notaSeleccionada.observaciones && (
                         <div className="mt-3">
                             <strong>Observaciones:</strong>
-                            <p className="text-muted fst-italic">{notaSeleccionada.observaciones}</p>
+                            <p className="text-muted fst-italic border p-2 mt-1 rounded bg-white">{notaSeleccionada.observaciones}</p>
                         </div>
                     )}
 
@@ -267,6 +310,7 @@ export const Notas = () => {
                     <Button variant="secondary" onClick={handleCloseModal}>Cerrar</Button>
                 </Modal.Footer>
             </Modal>
+            
             <ImpresorNota 
                 show={showPreview} 
                 onClose={handleCerrarPreview} 

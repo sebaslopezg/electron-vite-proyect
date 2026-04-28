@@ -1,21 +1,34 @@
+import { useState, useEffect } from 'react';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { BaseImpresor } from '../../../components/BaseImpresor';
-import { getCurrencySymbol } from '../../../utils/currencies';
+import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies';
 
 export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf, textoVolver }) => {
     
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+    useEffect(() => {
+        const loadConfig = async () => {
+            const configData = await window.api.getConfiguracion();
+            const confAppRaw = configData.find(c => c.key === 'confApp');
+            if (confAppRaw) {
+                try {
+                    const parsed = JSON.parse(confAppRaw.value);
+                    setAppConfig({
+                        moneda: parsed.moneda || 'COP',
+                        formato_numero: parsed.formato_numero || 'es-CO'
+                    });
+                } catch(e) {}
+            }
+        };
+        if (show) loadConfig();
+    }, [show]);
+
     if (!factura || !almacenConf) return null;
 
-    const formatCurrency = (val) => {
-        const numeroFormateado = new Intl.NumberFormat(factura.formato_numero || 'es-CO', {
-            style: 'decimal',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2
-        }).format(val || 0);
-
-        const simbolo = getCurrencySymbol(factura.moneda || 'COP');
-        return `${simbolo}${numeroFormateado}`;
+    const renderCurrency = (val) => {
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
     };
 
     const numFactura = `${factura.prefijo || ''}${almacenConf.separador || ''}${factura.numero_factura}`;
@@ -39,7 +52,10 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 <div className="mt-2 fw-bold border-top border-bottom border-dark py-1">
                     {almacenConf.nombreFactura} N° {numFactura}
                 </div>
-                <div>{new Date(factura.date_created).toLocaleString('es-CO')}</div>
+                <div>{new Date(factura.date_created).toLocaleString(appConfig.formato_numero, {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                })}</div>
             </div>
 
             <div className="mb-2">
@@ -60,23 +76,23 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                         <tr key={idx}>
                             <td className="text-start align-top">{item.cantidad_producto}</td>
                             <td className="text-start pe-1">{item.nombre_producto}</td>
-                            <td className="text-end align-top">{formatCurrency(item.total)}</td>
+                            <td className="text-end align-top">{renderCurrency(item.total)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
 
             <div className="mt-2 text-end border-bottom border-dark pb-2">
-                <div>Subtotal: {formatCurrency(factura.subtotal)}</div>
-                {factura.descuento > 0 && <div>Desc: -{formatCurrency(factura.descuento)}</div>}
-                <div>IVA: {formatCurrency(factura.iva)}</div>
-                <h6 className="fw-bold mt-1 fs-6">TOTAL: {formatCurrency(factura.total_factura)}</h6>
+                <div>Subtotal: {renderCurrency(factura.subtotal)}</div>
+                {factura.descuento > 0 && <div>Desc: -{renderCurrency(factura.descuento)}</div>}
+                <div>IVA: {renderCurrency(factura.iva)}</div>
+                <h6 className="fw-bold mt-1 fs-6">TOTAL: {renderCurrency(factura.total_factura)}</h6>
             </div>
 
             <div className="mt-2">
                 <div className="text-capitalize"><strong>Pago:</strong> {factura.tipo_pago} ({factura.metodo_pago})</div>
-                <div>Recibido: {formatCurrency(totalRecibidoReal)}</div>
-                <div>Cambio/Saldo: {formatCurrency(saldoPendienteReal)}</div>
+                <div>Recibido: {renderCurrency(totalRecibidoReal)}</div>
+                <div>Cambio/Saldo: {renderCurrency(saldoPendienteReal)}</div>
             </div>
 
             <div className="text-center mt-3 border-top border-dark pt-2">
@@ -103,7 +119,10 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 <div className="text-end">
                     <h3 className="mb-0 text-secondary text-uppercase">{almacenConf.nombreFactura}</h3>
                     <h4 className="text-danger fw-bold">N° {numFactura}</h4>
-                    <div>Fecha Emisión: {new Date(factura.date_created).toLocaleString('es-CO')}</div>
+                    <div>Fecha Emisión: {new Date(factura.date_created).toLocaleString(appConfig.formato_numero, {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                    })}</div>
                 </div>
             </div>
 
@@ -134,8 +153,8 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                             <td>{item.sku_prefix || ''}{item.separador || ''}{item.sku}</td>
                             <td className="text-start">{item.nombre_producto}</td>
                             <td>{item.cantidad_producto}</td>
-                            <td className="text-end">{formatCurrency(item.precio_producto)}</td>
-                            <td className="text-end fw-bold">{formatCurrency(item.total)}</td>
+                            <td className="text-end">{renderCurrency(item.precio_producto)}</td>
+                            <td className="text-end fw-bold">{renderCurrency(item.total)}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -145,12 +164,12 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 <Col sm={5}>
                     <table className="table table-sm table-borderless text-end fs-6">
                         <tbody>
-                            <tr><td><strong>Subtotal:</strong></td><td>{formatCurrency(factura.subtotal)}</td></tr>
-                            {factura.descuento > 0 && <tr><td><strong>Descuento:</strong></td><td className="text-danger">-{formatCurrency(factura.descuento)}</td></tr>}
-                            <tr><td><strong>IVA:</strong></td><td>{formatCurrency(factura.iva)}</td></tr>
-                            <tr className="border-top border-dark border-2"><td className="fs-5"><strong>Total:</strong></td><td className="fs-5 fw-bold">{formatCurrency(factura.total_factura)}</td></tr>
-                            <tr><td><strong className="text-muted fs-6">Recibido:</strong></td><td className="text-muted fs-6">{formatCurrency(totalRecibidoReal)}</td></tr>
-                            <tr><td><strong className="text-muted fs-6">Saldo/Cambio:</strong></td><td className="text-muted fs-6">{formatCurrency(saldoPendienteReal)}</td></tr>
+                            <tr><td><strong>Subtotal:</strong></td><td>{renderCurrency(factura.subtotal)}</td></tr>
+                            {factura.descuento > 0 && <tr><td><strong>Descuento:</strong></td><td className="text-danger">-{renderCurrency(factura.descuento)}</td></tr>}
+                            <tr><td><strong>IVA:</strong></td><td>{renderCurrency(factura.iva)}</td></tr>
+                            <tr className="border-top border-dark border-2"><td className="fs-5"><strong>Total:</strong></td><td className="fs-5 fw-bold">{renderCurrency(factura.total_factura)}</td></tr>
+                            <tr><td><strong className="text-muted fs-6">Recibido:</strong></td><td className="text-muted fs-6">{renderCurrency(totalRecibidoReal)}</td></tr>
+                            <tr><td><strong className="text-muted fs-6">Saldo/Cambio:</strong></td><td className="text-muted fs-6">{renderCurrency(saldoPendienteReal)}</td></tr>
                         </tbody>
                     </table>
                 </Col>

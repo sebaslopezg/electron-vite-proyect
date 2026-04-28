@@ -56,6 +56,8 @@ export const registerNotasHandlers = () => {
           total_base, 
           total_iva, 
           total_final, 
+          moneda,
+          formato_numero,
           status, 
           date_created, 
           date_modify, 
@@ -75,6 +77,8 @@ export const registerNotasHandlers = () => {
           @total_base, 
           @total_iva, 
           @total_final, 
+          @moneda,
+          @formato_numero,
           1, 
           @now, 
           @now, 
@@ -96,6 +100,8 @@ export const registerNotasHandlers = () => {
         total_base: notaData.total_base,
         total_iva: notaData.total_iva,
         total_final: notaData.total_final,
+        moneda: notaData.moneda || 'COP',
+        formato_numero: notaData.formato_numero || 'es-CO',
         now: now,
         usuario: currentUser
       });

@@ -4,7 +4,7 @@ import DataTableComponent from '../../components/DataTableComponent'
 import { Button, InputGroup, Form, Row, Col } from 'react-bootstrap'
 import Modal from 'react-bootstrap/Modal'
 import { ImpresorFactura } from './components/ImpresorFactura'
-import { getCurrencySymbol } from '../../utils/currencies'
+import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
 
 export const Facturacion = () => {
   const [productos, setProductos] = useState([])
@@ -69,14 +69,9 @@ export const Facturacion = () => {
     return () => window.removeEventListener('config-actualizada', loadConfig);
   }, [])
 
-  const formatCurrency = (val) => {
-      const numeroFormateado = new Intl.NumberFormat(appConfig.formato_numero, { 
-          style: 'decimal', 
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 2 
-      }).format(val || 0);
-      const simbolo = getCurrencySymbol(appConfig.moneda);
-      return `${simbolo}${numeroFormateado}`;
+  // FUNCIÓN DE MONEDA PARA LA VISTA EN PANTALLA (Ignora el snapshot, usa config en vivo)
+  const renderCurrency = (val) => {
+      return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
   };
 
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
@@ -185,7 +180,7 @@ export const Facturacion = () => {
         { 
           data: 'precio', 
           title: 'Precio',
-          render: (data, type, row) => formatCurrency(row.precio) 
+          render: (data, type, row) => renderCurrency(row.precio) 
         },
         {
           data: null,
@@ -573,7 +568,7 @@ export const Facturacion = () => {
               {
                 data: 'precio',
                 title: 'Precio',
-                render: (data, type, row) => formatCurrency(row.precio) 
+                render: (data, type, row) => renderCurrency(row.precio) 
               },
               {
                 data: null,
@@ -606,7 +601,7 @@ export const Facturacion = () => {
                 render: (data, type, row) => {
                   const sub = row.precio * row.cantidad;
                   const desc = row.tipoDescuento === 'porcentaje' ? sub * (row.descuento / 100) : row.descuento;
-                  return `<strong>${formatCurrency(sub - desc)}</strong>`;
+                  return `<strong>${renderCurrency(sub - desc)}</strong>`;
                 }
               },
               {
@@ -632,30 +627,30 @@ export const Facturacion = () => {
 
             <div className="d-flex justify-content-between mb-2">
               <span>Subtotal:</span>
-              <span>{formatCurrency(subtotal)}</span>
+              <span>{renderCurrency(subtotal)}</span>
             </div>
 
             {resumen.totalDescuentos > 0 && (
               <div className="d-flex justify-content-between mb-2 text-danger font-italic">
                 <span>Total Descuentos:</span>
-                <span>-{formatCurrency(resumen.totalDescuentos)}</span>
+                <span>-{renderCurrency(resumen.totalDescuentos)}</span>
               </div>
             )}
 
             <div className="d-flex justify-content-between mb-2 border-top pt-2">
               <strong>Subtotal Neto:</strong>
-              <strong>{formatCurrency(subtotalNeto)}</strong>
+              <strong>{renderCurrency(subtotalNeto)}</strong>
             </div>
 
             <div className="d-flex justify-content-between mb-2 text-muted">
               <span>IVA:</span>
-              <span>{formatCurrency(ivaTotal)}</span>
+              <span>{renderCurrency(ivaTotal)}</span>
             </div>
 
             <hr />
             <div className="d-flex justify-content-between mb-3">
               <span className="h5">Total:</span>
-              <span className="h5 text-primary">{formatCurrency(totalFinal)}</span>
+              <span className="h5 text-primary">{renderCurrency(totalFinal)}</span>
             </div>
 
             <Form.Group className="mb-3 bg-light p-2 rounded">
@@ -674,14 +669,14 @@ export const Facturacion = () => {
             {recibidoNum > totalFinal && (
               <div className="d-flex justify-content-between mb-3 text-success">
                 <strong>Cambio a devolver:</strong>
-                <strong className="fs-5">{formatCurrency(cambio)}</strong>
+                <strong className="fs-5">{renderCurrency(cambio)}</strong>
               </div>
             )}
 
             {recibidoNum > 0 && recibidoNum < totalFinal && (
               <div className="d-flex justify-content-between mb-3 text-warning">
                 <strong>Saldo pendiente (Deuda):</strong>
-                <strong>{formatCurrency(saldoPendiente)}</strong>
+                <strong>{renderCurrency(saldoPendiente)}</strong>
               </div>
             )}
 
