@@ -7,7 +7,6 @@ export const ProductosIndex = () => {
     return (
         <div className="card">
             <div className="card-body">
-                {/* PESTAÑAS */}
                 <ul className="nav nav-tabs nav-tabs-bordered mt-3" id="borderedTab" role="tablist">
                     <li className="nav-item" role="presentation">
                         <button
@@ -59,7 +58,6 @@ export const ProductosIndex = () => {
                     </li>
                 </ul>
 
-                {/* CONTENIDO DE LAS PESTAÑAS */}
                 <div className="tab-content pt-2" id="borderedTabContent">
                     <div className="tab-pane fade show active" id="productos" role="tabpanel">
                         <Productos />

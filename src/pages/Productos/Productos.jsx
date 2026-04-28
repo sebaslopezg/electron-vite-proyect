@@ -7,6 +7,7 @@ import {
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import ProductModal from '../../components/ProductoModal';
+import { formatCurrency } from '../../utils/currencies';
 
 export const Productos = () => {
 
@@ -27,6 +28,26 @@ export const Productos = () => {
   const [form, setForm] = useState({ ...emptyForm })
   const [editingId, setEditingId] = useState(null)
   
+  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+  const loadConfig = async () => {
+      const configData = await window.api.getConfiguracion();
+      const confAppRaw = configData.find(c => c.key === 'confApp');
+      if (confAppRaw) {
+          try {
+              const parsed = JSON.parse(confAppRaw.value);
+              setAppConfig({
+                  moneda: parsed.moneda || 'COP',
+                  formato_numero: parsed.formato_numero || 'es-CO'
+              });
+          } catch(e) {}
+      }
+  };
+
+  const renderCurrency = (val) => {
+      return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
+  };
+
   const loadSelectsData = useCallback(async () => {
     const [catsData, tagsData] = await Promise.all([
       window.api.getCategorias(),
@@ -38,7 +59,13 @@ export const Productos = () => {
 
   const cleanForm = () => setForm({ ...emptyForm })
 
-  useEffect(() => { loadSelectsData() }, [loadSelectsData])
+  useEffect(() => { 
+    loadSelectsData();
+    loadConfig();
+    
+    window.addEventListener('config-actualizada', loadConfig);
+    return () => window.removeEventListener('config-actualizada', loadConfig);
+  }, [loadSelectsData])
 
   const tableContainerRef = useRef(null);
 
@@ -121,6 +148,7 @@ export const Productos = () => {
 
     <div ref={tableContainerRef} className="w-100">
       <CustomDataTable
+        key={`productos-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
         reloadKey={reloadTable}
         ajaxData={(params) => window.api.getProductosPaginados(params)}
         columns={[
@@ -135,7 +163,11 @@ export const Productos = () => {
           },
           { data: 'categoria_nombre', title: 'Categoría', render: (data) => data || 'General' },
           { data: 'stock', title: 'Stock', render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` },
-          { data: 'precio', title: 'Precio', render: (data) => `$${(data||0).toLocaleString('es-CO')}` },
+          { 
+            data: 'precio', 
+            title: 'Precio', 
+            render: (data) => renderCurrency(data) 
+          },
           { data: 'status', title: 'Estado', render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` },
           {
             data: null,

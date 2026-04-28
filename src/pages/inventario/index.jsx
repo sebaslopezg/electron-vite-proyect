@@ -5,6 +5,7 @@ import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Row, Col } from 'react-bootstrap'
 import Swal from 'sweetalert2'
+import { formatCurrency } from '../../utils/currencies'
 
 export const Inventario = () => {
   const [show, setShow] = useState(false)
@@ -22,11 +23,31 @@ export const Inventario = () => {
     title: 'Registro', 
     description: 'Ingrese la cantidad', 
     increase: null 
-})
+  })
 
-    const [showHistory, setShowHistory] = useState(false)
-    const [historyProductId, setHistoryProductId] = useState(null)
-    const [historyTitle, setHistoryTitle] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyProductId, setHistoryProductId] = useState(null)
+  const [historyTitle, setHistoryTitle] = useState('')
+
+  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+  const loadConfig = async () => {
+      const configData = await window.api.getConfiguracion();
+      const confAppRaw = configData.find(c => c.key === 'confApp');
+      if (confAppRaw) {
+          try {
+              const parsed = JSON.parse(confAppRaw.value);
+              setAppConfig({
+                  moneda: parsed.moneda || 'COP',
+                  formato_numero: parsed.formato_numero || 'es-CO'
+              });
+          } catch(e) {}
+      }
+  };
+
+  const renderCurrency = (val) => {
+      return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
+  };
 
   const handleClose = () => {
     setShow(false)
@@ -45,7 +66,12 @@ export const Inventario = () => {
     setEtiquetasList(tags || [])
   }
 
-  useEffect(() => { loadFilters() }, [])
+  useEffect(() => { 
+      loadFilters();
+      loadConfig();
+      window.addEventListener('config-actualizada', loadConfig);
+      return () => window.removeEventListener('config-actualizada', loadConfig);
+  }, [])
 
   const handleIncrease = async (row) => {
     setSelectedProduct(row)
@@ -98,11 +124,11 @@ export const Inventario = () => {
     }
   }
 
-    const viewHistory = (row) => {
-        setHistoryTitle(`Historial - ${row.ref_name}`)
-        setHistoryProductId(row.id)
-        setShowHistory(true)
-    }
+  const viewHistory = (row) => {
+      setHistoryTitle(`Historial - ${row.ref_name}`)
+      setHistoryProductId(row.id)
+      setShowHistory(true)
+  }
 
   const tableContainerRef = useRef(null);
 
@@ -166,7 +192,7 @@ export const Inventario = () => {
 
                 <div ref={tableContainerRef} className="w-100 overflow-hidden">
                     <CustomDataTable 
-                        key={`inv-${filterCategory}-${filterTag}-${reloadTable}`} 
+                        key={`inv-${filterCategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
                         ajaxData={(params) => {
                             params.customCategory = filterCategory;
                             params.customTag = filterTag;
@@ -192,7 +218,7 @@ export const Inventario = () => {
                             },
                             { 
                                 data: 'precio', title: 'Precio',
-                                render: (data) => `$${parseFloat(data||0).toLocaleString('es-CO', { minimumFractionDigits: 2 })}`
+                                render: (data) => renderCurrency(data)
                             },
                             {
                                 data: null, title: 'Acciones', orderable: false,
@@ -244,7 +270,7 @@ export const Inventario = () => {
             <Modal.Body className="p-3">
                 {historyProductId && (
                     <CustomDataTable 
-                        key={`history-${historyProductId}`}
+                        key={`history-${historyProductId}-${appConfig.formato_numero}`}
                         
                         ajaxData={(params) => {
                             params.productoId = historyProductId;
@@ -252,7 +278,16 @@ export const Inventario = () => {
                         }}
                         
                         columns={[
-                            { data: 'fecha', title: 'Fecha', render: (data) => new Date(data).toLocaleString('es-CO') },
+                            { 
+                                data: 'fecha', title: 'Fecha', 
+                                render: (data) => {
+                                    if (!data) return '-';
+                                    return new Date(data).toLocaleString(appConfig.formato_numero, {
+                                        day: '2-digit', month: '2-digit', year: 'numeric',
+                                        hour: '2-digit', minute: '2-digit', hour12: true
+                                    });
+                                }
+                            },
                             { 
                                 data: 'tipo_movimiento', title: 'Tipo',
                                 render: (data) => {
