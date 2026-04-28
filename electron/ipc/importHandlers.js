@@ -46,7 +46,6 @@ const sanitizeSqlToSqlite = (sql) => {
 
 export const registerImportHandlers = () => {
 
-    // 1. SELECTOR NATIVO DE ARCHIVOS
     ipcMain.handle("select-db-file", async () => {
         const result = await dialog.showOpenDialog({
             title: 'Seleccionar Base de Datos',
@@ -69,7 +68,6 @@ export const registerImportHandlers = () => {
         }
     });
 
-    // 2. LEER ARCHIVO Y EXTRAER ESQUEMA
     ipcMain.handle("read-external-db", (_, filePath) => {
         try {
             if (!filePath) return { success: false, error: "La ruta del archivo es inválida." };
@@ -115,7 +113,6 @@ export const registerImportHandlers = () => {
         }
     });
 
-    // 3. OBTENER ESQUEMA DE CAEDRO
     ipcMain.handle("get-internal-schema", () => {
         try {
             const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
@@ -130,7 +127,6 @@ export const registerImportHandlers = () => {
         }
     });
 
-    // 4. PREVISUALIZAR DATOS DE UNA TABLA (¡Solo uno de estos!)
     ipcMain.handle("preview-external-table", (_, { filePath, tableName }) => {
         try {
             if (!fs.existsSync(filePath)) return { success: false, error: "El archivo de base de datos no se encuentra." };
@@ -187,7 +183,6 @@ export const registerImportHandlers = () => {
                         }
                     }
 
-                    // Intentamos insertar la fila
                     try {
                         insertStmt.run(values);
                         count++;
@@ -226,7 +221,6 @@ export const registerImportHandlers = () => {
                 return { count, fixed, skipped };
             });
 
-            // Ejecutamos la transacción
             const stats = transaction(sourceData);
             
             return { 
@@ -240,4 +234,208 @@ export const registerImportHandlers = () => {
             return { success: false, error: error.message };
         }
     });
-}
+
+
+    ipcMain.handle("import-facturas-relacionadas", (_, { filePath, tablaMaestroOrigen, tablaDetalleOrigen, mapMaestro, mapDetalle }) => {
+        let extDb;
+        try {
+            if (!fs.existsSync(filePath)) return { success: false, error: "El archivo de base de datos no se encuentra." };
+            
+            extDb = new Database(filePath, { readonly: true });
+            
+            const maestrosViejos = extDb.prepare(`SELECT * FROM ${tablaMaestroOrigen}`).all();
+            const detallesViejos = extDb.prepare(`SELECT * FROM ${tablaDetalleOrigen}`).all();
+            
+            extDb.close();
+
+            const transaction = db.transaction(() => {
+                const now = new Date().toISOString();
+                let facturasImportadas = 0;
+                let detallesImportados = 0;
+
+                const insertMaestro = db.prepare(`
+                    INSERT INTO ventasMaestro (
+                        id, numero_factura, prefijo, separador, 
+                        nombre_cliente, documento_cliente,
+                        subtotal, descuento, iva, total_factura,
+                        total_recibido, saldo_pendiente, total_recibido_original, saldo_pendiente_original,
+                        tipo_pago, metodo_pago, moneda, formato_numero,
+                        status, date_created, date_modify, modify_by
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'system'
+                    )
+                `);
+
+                const insertDetalle = db.prepare(`
+                    INSERT INTO ventasDetalle (
+                        id, maestro_id, id_producto, nombre_producto, 
+                        precio_producto, cantidad_producto, total, is_encargo, status, date_created
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)
+                `);
+
+                for (const mViejo of maestrosViejos) {
+                    const nuevoMaestroId = uuidv4();
+                    
+                    const nroFactura = mViejo[mapMaestro.numero_factura] || facturasImportadas + 1;
+                    const totalFactura = parseFloat(mViejo[mapMaestro.total_factura] || 0);
+                    const docCliente = String(mViejo[mapMaestro.documento_cliente] || '222222222222');
+                    
+                    insertMaestro.run(
+                        nuevoMaestroId,
+                        nroFactura,
+                        'H',
+                        '-',
+                        String(mViejo[mapMaestro.nombre_cliente] || 'Consumidor Final'),
+                        docCliente,
+                        parseFloat(mViejo[mapMaestro.subtotal] || totalFactura),
+                        parseFloat(mViejo[mapMaestro.descuento] || 0),
+                        parseFloat(mViejo[mapMaestro.iva] || 0),
+                        totalFactura,
+                        totalFactura,
+                        0,
+                        totalFactura,
+                        0,
+                        'contado',
+                        'Efectivo',
+                        'COP',
+                        'es-CO',
+                        now,
+                        now
+                    );
+                    facturasImportadas++;
+
+                    const llaveForaneaVieja = mapDetalle.foreign_key_column;
+                    const idMaestroViejo = mViejo[mapMaestro.id_column];
+
+                    const misDetalles = detallesViejos.filter(d => String(d[llaveForaneaVieja]) === String(idMaestroViejo));
+
+                    for (const dViejo of misDetalles) {
+                        const cant = parseFloat(dViejo[mapDetalle.cantidad_producto] || 1);
+                        const precio = parseFloat(dViejo[mapDetalle.precio_producto] || 0);
+                        const totalItem = parseFloat(dViejo[mapDetalle.total] || (cant * precio));
+
+                        insertDetalle.run(
+                            uuidv4(),
+                            nuevoMaestroId,
+                            'importado',
+                            String(dViejo[mapDetalle.nombre_producto] || 'Producto Histórico'),
+                            precio,
+                            cant,
+                            totalItem,
+                            now
+                        );
+                        detallesImportados++;
+                    }
+                }
+                
+                return { facturasImportadas, detallesImportados };
+            });
+
+            const stats = transaction();
+            return { success: true, ...stats };
+
+        } catch (error) {
+            if (extDb && extDb.open) extDb.close();
+            console.error("Error en importación relacional:", error);
+            return { success: false, error: error.message };
+        }
+    });
+
+
+    // IMPORTACIÓN DESDE COLUMNA JSON
+    ipcMain.handle("import-facturas-json", (_, { filePath, sourceTable, jsonColumn, mapMaestro, mapDetalle }) => {
+        let extDb;
+        try {
+            if (!fs.existsSync(filePath)) return { success: false, error: "Archivo no encontrado." };
+            extDb = new Database(filePath, { readonly: true });
+            
+            const maestrosViejos = extDb.prepare(`SELECT * FROM ${sourceTable}`).all();
+            extDb.close();
+
+            const extractArray = (obj) => {
+                if (Array.isArray(obj)) return obj;
+                if (typeof obj === 'object' && obj !== null) {
+                    for (const key in obj) { if (Array.isArray(obj[key])) return obj[key]; }
+                    for (const key in obj) {
+                        if (typeof obj[key] === 'object' && obj[key] !== null) {
+                            for (const k2 in obj[key]) { if (Array.isArray(obj[key][k2])) return obj[key][k2]; }
+                        }
+                    }
+                }
+                return [];
+            };
+
+            const transaction = db.transaction(() => {
+                const now = new Date().toISOString();
+                let facturasImportadas = 0;
+                let detallesImportados = 0;
+
+                const insertMaestro = db.prepare(`
+                    INSERT INTO ventasMaestro (
+                        id, numero_factura, prefijo, separador, nombre_cliente, documento_cliente,
+                        subtotal, descuento, iva, total_factura, total_recibido, saldo_pendiente,
+                        total_recibido_original, saldo_pendiente_original, tipo_pago, metodo_pago, 
+                        moneda, formato_numero, status, date_created, date_modify, modify_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'system')
+                `);
+
+                const insertDetalle = db.prepare(`
+                    INSERT INTO ventasDetalle (
+                        id, maestro_id, id_producto, nombre_producto, precio_producto, 
+                        cantidad_producto, total, is_encargo, status, date_created
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)
+                `);
+
+                for (const mViejo of maestrosViejos) {
+                    const nuevoMaestroId = uuidv4();
+                    const nroFactura = mViejo[mapMaestro.numero_factura] || facturasImportadas + 1;
+                    const totalFactura = parseFloat(mViejo[mapMaestro.total_factura] || 0);
+                    
+                    insertMaestro.run(
+                        nuevoMaestroId, nroFactura, 'J', '-',
+                        String(mViejo[mapMaestro.nombre_cliente] || 'Consumidor Final'),
+                        String(mViejo[mapMaestro.documento_cliente] || '222222222222'),
+                        parseFloat(mViejo[mapMaestro.subtotal] || totalFactura),
+                        parseFloat(mViejo[mapMaestro.descuento] || 0),
+                        parseFloat(mViejo[mapMaestro.iva] || 0),
+                        totalFactura, totalFactura, 0, totalFactura, 0,
+                        'contado', 'Efectivo', 'COP', 'es-CO', now, now
+                    );
+                    facturasImportadas++;
+
+                    if (mViejo[jsonColumn]) {
+                        try {
+                            const parsedJson = JSON.parse(mViejo[jsonColumn]);
+                            const items = extractArray(parsedJson);
+
+                            for (const item of items) {
+                                const cant = parseFloat(item[mapDetalle.cantidad_producto] || 1);
+                                const precio = parseFloat(item[mapDetalle.precio_producto] || 0);
+                                const totalItem = parseFloat(item[mapDetalle.total] || (cant * precio));
+
+                                insertDetalle.run(
+                                    uuidv4(), nuevoMaestroId, 'importado_json',
+                                    String(item[mapDetalle.nombre_producto] || 'Producto JSON'),
+                                    precio, cant, totalItem, now
+                                );
+                                detallesImportados++;
+                            }
+                        } catch(e) {
+                            console.warn("Fila ignorada por JSON inválido en factura", nroFactura);
+                        }
+                    }
+                }
+                return { facturasImportadas, detallesImportados };
+            });
+
+            const stats = transaction();
+            return { success: true, ...stats };
+
+        } catch (error) {
+            if (extDb && extDb.open) extDb.close();
+            console.error("Error en importación JSON:", error);
+            return { success: false, error: error.message };
+        }
+    });
+
+};
