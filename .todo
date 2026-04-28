@@ -12,7 +12,6 @@ Encargos:
 
 modificaciones generales:
 
- - Que los valores en moneda aparezcan formateados en las tablas
  - Hacer que el metodo de pago sea configurable, es decir, que se puedan agregar y quitar metodos de pago (en conf almacen)
 
  - Probar importar datos de facturas (lidiar con relaciones en mysql)

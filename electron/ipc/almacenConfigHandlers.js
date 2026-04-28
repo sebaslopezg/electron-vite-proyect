@@ -1,5 +1,6 @@
 import { ipcMain } from "electron"
 import db from "../database/index.js"
+import { v4 as uuidv4 } from 'uuid'
 
 export const registerAlmacenConfigHandlers = () => {
 
@@ -18,9 +19,7 @@ export const registerAlmacenConfigHandlers = () => {
             const stmt = db.prepare("SELECT * FROM almacen_conf WHERE id = @id AND status > 0")
             const info = stmt.run({id:id})
             return { success: true, changes: info.changes }
-        } catch (error) {
-            
-        }
+        } catch (error) {}
     })
 
     ipcMain.handle("update-consecutivoFactura" ,(_, item) =>{
@@ -29,7 +28,6 @@ export const registerAlmacenConfigHandlers = () => {
             const info = stmt.run({...item})
             return { success: true, changes: info.changes }
         } catch (error) {
-            console.error("Error al intentar actualizar datos: ", error)
             return { success: false, error: error.message }
         }
     })
@@ -70,8 +68,36 @@ export const registerAlmacenConfigHandlers = () => {
             })
             return { success: true, changes: info.changes }
         } catch (error) {
-            console.error("Error al intentar actualizar datos: ", error)
             return { success: false, error: error.message }
         }
     })
+
+    ipcMain.handle("get-metodos-pago", () => {
+        try {
+            return db.prepare("SELECT * FROM metodos_pago ORDER BY nombre ASC").all();
+        } catch (error) {
+            console.error("Error obteniendo métodos de pago:", error);
+            return [];
+        }
+    });
+
+    ipcMain.handle("add-metodo-pago", (_, nombre) => {
+        try {
+            const id = uuidv4();
+            db.prepare("INSERT INTO metodos_pago (id, nombre) VALUES (?, ?)").run(id, nombre);
+            return { success: true, id, nombre };
+        } catch (error) {
+            if (error.message.includes('UNIQUE')) return { success: false, error: 'Este método ya existe.' };
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle("delete-metodo-pago", (_, id) => {
+        try {
+            db.prepare("DELETE FROM metodos_pago WHERE id = ?").run(id);
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
 }

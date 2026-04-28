@@ -18,6 +18,7 @@ export const Facturacion = () => {
   
   const [tipoPago, setTipoPago] = useState('contado')
   const [metodoPago, setMetodoPago] = useState('Efectivo')
+  const [listaMetodosPago, setListaMetodosPago] = useState([])
   
   const [cuotas, setCuotas] = useState(1)
   const [totalRecibido, setTotalRecibido] = useState('')
@@ -50,7 +51,13 @@ export const Facturacion = () => {
       }
   };
 
-  const loadInitialData = async () => {
+const loadMetodosDePago = async () => {
+  const metodos = await window.api.getMetodosPago();
+  setListaMetodosPago(metodos || []);
+  if (metodos && metodos.length > 0) setMetodoPago(metodos[0].nombre);
+}
+
+const loadInitialData = async () => {
     const prods = await window.api.getAllProductos();
     setProductos(prods);
     const clis = await window.api.getClientes();
@@ -61,15 +68,19 @@ export const Facturacion = () => {
     setEtiquetasList(tags || []);
     
     await loadConfig();
+    await loadMetodosDePago();
   }
 
   useEffect(() => {
     loadInitialData();
     window.addEventListener('config-actualizada', loadConfig);
-    return () => window.removeEventListener('config-actualizada', loadConfig);
+    window.addEventListener('metodos-pago-actualizados', loadMetodosDePago);
+    return () => {
+        window.removeEventListener('config-actualizada', loadConfig);
+        window.removeEventListener('metodos-pago-actualizados', loadMetodosDePago);
+    }
   }, [])
 
-  // FUNCIÓN DE MONEDA PARA LA VISTA EN PANTALLA (Ignora el snapshot, usa config en vivo)
   const renderCurrency = (val) => {
       return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
   };
@@ -691,14 +702,15 @@ export const Facturacion = () => {
                     </Form.Group>
                 </Col>
                 <Col xs={6}>
-                    <Form.Group className="mb-3">
-                    <Form.Label><small className="fw-bold">Método</small></Form.Label>
-                    <Form.Select size="sm" value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}>
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Datafono">Datafono</option>
-                        <option value="Transaccion Bancaria">Transacción</option>
-                    </Form.Select>
-                    </Form.Group>
+                  <Form.Group className="mb-3">
+                  <Form.Label><small className="fw-bold">Método</small></Form.Label>
+                  <Form.Select size="sm" value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}>
+                    {listaMetodosPago.length === 0 && <option value="Efectivo">Efectivo</option>}
+                    {listaMetodosPago.map(m => (
+                      <option key={m.id} value={m.nombre}>{m.nombre}</option>
+                    ))}
+                  </Form.Select>
+                  </Form.Group>
                 </Col>
             </Row>
 

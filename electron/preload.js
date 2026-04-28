@@ -71,6 +71,10 @@ contextBridge.exposeInMainWorld("api", {
   getOneConfAlmacen: (id) => ipcRenderer.invoke("get-almacenConf", id),
   updateConfAlmacen: (item) => ipcRenderer.invoke("update-almacenConf", item),
 
+  getMetodosPago: () => ipcRenderer.invoke('get-metodos-pago'),
+  addMetodoPago: (nombre) => ipcRenderer.invoke('add-metodo-pago', nombre),
+  deleteMetodoPago: (id) => ipcRenderer.invoke('delete-metodo-pago', id),
+
   //notas - credito/debito
   getNotas: () => ipcRenderer.invoke("get-notas"),
   getNotaDetalle: (id) => ipcRenderer.invoke('get-nota-detalle', id),

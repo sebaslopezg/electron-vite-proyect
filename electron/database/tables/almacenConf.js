@@ -49,6 +49,12 @@ export const createAlmacenConfTable = () => {
         date_modify TEXT,
         modify_by TEXT
       ); 
+      
+      -- NUEVA TABLA: MÉTODOS DE PAGO
+      CREATE TABLE IF NOT EXISTS metodos_pago (
+        id TEXT PRIMARY KEY,
+        nombre TEXT UNIQUE
+      );
     `)
 
     // Migraciones 
@@ -63,60 +69,34 @@ export const createAlmacenConfTable = () => {
     if (row.count === 0) {
       const insertStmt = db.prepare(`
         INSERT INTO almacen_conf (
-          id,
-          nombre_almacen,
-          nit_almacen,
-          logo_almacen,
-          direccion_almacen,
-          telefono_almacen,
-          email_almacen,
-          prefijo,
-          separador,
-          resolucionDian,
-          nombreFactura,
-          footer_factura,
-          consecutivo,
-          consecutivo_nota,
-          consecutivo_nota_debito,
-          imprimir_logo_pos,
-          status,
-          date_created,
-          date_modify,
-          modify_by
+          id, nombre_almacen, nit_almacen, logo_almacen, direccion_almacen, telefono_almacen,
+          email_almacen, prefijo, separador, resolucionDian, nombreFactura, footer_factura,
+          consecutivo, consecutivo_nota, consecutivo_nota_debito, imprimir_logo_pos,
+          status, date_created, date_modify, modify_by
         )
         VALUES (
-            @id,
-            @nombre_almacen,
-            @nit_almacen,
-            @logo_almacen,
-            @direccion_almacen,
-            @telefono_almacen,
-            @email_almacen,
-            @prefijo,
-            @separador,
-            @resolucionDian,
-            @nombreFactura,
-            @footer_factura,
-            @consecutivo,
-            @consecutivo_nota,
-            @consecutivo_nota_debito,
-            @imprimir_logo_pos,
-            @status,
-            @date_created,
-            @date_modify,
-            @modify_by
+            @id, @nombre_almacen, @nit_almacen, @logo_almacen, @direccion_almacen, @telefono_almacen,
+            @email_almacen, @prefijo, @separador, @resolucionDian, @nombreFactura, @footer_factura,
+            @consecutivo, @consecutivo_nota, @consecutivo_nota_debito, @imprimir_logo_pos,
+            @status, @date_created, @date_modify, @modify_by
         )
       `)
 
       insertStmt.run({
-          id,
-          ...conf,
-          status,
-          date_created: now,
-          date_modify: now,
-          modify_by: user
+          id, ...conf, status, date_created: now, date_modify: now, modify_by: user
       })
     }
+
+    try {
+        const metodosCount = db.prepare("SELECT count(*) as count FROM metodos_pago").get();
+        if (metodosCount.count === 0) {
+            const insertMetodo = db.prepare("INSERT INTO metodos_pago (id, nombre) VALUES (?, ?)");
+            insertMetodo.run(uuidv4(), "Efectivo");
+            insertMetodo.run(uuidv4(), "Datafono");
+            insertMetodo.run(uuidv4(), "Transferencia Bancaria");
+        }
+    } catch(e) { console.error("Error insertando métodos de pago por defecto:", e) }
+
   } catch (error) {
       console.error('Database initialization error in almacenConf:', error)
   }
