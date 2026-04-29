@@ -24,6 +24,71 @@ export const registerVentasHandlers = () => {
         }
     })
 
+    ipcMain.handle("get-maestro-paginados", (_, dtParams) => {
+        try {
+            const limit = parseInt(dtParams.length, 10) || 10;
+            const offset = parseInt(dtParams.start, 10) || 0;
+            const searchValue = dtParams.search?.value || '';
+
+            const orderColIndex = dtParams.order?.[0]?.column || 0;
+            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+            
+            const columnsMap = ['date_created', 'numero_factura', 'documento_cliente', 'nombre_cliente', 'status', 'status'];
+            let orderCol = columnsMap[orderColIndex] || 'date_created';
+
+            const startDate = dtParams.startDate;
+            const endDate = dtParams.endDate;
+
+            let baseQuery = `FROM ventasMaestro v WHERE v.status > 0`;
+            let queryParams = [];
+
+            if (startDate) {
+                baseQuery += " AND date(v.date_created) >= date(?)";
+                queryParams.push(startDate);
+            }
+            if (endDate) {
+                baseQuery += " AND date(v.date_created) <= date(?)";
+                queryParams.push(endDate);
+            }
+
+            if (searchValue) {
+                baseQuery += " AND (v.numero_factura LIKE ? OR v.documento_cliente LIKE ? OR v.nombre_cliente LIKE ?)";
+                const likeParam = `%${searchValue}%`;
+                queryParams.push(likeParam, likeParam, likeParam);
+            }
+
+            const totalRow = db.prepare("SELECT COUNT(*) as count FROM ventasMaestro WHERE status > 0").get();
+            const recordsTotal = totalRow.count;
+
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+            const recordsFiltered = filteredRow.count;
+
+            const dataQuery = `
+                SELECT 
+                    v.*,
+                    (SELECT separador FROM almacen_conf LIMIT 1) AS separador,
+                    (SELECT GROUP_CONCAT(tipo_nota, ' y ') 
+                     FROM nota 
+                     WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas
+                ${baseQuery}
+                ORDER BY v.${orderCol} ${orderDir} 
+                LIMIT ? OFFSET ?
+            `;
+            
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+
+            return {
+                draw: dtParams.draw,
+                recordsTotal: recordsTotal,
+                recordsFiltered: recordsFiltered,
+                data: data
+            };
+        } catch (error) {
+            console.error("Error en paginación de facturas: ", error);
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+        }
+    });
+
     ipcMain.handle("get-detalle", (_, facturaId) => {
         try {
             const stmt = db.prepare(`
