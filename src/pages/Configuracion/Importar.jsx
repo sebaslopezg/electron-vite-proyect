@@ -27,6 +27,9 @@ export const Importar = () => {
     const [jsonMapMaestro, setJsonMapMaestro] = useState({});
     const [jsonMapDetalle, setJsonMapDetalle] = useState({});
 
+    const [customQuery, setCustomQuery] = useState('');
+    const [queryCols, setQueryCols] = useState([]);
+
     const [showPreview, setShowPreview] = useState(false);
     const [previewCols, setPreviewCols] = useState([]);
     const [previewData, setPreviewData] = useState([]);
@@ -36,7 +39,6 @@ export const Importar = () => {
     const [showJsonPreview, setShowJsonPreview] = useState(false);
     const [jsonPreviewData, setJsonPreviewData] = useState('');
 
-    // --- NUEVO: ESTADOS PARA CRUCES DINÁMICOS ---
     const [fieldJoins, setFieldJoins] = useState({});
     const [joinModalConfig, setJoinModalConfig] = useState({ show: false, targetField: '', sourceColumns: [] });
 
@@ -63,11 +65,29 @@ export const Importar = () => {
     };
 
     const handleImportSimple = async () => {
-        if (Object.keys(mapping).length === 0 && Object.keys(fieldJoins).length === 0) return Swal.fire('Atención', 'Debe mapear campos.', 'warning');
+        if (Object.keys(mapping).length === 0 && Object.keys(fieldJoins).length === 0 && Object.keys(defaultValues).length === 0) return Swal.fire('Atención', 'Debe mapear o fijar al menos un campo.', 'warning');
         const confirm = await Swal.fire({ title: '¿Iniciar Importación Simple?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, importar' });
         if (confirm.isConfirmed) {
             Swal.fire({ title: 'Importando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             const res = await window.api.executeImport({ filePath, sourceTable, targetTable, mapping, defaultValues, joins: fieldJoins });
+            if (res.success) {
+                let msg = `Importados <strong>${res.rows}</strong> registros.`;
+                if(res.fixed > 0) msg += `<br>Corregidos: ${res.fixed}`;
+                if(res.skipped > 0) msg += `<br>Ignorados: ${res.skipped}`;
+                Swal.fire({ title: '¡Éxito!', html: msg, icon: 'success' });
+                resetWizard();
+            } else Swal.fire('Error', res.error, 'error');
+        }
+    };
+
+    const handleImportSql = async () => {
+        if (Object.keys(mapping).length === 0 && Object.keys(fieldJoins).length === 0 && Object.keys(defaultValues).length === 0) return Swal.fire('Atención', 'Debe mapear o fijar al menos un campo.', 'warning');
+        const confirm = await Swal.fire({ title: '¿Iniciar Importación desde SQL?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, importar' });
+        if (confirm.isConfirmed) {
+            Swal.fire({ title: 'Ejecutando Consulta e Importando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const res = await window.api.executeImportQuery({ 
+                filePath, query: customQuery, targetTable, mapping, defaultValues, joins: fieldJoins 
+            });
             if (res.success) {
                 let msg = `Importados <strong>${res.rows}</strong> registros.`;
                 if(res.fixed > 0) msg += `<br>Corregidos: ${res.fixed}`;
@@ -84,7 +104,7 @@ export const Importar = () => {
         if (confirm.isConfirmed) {
             Swal.fire({ title: 'Ensamblando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             const res = await window.api.importFacturasRelacionadas({
-                filePath, tablaMaestroOrigen: relSourceMaestro, tablaDetalleOrigen: relSourceDetalle, mapMaestro: relMapMaestro, mapDetalle: relMapDetalle, joins: fieldJoins
+                filePath, tablaMaestroOrigen: relSourceMaestro, tablaDetalleOrigen: relSourceDetalle, mapMaestro: relMapMaestro, mapDetalle: relMapDetalle, joins: fieldJoins, defaultValues
             });
             if (res.success) {
                 Swal.fire('¡Éxito!', `Facturas: ${res.facturasImportadas} | Ítems: ${res.detallesImportados}`, 'success');
@@ -99,7 +119,7 @@ export const Importar = () => {
         if (confirm.isConfirmed) {
             Swal.fire({ title: 'Extrayendo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             const res = await window.api.importFacturasJson({
-                filePath, sourceTable: jsonSourceTable, jsonColumn: jsonColumn, mapMaestro: jsonMapMaestro, mapDetalle: jsonMapDetalle, joins: fieldJoins
+                filePath, sourceTable: jsonSourceTable, jsonColumn: jsonColumn, mapMaestro: jsonMapMaestro, mapDetalle: jsonMapDetalle, joins: fieldJoins, defaultValues
             });
             if (res.success) {
                 Swal.fire('¡Éxito!', `Facturas: ${res.facturasImportadas} | Ítems extraídos: ${res.detallesImportados}`, 'success');
@@ -112,7 +132,7 @@ export const Importar = () => {
         setStep(1); setFilePath(null); setImportMode('simple'); setSourceTable(''); setTargetTable('');
         setMapping({}); setDefaultValues({}); setRelSourceMaestro(''); setRelSourceDetalle(''); 
         setRelMapMaestro({}); setRelMapDetalle({}); setJsonSourceTable(''); setJsonColumn(''); 
-        setJsonMapMaestro({}); setJsonMapDetalle({}); setFieldJoins({});
+        setJsonMapMaestro({}); setJsonMapDetalle({}); setFieldJoins({}); setCustomQuery(''); setQueryCols([]);
     };
 
     const handlePreview = async (tableToPreview) => {
@@ -121,6 +141,20 @@ export const Importar = () => {
         const res = await window.api.previewExternalTable({ filePath, tableName: tableToPreview });
         if (res.success) { setPreviewCols(res.columns || []); setPreviewData(res.data || []); setPreviewTotalRows(res.totalRows || 0); } 
         else { setShowPreview(false); Swal.fire('Error', res.error, 'error'); }
+        setIsLoadingPreview(false);
+    };
+
+    const handlePreviewQuery = async () => {
+        if (!customQuery.trim()) return;
+        setIsLoadingPreview(true); setShowPreview(true);
+        const res = await window.api.previewExternalQuery({ filePath, query: customQuery });
+        if (res.success) { 
+            setPreviewCols(res.columns || []); 
+            setPreviewData(res.data || []); 
+            setPreviewTotalRows(res.totalRows || 0);
+            setQueryCols(res.columns || []); 
+        } 
+        else { setShowPreview(false); Swal.fire('Error de Sintaxis SQL', res.error, 'error'); }
         setIsLoadingPreview(false);
     };
 
@@ -143,31 +177,50 @@ export const Importar = () => {
         setIsLoadingPreview(false);
     };
 
-    // Función que renderiza la fila (input + boton Join) para cada campo
+    // --- NUEVO: RENDERIZADOR UNIVERSAL CON INPUT CUSTOM ---
     const renderMappingRow = (reqCol, isRequired, sourceColsArray, mapState, setMapState, isJsonDetalle = false) => {
         const joinActive = fieldJoins[reqCol];
+        const isMapped = !!mapState[reqCol];
+        const isSystemRestricted = ['id_column', 'foreign_key_column'].includes(reqCol);
+
         return (
-            <Row key={reqCol} className="mb-2">
+            <Row key={reqCol} className="mb-3 border-bottom pb-3">
                 <Col md={4} className="fw-bold pt-1 text-end">{reqCol} {isRequired && <span className="text-danger">*</span>}</Col>
                 <Col md={6}>
-                    <div className="d-flex gap-2">
-                        {joinActive ? (
-                            <div className="form-control form-control-sm bg-light text-success fw-bold border-success d-flex align-items-center" style={{fontSize: '0.85rem'}}>
-                                <i className="bi bi-diagram-3-fill me-2"></i> {joinActive.extTable}.{joinActive.extCol}
-                            </div>
-                        ) : isJsonDetalle ? (
-                            <Form.Control size="sm" type="text" placeholder="Llave en JSON (Ej. product_reference)" value={mapState[reqCol] || ''} onChange={(e) => setMapState({...mapState, [reqCol]: e.target.value})} />
-                        ) : (
-                            <Form.Select size="sm" value={mapState[reqCol] || ''} onChange={(e) => setMapState({...mapState, [reqCol]: e.target.value})}>
-                                <option value="">Selecciona columna origen...</option>
-                                {sourceColsArray?.map(extCol => <option key={extCol} value={extCol}>{extCol}</option>)}
-                            </Form.Select>
-                        )}
+                    <div className="d-flex flex-column gap-2">
+                        <div className="d-flex gap-2">
+                            {joinActive ? (
+                                <div className="form-control form-control-sm bg-light text-success fw-bold border-success d-flex align-items-center" style={{fontSize: '0.85rem'}}>
+                                    <i className="bi bi-diagram-3-fill me-2"></i> {joinActive.extTable}.{joinActive.extCol}
+                                </div>
+                            ) : isJsonDetalle ? (
+                                <Form.Control size="sm" type="text" placeholder="Llave en JSON" value={mapState[reqCol] || ''} onChange={(e) => setMapState({...mapState, [reqCol]: e.target.value})} />
+                            ) : (
+                                <Form.Select size="sm" value={mapState[reqCol] || ''} onChange={(e) => setMapState({...mapState, [reqCol]: e.target.value})}>
+                                    <option value="">-- Usar Valor Fijo Manual --</option>
+                                    {sourceColsArray?.map(extCol => <option key={extCol} value={extCol}>{extCol}</option>)}
+                                </Form.Select>
+                            )}
+                            
+                            {!isSystemRestricted && (
+                                <Button variant={joinActive ? "success" : "outline-success"} size="sm" title="Cruzar con otra tabla" 
+                                        onClick={() => setJoinModalConfig({ show: true, targetField: reqCol, sourceColumns: sourceColsArray })}>
+                                    <i className="bi bi-link"></i>
+                                </Button>
+                            )}
+                        </div>
                         
-                        <Button variant={joinActive ? "success" : "outline-success"} size="sm" title="Cruzar con otra tabla" 
-                                onClick={() => setJoinModalConfig({ show: true, targetField: reqCol, sourceColumns: sourceColsArray })}>
-                            <i className="bi bi-link"></i>
-                        </Button>
+                        {/* CAJA DE VALOR CUSTOM */}
+                        {!joinActive && !isMapped && !isJsonDetalle && !isSystemRestricted && (
+                            <Form.Control 
+                                size="sm" 
+                                type="text" 
+                                className="bg-light text-primary border-primary border-opacity-50"
+                                placeholder={`Escribir valor fijo manual para ${reqCol}...`}
+                                value={defaultValues[reqCol] || ''}
+                                onChange={(e) => setDefaultValues({...defaultValues, [reqCol]: e.target.value})}
+                            />
+                        )}
                     </div>
                 </Col>
             </Row>
@@ -201,11 +254,13 @@ export const Importar = () => {
                 {step === 2 && (
                     <div className="animate__animated animate__fadeIn">
                         <Alert variant="info"><i className="bi bi-info-circle me-2"></i>Archivo cargado. ¿Qué tipo de importación desea realizar?</Alert>
-                        <div className="d-flex gap-3 mb-4 justify-content-center border-bottom pb-4">
-                            <Button variant={importMode === 'simple' ? 'primary' : 'outline-secondary'} onClick={() => setImportMode('simple')}>Simple (1 Tabla)</Button>
-                            <Button variant={importMode === 'relacional' ? 'success' : 'outline-secondary'} onClick={() => setImportMode('relacional')}>Facturas (2 Tablas)</Button>
-                            <Button variant={importMode === 'json' ? 'warning' : 'outline-secondary'} onClick={() => setImportMode('json')}>Facturas (Detalles en JSON)</Button>
+                        <div className="d-flex gap-3 mb-4 justify-content-center border-bottom pb-4 flex-wrap">
+                            <Button variant={importMode === 'simple' ? 'primary' : 'outline-primary'} onClick={() => setImportMode('simple')}>Simple (Tabla a Tabla)</Button>
+                            <Button variant={importMode === 'sql' ? 'dark' : 'outline-dark'} onClick={() => setImportMode('sql')}><i className="bi bi-terminal me-2"></i>Importación con SQL</Button>
+                            <Button variant={importMode === 'relacional' ? 'primary' : 'outline-primary'} onClick={() => setImportMode('relacional')}>Relacionado (Cruce de Tablas)</Button>
+                            <Button variant={importMode === 'json' ? 'primary' : 'outline-primary'} onClick={() => setImportMode('json')}>Datos incrustados (JSON)</Button>
                         </div>
+
                         {importMode === 'simple' && (
                             <Row>
                                 <Col md={6}>
@@ -225,13 +280,44 @@ export const Importar = () => {
                                         <Form.Label className="fw-bold text-success">Destino</Form.Label>
                                         <Form.Select value={targetTable} onChange={(e) => { setTargetTable(e.target.value); setMapping({}); setFieldJoins({}); }}>
                                             <option value="">-- Tabla Destino --</option>
-                                            <option value="clientes">Clientes</option>
-                                            <option value="producto">Productos y Servicios</option>
+                                            {Object.keys(internalSchema).map(t => <option key={t} value={t}>{t}</option>)}
                                         </Form.Select>
                                     </Form.Group>
                                 </Col>
                             </Row>
                         )}
+
+                        {importMode === 'sql' && (
+                            <Row className="g-3 bg-light p-3 rounded border border-dark">
+                                <Col md={12}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold text-danger"><i className="bi bi-terminal me-2"></i>Consulta SQL (Origen)</Form.Label>
+                                        <Form.Control 
+                                            as="textarea" rows={4} 
+                                            value={customQuery} 
+                                            onChange={e => setCustomQuery(e.target.value)} 
+                                            placeholder="SELECT c.id, c.nombre, c.telefono, p.nombre as producto_nombre FROM clientes c JOIN pedidos p ON p.cliente_id = c.id WHERE c.estado = 1" 
+                                            className="font-monospace bg-dark text-light"
+                                        />
+                                        <div className="mt-2 text-end">
+                                            <Button variant="info" className="text-white" disabled={!customQuery} onClick={handlePreviewQuery}>
+                                                <i className="bi bi-play-fill me-1"></i> Ejecutar y Previsualizar
+                                            </Button>
+                                        </div>
+                                    </Form.Group>
+                                </Col>
+                                <Col md={12}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold text-success mt-2">Destino (Sistema Caedro)</Form.Label>
+                                        <Form.Select value={targetTable} onChange={(e) => { setTargetTable(e.target.value); setMapping({}); setFieldJoins({}); }}>
+                                            <option value="">-- Seleccionar Tabla Destino --</option>
+                                            {Object.keys(internalSchema).map(t => <option key={t} value={t}>{t}</option>)}
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+                        )}
+
                         {importMode === 'relacional' && (
                             <Row className="g-3 bg-light p-3 rounded border border-success">
                                 <Col md={6}>
@@ -256,6 +342,7 @@ export const Importar = () => {
                                 </Col>
                             </Row>
                         )}
+
                         {importMode === 'json' && (
                             <Row className="g-3 bg-light p-3 rounded border border-warning">
                                 <Col md={6}>
@@ -279,53 +366,91 @@ export const Importar = () => {
                         )}
                         <div className="mt-4 text-end">
                             <Button variant="secondary" className="me-2" onClick={() => setStep(1)}>Atrás</Button>
-                            <Button variant="primary" disabled={(importMode === 'simple' && (!sourceTable || !targetTable)) || (importMode === 'relacional' && (!relSourceMaestro || !relSourceDetalle)) || (importMode === 'json' && (!jsonSourceTable || !jsonColumn))} onClick={() => setStep(3)}>Siguiente</Button>
+                            <Button variant="primary" disabled={
+                                (importMode === 'simple' && (!sourceTable || !targetTable)) || 
+                                (importMode === 'sql' && (!customQuery || !targetTable || queryCols.length === 0)) || 
+                                (importMode === 'relacional' && (!relSourceMaestro || !relSourceDetalle)) || 
+                                (importMode === 'json' && (!jsonSourceTable || !jsonColumn))} 
+                                onClick={() => setStep(3)}>Siguiente</Button>
                         </div>
                     </div>
                 )}
 
                 {step === 3 && (
                     <div className="animate__animated animate__fadeIn">
-                        {importMode === 'simple' && (
+                        
+                        {(importMode === 'simple' || importMode === 'sql') && (
                             <>
-                                <Alert variant="warning"><small>Asocie las columnas y use el botón <i className="bi bi-link text-success"></i> para extraer datos de otras tablas.</small></Alert>
-                                <div className="bg-light p-3 rounded border" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <Alert variant="warning" className="mb-0 flex-grow-1 me-3 py-2">
+                                        <small>Asocie las columnas, extraiga de otras tablas <i className="bi bi-link"></i> o escriba un <strong>valor fijo</strong>.</small>
+                                    </Alert>
+                                    <Button variant="outline-info" size="sm" onClick={importMode === 'sql' ? handlePreviewQuery : () => handlePreview(sourceTable)}>
+                                        <i className="bi bi-table me-2"></i>Ver Tabla de Origen
+                                    </Button>
+                                </div>
+                                <div className="bg-light p-3 rounded border" style={{ maxHeight: '500px', overflowY: 'auto' }}>
                                     {internalSchema[targetTable]?.map(internalCol => {
-                                        const isSystemField = ['id', 'date_created'].includes(internalCol);
+                                        const isSystemField = internalCol === 'id';
+                                        const isDateCreated = internalCol === 'date_created';
+                                        const sourceOptions = importMode === 'sql' ? queryCols : externalSchema[sourceTable];
+                                        
                                         return (
-                                            <Row key={internalCol} className="mb-3 align-items-center border-bottom pb-2">
+                                            <Row key={internalCol} className="mb-3 border-bottom pb-3">
                                                 <Col md={5}>
-                                                    <div className="d-flex gap-2">
-                                                        {fieldJoins[internalCol] ? (
-                                                            <div className="form-control form-control-sm bg-light text-success fw-bold border-success d-flex align-items-center" style={{fontSize: '0.85rem'}}>
-                                                                <i className="bi bi-diagram-3-fill me-2"></i> {fieldJoins[internalCol].extTable}.{fieldJoins[internalCol].extCol}
-                                                            </div>
-                                                        ) : (
-                                                            <Form.Select size="sm" value={mapping[internalCol] || ''} onChange={(e) => {
-                                                                const newMap = {...mapping};
-                                                                e.target.value ? newMap[internalCol] = e.target.value : delete newMap[internalCol];
-                                                                setMapping(newMap);
-                                                            }} disabled={isSystemField}>
-                                                                <option value="">-- Valor por defecto --</option>
-                                                                {externalSchema[sourceTable]?.map(extCol => <option key={extCol} value={extCol}>{extCol}</option>)}
-                                                            </Form.Select>
-                                                        )}
-                                                        {!isSystemField && (
-                                                            <Button variant={fieldJoins[internalCol] ? "success" : "outline-success"} size="sm" onClick={() => setJoinModalConfig({ show: true, targetField: internalCol, sourceColumns: externalSchema[sourceTable] })}>
-                                                                <i className="bi bi-link"></i>
-                                                            </Button>
+                                                    <div className="d-flex flex-column gap-2">
+                                                        <div className="d-flex gap-2">
+                                                            {fieldJoins[internalCol] ? (
+                                                                <div className="form-control form-control-sm bg-light text-success fw-bold border-success d-flex align-items-center" style={{fontSize: '0.85rem'}}>
+                                                                    <i className="bi bi-diagram-3-fill me-2"></i> {fieldJoins[internalCol].extTable}.{fieldJoins[internalCol].extCol}
+                                                                </div>
+                                                            ) : (
+                                                                <Form.Select size="sm" value={mapping[internalCol] || ''} onChange={(e) => {
+                                                                    const newMap = {...mapping};
+                                                                    e.target.value ? newMap[internalCol] = e.target.value : delete newMap[internalCol];
+                                                                    setMapping(newMap);
+                                                                }} disabled={isSystemField}>
+                                                                    <option value="">-- {isDateCreated ? 'Auto (Fecha Actual) / Manual' : 'Usar Valor Fijo Manual'} --</option>
+                                                                    {sourceOptions?.map(extCol => <option key={extCol} value={extCol}>{extCol}</option>)}
+                                                                </Form.Select>
+                                                            )}
+                                                            {!isSystemField && (
+                                                                <Button variant={fieldJoins[internalCol] ? "success" : "outline-success"} size="sm" onClick={() => setJoinModalConfig({ show: true, targetField: internalCol, sourceColumns: sourceOptions })}>
+                                                                    <i className="bi bi-link"></i>
+                                                                </Button>
+                                                            )}
+                                                        </div>
+
+                                                        {/* CUSTOM VALUE INPUT */}
+                                                        {!fieldJoins[internalCol] && !mapping[internalCol] && !isSystemField && (
+                                                            <Form.Control 
+                                                                size="sm" 
+                                                                type="text" 
+                                                                className="bg-light text-primary border-primary border-opacity-50"
+                                                                placeholder={`Escribir valor fijo manual para ${internalCol}...`}
+                                                                value={defaultValues[internalCol] || ''}
+                                                                onChange={(e) => setDefaultValues({...defaultValues, [internalCol]: e.target.value})}
+                                                            />
                                                         )}
                                                     </div>
                                                 </Col>
-                                                <Col md={2} className="text-center text-primary"><i className="bi bi-arrow-right"></i></Col>
-                                                <Col md={5}><div className="p-2 bg-white border rounded small fw-bold">{internalCol} {isSystemField && <span className="ms-2 badge bg-secondary">Auto</span>}</div></Col>
+                                                <Col md={2} className="text-center text-primary pt-1"><i className="bi bi-arrow-right"></i></Col>
+                                                <Col md={5} className="pt-1">
+                                                    <div className="p-2 bg-white border rounded small fw-bold">
+                                                        {internalCol} 
+                                                        {isSystemField && <span className="ms-2 badge bg-secondary" style={{fontSize: '10px'}}>Auto</span>}
+                                                        {isDateCreated && <span className="ms-2 badge bg-info text-dark" style={{fontSize: '10px'}}>Opcional</span>}
+                                                    </div>
+                                                </Col>
                                             </Row>
                                         )
                                     })}
                                 </div>
                                 <div className="mt-4 d-flex justify-content-between">
                                     <Button variant="secondary" onClick={() => setStep(2)}>Atrás</Button>
-                                    <Button variant="success" size="lg" onClick={handleImportSimple}>Importar Datos</Button>
+                                    <Button variant="success" size="lg" onClick={importMode === 'sql' ? handleImportSql : handleImportSimple}>
+                                        Importar Datos
+                                    </Button>
                                 </div>
                             </>
                         )}
@@ -334,7 +459,7 @@ export const Importar = () => {
                             <>
                                 <h6 className="fw-bold text-success border-bottom pb-2">1. Maestro (Cabecera)</h6>
                                 <div className="bg-light p-3 rounded border mb-4">
-                                    {['id_column', 'numero_factura', 'nombre_cliente', 'documento_cliente', 'subtotal', 'descuento', 'iva', 'total_factura'].map(reqCol => renderMappingRow(reqCol, ['id_column', 'total_factura'].includes(reqCol), externalSchema[relSourceMaestro], relMapMaestro, setRelMapMaestro))}
+                                    {['id_column', 'numero_factura', 'prefijo', 'separador', 'date_created', 'nombre_cliente', 'documento_cliente', 'subtotal', 'descuento', 'iva', 'total_factura'].map(reqCol => renderMappingRow(reqCol, ['id_column', 'total_factura'].includes(reqCol), externalSchema[relSourceMaestro], relMapMaestro, setRelMapMaestro))}
                                 </div>
 
                                 <h6 className="fw-bold text-danger border-bottom pb-2">2. Ítems (Detalle)</h6>
@@ -352,7 +477,7 @@ export const Importar = () => {
                             <>
                                 <h6 className="fw-bold text-success border-bottom pb-2">1. Maestro (Columnas de la tabla base)</h6>
                                 <div className="bg-light p-3 rounded border mb-4">
-                                    {['numero_factura', 'nombre_cliente', 'documento_cliente', 'subtotal', 'descuento', 'iva', 'total_factura'].map(reqCol => renderMappingRow(reqCol, false, externalSchema[jsonSourceTable], jsonMapMaestro, setJsonMapMaestro))}
+                                    {['numero_factura', 'prefijo', 'separador', 'date_created', 'nombre_cliente', 'documento_cliente', 'subtotal', 'descuento', 'iva', 'total_factura'].map(reqCol => renderMappingRow(reqCol, false, externalSchema[jsonSourceTable], jsonMapMaestro, setJsonMapMaestro))}
                                 </div>
 
                                 <div className="d-flex justify-content-between align-items-end border-bottom pb-2 mb-3">
@@ -364,7 +489,6 @@ export const Importar = () => {
                                 </div>
 
                                 <div className="bg-light p-3 rounded border mb-4">
-                                    {/* Pasamos isJsonDetalle=true y array vacío para que el Join y el mapping usen inputs de texto */}
                                     {['nombre_producto', 'precio_producto', 'cantidad_producto', 'total'].map(reqCol => renderMappingRow(reqCol, false, [], jsonMapDetalle, setJsonMapDetalle, true))}
                                 </div>
                                 <div className="mt-4 d-flex justify-content-between">
@@ -377,7 +501,7 @@ export const Importar = () => {
                 )}
             </Card.Body>
 
-            <ModalPreviewTabla show={showPreview} onHide={() => setShowPreview(false)} tableName={sourceTable || jsonSourceTable || relSourceMaestro || relSourceDetalle} isLoading={isLoadingPreview} columns={previewCols} data={previewData} totalRows={previewTotalRows} />
+            <ModalPreviewTabla show={showPreview} onHide={() => setShowPreview(false)} tableName={sourceTable || jsonSourceTable || relSourceMaestro || relSourceDetalle || 'Consulta SQL'} isLoading={isLoadingPreview} columns={previewCols} data={previewData} totalRows={previewTotalRows} />
             <ModalPreviewJson show={showJsonPreview} onHide={() => setShowJsonPreview(false)} columnName={jsonColumn} isLoading={isLoadingPreview} jsonData={jsonPreviewData} />
             
             <ModalConfigurarJoin 

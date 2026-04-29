@@ -17,17 +17,17 @@ export const ConfiguracionIndex = () => {
                             <button className="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">General</button>
                         </li>
                         <li className="nav-item" role="presentation">
-                            <button className="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#datos" type="button" role="tab">
+                            <button className="nav-link" data-bs-toggle="tab" data-bs-target="#datos" type="button" role="tab">
                                 <i className="bi bi-database-fill-gear me-1"></i> Manejo de Datos
                             </button>
                         </li>
                         <li className="nav-item" role="presentation">
-                            <button className="nav-link text-success" data-bs-toggle="tab" data-bs-target="#importar" type="button" role="tab">
+                            <button className="nav-link" data-bs-toggle="tab" data-bs-target="#importar" type="button" role="tab">
                                 <i className="bi bi-cloud-upload me-1"></i> Importar Datos
                             </button>
                         </li>
                         <li className="nav-item" role="presentation">
-                            <button className="nav-link text-info" data-bs-toggle="tab" data-bs-target="#exportar" type="button" role="tab">
+                            <button className="nav-link" data-bs-toggle="tab" data-bs-target="#exportar" type="button" role="tab">
                                 <i className="bi bi-cloud-download me-1"></i> Exportar Datos
                             </button>
                         </li>
