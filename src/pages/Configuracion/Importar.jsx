@@ -1,13 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Button, Form, Row, Col, Card, Alert, Modal } from 'react-bootstrap';
 import Swal from 'sweetalert2';
-
-const OPCIONES_PREDEFINIDAS = {
-    tipo: [{ value: 'producto', label: 'Producto' }, { value: 'servicio', label: 'Servicio' }],
-    status: [{ value: '1', label: 'Activo' }, { value: '2', label: 'Inactivo' }],
-    allow_negative: [{ value: '0', label: 'No' }, { value: '1', label: 'Sí' }],
-    unidad_medida: [{ value: 'Unidad', label: 'Unidad' }, { value: 'Kg', label: 'Kg' }, { value: 'Litro', label: 'Litros' }, { value: 'Caja', label: 'Cajas' }]
-};
+import { ModalPreviewTabla } from './components/ModalPreviewTabla';
+import { ModalPreviewJson } from './components/ModalPreviewJson';
 
 export const Importar = () => {
     const [step, setStep] = useState(1);
@@ -37,14 +32,18 @@ export const Importar = () => {
     const [jsonMapMaestro, setJsonMapMaestro] = useState({});
     const [jsonMapDetalle, setJsonMapDetalle] = useState({});
 
-    // ESTADOS PARA PREVISUALIZACIÓN DE TABLA
+    // --- NUEVO: ESTADO PARA CRUCE (JOIN) DE CLIENTES ---
+    const [useClientJoin, setUseClientJoin] = useState(false);
+    const [clientJoin, setClientJoin] = useState({
+        table: '', fk_in_invoice: '', pk_in_client: '', name_col: '', doc_col: ''
+    });
+
     const [showPreview, setShowPreview] = useState(false);
     const [previewCols, setPreviewCols] = useState([]);
     const [previewData, setPreviewData] = useState([]);
     const [previewTotalRows, setPreviewTotalRows] = useState(0);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
-    // NUEVOS ESTADOS PARA PREVISUALIZACIÓN DE JSON
     const [showJsonPreview, setShowJsonPreview] = useState(false);
     const [jsonPreviewData, setJsonPreviewData] = useState('');
 
@@ -84,7 +83,10 @@ export const Importar = () => {
             const res = await window.api.executeImport({ filePath, sourceTable, targetTable, mapping, defaultValues });
             
             if (res.success) {
-                Swal.fire({ title: '¡Éxito!', html: `Importados <strong>${res.rows}</strong> registros.`, icon: 'success' });
+                let msg = `Importados <strong>${res.rows}</strong> registros.`;
+                if(res.fixed > 0) msg += `<br>Corregidos: ${res.fixed}`;
+                if(res.skipped > 0) msg += `<br>Ignorados: ${res.skipped}`;
+                Swal.fire({ title: '¡Éxito!', html: msg, icon: 'success' });
                 resetWizard();
             } else Swal.fire('Error', res.error, 'error');
         }
@@ -92,12 +94,16 @@ export const Importar = () => {
 
     const handleRelationalImport = async () => {
         if (!relMapMaestro.id_column || !relMapDetalle.foreign_key_column) return Swal.fire('Error', 'Faltan Llaves Foráneas.', 'error');
+        if (useClientJoin && (!clientJoin.table || !clientJoin.fk_in_invoice || !clientJoin.pk_in_client)) return Swal.fire('Error', 'Complete los datos del cruce de clientes.', 'error');
+
         const confirm = await Swal.fire({ title: '¿Ensamblar Relaciones?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, reconstruir' });
         
         if (confirm.isConfirmed) {
             Swal.fire({ title: 'Ensamblando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             const res = await window.api.importFacturasRelacionadas({
-                filePath, tablaMaestroOrigen: relSourceMaestro, tablaDetalleOrigen: relSourceDetalle, mapMaestro: relMapMaestro, mapDetalle: relMapDetalle
+                filePath, tablaMaestroOrigen: relSourceMaestro, tablaDetalleOrigen: relSourceDetalle, 
+                mapMaestro: relMapMaestro, mapDetalle: relMapDetalle,
+                clientJoin: useClientJoin ? clientJoin : null // Pasamos el cruce si está activo
             });
 
             if (res.success) {
@@ -109,12 +115,16 @@ export const Importar = () => {
 
     const handleJsonImport = async () => {
         if (!jsonMapMaestro.numero_factura || !jsonMapDetalle.nombre_producto) return Swal.fire('Error', 'Faltan campos clave mapeados.', 'error');
+        if (useClientJoin && (!clientJoin.table || !clientJoin.fk_in_invoice || !clientJoin.pk_in_client)) return Swal.fire('Error', 'Complete los datos del cruce de clientes.', 'error');
+
         const confirm = await Swal.fire({ title: '¿Desempaquetar JSON?', text: 'Se extraerán los ítems del texto JSON.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, extraer' });
         
         if (confirm.isConfirmed) {
             Swal.fire({ title: 'Extrayendo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
             const res = await window.api.importFacturasJson({
-                filePath, sourceTable: jsonSourceTable, jsonColumn: jsonColumn, mapMaestro: jsonMapMaestro, mapDetalle: jsonMapDetalle
+                filePath, sourceTable: jsonSourceTable, jsonColumn: jsonColumn, 
+                mapMaestro: jsonMapMaestro, mapDetalle: jsonMapDetalle,
+                clientJoin: useClientJoin ? clientJoin : null // Pasamos el cruce si está activo
             });
 
             if (res.success) {
@@ -129,6 +139,7 @@ export const Importar = () => {
         setSourceTable(''); setTargetTable(''); setMapping({}); setDefaultValues({});
         setRelSourceMaestro(''); setRelSourceDetalle(''); setRelMapMaestro({}); setRelMapDetalle({});
         setJsonSourceTable(''); setJsonColumn(''); setJsonMapMaestro({}); setJsonMapDetalle({});
+        setUseClientJoin(false); setClientJoin({ table: '', fk_in_invoice: '', pk_in_client: '', name_col: '', doc_col: '' });
     };
 
     const handlePreview = async (tableToPreview) => {
@@ -144,36 +155,108 @@ export const Importar = () => {
         setIsLoadingPreview(false);
     };
 
-    // NUEVA FUNCIÓN: PREVISUALIZADOR DE JSON
     const handleJsonPreview = async () => {
         if (!jsonSourceTable || !jsonColumn) return;
         setIsLoadingPreview(true);
         setShowJsonPreview(true);
-        setJsonPreviewData(''); // Limpiamos data anterior
+        setJsonPreviewData('');
 
-        // Pedimos los datos de la tabla (solo trae 50 registros por defecto)
         const res = await window.api.previewExternalTable({ filePath, tableName: jsonSourceTable });
 
         if (res.success && res.data && res.data.length > 0) {
-            // Buscamos la primera fila que no esté vacía en esa columna y parezca un JSON
-            const rowWithJson = res.data.find(r => r[jsonColumn] && (String(r[jsonColumn]).trim().startsWith('{') || String(r[jsonColumn]).trim().startsWith('[')));
+            const rowWithJson = res.data.find(r => r[jsonColumn] && (String(r[jsonColumn]).trim().includes('{') || String(r[jsonColumn]).trim().includes('[')));
             
             if (rowWithJson) {
                 try {
-                    const parsed = JSON.parse(rowWithJson[jsonColumn]);
-                    setJsonPreviewData(JSON.stringify(parsed, null, 4)); // Lo identamos a 4 espacios para que sea muy fácil de leer
+                    let rawStr = String(rowWithJson[jsonColumn]);
+                    if (rawStr.startsWith('"') && rawStr.endsWith('"')) rawStr = rawStr.slice(1, -1);
+                    rawStr = rawStr.replace(/\\"/g, '"');
+                    const parsed = JSON.parse(rawStr);
+                    setJsonPreviewData(JSON.stringify(parsed, null, 4));
                 } catch (e) {
-                    setJsonPreviewData(`Error al parsear el JSON de la base de datos: ${e.message}\n\nContenido crudo encontrado:\n${rowWithJson[jsonColumn]}`);
+                    setJsonPreviewData(`Error al parsear JSON: ${e.message}\n\nCrudo Limpio:\n${String(rowWithJson[jsonColumn]).replace(/\\"/g, '"')}`);
                 }
             } else {
-                setJsonPreviewData("No se encontró ningún JSON válido en los primeros 50 registros de esta tabla.\nRevisa que hayas seleccionado la columna correcta.");
+                setJsonPreviewData("No se encontró ningún JSON válido en los primeros 50 registros.");
             }
         } else {
             setShowJsonPreview(false);
-            Swal.fire('Error', res.error || 'No hay datos en la tabla', 'error');
+            Swal.fire('Error', res.error || 'No hay datos', 'error');
         }
         setIsLoadingPreview(false);
     };
+
+    // Sub-componente UI para el bloque del Join
+    const RenderClientJoinBlock = ({ currentSourceTable }) => (
+        <div className="mt-3">
+            <Form.Check 
+                type="switch"
+                id="client-join-switch"
+                label="Extraer nombre y documento del cliente desde otra tabla"
+                checked={useClientJoin}
+                onChange={(e) => setUseClientJoin(e.target.checked)}
+                className="mb-3 fw-bold text-info"
+            />
+            {useClientJoin && (
+                <div className="bg-white p-3 border border-info rounded mb-4 animate__animated animate__fadeIn">
+                    <Row className="mb-2">
+                        <Col md={4} className="text-end fw-bold pt-1">Tabla de Clientes</Col>
+                        <Col md={6}>
+                            <div className="d-flex gap-2">
+                                <Form.Select size="sm" value={clientJoin.table} onChange={e => setClientJoin({...clientJoin, table: e.target.value})}>
+                                    <option value="">Selecciona la tabla...</option>
+                                    {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                                </Form.Select>
+                                <Button variant="outline-info" size="sm" disabled={!clientJoin.table} onClick={() => handlePreview(clientJoin.table)}>
+                                    <i className="bi bi-eye"></i>
+                                </Button>
+                            </div>
+                        </Col>
+                    </Row>
+                    {clientJoin.table && (
+                        <>
+                            <Row className="mb-2">
+                                <Col md={4} className="text-end fw-bold pt-1">ID en Factura (FK)</Col>
+                                <Col md={6}>
+                                    <Form.Select size="sm" value={clientJoin.fk_in_invoice} onChange={e => setClientJoin({...clientJoin, fk_in_invoice: e.target.value})}>
+                                        <option value="">Columna en '{currentSourceTable}'...</option>
+                                        {externalSchema[currentSourceTable]?.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </Form.Select>
+                                </Col>
+                            </Row>
+                            <Row className="mb-2">
+                                <Col md={4} className="text-end fw-bold pt-1">ID en Tabla Clientes (PK)</Col>
+                                <Col md={6}>
+                                    <Form.Select size="sm" value={clientJoin.pk_in_client} onChange={e => setClientJoin({...clientJoin, pk_in_client: e.target.value})}>
+                                        <option value="">Columna en '{clientJoin.table}'...</option>
+                                        {externalSchema[clientJoin.table]?.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </Form.Select>
+                                </Col>
+                            </Row>
+                            <Row className="mb-2">
+                                <Col md={4} className="text-end fw-bold pt-1">Columna: Nombre</Col>
+                                <Col md={6}>
+                                    <Form.Select size="sm" value={clientJoin.name_col} onChange={e => setClientJoin({...clientJoin, name_col: e.target.value})}>
+                                        <option value="">Selecciona columna...</option>
+                                        {externalSchema[clientJoin.table]?.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </Form.Select>
+                                </Col>
+                            </Row>
+                            <Row className="mb-2">
+                                <Col md={4} className="text-end fw-bold pt-1">Columna: Documento</Col>
+                                <Col md={6}>
+                                    <Form.Select size="sm" value={clientJoin.doc_col} onChange={e => setClientJoin({...clientJoin, doc_col: e.target.value})}>
+                                        <option value="">Opcional: Selecciona columna...</option>
+                                        {externalSchema[clientJoin.table]?.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </Form.Select>
+                                </Col>
+                            </Row>
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <Card className="shadow-sm border-0">
@@ -220,11 +303,13 @@ export const Importar = () => {
                                 <Col md={6}>
                                     <Form.Group>
                                         <Form.Label className="fw-bold text-danger">Origen</Form.Label>
-                                        <Form.Select value={sourceTable} onChange={(e) => { setSourceTable(e.target.value); setMapping({}); }}>
-                                            <option value="">-- Tabla Origen --</option>
-                                            {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
-                                        </Form.Select>
-                                        <Button variant="link" size="sm" disabled={!sourceTable} onClick={() => handlePreview(sourceTable)}>Ver datos de origen</Button>
+                                        <div className="d-flex gap-2">
+                                            <Form.Select value={sourceTable} onChange={(e) => { setSourceTable(e.target.value); setMapping({}); }}>
+                                                <option value="">-- Tabla Origen --</option>
+                                                {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                                            </Form.Select>
+                                            <Button variant="info" className="text-white" disabled={!sourceTable} onClick={() => handlePreview(sourceTable)}><i className="bi bi-eye-fill"></i></Button>
+                                        </div>
                                     </Form.Group>
                                 </Col>
                                 <Col md={6}>
@@ -244,19 +329,23 @@ export const Importar = () => {
                             <Row className="g-3 bg-light p-3 rounded border border-success">
                                 <Col md={6}>
                                     <Form.Label className="fw-bold text-danger">Tabla MAESTRO (Cabeceras)</Form.Label>
-                                    <Form.Select value={relSourceMaestro} onChange={(e) => setRelSourceMaestro(e.target.value)}>
-                                        <option value="">-- Ej. tbl_facturas --</option>
-                                        {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
-                                    </Form.Select>
-                                    <Button variant="link" size="sm" disabled={!relSourceMaestro} onClick={() => handlePreview(relSourceMaestro)}>Ver cabeceras</Button>
+                                    <div className="d-flex gap-2">
+                                        <Form.Select value={relSourceMaestro} onChange={(e) => setRelSourceMaestro(e.target.value)}>
+                                            <option value="">-- Ej. tbl_facturas --</option>
+                                            {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                                        </Form.Select>
+                                        <Button variant="info" className="text-white" disabled={!relSourceMaestro} onClick={() => handlePreview(relSourceMaestro)}><i className="bi bi-eye-fill"></i></Button>
+                                    </div>
                                 </Col>
                                 <Col md={6}>
                                     <Form.Label className="fw-bold text-danger">Tabla DETALLE (Ítems)</Form.Label>
-                                    <Form.Select value={relSourceDetalle} onChange={(e) => setRelSourceDetalle(e.target.value)}>
-                                        <option value="">-- Ej. tbl_detalle_factura --</option>
-                                        {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
-                                    </Form.Select>
-                                    <Button variant="link" size="sm" disabled={!relSourceDetalle} onClick={() => handlePreview(relSourceDetalle)}>Ver detalles</Button>
+                                    <div className="d-flex gap-2">
+                                        <Form.Select value={relSourceDetalle} onChange={(e) => setRelSourceDetalle(e.target.value)}>
+                                            <option value="">-- Ej. tbl_detalle_factura --</option>
+                                            {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                                        </Form.Select>
+                                        <Button variant="info" className="text-white" disabled={!relSourceDetalle} onClick={() => handlePreview(relSourceDetalle)}><i className="bi bi-eye-fill"></i></Button>
+                                    </div>
                                 </Col>
                             </Row>
                         )}
@@ -265,11 +354,13 @@ export const Importar = () => {
                             <Row className="g-3 bg-light p-3 rounded border border-warning">
                                 <Col md={6}>
                                     <Form.Label className="fw-bold text-danger">Tabla de Facturas</Form.Label>
-                                    <Form.Select value={jsonSourceTable} onChange={(e) => setJsonSourceTable(e.target.value)}>
-                                        <option value="">-- Ej. invoices --</option>
-                                        {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
-                                    </Form.Select>
-                                    <Button variant="link" size="sm" disabled={!jsonSourceTable} onClick={() => handlePreview(jsonSourceTable)}>Ver tabla</Button>
+                                    <div className="d-flex gap-2">
+                                        <Form.Select value={jsonSourceTable} onChange={(e) => setJsonSourceTable(e.target.value)}>
+                                            <option value="">-- Ej. invoices --</option>
+                                            {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                                        </Form.Select>
+                                        <Button variant="info" className="text-white" disabled={!jsonSourceTable} onClick={() => handlePreview(jsonSourceTable)}><i className="bi bi-eye-fill"></i></Button>
+                                    </div>
                                 </Col>
                                 <Col md={6}>
                                     <Form.Label className="fw-bold text-danger">Columna que contiene el JSON</Form.Label>
@@ -303,22 +394,29 @@ export const Importar = () => {
                             <>
                                 <Alert variant="warning"><small>Asocie las columnas.</small></Alert>
                                 <div className="bg-light p-3 rounded border" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                                    {internalSchema[targetTable]?.map(internalCol => (
-                                        <Row key={internalCol} className="mb-3 align-items-center border-bottom pb-2">
-                                            <Col md={5}>
-                                                <Form.Select size="sm" value={mapping[internalCol] || ''} onChange={(e) => {
-                                                    const newMap = {...mapping};
-                                                    e.target.value ? newMap[internalCol] = e.target.value : delete newMap[internalCol];
-                                                    setMapping(newMap);
-                                                }} disabled={['id', 'date_created'].includes(internalCol)}>
-                                                    <option value="">-- Valor por defecto --</option>
-                                                    {externalSchema[sourceTable]?.map(extCol => <option key={extCol} value={extCol}>{extCol}</option>)}
-                                                </Form.Select>
-                                            </Col>
-                                            <Col md={2} className="text-center text-primary"><i className="bi bi-link"></i></Col>
-                                            <Col md={5} className="fw-bold small">{internalCol}</Col>
-                                        </Row>
-                                    ))}
+                                    {internalSchema[targetTable]?.map(internalCol => {
+                                        const isSystemField = ['id', 'date_created'].includes(internalCol);
+                                        return (
+                                            <Row key={internalCol} className="mb-3 align-items-center border-bottom pb-2">
+                                                <Col md={5}>
+                                                    <Form.Select size="sm" value={mapping[internalCol] || ''} onChange={(e) => {
+                                                        const newMap = {...mapping};
+                                                        e.target.value ? newMap[internalCol] = e.target.value : delete newMap[internalCol];
+                                                        setMapping(newMap);
+                                                    }} disabled={isSystemField}>
+                                                        <option value="">-- Valor por defecto --</option>
+                                                        {externalSchema[sourceTable]?.map(extCol => <option key={extCol} value={extCol}>{extCol}</option>)}
+                                                    </Form.Select>
+                                                </Col>
+                                                <Col md={2} className="text-center text-primary"><i className="bi bi-link"></i></Col>
+                                                <Col md={5}>
+                                                    <div className="p-2 bg-white border rounded small fw-bold">
+                                                        {internalCol} {isSystemField && <span className="ms-2 badge bg-secondary" style={{fontSize: '10px'}}>Auto</span>}
+                                                    </div>
+                                                </Col>
+                                            </Row>
+                                        )
+                                    })}
                                 </div>
                                 <div className="mt-4 d-flex justify-content-between">
                                     <Button variant="secondary" onClick={() => setStep(2)}>Atrás</Button>
@@ -342,6 +440,7 @@ export const Importar = () => {
                                             </Col>
                                         </Row>
                                     ))}
+                                    <RenderClientJoinBlock currentSourceTable={relSourceMaestro} />
                                 </div>
 
                                 <h6 className="fw-bold text-danger border-bottom pb-2">2. Ítems (Detalle)</h6>
@@ -382,9 +481,9 @@ export const Importar = () => {
                                             </Col>
                                         </Row>
                                     ))}
+                                    <RenderClientJoinBlock currentSourceTable={jsonSourceTable} />
                                 </div>
 
-                                {/* BOTONES AÑADIDOS EXACTAMENTE DONDE SE PIDIÓ */}
                                 <div className="d-flex justify-content-between align-items-end border-bottom pb-2 mb-3">
                                     <h6 className="fw-bold text-warning m-0">2. Ítems (Extraídos del JSON)</h6>
                                     <div>
@@ -424,58 +523,25 @@ export const Importar = () => {
                 )}
             </Card.Body>
 
-            {/* MODAL DE PREVISUALIZACIÓN DE TABLA */}
-            <Modal show={showPreview} onHide={() => setShowPreview(false)} size="xl" scrollable centered>
-                <Modal.Header closeButton className="bg-light">
-                    <Modal.Title className="fs-5">
-                        <i className="bi bi-table me-2 text-info"></i>Previsualización: <strong className="text-primary">{sourceTable || jsonSourceTable}</strong>
-                    </Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="p-0">
-                    <div className="table-responsive">
-                        <table className="table table-hover table-bordered table-sm m-0" style={{ whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
-                            <thead className="table-dark sticky-top">
-                                <tr>{previewCols.map(col => <th key={col}>{col}</th>)}</tr>
-                            </thead>
-                            <tbody>
-                                {previewData.map((row, idx) => (
-                                    <tr key={idx}>
-                                        {previewCols.map(col => <td key={col}>{row[col] !== null ? String(row[col]).substring(0, 50) : 'NULL'}</td>)}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowPreview(false)}>Cerrar</Button>
-                </Modal.Footer>
-            </Modal>
+            {/* MODALES SUBCOMPONENTIZADOS */}
+            <ModalPreviewTabla 
+                show={showPreview} 
+                onHide={() => setShowPreview(false)} 
+                tableName={sourceTable || jsonSourceTable || relSourceMaestro || relSourceDetalle || clientJoin.table} 
+                isLoading={isLoadingPreview} 
+                columns={previewCols} 
+                data={previewData} 
+                totalRows={previewTotalRows} 
+            />
 
-            {/* NUEVO MODAL DE PREVISUALIZACIÓN JSON */}
-            <Modal show={showJsonPreview} onHide={() => setShowJsonPreview(false)} size="lg" scrollable centered>
-                <Modal.Header closeButton className="bg-dark text-white border-secondary">
-                    <Modal.Title className="fs-5">
-                        <i className="bi bi-braces me-2 text-warning"></i>Estructura del JSON ({jsonColumn})
-                    </Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="p-0 bg-dark text-light">
-                    {isLoadingPreview ? (
-                        <div className="text-center py-5">
-                            <div className="spinner-border text-warning" role="status"></div>
-                            <p className="mt-2 text-muted">Buscando y extrayendo...</p>
-                        </div>
-                    ) : (
-                        <pre className="p-3 m-0" style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                            {jsonPreviewData}
-                        </pre>
-                    )}
-                </Modal.Body>
-                <Modal.Footer className="bg-dark border-secondary">
-                    <Button variant="outline-light" onClick={() => setShowJsonPreview(false)}>Cerrar</Button>
-                </Modal.Footer>
-            </Modal>
-
+            <ModalPreviewJson 
+                show={showJsonPreview} 
+                onHide={() => setShowJsonPreview(false)} 
+                columnName={jsonColumn} 
+                isLoading={isLoadingPreview} 
+                jsonData={jsonPreviewData} 
+            />
+            
         </Card>
     );
 }
