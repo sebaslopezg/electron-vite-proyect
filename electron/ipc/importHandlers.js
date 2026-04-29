@@ -130,7 +130,8 @@ export const registerImportHandlers = () => {
         if (!joins) return cache;
         for (const [targetCol, joinConf] of Object.entries(joins)) {
             try {
-                const rows = extDb.prepare(`SELECT * FROM ${joinConf.extTable}`).all();
+                const targetDb = joinConf.isInternal ? db : extDb; 
+                const rows = targetDb.prepare(`SELECT * FROM ${joinConf.extTable}`).all();
                 const map = new Map(rows.map(r => [String(r[joinConf.pkCol]), r[joinConf.extCol]]));
                 cache[targetCol] = { map, fkCol: joinConf.fkCol };
             } catch(e) {
@@ -140,15 +141,12 @@ export const registerImportHandlers = () => {
         return cache;
     };
 
-    const getVal = (reqCol, sourceObj, mapObj, defaultFallback, joinsCache, defValues = {}) => {
+    const getVal = (reqCol, sourceObj, mapObj, defaultVal, joinsCache, defValues = {}) => {
         if (joinsCache && joinsCache[reqCol]) {
             const fkVal = sourceObj[joinsCache[reqCol].fkCol];
-            return fkVal != null ? (joinsCache[reqCol].map.get(String(fkVal)) ?? defValues[reqCol] ?? defaultFallback) : (defValues[reqCol] ?? defaultFallback);
+            return fkVal != null ? (joinsCache[reqCol].map.get(String(fkVal)) ?? defValues[reqCol] ?? defaultVal) : (defValues[reqCol] ?? defaultVal);
         }
-        if (mapObj[reqCol]) {
-            return sourceObj[mapObj[reqCol]] ?? defValues[reqCol] ?? defaultFallback;
-        }
-        return defValues[reqCol] ?? defaultFallback;
+        return sourceObj[mapObj[reqCol]] ?? defValues[reqCol] ?? defaultVal;
     };
 
     ipcMain.handle("preview-external-table", (_, { filePath, tableName }) => {
@@ -164,7 +162,7 @@ export const registerImportHandlers = () => {
         } catch (error) { return { success: false, error: error.message }; }
     });
     
-    ipcMain.handle("execute-import", (_, { filePath, sourceTable, targetTable, mapping, defaultValues, joins }) => {
+    ipcMain.handle("execute-import", (_, { filePath, sourceTable, targetTable, mapping, defaultValues, joins, idPrefix }) => {
         try {
             const extDb = new Database(filePath, { readonly: true });
             const sourceData = extDb.prepare(`SELECT * FROM ${sourceTable}`).all();
@@ -183,7 +181,16 @@ export const registerImportHandlers = () => {
                 for (const row of data) {
                     const values = [];
                     for (const targetCol of targetCols) {
-                        if (targetCol === 'id' && !mapping['id']) values.push(uuidv4());
+                        
+                        if (targetCol === 'id') {
+                            if (mapping['id'] && row[mapping['id']]) {
+                                values.push((idPrefix || '') + String(row[mapping['id']]));
+                            } else if (defaultValues['id']) {
+                                values.push((idPrefix || '') + String(defaultValues['id']));
+                            } else {
+                                values.push(uuidv4());
+                            }
+                        }
                         else if (targetCol === 'date_created' && !mapping['date_created']) values.push(new Date().toISOString());
                         else if (targetCol === 'status' && !mapping['status']) values.push(1); 
                         else {
@@ -197,9 +204,8 @@ export const registerImportHandlers = () => {
                             }
                         }
                     }
-                    try {
-                        insertStmt.run(values); count++;
-                    } catch (err) {
+                    try { insertStmt.run(values); count++; } 
+                    catch (err) {
                         if (err.message.includes('UNIQUE constraint failed')) {
                             const parts = err.message.split(': ');
                             if (parts.length > 1) {
@@ -282,13 +288,21 @@ export const registerImportHandlers = () => {
         } catch (error) { if (extDb && extDb.open) extDb.close(); return { success: false, error: error.message }; }
     });
 
-    ipcMain.handle("import-facturas-json", (_, { filePath, sourceTable, jsonColumn, mapMaestro, mapDetalle, joins, defaultValues }) => {
-        let extDb;
+    ipcMain.handle("execute-import-json", (_, { filePath, sourceTable, query, targetTable, jsonColumn, mapping, jsonKeysMapping, defaultValues, joins, idPrefix }) => {
         try {
-            extDb = new Database(filePath, { readonly: true });
-            const maestrosViejos = extDb.prepare(`SELECT * FROM ${sourceTable}`).all();
+            const extDb = new Database(filePath, { readonly: true });
+            
+            let sourceData = [];
+            if (query) {
+                sourceData = extDb.prepare(query).all();
+            } else if (sourceTable) {
+                sourceData = extDb.prepare(`SELECT * FROM ${sourceTable}`).all();
+            }
+
             const joinsCache = buildJoinsCache(joins, extDb);
             extDb.close();
+
+            if (sourceData.length === 0) return { success: false, error: "La tabla origen o consulta está vacía." };
 
             const extractItems = (obj) => {
                 if (Array.isArray(obj)) return obj;
@@ -300,61 +314,92 @@ export const registerImportHandlers = () => {
                 return [];
             };
 
-            const transaction = db.transaction(() => {
-                const now = new Date().toISOString();
-                let facturasImportadas = 0, detallesImportados = 0;
+            const transaction = db.transaction((data) => {
+                const targetCols = db.prepare(`PRAGMA table_info(${targetTable})`).all().map(c => c.name);
+                const placeholders = targetCols.map(() => '?').join(', ');
+                const insertStmt = db.prepare(`INSERT INTO ${targetTable} (${targetCols.join(', ')}) VALUES (${placeholders})`);
 
-                const insertMaestro = db.prepare(`INSERT INTO ventasMaestro (id, numero_factura, prefijo, separador, nombre_cliente, documento_cliente, subtotal, descuento, iva, total_factura, total_recibido, saldo_pendiente, total_recibido_original, saldo_pendiente_original, tipo_pago, metodo_pago, moneda, formato_numero, status, date_created, date_modify, modify_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'system')`);
-                const insertDetalle = db.prepare(`INSERT INTO ventasDetalle (id, maestro_id, id_producto, nombre_producto, precio_producto, cantidad_producto, total, is_encargo, status, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)`);
+                let count = 0, fixed = 0, skipped = 0;
 
-                for (const mViejo of maestrosViejos) {
-                    const nuevoMaestroId = uuidv4();
-                    const nroFactura = getVal('numero_factura', mViejo, mapMaestro, facturasImportadas + 1, joinsCache, defaultValues);
-                    const totalFactura = parseFloat(getVal('total_factura', mViejo, mapMaestro, 0, joinsCache, defaultValues));
-                    
-                    const fechaCreacion = getVal('date_created', mViejo, mapMaestro, now, joinsCache, defaultValues);
-                    const prefijoFinal = getVal('prefijo', mViejo, mapMaestro, 'J', joinsCache, defaultValues);
-                    const separadorFinal = getVal('separador', mViejo, mapMaestro, '-', joinsCache, defaultValues);
-                    
-                    insertMaestro.run(
-                        nuevoMaestroId, nroFactura, prefijoFinal, separadorFinal,
-                        String(getVal('nombre_cliente', mViejo, mapMaestro, 'Consumidor Final', joinsCache, defaultValues)),
-                        String(getVal('documento_cliente', mViejo, mapMaestro, '222222222222', joinsCache, defaultValues)),
-                        parseFloat(getVal('subtotal', mViejo, mapMaestro, totalFactura, joinsCache, defaultValues)),
-                        parseFloat(getVal('descuento', mViejo, mapMaestro, 0, joinsCache, defaultValues)),
-                        parseFloat(getVal('iva', mViejo, mapMaestro, 0, joinsCache, defaultValues)),
-                        totalFactura, totalFactura, 0, totalFactura, 0, 'contado', 'Efectivo', 'COP', 'es-CO', 
-                        fechaCreacion, now
-                    );
-                    facturasImportadas++;
+                for (const row of data) {
+                    if (!row[jsonColumn]) continue;
 
-                    if (mViejo[jsonColumn]) {
-                        try {
-                            let rawJson = String(mViejo[jsonColumn]);
-                            if (rawJson.startsWith('"') && rawJson.endsWith('"')) rawJson = rawJson.slice(1, -1);
-                            rawJson = rawJson.replace(/\\"/g, '"');
-                            
-                            const items = extractItems(JSON.parse(rawJson));
+                    try {
+                        let rawJson = String(row[jsonColumn]);
+                        if (rawJson.startsWith('"') && rawJson.endsWith('"')) rawJson = rawJson.slice(1, -1);
+                        rawJson = rawJson.replace(/\\"/g, '"');
+                        
+                        const parsedJson = JSON.parse(rawJson);
+                        const items = extractItems(parsedJson);
 
-                            for (const item of items) {
-                                const cant = parseFloat(getVal('cantidad_producto', item, mapDetalle, 1, joinsCache, defaultValues));
-                                const precio = parseFloat(getVal('precio_producto', item, mapDetalle, 0, joinsCache, defaultValues));
-                                const totalItem = parseFloat(getVal('total', item, mapDetalle, cant * precio, joinsCache, defaultValues));
-
-                                insertDetalle.run(
-                                    uuidv4(), nuevoMaestroId, 'importado_json',
-                                    String(getVal('nombre_producto', item, mapDetalle, 'Producto JSON', joinsCache, defaultValues)),
-                                    precio, cant, totalItem, fechaCreacion
-                                );
-                                detallesImportados++;
+                        for (const item of items) {
+                            const values = [];
+                            for (const targetCol of targetCols) {
+                                let finalVal = null;
+                                const isJsonMapped = mapping[targetCol] === '__JSON__';
+                                
+                                if (targetCol === 'id') {
+                                    let baseId = null;
+                                    if (isJsonMapped && jsonKeysMapping['id'] && item[jsonKeysMapping['id']]) baseId = item[jsonKeysMapping['id']];
+                                    else if (mapping['id'] && row[mapping['id']]) baseId = row[mapping['id']];
+                                    else if (defaultValues['id']) baseId = defaultValues['id'];
+                                    
+                                    finalVal = baseId ? `${idPrefix || ''}${baseId}` : uuidv4();
+                                }
+                                else if (targetCol === 'date_created' && !mapping['date_created']) {
+                                    finalVal = new Date().toISOString();
+                                }
+                                else if (targetCol === 'status' && !mapping['status']) {
+                                    finalVal = 1;
+                                }
+                                else if (joinsCache && joinsCache[targetCol]) {
+                                    let fkVal = row[joinsCache[targetCol].fkCol];
+                                    if (fkVal === undefined && item[joinsCache[targetCol].fkCol] !== undefined) fkVal = item[joinsCache[targetCol].fkCol];
+                                    finalVal = fkVal != null ? (joinsCache[targetCol].map.get(String(fkVal)) ?? defaultValues[targetCol] ?? null) : (defaultValues[targetCol] ?? null);
+                                }
+                                else if (isJsonMapped) {
+                                    finalVal = item[jsonKeysMapping[targetCol]] ?? defaultValues[targetCol] ?? null;
+                                }
+                                else if (mapping[targetCol]) {
+                                    finalVal = row[mapping[targetCol]] ?? defaultValues[targetCol] ?? null;
+                                }
+                                else {
+                                    finalVal = defaultValues[targetCol] ?? null;
+                                }
+                                values.push(finalVal);
                             }
-                        } catch(e) { console.warn("JSON ignorado en factura", nroFactura); }
+
+                            try { insertStmt.run(values); count++; } 
+                            catch (err) {
+                                if (err.message.includes('UNIQUE constraint failed')) {
+                                    const parts = err.message.split(': ');
+                                    if (parts.length > 1) {
+                                        const failedFields = parts[1].split(', ');
+                                        failedFields.forEach(field => {
+                                            const colName = field.includes('.') ? field.split('.')[1] : field;
+                                            const colIdx = targetCols.indexOf(colName);
+                                            if (colIdx !== -1) {
+                                                const oldVal = values[colIdx];
+                                                values[colIdx] = oldVal ? `${oldVal}_dup${Math.floor(Math.random()*10000)}` : `sin_dato_${Math.floor(Math.random()*100000)}`;
+                                            }
+                                        });
+                                        try { insertStmt.run(values); count++; fixed++; } catch (e2) { skipped++; }
+                                    } else skipped++;
+                                } else skipped++;
+                            }
+                        }
+                    } catch(e) {
+                        console.warn("Fila ignorada por JSON inválido");
                     }
                 }
-                return { facturasImportadas, detallesImportados };
+                return { count, fixed, skipped };
             });
-            return { success: true, ...transaction() };
-        } catch (error) { if (extDb && extDb.open) extDb.close(); return { success: false, error: error.message }; }
+
+            const stats = transaction(sourceData);
+            return { success: true, rows: stats.count, fixed: stats.fixed, skipped: stats.skipped };
+        } catch (error) { 
+            return { success: false, error: error.message }; 
+        }
     });
 
     ipcMain.handle("preview-external-query", (_, { filePath, query }) => {
@@ -379,7 +424,7 @@ export const registerImportHandlers = () => {
         }
     });
 
-    ipcMain.handle("execute-import-query", (_, { filePath, query, targetTable, mapping, defaultValues, joins }) => {
+    ipcMain.handle("execute-import-query", (_, { filePath, query, targetTable, mapping, defaultValues, joins, idPrefix }) => {
         try {
             const extDb = new Database(filePath, { readonly: true });
             const sourceData = extDb.prepare(query).all();
@@ -398,7 +443,16 @@ export const registerImportHandlers = () => {
                 for (const row of data) {
                     const values = [];
                     for (const targetCol of targetCols) {
-                        if (targetCol === 'id' && !mapping['id']) values.push(uuidv4());
+                        
+                        if (targetCol === 'id') {
+                            if (mapping['id'] && row[mapping['id']]) {
+                                values.push((idPrefix || '') + String(row[mapping['id']]));
+                            } else if (defaultValues['id']) {
+                                values.push((idPrefix || '') + String(defaultValues['id']));
+                            } else {
+                                values.push(uuidv4());
+                            }
+                        }
                         else if (targetCol === 'date_created' && !mapping['date_created']) values.push(new Date().toISOString());
                         else if (targetCol === 'status' && !mapping['status']) values.push(1); 
                         else {
@@ -412,9 +466,8 @@ export const registerImportHandlers = () => {
                             }
                         }
                     }
-                    try {
-                        insertStmt.run(values); count++;
-                    } catch (err) {
+                    try { insertStmt.run(values); count++; } 
+                    catch (err) {
                         if (err.message.includes('UNIQUE constraint failed')) {
                             const parts = err.message.split(': ');
                             if (parts.length > 1) {

@@ -60,9 +60,9 @@ contextBridge.exposeInMainWorld("api", {
   updateConfiguracion: (item) => ipcRenderer.invoke("update-configuracion", item),
   updateWindow: (data) => ipcRenderer.send("update-window", data),
   importFacturasRelacionadas: (data) => ipcRenderer.invoke('import-facturas-relacionadas', data),
-  importFacturasJson: (data) => ipcRenderer.invoke('import-facturas-json', data),
   previewExternalQuery: (data) => ipcRenderer.invoke('preview-external-query', data),
   executeImportQuery: (data) => ipcRenderer.invoke('execute-import-query', data),
+  executeImportJson: (data) => ipcRenderer.invoke('execute-import-json', data),
 
   // Perfiles de Datos
   getPerfiles: () => ipcRenderer.invoke("get-perfiles"),
