@@ -127,30 +127,47 @@ export const registerImportHandlers = () => {
         }
     });
 
+    const buildJoinsCache = (joins, extDb) => {
+        const cache = {};
+        if (!joins) return cache;
+        for (const [targetCol, joinConf] of Object.entries(joins)) {
+            try {
+                const rows = extDb.prepare(`SELECT * FROM ${joinConf.extTable}`).all();
+                const map = new Map(rows.map(r => [String(r[joinConf.pkCol]), r[joinConf.extCol]]));
+                cache[targetCol] = { map, fkCol: joinConf.fkCol };
+            } catch(e) {
+                console.warn(`Error cargando tabla de join ${joinConf.extTable}:`, e.message);
+            }
+        }
+        return cache;
+    };
+
+    const getVal = (reqCol, sourceObj, mapObj, defaultVal, joinsCache) => {
+        if (joinsCache[reqCol]) {
+            const fkVal = sourceObj[joinsCache[reqCol].fkCol];
+            return fkVal != null ? (joinsCache[reqCol].map.get(String(fkVal)) ?? defaultVal) : defaultVal;
+        }
+        return sourceObj[mapObj[reqCol]] ?? defaultVal;
+    };
+
     ipcMain.handle("preview-external-table", (_, { filePath, tableName }) => {
         try {
             if (!fs.existsSync(filePath)) return { success: false, error: "El archivo de base de datos no se encuentra." };
-
             const extDb = new Database(filePath, { readonly: true });
-
             const colInfo = extDb.prepare(`PRAGMA table_info(${tableName})`).all();
             const columns = colInfo.map(c => c.name);
-
             const data = extDb.prepare(`SELECT * FROM ${tableName} LIMIT 50`).all();
             const countRow = extDb.prepare(`SELECT COUNT(*) as total FROM ${tableName}`).get();
-
             extDb.close();
-            
             return { success: true, columns, data, totalRows: countRow.total };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
+        } catch (error) { return { success: false, error: error.message }; }
     });
     
-    ipcMain.handle("execute-import", (_, { filePath, sourceTable, targetTable, mapping, defaultValues }) => {
+    ipcMain.handle("execute-import", (_, { filePath, sourceTable, targetTable, mapping, defaultValues, joins }) => {
         try {
             const extDb = new Database(filePath, { readonly: true });
             const sourceData = extDb.prepare(`SELECT * FROM ${sourceTable}`).all();
+            const joinsCache = buildJoinsCache(joins, extDb);
             extDb.close();
 
             if (sourceData.length === 0) return { success: false, error: "La tabla de origen está vacía." };
@@ -160,200 +177,114 @@ export const registerImportHandlers = () => {
                 const placeholders = targetCols.map(() => '?').join(', ');
                 const insertStmt = db.prepare(`INSERT INTO ${targetTable} (${targetCols.join(', ')}) VALUES (${placeholders})`);
 
-                let count = 0;
-                let fixed = 0;
-                let skipped = 0;
+                let count = 0, fixed = 0, skipped = 0;
 
                 for (const row of data) {
                     const values = [];
                     for (const targetCol of targetCols) {
-                        if (targetCol === 'id' && !mapping['id']) {
-                            values.push(uuidv4());
-                        } else if (targetCol === 'date_created' && !mapping['date_created']) {
-                            values.push(new Date().toISOString());
-                        } else if (targetCol === 'status' && !mapping['status']) {
-                            values.push(1); 
-                        } else {
-                            const sourceCol = mapping[targetCol];
-                            if (sourceCol) {
-                                values.push(row[sourceCol] ?? null); 
+                        if (targetCol === 'id' && !mapping['id']) values.push(uuidv4());
+                        else if (targetCol === 'date_created' && !mapping['date_created']) values.push(new Date().toISOString());
+                        else if (targetCol === 'status' && !mapping['status']) values.push(1); 
+                        else {
+                            if (joinsCache[targetCol]) {
+                                const fkVal = row[joinsCache[targetCol].fkCol];
+                                values.push(fkVal != null ? (joinsCache[targetCol].map.get(String(fkVal)) ?? defaultValues[targetCol] ?? null) : (defaultValues[targetCol] ?? null));
+                            } else if (mapping[targetCol]) {
+                                values.push(row[mapping[targetCol]] ?? null); 
                             } else {
                                 values.push(defaultValues[targetCol] ?? null);
                             }
                         }
                     }
-
                     try {
-                        insertStmt.run(values);
-                        count++;
+                        insertStmt.run(values); count++;
                     } catch (err) {
                         if (err.message.includes('UNIQUE constraint failed')) {
+                            // ... Lógica de auto corrección ... (Mantén tu código de fix duplicados aquí)
                             const parts = err.message.split(': ');
                             if (parts.length > 1) {
                                 const failedFields = parts[1].split(', ');
-                                
                                 failedFields.forEach(field => {
                                     const colName = field.includes('.') ? field.split('.')[1] : field;
                                     const colIdx = targetCols.indexOf(colName);
-                                    
                                     if (colIdx !== -1) {
                                         const oldVal = values[colIdx];
-                                        values[colIdx] = oldVal 
-                                            ? `${oldVal}_dup${Math.floor(Math.random() * 10000)}` 
-                                            : `sin_dato_${Math.floor(Math.random() * 100000)}`;
+                                        values[colIdx] = oldVal ? `${oldVal}_dup${Math.floor(Math.random()*10000)}` : `sin_dato_${Math.floor(Math.random()*100000)}`;
                                     }
                                 });
-                                try {
-                                    insertStmt.run(values);
-                                    count++;
-                                    fixed++;
-                                } catch (e2) {
-                                    skipped++;
-                                }
-                            } else {
-                                skipped++;
-                            }
-                        } else {
-                            skipped++;
-                        }
+                                try { insertStmt.run(values); count++; fixed++; } catch (e2) { skipped++; }
+                            } else skipped++;
+                        } else skipped++;
                     }
                 }
                 return { count, fixed, skipped };
             });
-
             const stats = transaction(sourceData);
-            
-            return { 
-                success: true, 
-                rows: stats.count, 
-                fixed: stats.fixed, 
-                skipped: stats.skipped 
-            };
-
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
+            return { success: true, rows: stats.count, fixed: stats.fixed, skipped: stats.skipped };
+        } catch (error) { return { success: false, error: error.message }; }
     });
 
-    // 5. NUEVO: IMPORTACIÓN RELACIONAL (FACTURAS MAESTRO-DETALLE)
-    ipcMain.handle("import-facturas-relacionadas", (_, { filePath, tablaMaestroOrigen, tablaDetalleOrigen, mapMaestro, mapDetalle, clientJoin }) => {
+    // 5. IMPORTACIÓN RELACIONAL (FACTURAS)
+    ipcMain.handle("import-facturas-relacionadas", (_, { filePath, tablaMaestroOrigen, tablaDetalleOrigen, mapMaestro, mapDetalle, joins }) => {
         let extDb;
         try {
-            if (!fs.existsSync(filePath)) return { success: false, error: "El archivo de base de datos no se encuentra." };
-            
             extDb = new Database(filePath, { readonly: true });
-            
             const maestrosViejos = extDb.prepare(`SELECT * FROM ${tablaMaestroOrigen}`).all();
             const detallesViejos = extDb.prepare(`SELECT * FROM ${tablaDetalleOrigen}`).all();
-            
-            // --- NUEVO: PREPARAR EL JOIN DE CLIENTES EN MEMORIA ---
-            let clientesMap = new Map();
-            if (clientJoin && clientJoin.table) {
-                try {
-                    const clientesViejos = extDb.prepare(`SELECT * FROM ${clientJoin.table}`).all();
-                    clientesMap = new Map(clientesViejos.map(c => [String(c[clientJoin.pk_in_client]), c]));
-                } catch(e) { console.warn("No se pudo cargar la tabla de clientes para el cruce", e.message); }
-            }
-
+            const joinsCache = buildJoinsCache(joins, extDb);
             extDb.close();
 
             const transaction = db.transaction(() => {
                 const now = new Date().toISOString();
-                let facturasImportadas = 0;
-                let detallesImportados = 0;
+                let facturasImportadas = 0, detallesImportados = 0;
 
-                const insertMaestro = db.prepare(`
-                    INSERT INTO ventasMaestro (
-                        id, numero_factura, prefijo, separador, nombre_cliente, documento_cliente,
-                        subtotal, descuento, iva, total_factura, total_recibido, saldo_pendiente,
-                        total_recibido_original, saldo_pendiente_original, tipo_pago, metodo_pago, 
-                        moneda, formato_numero, status, date_created, date_modify, modify_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'system')
-                `);
-
-                const insertDetalle = db.prepare(`
-                    INSERT INTO ventasDetalle (
-                        id, maestro_id, id_producto, nombre_producto, precio_producto, 
-                        cantidad_producto, total, is_encargo, status, date_created
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)
-                `);
+                const insertMaestro = db.prepare(`INSERT INTO ventasMaestro (id, numero_factura, prefijo, separador, nombre_cliente, documento_cliente, subtotal, descuento, iva, total_factura, total_recibido, saldo_pendiente, total_recibido_original, saldo_pendiente_original, tipo_pago, metodo_pago, moneda, formato_numero, status, date_created, date_modify, modify_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'system')`);
+                const insertDetalle = db.prepare(`INSERT INTO ventasDetalle (id, maestro_id, id_producto, nombre_producto, precio_producto, cantidad_producto, total, is_encargo, status, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)`);
 
                 for (const mViejo of maestrosViejos) {
                     const nuevoMaestroId = uuidv4();
-                    const nroFactura = mViejo[mapMaestro.numero_factura] || facturasImportadas + 1;
-                    const totalFactura = parseFloat(mViejo[mapMaestro.total_factura] || 0);
+                    const nroFactura = getVal('numero_factura', mViejo, mapMaestro, facturasImportadas + 1, joinsCache);
+                    const totalFactura = parseFloat(getVal('total_factura', mViejo, mapMaestro, 0, joinsCache));
 
-                    // --- APLICAR EL JOIN DE CLIENTES ---
-                    let finalName = String(mViejo[mapMaestro.nombre_cliente] || 'Consumidor Final');
-                    let finalDoc = String(mViejo[mapMaestro.documento_cliente] || '222222222222');
-
-                    if (clientJoin && clientJoin.table && mViejo[clientJoin.fk_in_invoice]) {
-                        const clienteData = clientesMap.get(String(mViejo[clientJoin.fk_in_invoice]));
-                        if (clienteData) {
-                            if (clientJoin.name_col && clienteData[clientJoin.name_col]) finalName = String(clienteData[clientJoin.name_col]);
-                            if (clientJoin.doc_col && clienteData[clientJoin.doc_col]) finalDoc = String(clienteData[clientJoin.doc_col]);
-                        }
-                    }
-                    
                     insertMaestro.run(
-                        nuevoMaestroId, nroFactura, 'H', '-', finalName, finalDoc,
-                        parseFloat(mViejo[mapMaestro.subtotal] || totalFactura),
-                        parseFloat(mViejo[mapMaestro.descuento] || 0),
-                        parseFloat(mViejo[mapMaestro.iva] || 0),
-                        totalFactura, totalFactura, 0, totalFactura, 0,
-                        'contado', 'Efectivo', 'COP', 'es-CO', now, now
+                        nuevoMaestroId, nroFactura, 'H', '-', 
+                        String(getVal('nombre_cliente', mViejo, mapMaestro, 'Consumidor Final', joinsCache)),
+                        String(getVal('documento_cliente', mViejo, mapMaestro, '222222222222', joinsCache)),
+                        parseFloat(getVal('subtotal', mViejo, mapMaestro, totalFactura, joinsCache)),
+                        parseFloat(getVal('descuento', mViejo, mapMaestro, 0, joinsCache)),
+                        parseFloat(getVal('iva', mViejo, mapMaestro, 0, joinsCache)),
+                        totalFactura, totalFactura, 0, totalFactura, 0, 'contado', 'Efectivo', 'COP', 'es-CO', now, now
                     );
                     facturasImportadas++;
 
-                    const llaveForaneaVieja = mapDetalle.foreign_key_column;
-                    const idMaestroViejo = mViejo[mapMaestro.id_column];
-                    const misDetalles = detallesViejos.filter(d => String(d[llaveForaneaVieja]) === String(idMaestroViejo));
+                    const misDetalles = detallesViejos.filter(d => String(d[mapDetalle.foreign_key_column]) === String(mViejo[mapMaestro.id_column]));
 
                     for (const dViejo of misDetalles) {
-                        const cant = parseFloat(dViejo[mapDetalle.cantidad_producto] || 1);
-                        const precio = parseFloat(dViejo[mapDetalle.precio_producto] || 0);
-                        const totalItem = parseFloat(dViejo[mapDetalle.total] || (cant * precio));
+                        const cant = parseFloat(getVal('cantidad_producto', dViejo, mapDetalle, 1, joinsCache));
+                        const precio = parseFloat(getVal('precio_producto', dViejo, mapDetalle, 0, joinsCache));
+                        const totalItem = parseFloat(getVal('total', dViejo, mapDetalle, cant * precio, joinsCache));
 
                         insertDetalle.run(
                             uuidv4(), nuevoMaestroId, 'importado',
-                            String(dViejo[mapDetalle.nombre_producto] || 'Producto Histórico'),
+                            String(getVal('nombre_producto', dViejo, mapDetalle, 'Producto Histórico', joinsCache)),
                             precio, cant, totalItem, now
                         );
                         detallesImportados++;
                     }
                 }
-                
                 return { facturasImportadas, detallesImportados };
             });
-
-            const stats = transaction();
-            return { success: true, ...stats };
-
-        } catch (error) {
-            if (extDb && extDb.open) extDb.close();
-            console.error("Error en importación relacional:", error);
-            return { success: false, error: error.message };
-        }
+            return { success: true, ...transaction() };
+        } catch (error) { if (extDb && extDb.open) extDb.close(); return { success: false, error: error.message }; }
     });
 
-    // 6. NUEVO: IMPORTACIÓN DESDE COLUMNA JSON
-    ipcMain.handle("import-facturas-json", (_, { filePath, sourceTable, jsonColumn, mapMaestro, mapDetalle, clientJoin }) => {
+    // 6. IMPORTACIÓN DESDE COLUMNA JSON
+    ipcMain.handle("import-facturas-json", (_, { filePath, sourceTable, jsonColumn, mapMaestro, mapDetalle, joins }) => {
         let extDb;
         try {
-            if (!fs.existsSync(filePath)) return { success: false, error: "Archivo no encontrado." };
             extDb = new Database(filePath, { readonly: true });
-            
             const maestrosViejos = extDb.prepare(`SELECT * FROM ${sourceTable}`).all();
-            
-            // --- NUEVO: PREPARAR EL JOIN DE CLIENTES EN MEMORIA ---
-            let clientesMap = new Map();
-            if (clientJoin && clientJoin.table) {
-                try {
-                    const clientesViejos = extDb.prepare(`SELECT * FROM ${clientJoin.table}`).all();
-                    clientesMap = new Map(clientesViejos.map(c => [String(c[clientJoin.pk_in_client]), c]));
-                } catch(e) { console.warn("No se pudo cargar la tabla de clientes para el cruce", e.message); }
-            }
-
+            const joinsCache = buildJoinsCache(joins, extDb);
             extDb.close();
 
             const extractItems = (obj) => {
@@ -361,100 +292,60 @@ export const registerImportHandlers = () => {
                 if (typeof obj === 'object' && obj !== null) {
                     for (const key in obj) { if (Array.isArray(obj[key])) return obj[key]; }
                     const values = Object.values(obj);
-                    if (values.length > 0 && values.every(v => typeof v === 'object' && v !== null && !Array.isArray(v))) {
-                        return values;
-                    }
+                    if (values.length > 0 && values.every(v => typeof v === 'object' && v !== null && !Array.isArray(v))) return values;
                 }
                 return [];
             };
 
             const transaction = db.transaction(() => {
                 const now = new Date().toISOString();
-                let facturasImportadas = 0;
-                let detallesImportados = 0;
+                let facturasImportadas = 0, detallesImportados = 0;
 
-                const insertMaestro = db.prepare(`
-                    INSERT INTO ventasMaestro (
-                        id, numero_factura, prefijo, separador, nombre_cliente, documento_cliente,
-                        subtotal, descuento, iva, total_factura, total_recibido, saldo_pendiente,
-                        total_recibido_original, saldo_pendiente_original, tipo_pago, metodo_pago, 
-                        moneda, formato_numero, status, date_created, date_modify, modify_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'system')
-                `);
-
-                const insertDetalle = db.prepare(`
-                    INSERT INTO ventasDetalle (
-                        id, maestro_id, id_producto, nombre_producto, precio_producto, 
-                        cantidad_producto, total, is_encargo, status, date_created
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)
-                `);
+                const insertMaestro = db.prepare(`INSERT INTO ventasMaestro (id, numero_factura, prefijo, separador, nombre_cliente, documento_cliente, subtotal, descuento, iva, total_factura, total_recibido, saldo_pendiente, total_recibido_original, saldo_pendiente_original, tipo_pago, metodo_pago, moneda, formato_numero, status, date_created, date_modify, modify_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'system')`);
+                const insertDetalle = db.prepare(`INSERT INTO ventasDetalle (id, maestro_id, id_producto, nombre_producto, precio_producto, cantidad_producto, total, is_encargo, status, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?)`);
 
                 for (const mViejo of maestrosViejos) {
                     const nuevoMaestroId = uuidv4();
-                    const nroFactura = mViejo[mapMaestro.numero_factura] || facturasImportadas + 1;
-                    const totalFactura = parseFloat(mViejo[mapMaestro.total_factura] || 0);
+                    const nroFactura = getVal('numero_factura', mViejo, mapMaestro, facturasImportadas + 1, joinsCache);
+                    const totalFactura = parseFloat(getVal('total_factura', mViejo, mapMaestro, 0, joinsCache));
                     
-                    // --- APLICAR EL JOIN DE CLIENTES ---
-                    let finalName = String(mViejo[mapMaestro.nombre_cliente] || 'Consumidor Final');
-                    let finalDoc = String(mViejo[mapMaestro.documento_cliente] || '222222222222');
-
-                    if (clientJoin && clientJoin.table && mViejo[clientJoin.fk_in_invoice]) {
-                        const clienteData = clientesMap.get(String(mViejo[clientJoin.fk_in_invoice]));
-                        if (clienteData) {
-                            if (clientJoin.name_col && clienteData[clientJoin.name_col]) finalName = String(clienteData[clientJoin.name_col]);
-                            if (clientJoin.doc_col && clienteData[clientJoin.doc_col]) finalDoc = String(clienteData[clientJoin.doc_col]);
-                        }
-                    }
-
                     insertMaestro.run(
-                        nuevoMaestroId, nroFactura, 'J', '-', finalName, finalDoc,
-                        parseFloat(mViejo[mapMaestro.subtotal] || totalFactura),
-                        parseFloat(mViejo[mapMaestro.descuento] || 0),
-                        parseFloat(mViejo[mapMaestro.iva] || 0),
-                        totalFactura, totalFactura, 0, totalFactura, 0,
-                        'contado', 'Efectivo', 'COP', 'es-CO', now, now
+                        nuevoMaestroId, nroFactura, 'J', '-',
+                        String(getVal('nombre_cliente', mViejo, mapMaestro, 'Consumidor Final', joinsCache)),
+                        String(getVal('documento_cliente', mViejo, mapMaestro, '222222222222', joinsCache)),
+                        parseFloat(getVal('subtotal', mViejo, mapMaestro, totalFactura, joinsCache)),
+                        parseFloat(getVal('descuento', mViejo, mapMaestro, 0, joinsCache)),
+                        parseFloat(getVal('iva', mViejo, mapMaestro, 0, joinsCache)),
+                        totalFactura, totalFactura, 0, totalFactura, 0, 'contado', 'Efectivo', 'COP', 'es-CO', now, now
                     );
                     facturasImportadas++;
 
                     if (mViejo[jsonColumn]) {
                         try {
                             let rawJson = String(mViejo[jsonColumn]);
-                            if (rawJson.startsWith('"') && rawJson.endsWith('"')) {
-                                rawJson = rawJson.slice(1, -1);
-                            }
+                            if (rawJson.startsWith('"') && rawJson.endsWith('"')) rawJson = rawJson.slice(1, -1);
                             rawJson = rawJson.replace(/\\"/g, '"');
                             
-                            const parsedJson = JSON.parse(rawJson);
-                            const items = extractItems(parsedJson);
+                            const items = extractItems(JSON.parse(rawJson));
 
                             for (const item of items) {
-                                const cant = parseFloat(item[mapDetalle.cantidad_producto] || 1);
-                                const precio = parseFloat(item[mapDetalle.precio_producto] || 0);
-                                const totalItem = parseFloat(item[mapDetalle.total] || (cant * precio));
+                                const cant = parseFloat(getVal('cantidad_producto', item, mapDetalle, 1, joinsCache));
+                                const precio = parseFloat(getVal('precio_producto', item, mapDetalle, 0, joinsCache));
+                                const totalItem = parseFloat(getVal('total', item, mapDetalle, cant * precio, joinsCache));
 
                                 insertDetalle.run(
                                     uuidv4(), nuevoMaestroId, 'importado_json',
-                                    String(item[mapDetalle.nombre_producto] || 'Producto JSON'),
+                                    String(getVal('nombre_producto', item, mapDetalle, 'Producto JSON', joinsCache)),
                                     precio, cant, totalItem, now
                                 );
                                 detallesImportados++;
                             }
-                        } catch(e) {
-                            console.warn("Fila ignorada por JSON inválido en factura", nroFactura, e.message);
-                        }
+                        } catch(e) { console.warn("JSON ignorado en factura", nroFactura); }
                     }
                 }
                 return { facturasImportadas, detallesImportados };
             });
-
-            const stats = transaction();
-            return { success: true, ...stats };
-
-        } catch (error) {
-            if (extDb && extDb.open) extDb.close();
-            console.error("Error en importación JSON:", error);
-            return { success: false, error: error.message };
-        }
+            return { success: true, ...transaction() };
+        } catch (error) { if (extDb && extDb.open) extDb.close(); return { success: false, error: error.message }; }
     });
-
 };
