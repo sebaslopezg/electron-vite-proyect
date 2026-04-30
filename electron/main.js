@@ -8,7 +8,6 @@ import {
 } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
-import chokidar from "chokidar";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
 
@@ -73,7 +72,8 @@ app.whenReady().then(async () => {
   registerPerfilHandlers()
   registerAllHandlers()
   if (isDev) {
-    const watcher = chokidar.watch([
+    const { watch } = await import("chokidar");
+    const watcher = watch([
       path.join(__dirname, "./**/*.js"),
       path.join(__dirname, "../electron/**/*.js"),
     ]);
