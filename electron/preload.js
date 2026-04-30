@@ -109,6 +109,8 @@ contextBridge.exposeInMainWorld("api", {
   getCartera: () => ipcRenderer.invoke("get-cartera"),
   getAbonos: () => ipcRenderer.invoke("get-abonos"),
   addAbono: (data) => ipcRenderer.invoke("add-abono", data),
+  getCarteraPaginada: (params) => ipcRenderer.invoke('get-cartera-paginada', params),
+  getAbonosPaginados: (params) => ipcRenderer.invoke('get-abonos-paginados', params),
 
   // Exportación de Datos
   exportDatabase: () => ipcRenderer.invoke('export-db'),

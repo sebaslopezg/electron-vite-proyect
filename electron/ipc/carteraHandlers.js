@@ -29,6 +29,40 @@ export const registerCarteraHandlers = () => {
         }
     });
 
+    ipcMain.handle("get-cartera-paginada", (_, dtParams) => {
+        try {
+            const limit = parseInt(dtParams.length, 10) || 10;
+            const offset = parseInt(dtParams.start, 10) || 0;
+            const searchValue = dtParams.search?.value || '';
+            const orderColIndex = dtParams.order?.[0]?.column || 0;
+            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+
+            const columnsMap = ['numero_factura', 'documento_cliente', 'nombre_cliente', 'date_created', 'total_factura', 'saldo_pendiente'];
+            let orderCol = columnsMap[orderColIndex] || 'date_created';
+
+            let baseQuery = `FROM ventasMaestro WHERE saldo_pendiente > 0 AND status > 0`;
+            let queryParams = [];
+
+            if (searchValue) {
+                baseQuery += ` AND (numero_factura LIKE ? OR documento_cliente LIKE ? OR nombre_cliente LIKE ?)`;
+                const likeParam = `%${searchValue}%`;
+                queryParams.push(likeParam, likeParam, likeParam);
+            }
+
+            const totalRow = db.prepare(`SELECT COUNT(*) as count FROM ventasMaestro WHERE saldo_pendiente > 0 AND status > 0`).get();
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+
+            const data = db.prepare(`
+                SELECT * ${baseQuery} ORDER BY ${orderCol} ${orderDir} LIMIT ? OFFSET ?
+            `).all(...queryParams, limit, offset);
+
+            return { draw: dtParams.draw, recordsTotal: totalRow.count, recordsFiltered: filteredRow.count, data };
+        } catch (error) {
+            console.error("Error en paginación de cartera: ", error);
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+        }
+    });
+
     ipcMain.handle("add-abono", (_, data) => {
         const transaction = db.transaction((abono) => {
             const now = new Date().toISOString();
@@ -81,6 +115,53 @@ export const registerCarteraHandlers = () => {
         } catch (error) {
             console.error("Error obteniendo el historial de abonos:", error);
             return { success: false, data: [] };
+        }
+    });
+
+    ipcMain.handle("get-abonos-paginados", (_, dtParams) => {
+        try {
+            const limit = parseInt(dtParams.length, 10) || 10;
+            const offset = parseInt(dtParams.start, 10) || 0;
+            const searchValue = dtParams.search?.value || '';
+            const orderColIndex = dtParams.order?.[0]?.column || 0;
+            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+
+            const columnsMap = ['a.date_created', 'v.numero_factura', 'v.nombre_cliente', 'a.metodo_pago', 'a.valor', 'a.usuario'];
+            let orderCol = columnsMap[orderColIndex] || 'a.date_created';
+
+            let baseQuery = `
+                FROM abonos_ventas a
+                LEFT JOIN ventasMaestro v ON a.maestro_id = v.id
+                WHERE 1=1
+            `;
+            let queryParams = [];
+
+            if (searchValue) {
+                baseQuery += ` AND (v.numero_factura LIKE ? OR v.nombre_cliente LIKE ? OR a.metodo_pago LIKE ? OR a.usuario LIKE ?)`;
+                const likeParam = `%${searchValue}%`;
+                queryParams.push(likeParam, likeParam, likeParam, likeParam);
+            }
+
+            const totalRow = db.prepare(`SELECT COUNT(*) as count FROM abonos_ventas`).get();
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
+
+            const dataQuery = `
+                SELECT a.*, 
+                       v.prefijo, 
+                       v.numero_factura, 
+                       v.nombre_cliente, 
+                       v.documento_cliente,
+                       v.saldo_pendiente
+                ${baseQuery}
+                ORDER BY ${orderCol} ${orderDir}
+                LIMIT ? OFFSET ?
+            `;
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+
+            return { draw: dtParams.draw, recordsTotal: totalRow.count, recordsFiltered: filteredRow.count, data };
+        } catch (error) {
+            console.error("Error en paginación de abonos: ", error);
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
         }
     });
 };

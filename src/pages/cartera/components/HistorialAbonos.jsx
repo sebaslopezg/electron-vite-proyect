@@ -3,7 +3,7 @@ import DataTableComponent from '../../../components/DataTableComponent'
 import { ImpresorAbono } from './ImpresorAbono'
 import { formatCurrency } from '../../../utils/currencies'
 
-export const TabHistorialAbonos = ({ abonosData, almacenConf, appConfig }) => {
+export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig }) => {
     const tableAbonosRef = useRef(null);    
     const [showPreview, setShowPreview] = useState(false);
     const [abonoSeleccionado, setAbonoSeleccionado] = useState(null);
@@ -24,7 +24,7 @@ export const TabHistorialAbonos = ({ abonosData, almacenConf, appConfig }) => {
 
         container.addEventListener('click', handleTableClick);
         return () => container.removeEventListener('click', handleTableClick);
-    }, [abonosData]);
+    }, []);
 
     return (
         <div className="animation-fade-in">
@@ -32,7 +32,8 @@ export const TabHistorialAbonos = ({ abonosData, almacenConf, appConfig }) => {
             <div ref={tableAbonosRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
                     key={`historial-${appConfig.moneda}-${appConfig.formato_numero}`}
-                    data={abonosData}
+                    reloadKey={reloadKey}
+                    ajaxData={(params) => window.api.getAbonosPaginados(params)}
                     columns={[
                         { 
                             data: 'date_created', title: 'Fecha Abono',

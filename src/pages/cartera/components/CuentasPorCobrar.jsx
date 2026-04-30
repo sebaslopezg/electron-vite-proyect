@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import DataTableComponent from '../../../components/DataTableComponent'
 import { formatCurrency } from '../../../utils/currencies'
 
-export const TabCuentasPorCobrar = ({ carteraData, onOpenModal, appConfig }) => {
+export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, appConfig }) => {
     const tableCobrarRef = useRef(null);
 
     useEffect(() => {
@@ -20,14 +20,15 @@ export const TabCuentasPorCobrar = ({ carteraData, onOpenModal, appConfig }) => 
 
         container.addEventListener('click', handleTableClick);
         return () => container.removeEventListener('click', handleTableClick);
-    }, [carteraData, onOpenModal]);
+    }, [onOpenModal]);
 
     return (
         <div className="animation-fade-in">
             <div ref={tableCobrarRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
                     key={`cobrar-${appConfig.moneda}-${appConfig.formato_numero}`}
-                    data={carteraData}
+                    reloadKey={reloadKey}
+                    ajaxData={(params) => window.api.getCarteraPaginada(params)}
                     columns={[
                         { 
                             data: null, title: 'N° Factura',

@@ -1,11 +1,9 @@
 import db from "../index.js"
-import { v4 as uuidv4 } from 'uuid'
 
-export const createCategoriasEtiquetasTables = () => {
-  try {
+export const runV1CategoriasEtiquetas = () => {
     db.exec(`
       -- 1. TABLA CATEGORÍAS
-      CREATE TABLE IF NOT EXISTS categoria (
+      CREATE TABLE categoria (
         id TEXT PRIMARY KEY,
         nombre TEXT NOT NULL,
         descripcion TEXT,
@@ -15,7 +13,7 @@ export const createCategoriasEtiquetasTables = () => {
       );
 
       -- 2. TABLA ETIQUETAS
-      CREATE TABLE IF NOT EXISTS etiqueta (
+      CREATE TABLE etiqueta (
         id TEXT PRIMARY KEY,
         nombre TEXT NOT NULL,
         descripcion TEXT,
@@ -24,7 +22,7 @@ export const createCategoriasEtiquetasTables = () => {
       );
 
       -- 3. RELACIÓN: ETIQUETAS PERTENECEN A CATEGORÍAS
-      CREATE TABLE IF NOT EXISTS etiqueta_categoria (
+      CREATE TABLE etiqueta_categoria (
         etiqueta_id TEXT,
         categoria_id TEXT,
         PRIMARY KEY (etiqueta_id, categoria_id),
@@ -33,7 +31,7 @@ export const createCategoriasEtiquetasTables = () => {
       );
 
       -- 4. RELACIÓN: PRODUCTOS TIENEN ETIQUETAS
-      CREATE TABLE IF NOT EXISTS producto_etiqueta (
+      CREATE TABLE producto_etiqueta (
         producto_id TEXT,
         etiqueta_id TEXT,
         PRIMARY KEY (producto_id, etiqueta_id),
@@ -42,17 +40,10 @@ export const createCategoriasEtiquetasTables = () => {
       );
     `);
 
-    // Crear la categoría "general" por defecto si no existe
-    const row = db.prepare('SELECT count(*) as count FROM categoria WHERE id = ?').get('general');
-    if (row.count === 0) {
-      db.prepare(`
+    db.prepare(`
         INSERT INTO categoria (id, nombre, descripcion, sku_prefix, separador, status) 
         VALUES ('general', 'General', 'Categoría por defecto', '', '', 1)
-      `).run();
-    }
+    `).run();
 
     console.log("Tablas de Categorías y Etiquetas inicializadas.");
-  } catch (error) {
-    console.error("Error creando tablas de categorías/etiquetas:", error);
-  }
 }

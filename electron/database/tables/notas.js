@@ -1,9 +1,8 @@
 import db from "../index.js"
 
-export const createNotasTables = () => {
-  try {
+export const runV1Notas = () => {
     db.exec(`
-      CREATE TABLE IF NOT EXISTS nota (
+      CREATE TABLE nota (
         id TEXT PRIMARY KEY,
         tipo_nota TEXT NOT NULL,
         prefijo TEXT,
@@ -29,10 +28,10 @@ export const createNotasTables = () => {
         FOREIGN KEY(id_factura_origen) REFERENCES ventasMaestro(id)
       );
 
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_nota_numero ON nota(prefijo, numero_nota);
-      CREATE INDEX IF NOT EXISTS idx_nota_factura ON nota(id_factura_origen);
+      CREATE UNIQUE INDEX idx_nota_numero ON nota(prefijo, numero_nota);
+      CREATE INDEX idx_nota_factura ON nota(id_factura_origen);
 
-      CREATE TABLE IF NOT EXISTS nota_item (
+      CREATE TABLE nota_item (
         id TEXT PRIMARY KEY,
         id_nota TEXT NOT NULL,
         id_producto TEXT NOT NULL,
@@ -47,14 +46,8 @@ export const createNotasTables = () => {
         FOREIGN KEY(id_producto) REFERENCES producto(id)
       );
 
-      CREATE INDEX IF NOT EXISTS idx_notaitem_nota ON nota_item(id_nota);
+      CREATE INDEX idx_notaitem_nota ON nota_item(id_nota);
     `);
 
-    try { db.exec("ALTER TABLE nota ADD COLUMN moneda TEXT DEFAULT 'COP'"); } catch (e) {}
-    try { db.exec("ALTER TABLE nota ADD COLUMN formato_numero TEXT DEFAULT 'es-CO'"); } catch (e) {}
-
-    console.log("Tablas 'nota' y 'nota_item' creadas correctamente.");
-  } catch (error) {
-    console.error("Error creando tablas de Notas:", error);
-  }
+    console.log("Tablas 'nota' y 'nota_item' inicializadas.");
 }

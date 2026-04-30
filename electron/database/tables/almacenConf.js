@@ -1,33 +1,9 @@
 import db from "../index.js"
 import { v4 as uuidv4 } from 'uuid'
 
-export const createAlmacenConfTable = () => {
-  try {
-    const conf = {
-      nombre_almacen: 'Caedro',
-      nit_almacen: '9001100',
-      logo_almacen: '',
-      direccion_almacen: 'Enrique Segoviano',
-      telefono_almacen: '3106019954',
-      email_almacen: '',
-      prefijo: 'F',
-      separador: '-', 
-      resolucionDian: 'Res DIAN',
-      nombreFactura: 'Factura de venta',
-      footer_factura: 'Gracias por su compra',
-      consecutivo: 0,
-      consecutivo_nota: 0,
-      consecutivo_nota_debito: 0,
-      imprimir_logo_pos: 0
-    }
-
-    const now = new Date().toISOString()
-    const id = uuidv4()
-    const status = 1
-    const user = 'system'
-
+export const runV1AlmacenConf = () => {
     db.exec(`
-      CREATE TABLE IF NOT EXISTS almacen_conf (
+      CREATE TABLE almacen_conf (
         id TEXT PRIMARY KEY,
         nombre_almacen TEXT,
         nit_almacen TEXT,
@@ -50,54 +26,41 @@ export const createAlmacenConfTable = () => {
         modify_by TEXT
       ); 
       
-      -- NUEVA TABLA: MÉTODOS DE PAGO
-      CREATE TABLE IF NOT EXISTS metodos_pago (
+      CREATE TABLE metodos_pago (
         id TEXT PRIMARY KEY,
         nombre TEXT UNIQUE
       );
-    `)
+    `);
 
-    // Migraciones 
-    try { db.exec("ALTER TABLE almacen_conf ADD COLUMN separador TEXT DEFAULT '-'"); } catch (e) {}
-    try { db.exec("ALTER TABLE almacen_conf ADD COLUMN email_almacen TEXT DEFAULT ''"); } catch (e) {}
-    try { db.exec("ALTER TABLE almacen_conf ADD COLUMN consecutivo_nota_debito INTEGER DEFAULT 0"); } catch (e) {}
-    try { db.exec("ALTER TABLE almacen_conf ADD COLUMN imprimir_logo_pos INTEGER DEFAULT 0"); } catch (e) {}
-
-    const countStmt = db.prepare(`SELECT count(*) as count FROM almacen_conf`)
-    const row = countStmt.get()
-
-    if (row.count === 0) {
-      const insertStmt = db.prepare(`
+    const now = new Date().toISOString()
+    const id = uuidv4()
+    
+    const insertStmt = db.prepare(`
         INSERT INTO almacen_conf (
-          id, nombre_almacen, nit_almacen, logo_almacen, direccion_almacen, telefono_almacen,
-          email_almacen, prefijo, separador, resolucionDian, nombreFactura, footer_factura,
-          consecutivo, consecutivo_nota, consecutivo_nota_debito, imprimir_logo_pos,
-          status, date_created, date_modify, modify_by
-        )
-        VALUES (
+            id, nombre_almacen, nit_almacen, logo_almacen, direccion_almacen, telefono_almacen,
+            email_almacen, prefijo, separador, resolucionDian, nombreFactura, footer_factura,
+            consecutivo, consecutivo_nota, consecutivo_nota_debito, imprimir_logo_pos,
+            status, date_created, date_modify, modify_by
+        ) VALUES (
             @id, @nombre_almacen, @nit_almacen, @logo_almacen, @direccion_almacen, @telefono_almacen,
             @email_almacen, @prefijo, @separador, @resolucionDian, @nombreFactura, @footer_factura,
             @consecutivo, @consecutivo_nota, @consecutivo_nota_debito, @imprimir_logo_pos,
             @status, @date_created, @date_modify, @modify_by
         )
-      `)
+    `);
 
-      insertStmt.run({
-          id, ...conf, status, date_created: now, date_modify: now, modify_by: user
-      })
-    }
+    insertStmt.run({
+        id, 
+        nombre_almacen: 'Caedro', nit_almacen: '9001100', logo_almacen: '',
+        direccion_almacen: 'Enrique Segoviano', telefono_almacen: '3106019954',
+        email_almacen: '', prefijo: 'F', separador: '-', resolucionDian: 'Res DIAN',
+        nombreFactura: 'Factura de venta', footer_factura: 'Gracias por su compra',
+        consecutivo: 0, consecutivo_nota: 0, consecutivo_nota_debito: 0, imprimir_logo_pos: 0,
+        status: 1, date_created: now, date_modify: now, modify_by: 'system'
+    });
 
-    try {
-        const metodosCount = db.prepare("SELECT count(*) as count FROM metodos_pago").get();
-        if (metodosCount.count === 0) {
-            const insertMetodo = db.prepare("INSERT INTO metodos_pago (id, nombre) VALUES (?, ?)");
-            insertMetodo.run(uuidv4(), "Efectivo");
-            insertMetodo.run(uuidv4(), "Datafono");
-            insertMetodo.run(uuidv4(), "Transferencia Bancaria");
-        }
-    } catch(e) { console.error("Error insertando métodos de pago por defecto:", e) }
-
-  } catch (error) {
-      console.error('Database initialization error in almacenConf:', error)
-  }
+    const insertMetodo = db.prepare("INSERT INTO metodos_pago (id, nombre) VALUES (?, ?)");
+    insertMetodo.run(uuidv4(), "Efectivo");
+    insertMetodo.run(uuidv4(), "Datafono");
+    insertMetodo.run(uuidv4(), "Transferencia Bancaria");
 }

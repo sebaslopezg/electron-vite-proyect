@@ -72,7 +72,6 @@ app.whenReady().then(async () => {
   initDatabase()
   registerPerfilHandlers()
   registerAllHandlers()
-  // Watch for main process changes and restart the app automatically
   if (isDev) {
     const watcher = chokidar.watch([
       path.join(__dirname, "./**/*.js"),

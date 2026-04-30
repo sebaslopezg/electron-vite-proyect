@@ -5,9 +5,7 @@ import { TabCuentasPorCobrar } from './components/CuentasPorCobrar'
 import { TabHistorialAbonos } from './components/HistorialAbonos'
 
 export const Cartera = () => {
-
-    const [carteraData, setCarteraData] = useState([])
-    const [abonosData, setAbonosData] = useState([])
+    const [reloadKey, setReloadKey] = useState(0)
     const [almacenConf, setAlmacenConf] = useState(null)
     const [activeTab, setActiveTab] = useState('cobrar') 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
@@ -29,21 +27,17 @@ export const Cartera = () => {
         }
     };
 
-    const loadDatos = async () => {
-        const cuentas = await window.api.getCartera()
-        setCarteraData(cuentas || [])
-
-        const historial = await window.api.getAbonos()
-        if (historial && historial.success) {
-            setAbonosData(historial.data || [])
-            setAlmacenConf(historial.configuracion || null)
-        } else {
-            setAbonosData(historial || [])
+    const loadAlmacenInfo = async () => {
+        try {
+            const data = await window.api.getAllConfAlmacen();
+            if (data && data.length > 0) setAlmacenConf(data[0]);
+        } catch (error) {
+            console.error("Error cargando info de almacén", error);
         }
-    }
+    };
 
     useEffect(() => {
-        loadDatos();
+        loadAlmacenInfo();
         loadConfig();
         window.addEventListener('config-actualizada', loadConfig);
         return () => window.removeEventListener('config-actualizada', loadConfig);
@@ -57,6 +51,10 @@ export const Cartera = () => {
     const handleCloseModal = () => {
         setShowModal(false)
         setFacturaSeleccionada(null)
+    }
+
+    const handlePagoExitoso = () => {
+        setReloadKey(prev => prev + 1);
     }
 
     return <>
@@ -90,7 +88,7 @@ export const Cartera = () => {
                     <div className="tab-content pt-2">
                         {activeTab === 'cobrar' && (
                             <TabCuentasPorCobrar 
-                                carteraData={carteraData} 
+                                reloadKey={reloadKey}
                                 onOpenModal={handleOpenModal} 
                                 appConfig={appConfig}
                             />
@@ -98,7 +96,7 @@ export const Cartera = () => {
                         
                         {activeTab === 'abonos' && (
                             <TabHistorialAbonos 
-                                abonosData={abonosData} 
+                                reloadKey={reloadKey}
                                 almacenConf={almacenConf}
                                 appConfig={appConfig}
                             />
@@ -113,7 +111,7 @@ export const Cartera = () => {
             show={showModal} 
             onClose={handleCloseModal} 
             factura={facturaSeleccionada} 
-            onSuccess={loadDatos} 
+            onSuccess={handlePagoExitoso} 
             appConfig={appConfig}
         />
     </>

@@ -41,7 +41,7 @@
       {
         "provider": "github",
         "owner": "sebaslopezg",
-        "repo": "electron-vite-proyect"
+        "repo": "caedro_app_production"
       }
     ],
     "asar": false,
