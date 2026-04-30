@@ -1,7 +1,7 @@
 {
-  "name": "app2",
+  "name": "caedro_app",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "build:react": "vite build",
     "pack": "npm run build:react && electron-builder --dir",
-    "dist": "npm run build:react && electron-builder"
+    "dist": "npm run build:react && electron-builder",
+    "publish-app": "npm run build:react && electron-builder --publish always"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.20",
@@ -30,7 +31,7 @@
     "uuid": "^13.0.0"
   },
   "build": {
-    "appId": "com.devco.caedro",
+    "appId": "com.codepez.caedro",
     "productName": "Caedro ERP",
     "files": [
       "dist/**/*",
@@ -41,7 +42,8 @@
       {
         "provider": "github",
         "owner": "sebaslopezg",
-        "repo": "caedro_app_production"
+        "repo": "caedro_app_production",
+        "releaseType": "release"
       }
     ],
     "asar": false,
