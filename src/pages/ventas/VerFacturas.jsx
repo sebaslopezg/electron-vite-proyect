@@ -193,7 +193,7 @@ export const VerFacturas = () => {
     ], [appConfig]);
 
     return <>
-        <div className="bg-light p-3 rounded mb-4 border shadow-sm">
+        <div className="bg-light p-3 rounded mb-4 border">
             <Row className="align-items-end">
                 <Col md={3}>
                     <Form.Group>
@@ -219,7 +219,7 @@ export const VerFacturas = () => {
             </Row>
         </div>
 
-        <div ref={tableContainerRef} className="card shadow-sm border-0 animate__animated animate__fadeIn">
+        <div ref={tableContainerRef}>
             <div className="card-body p-3 w-100 overflow-hidden">
                 <DataTableComponent
                     key={`facturas-main-${appConfig.moneda}-${appConfig.formato_numero}-${startDate}-${endDate}-${reloadTable}`}

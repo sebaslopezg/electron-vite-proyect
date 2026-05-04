@@ -5,8 +5,10 @@ import { Estados } from "./Estados";
 export const IndexEncargos = () => {
   return (
     <>
+      <div className="pagetitle">
+        <h1><i className="bi bi-calendar-event"></i> Encargos</h1>
+      </div>
       <div className="card">
-        <div className="card-title"></div>
         <div className="card-body">
           <ul
             className="nav nav-tabs nav-tabs-bordered mt-3"

@@ -35,7 +35,7 @@ export const Ventas = () => {
 
     return <>
         <div className="pagetitle">
-            <h1>Ventas</h1>
+            <h1><i className="bi bi-receipt-cutoff me-2"></i>Ventas</h1>
         </div>
 
         <section className="section">

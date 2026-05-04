@@ -7,7 +7,7 @@ export const ConfiguracionIndex = () => {
     return (
         <>
             <div className="pagetitle">
-                <h1>Configuración del Sistema</h1>
+                <h1><i className="bi bi-gear me-2"></i>Configuración del Sistema</h1>
             </div>
 
             <div className="card">

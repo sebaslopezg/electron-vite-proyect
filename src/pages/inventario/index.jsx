@@ -152,7 +152,7 @@ export const Inventario = () => {
 
   return <>
         <div className="pagetitle">
-            <h1>Inventario</h1>
+            <h1><i className="bi bi-clipboard-check me-2"></i>Inventario</h1>
         </div>
 
         <div className="card">

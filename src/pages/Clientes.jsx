@@ -118,7 +118,7 @@ export const Clientes = () => {
 
   return <>
     <div className="pagetitle">
-      <h1>Clientes</h1>
+      <h1><i className="bi bi-people me-2"></i>Clientes</h1>
     </div>
 
     <div className="card">

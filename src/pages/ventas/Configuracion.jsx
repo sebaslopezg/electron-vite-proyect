@@ -96,14 +96,14 @@ export const Configuracion = ({ data, onReload }) => {
     return <>
         <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="card-title text-primary m-0"><i className="bi bi-shop me-2"></i>Datos del Almacén</h5>
-            <Button variant="outline-success" size="sm" onClick={handleOpenMetodos}>
+            <Button variant="outline-primary" size="sm" onClick={handleOpenMetodos}>
                 <i className="bi bi-credit-card me-2"></i>Administrar Métodos de Pago
             </Button>
         </div>
                                 
         <Form onSubmit={handleSubmit}>
             
-            <Card className="mb-4 bg-light border-0 shadow-sm">
+            <div className="bg-light p-3 rounded mb-4 border">
                 <Card.Body className="d-flex align-items-center">
                     <div className="me-4" style={{ width: '120px', height: '120px', border: '2px dashed #ccc', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: 'white' }}>
                         {form.logo_almacen ? (
@@ -146,7 +146,7 @@ export const Configuracion = ({ data, onReload }) => {
                         )}
                     </div>
                 </Card.Body>
-            </Card>
+            </div>
 
             <Row>
                 <Col md={6}>
@@ -223,7 +223,7 @@ export const Configuracion = ({ data, onReload }) => {
             </Row>
 
             <hr className="my-4" />
-            <h5 className="card-title text-success"><i className="bi bi-receipt me-2"></i>Datos de Facturación y Notas</h5>
+            <h5 className="card-title text-primary"><i className="bi bi-receipt me-2"></i>Datos de Facturación y Notas</h5>
 
             <Row>
                 <Col md={4}>
@@ -363,7 +363,7 @@ export const Configuracion = ({ data, onReload }) => {
                                 placeholder="Ej. Nequi, Daviplata..." 
                                 required 
                             />
-                            <Button variant="success" type="submit">Agregar</Button>
+                            <Button variant="primary" type="submit">Agregar</Button>
                         </div>
                     </Form.Group>
                 </Form>

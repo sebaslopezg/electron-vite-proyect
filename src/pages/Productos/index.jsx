@@ -4,7 +4,10 @@ import { Categorias } from './Categorias';
 import { Etiquetas } from './Etiquetas';
 
 export const ProductosIndex = () => {
-    return (
+    return <>
+        <div className="pagetitle">
+            <h1><i className="bi bi-box-seam me-2"></i>Productos</h1>
+        </div>
         <div className="card">
             <div className="card-body">
                 <ul className="nav nav-tabs nav-tabs-bordered mt-3" id="borderedTab" role="tablist">
@@ -74,5 +77,5 @@ export const ProductosIndex = () => {
                 </div>
             </div>
         </div>
-    )
+    </>
 }
