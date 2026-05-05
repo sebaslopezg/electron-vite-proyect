@@ -3,15 +3,15 @@ import pkg from "electron-updater"
 const { autoUpdater } = pkg
 
 export const registerUpdaterHandlers = () => {
-  autoUpdater.autoDownload = false
+  autoUpdater.autoDownload = false;
 
   const notifyWindow = (channel, payload) => {
     BrowserWindow.getAllWindows().forEach(win => {
-      win.webContents.send(channel, payload)
+      win.webContents.send(channel, payload);
     })
   }
-  
-  ipcMain.handle("get-app-version", () => app.getVersion())
+
+  ipcMain.handle("get-app-version", () => app.getVersion());
 
   ipcMain.handle("check-updates", async () => {
     if (!app.isPackaged) return { error: "El actualizador solo funciona en producción." }
@@ -40,4 +40,10 @@ export const registerUpdaterHandlers = () => {
   autoUpdater.on('download-progress', (progressObj) => notifyWindow('download-progress', progressObj))
   autoUpdater.on('update-downloaded', (info) => notifyWindow('update-downloaded', info))
   autoUpdater.on('error', (err) => notifyWindow('update-error', err.message))
-};
+
+  if (app.isPackaged) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(err => console.error("Error buscando updates:", err))
+    }, 3000)
+  }
+}

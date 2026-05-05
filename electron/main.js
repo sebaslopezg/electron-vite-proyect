@@ -3,13 +3,10 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
-  globalShortcut,
-  dialog
+  globalShortcut
 } from "electron"
 import path from "path"
 import { fileURLToPath } from "url"
-import pkg from "electron-updater"
-const { autoUpdater } = pkg
 
 import { initDatabase } from "./database/init.js"
 import { registerPerfilHandlers } from "./ipc/perfilHandlers.js"
@@ -93,7 +90,6 @@ app.whenReady().then(async () => {
       }
     })
   }
-  autoUpdater.autoDownload = false;
 })
 
 app.on("window-all-closed", () => {
@@ -102,31 +98,4 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
-})
-
-//mensaje
-autoUpdater.on('update-available', () => {
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: 'Actualización',
-    message: '¡Nueva versión detectada! Descargando en segundo plano...',
-    buttons: ['OK']
-  })
-})
-
-autoUpdater.on('update-downloaded', () => {
-  dialog.showMessageBox(mainWindow, {
-    type: 'question',
-    title: 'Actualización lista',
-    message: 'La actualización se ha descargado. ¿Reiniciar ahora para instalar?',
-    buttons: ['Sí, reiniciar', 'Más tarde']
-  }).then((result) => {
-    if (result.response === 0) {
-      autoUpdater.quitAndInstall()
-    }
-  })
-})
-
-autoUpdater.on('error', (err) => {
-  console.error('Error en auto-updater:', err)
 })
