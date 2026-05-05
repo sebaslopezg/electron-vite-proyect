@@ -13,7 +13,7 @@ import { registerEncargosHandlers } from "./encargosHandler.js"
 import { registerEstadoHandlers } from "./estadosEncargoHandler.js"
 import { registerCarteraHandlers } from "./carteraHandlers.js"
 import { registerExportHandlers } from "./exportHandler.js"
-import { registerUpdaterHandlers } from "./ipc/updaterHandlers.js"
+import { registerUpdaterHandlers } from "./updaterHandlers.js"
 
 export const registerAllHandlers = () => {
   registerProductoHandlers()
