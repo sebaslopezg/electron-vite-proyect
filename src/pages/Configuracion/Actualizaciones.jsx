@@ -8,7 +8,7 @@ export const Actualizaciones = () => {
 
     useEffect(() => {
         if (window.updaterAPI) {
-            window.updaterAPI.getVersion().then(setVersion);
+            window.updaterAPI.getVersion().then(setVersion)
 
             window.updaterAPI.onUpdateAvailable((info) => {
                 setStatus('idle')
@@ -21,24 +21,24 @@ export const Actualizaciones = () => {
                     cancelButtonText: 'Más tarde'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        setStatus('downloading');
+                        setStatus('downloading')
                         window.updaterAPI.downloadUpdate()
                     }
                 })
             })
 
             window.updaterAPI.onUpdateNotAvailable(() => {
-                setStatus('idle')
+                setStatus('idle');
                 Swal.fire('Estás al día', `Tienes la versión más reciente (${version}).`, 'success')
             })
 
             window.updaterAPI.onDownloadProgress((prog) => {
                 setStatus('downloading')
                 setProgress(Math.round(prog.percent))
-            });
+            })
 
             window.updaterAPI.onUpdateDownloaded(() => {
-                setStatus('ready');
+                setStatus('ready')
                 Swal.fire({
                     title: '¡Descarga completada!',
                     text: 'La actualización se ha descargado. ¿Deseas reiniciar la aplicación para instalarla ahora?',
@@ -54,7 +54,7 @@ export const Actualizaciones = () => {
             })
 
             window.updaterAPI.onError((error) => {
-                setStatus('idle');
+                setStatus('idle')
                 Swal.fire('Error', `Hubo un error al buscar actualizaciones: ${error}`, 'error')
             })
         }
@@ -65,17 +65,17 @@ export const Actualizaciones = () => {
     }, [version])
 
     const handleCheckUpdates = () => {
-        if (!window.updaterAPI) return;
+        if (!window.updaterAPI) return
         setStatus('checking')
         window.updaterAPI.checkUpdates().then(res => {
             if (res?.error) {
                 setStatus('idle')
                 Swal.fire('Aviso', res.error, 'warning')
             }
-        });
-    };
+        })
+    }
 
-    return (
+    return <>
         <div>
             <h5 className="card-title">Actualizaciones del Sistema</h5>
             <div className="alert alert-primary d-flex align-items-center">
@@ -121,5 +121,5 @@ export const Actualizaciones = () => {
                 )}
             </div>
         </div>
-    );
-};
+    </>
+}

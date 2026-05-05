@@ -40,4 +40,4 @@ export const registerUpdaterHandlers = () => {
   autoUpdater.on('download-progress', (progressObj) => notifyWindow('download-progress', progressObj))
   autoUpdater.on('update-downloaded', (info) => notifyWindow('update-downloaded', info))
   autoUpdater.on('error', (err) => notifyWindow('update-error', err.message))
-}
+};

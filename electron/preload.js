@@ -115,3 +115,24 @@ contextBridge.exposeInMainWorld("api", {
   // Exportación de Datos
   exportDatabase: () => ipcRenderer.invoke('export-db'),
 })
+
+contextBridge.exposeInMainWorld('updaterAPI', {
+  getVersion: () => ipcRenderer.invoke('get-app-version'),
+  checkUpdates: () => ipcRenderer.invoke('check-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  
+  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (_event, info) => callback(info)),
+  onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', (_event, info) => callback(info)),
+  onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (_event, progressObj) => callback(progressObj)),
+  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (_event, info) => callback(info)),
+  onError: (callback) => ipcRenderer.on('update-error', (_event, error) => callback(error)),
+  
+  removeAllListeners: () => {
+    ipcRenderer.removeAllListeners('update-available');
+    ipcRenderer.removeAllListeners('update-not-available');
+    ipcRenderer.removeAllListeners('download-progress');
+    ipcRenderer.removeAllListeners('update-downloaded');
+    ipcRenderer.removeAllListeners('update-error');
+  }
+})
