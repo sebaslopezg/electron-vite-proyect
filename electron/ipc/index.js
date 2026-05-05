@@ -8,11 +8,12 @@ import { registerBitacoraHandlers } from "./bitacoraHandlers.js"
 import { registerNotasHandlers } from "./notasHandlers.js"
 import { registerCategoriaHandlers } from "./categoriaHandlers.js"
 import { registerEtiquetaHandlers } from "./etiquetaHandlers.js"
-import { registerImportHandlers } from "./importHandlers.js";
+import { registerImportHandlers } from "./importHandlers.js"
 import { registerEncargosHandlers } from "./encargosHandler.js"
 import { registerEstadoHandlers } from "./estadosEncargoHandler.js"
 import { registerCarteraHandlers } from "./carteraHandlers.js"
 import { registerExportHandlers } from "./exportHandler.js"
+import { registerUpdaterHandlers } from "./ipc/updaterHandlers.js"
 
 export const registerAllHandlers = () => {
   registerProductoHandlers()
@@ -30,4 +31,5 @@ export const registerAllHandlers = () => {
   registerEstadoHandlers()
   registerCarteraHandlers()
   registerExportHandlers()
+  registerUpdaterHandlers()
 }

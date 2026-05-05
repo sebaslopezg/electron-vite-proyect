@@ -93,11 +93,7 @@ app.whenReady().then(async () => {
       }
     })
   }
-
-  if (app.isPackaged) {
-    console.log("Buscando actualizaciones...")
-    autoUpdater.checkForUpdatesAndNotify()
-  }
+  autoUpdater.autoDownload = false;
 })
 
 app.on("window-all-closed", () => {
