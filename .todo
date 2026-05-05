@@ -12,9 +12,7 @@ Encargos:
 
 modificaciones generales:
 
- - Probar importar datos de facturas (lidiar con relaciones en mysql)
-
- Pa despues:
+ - Tener actualizador funcional y pestaña de actualizaciones en configuracion.
 
  - Separar todas las modales de sus archivos en componentes pa que esos archivos no sean tan largos
  - integrar todos los try catch de las tablas en los campos normales para limpiar todos los archivos de tablas.

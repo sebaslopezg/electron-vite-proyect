@@ -5,21 +5,21 @@ import {
   Menu,
   globalShortcut,
   dialog
-} from "electron";
-import path from "path";
-import { fileURLToPath } from "url";
-import pkg from "electron-updater";
-const { autoUpdater } = pkg;
+} from "electron"
+import path from "path"
+import { fileURLToPath } from "url"
+import pkg from "electron-updater"
+const { autoUpdater } = pkg
 
-import { initDatabase } from "./database/init.js";
-import { registerPerfilHandlers } from "./ipc/perfilHandlers.js";
-import { registerAllHandlers } from "./ipc/index.js";
+import { initDatabase } from "./database/init.js"
+import { registerPerfilHandlers } from "./ipc/perfilHandlers.js"
+import { registerAllHandlers } from "./ipc/index.js"
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-const isDev = !app.isPackaged;
-const isMac = process.platform === "darwin";
+const isDev = !app.isPackaged
+const isMac = process.platform === "darwin"
 
 let mainWindow;
 
@@ -33,77 +33,79 @@ async function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-  });
+  })
 
   if (isDev) {
-    // Point to Vite's dev server
     const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
-    console.log("Loading Vite dev server:", devServerURL);
-    await mainWindow.loadURL(devServerURL);
+    console.log("Loading Vite dev server:", devServerURL)
+    await mainWindow.loadURL(devServerURL)
 
     mainWindow.webContents.once("dom-ready", () => {
-      mainWindow.webContents.openDevTools({ mode: "detach" });
+      mainWindow.webContents.openDevTools({ mode: "detach" })
     });
   } else {
-    // In production, load the built index.html
-    const indexPath = path.join(__dirname, "../dist/index.html");
-    console.log("Loading production build:", indexPath);
-    await mainWindow.loadFile(indexPath);
+    const indexPath = path.join(__dirname, "../dist/index.html")
+    console.log("Loading production build:", indexPath)
+    await mainWindow.loadFile(indexPath)
   }
 
-  Menu.setApplicationMenu(null);
+  Menu.setApplicationMenu(null)
 
   mainWindow.on("closed", () => {
-    mainWindow = null;
-    if (!isMac) app.quit();
-  });
+    mainWindow = null
+    if (!isMac) app.quit()
+  })
 }
 
-// Other IPCs
 ipcMain.handle("ping", () => "pong from main");
 
 ipcMain.on("custom-event", (event, data) => {
-  console.log("Renderer says:", data);
-  event.reply("custom-event-reply", { ok: true, msg: "Got your message!" });
-});
+  console.log("Renderer says:", data)
+  event.reply("custom-event-reply", { ok: true, msg: "Got your message!" })
+})
 
 app.whenReady().then(async () => {
   initDatabase()
   registerPerfilHandlers()
   registerAllHandlers()
+  
   if (isDev) {
-    const { watch } = await import("chokidar");
+    const { watch } = await import("chokidar")
     const watcher = watch([
       path.join(__dirname, "./**/*.js"),
       path.join(__dirname, "../electron/**/*.js"),
-    ]);
+    ])
     watcher.on("change", () => {
-      console.log("Restarting Electron due to main process change...");
-      app.relaunch();
-      app.exit(0);
-    });
+      console.log("Restarting Electron due to main process change...")
+      app.relaunch()
+      app.exit(0)
+    })
   }
-  await createMainWindow();
+  
+  await createMainWindow()
 
   if (isDev) {
     globalShortcut.register("CommandOrControl+Shift+I", () => {
       if (mainWindow) {
-        const open = mainWindow.webContents.isDevToolsOpened();
-        if (open) mainWindow.webContents.closeDevTools();
-        else mainWindow.webContents.openDevTools({ mode: "detach" });
+        const open = mainWindow.webContents.isDevToolsOpened()
+        if (open) mainWindow.webContents.closeDevTools()
+        else mainWindow.webContents.openDevTools({ mode: "detach" })
       }
-    });
+    })
   }
-});
+
+  if (app.isPackaged) {
+    console.log("Buscando actualizaciones...")
+    autoUpdater.checkForUpdatesAndNotify()
+  }
+})
 
 app.on("window-all-closed", () => {
-  if (!isMac) app.quit();
-});
+  if (!isMac) app.quit()
+})
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
-  if (!app.isPackaged) return
-  autoUpdater.checkForUpdatesAndNotify()
 })
 
 //mensaje
@@ -111,7 +113,7 @@ autoUpdater.on('update-available', () => {
   dialog.showMessageBox(mainWindow, {
     type: 'info',
     title: 'Actualización',
-    message: '¡Nueva actualización disponible!',
+    message: '¡Nueva versión detectada! Descargando en segundo plano...',
     buttons: ['OK']
   })
 })
@@ -120,11 +122,15 @@ autoUpdater.on('update-downloaded', () => {
   dialog.showMessageBox(mainWindow, {
     type: 'question',
     title: 'Actualización lista',
-    message: 'La actualización se ha descargado. ¿Reiniciar ahora?',
-    buttons: ['Si', 'No']
+    message: 'La actualización se ha descargado. ¿Reiniciar ahora para instalar?',
+    buttons: ['Sí, reiniciar', 'Más tarde']
   }).then((result) => {
     if (result.response === 0) {
       autoUpdater.quitAndInstall()
     }
   })
+})
+
+autoUpdater.on('error', (err) => {
+  console.error('Error en auto-updater:', err)
 })
