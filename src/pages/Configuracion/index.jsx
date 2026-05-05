@@ -18,6 +18,11 @@ export const ConfiguracionIndex = () => {
                             <button className="nav-link active" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">General</button>
                         </li>
                         <li className="nav-item" role="presentation">
+                            <button className="nav-link" data-bs-toggle="tab" data-bs-target="#actualizaciones" type="button" role="tab">
+                                <i className="bi bi-arrow-repeat me-1"></i> Actualizaciones
+                            </button>
+                        </li>
+                        <li className="nav-item" role="presentation">
                             <button className="nav-link" data-bs-toggle="tab" data-bs-target="#datos" type="button" role="tab">
                                 <i className="bi bi-database-fill-gear me-1"></i> Manejo de Datos
                             </button>
@@ -30,11 +35,6 @@ export const ConfiguracionIndex = () => {
                         <li className="nav-item" role="presentation">
                             <button className="nav-link" data-bs-toggle="tab" data-bs-target="#exportar" type="button" role="tab">
                                 <i className="bi bi-cloud-download me-1"></i> Exportar Datos
-                            </button>
-                        </li>
-                        <li className="nav-item" role="presentation">
-                            <button className="nav-link" data-bs-toggle="tab" data-bs-target="#actualizaciones" type="button" role="tab">
-                                <i className="bi bi-arrow-repeat me-1"></i> Actualizaciones
                             </button>
                         </li>
                     </ul>
