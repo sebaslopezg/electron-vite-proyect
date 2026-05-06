@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react'
-import Swal from 'sweetalert2'
+import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
+import Modal from 'react-bootstrap/Modal';
+import Button from 'react-bootstrap/Button';
+import Form from 'react-bootstrap/Form';
+import { Row, Col } from 'react-bootstrap';
 
 export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
     const defaultData = {
@@ -9,22 +13,23 @@ export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
         naturaleza: '', 
         exige_tercero: 1, 
         estado: 1
-    }
-    const [formData, setFormData] = useState(defaultData)
-    const [nivelVisual, setNivelVisual] = useState('')
-    const [esAuxiliar, setEsAuxiliar] = useState(0)
+    };
+    
+    const [formData, setFormData] = useState(defaultData);
+    const [nivelVisual, setNivelVisual] = useState('');
+    const [esAuxiliar, setEsAuxiliar] = useState(0);
 
     useEffect(() => {
         if (editData) {
-            setFormData(editData)
+            setFormData(editData);
         } else {
-            setFormData(defaultData)
+            setFormData(defaultData);
         }
-    }, [editData, show])
+    }, [editData, show]);
 
     useEffect(() => {
-        const codigo = formData.id.toString().trim()
-        const length = codigo.length
+        const codigo = formData.id.toString().trim();
+        const length = codigo.length;
 
         if (length === 1) { setNivelVisual('Clase'); setEsAuxiliar(0); }
         else if (length === 2) { setNivelVisual('Grupo'); setEsAuxiliar(0); }
@@ -33,31 +38,31 @@ export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
         else { setNivelVisual('Longitud no estándar'); setEsAuxiliar(0); }
 
         if (!editData) {
-            if (codigo.startsWith('1')) setFormData(prev => ({ ...prev, tipo: 'activo', naturaleza: 'debito' }))
-            else if (codigo.startsWith('2')) setFormData(prev => ({ ...prev, tipo: 'pasivo', naturaleza: 'credito' }))
-            else if (codigo.startsWith('3')) setFormData(prev => ({ ...prev, tipo: 'patrimonio', naturaleza: 'credito' }))
-            else if (codigo.startsWith('4')) setFormData(prev => ({ ...prev, tipo: 'ingreso', naturaleza: 'credito' }))
-            else if (codigo.startsWith('5')) setFormData(prev => ({ ...prev, tipo: 'gasto', naturaleza: 'debito' }))
-            else if (codigo.startsWith('6')) setFormData(prev => ({ ...prev, tipo: 'costo', naturaleza: 'debito' }))
-            else if (codigo === '') setFormData(prev => ({ ...prev, tipo: '', naturaleza: '' }))
+            if (codigo.startsWith('1')) setFormData(prev => ({ ...prev, tipo: 'activo', naturaleza: 'debito' }));
+            else if (codigo.startsWith('2')) setFormData(prev => ({ ...prev, tipo: 'pasivo', naturaleza: 'credito' }));
+            else if (codigo.startsWith('3')) setFormData(prev => ({ ...prev, tipo: 'patrimonio', naturaleza: 'credito' }));
+            else if (codigo.startsWith('4')) setFormData(prev => ({ ...prev, tipo: 'ingreso', naturaleza: 'credito' }));
+            else if (codigo.startsWith('5')) setFormData(prev => ({ ...prev, tipo: 'gasto', naturaleza: 'debito' }));
+            else if (codigo.startsWith('6')) setFormData(prev => ({ ...prev, tipo: 'costo', naturaleza: 'debito' }));
+            else if (codigo === '') setFormData(prev => ({ ...prev, tipo: '', naturaleza: '' }));
         }
-    }, [formData.id, editData])
+    }, [formData.id, editData]);
 
     const handleSubmit = async (e) => {
-        e.preventDefault()
+        e.preventDefault();
         
         if (!formData.tipo || !formData.naturaleza) {
-            Swal.fire('Error', 'El código debe empezar por un número válido (1 al 6)', 'warning')
-            return
+            Swal.fire('Error', 'El código debe empezar por un número válido (1 al 6)', 'warning');
+            return;
         }
 
-        const dataToSave = { ...formData, es_auxiliar: esAuxiliar }
+        const dataToSave = { ...formData, es_auxiliar: esAuxiliar };
 
-        let res
+        let res;
         if (editData) {
-            res = await window.contaAPI.actualizarCuenta(dataToSave)
+            res = await window.contaAPI.actualizarCuenta(dataToSave);
         } else {
-            res = await window.contaAPI.crearCuenta(dataToSave)
+            res = await window.contaAPI.crearCuenta(dataToSave);
         }
 
         if (res.success) {
@@ -67,107 +72,121 @@ export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
                 icon: 'success', 
                 timer: 1500,
                 showConfirmButton: false 
-            })
-            onSuccess()
-            handleClose()
+            });
+            onSuccess();
+            handleClose();
         } else {
-            Swal.fire('Error', res.error, 'error')
+            Swal.fire('Error', res.error, 'error');
         }
-    }
-
-    if (!show) return null;
+    };
 
     return (
-        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
-                <div className="modal-content">
-                    <div className="modal-header bg-light">
-                        <h5 className="modal-title">
-                            <i className={`bi ${editData ? 'bi-pencil-square' : 'bi-plus-circle'} me-2`}></i>
-                            {editData ? `Editar Cuenta: ${formData.id}` : 'Nueva Cuenta Contable'}
-                        </h5>
-                        <button type="button" className="btn-close" onClick={handleClose}></button>
-                    </div>
-                    <form onSubmit={handleSubmit}>
-                        <div className="modal-body">
-                            <div className="row mb-3">
-                                <div className="col-md-5">
-                                    <label className="form-label fw-bold">Código (ID)</label>
-                                    <input 
-                                        type="number" 
-                                        className="form-control" 
-                                        value={formData.id}
-                                        onChange={(e) => setFormData({...formData, id: e.target.value})}
-                                        disabled={editData != null}
-                                        required 
-                                        autoFocus={!editData}
-                                    />
-                                    <div className="form-text text-primary">Nivel: <strong>{nivelVisual || '...'}</strong></div>
-                                </div>
-                                <div className="col-md-7">
-                                    <label className="form-label fw-bold">Nombre de la Cuenta</label>
-                                    <input 
-                                        type="text" 
-                                        className="form-control" 
-                                        value={formData.nombre}
-                                        onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                                        autoFocus={!!editData}
-                                        required 
-                                    />
-                                </div>
-                            </div>
+        <Modal show={show} onHide={handleClose} size="lg" centered>
+            <Modal.Header closeButton className="bg-light">
+                <Modal.Title className="h5">
+                    <i className={`bi ${editData ? 'bi-pencil-square' : 'bi-plus-circle'} me-2`}></i>
+                    {editData ? `Editar Cuenta: ${formData.id}` : 'Nueva Cuenta Contable'}
+                </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <Form onSubmit={handleSubmit} id="cuentaForm">
+                    <Row className="mb-3">
+                        <Col md={5}>
+                            <Form.Group>
+                                <Form.Label className="fw-bold">Código (ID)</Form.Label>
+                                <Form.Control 
+                                    type="number" 
+                                    value={formData.id}
+                                    onChange={(e) => setFormData({...formData, id: e.target.value})}
+                                    disabled={editData != null}
+                                    required 
+                                    autoFocus={!editData}
+                                    placeholder="Ej: 110505"
+                                />
+                                <Form.Text className="text-primary">
+                                    Nivel: <strong>{nivelVisual || '...'}</strong>
+                                </Form.Text>
+                            </Form.Group>
+                        </Col>
+                        <Col md={7}>
+                            <Form.Group>
+                                <Form.Label className="fw-bold">Nombre de la Cuenta</Form.Label>
+                                <Form.Control 
+                                    type="text" 
+                                    value={formData.nombre}
+                                    onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                                    autoFocus={!!editData}
+                                    required 
+                                    placeholder="Ej: Caja General"
+                                />
+                            </Form.Group>
+                        </Col>
+                    </Row>
 
-                            <div className="row mb-3">
-                                <div className="col-md-6">
-                                    <label className="form-label text-muted">Clasificación</label>
-                                    <input type="text" className="form-control text-capitalize" value={formData.tipo} disabled />
-                                </div>
-                                <div className="col-md-6">
-                                    <label className="form-label text-muted">Naturaleza</label>
-                                    <input type="text" className="form-control text-capitalize" value={formData.naturaleza} disabled />
-                                </div>
-                            </div>
+                    <Row className="mb-3">
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label className="text-muted">Clasificación Automática</Form.Label>
+                                <Form.Control 
+                                    type="text" 
+                                    className="text-capitalize" 
+                                    value={formData.tipo} 
+                                    disabled 
+                                />
+                            </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                            <Form.Group>
+                                <Form.Label className="text-muted">Naturaleza</Form.Label>
+                                <Form.Control 
+                                    type="text" 
+                                    className="text-capitalize" 
+                                    value={formData.naturaleza} 
+                                    disabled 
+                                />
+                            </Form.Group>
+                        </Col>
+                    </Row>
 
-                            {editData && (
-                                <div className="mb-3">
-                                    <label className="form-label fw-bold">Estado</label>
-                                    <select 
-                                        className="form-select" 
+                    {editData && (
+                        <Row className="mb-3">
+                            <Col md={12}>
+                                <Form.Group>
+                                    <Form.Label className="fw-bold">Estado</Form.Label>
+                                    <Form.Select 
                                         value={formData.estado} 
                                         onChange={(e) => setFormData({...formData, estado: parseInt(e.target.value)})}
                                     >
                                         <option value={1}>Activa</option>
                                         <option value={0}>Inactiva</option>
-                                    </select>
-                                </div>
-                            )}
+                                    </Form.Select>
+                                </Form.Group>
+                            </Col>
+                        </Row>
+                    )}
 
-                            {esAuxiliar === 1 && (
-                                <div className="alert alert-info py-2 d-flex align-items-center">
-                                    <div className="form-check form-switch mb-0">
-                                        <input 
-                                            className="form-check-input" 
-                                            type="checkbox" 
-                                            id="exigeTercero"
-                                            checked={formData.exige_tercero === 1}
-                                            onChange={(e) => setFormData({...formData, exige_tercero: e.target.checked ? 1 : 0})}
-                                        />
-                                        <label className="form-check-label ms-2" htmlFor="exigeTercero">
-                                            Exigir Tercero (NIT/Cédula) al usar esta cuenta
-                                        </label>
-                                    </div>
-                                </div>
-                            )}
+                    {esAuxiliar === 1 && (
+                        <div className="alert alert-info py-2 d-flex align-items-center mb-0 mt-3">
+                            <Form.Check 
+                                type="switch" 
+                                id="exigeTercero"
+                                label="Exigir Tercero (NIT/Cédula) al usar esta cuenta"
+                                checked={formData.exige_tercero === 1}
+                                onChange={(e) => setFormData({...formData, exige_tercero: e.target.checked ? 1 : 0})}
+                                className="mb-0 fw-medium"
+                            />
                         </div>
-                        <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={handleClose}>Cancelar</button>
-                            <button type="submit" className="btn btn-primary">
-                                <i className="bi bi-save me-2"></i>{editData ? 'Actualizar' : 'Guardar Cuenta'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+                    )}
+                </Form>
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="secondary" onClick={handleClose}>
+                    Cancelar
+                </Button>
+                <Button variant="primary" type="submit" form="cuentaForm">
+                    <i className="bi bi-save me-2"></i>{editData ? 'Actualizar' : 'Guardar Cuenta'}
+                </Button>
+            </Modal.Footer>
+        </Modal>
     );
 };

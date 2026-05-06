@@ -1,17 +1,11 @@
-import { Puc } from './Puc';
-// En el futuro importaremos aquí: import { Terceros } from './Terceros'; etc.
+import { Puc } from './Puc'
+import { Terceros } from './Terceros'
 
 export const ContabilidadIndex = () => {
     return (
         <>
             <div className="pagetitle">
                 <h1><i className="bi bi-calculator me-2"></i>Módulo de Contabilidad (NIIF)</h1>
-                <nav>
-                    <ol className="breadcrumb">
-                        <li className="breadcrumb-item"><a href="/">Inicio</a></li>
-                        <li className="breadcrumb-item active">Contabilidad</li>
-                    </ol>
-                </nav>
             </div>
 
             <div className="card">
@@ -46,11 +40,7 @@ export const ContabilidadIndex = () => {
                         </div>
                         
                         <div className="tab-pane fade" id="terceros" role="tabpanel">
-                            <div className="text-center text-muted p-5">
-                                <i className="bi bi-tools fs-1 mb-3"></i>
-                                <h4>Directorio de Terceros</h4>
-                                <p>Próximamente: Gestión de clientes, proveedores y empleados (NIT/Cédula).</p>
-                            </div>
+                            <Terceros />
                         </div>
 
                         <div className="tab-pane fade" id="comprobantes" role="tabpanel">

@@ -126,14 +126,14 @@ export const Puc = () => {
                                         </td>
                                         <td className="text-end pe-4">
                                             <button 
-                                                className="btn btn-sm btn-light me-1 text-primary" 
+                                                className="btn btn-sm btn-secondary me-2" 
                                                 onClick={() => handleEditar(cuenta)}
                                                 title="Editar"
                                             >
                                                 <i className="bi bi-pencil"></i>
                                             </button>
                                             <button 
-                                                className="btn btn-sm btn-light text-danger" 
+                                                className="btn btn-sm btn-danger" 
                                                 onClick={() => handleEliminar(cuenta.id, cuenta.nombre)}
                                                 title="Eliminar"
                                             >
