@@ -1,26 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Swal from 'sweetalert2'
+import CustomDataTable from '../../components/DataTableComponent'
 import { ModalTercero } from './components/ModalTercero'
 
 export const Terceros = () => {
-    const [terceros, setTerceros] = useState([])
-    const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [terceroAEditar, setTerceroAEditar] = useState(null)
-
-    useEffect(() => {
-        cargarTerceros()
-    }, [])
-
-    const cargarTerceros = async () => {
-        setLoading(true)
-        if (window.contaAPI) {
-            const res = await window.contaAPI.getTerceros()
-            if (res.success) setTerceros(res.data)
-            else console.error("Error al cargar Terceros:", res.error)
-        }
-        setLoading(false)
-    }
+    const [reloadTable, setReloadTable] = useState(0)
+    
+    const tableContainerRef = useRef(null)
 
     const handleNuevo = () => {
         setTerceroAEditar(null)
@@ -47,7 +35,7 @@ export const Terceros = () => {
                 const res = await window.contaAPI.eliminarTercero(id)
                 if (res.success) {
                     Swal.fire('¡Eliminado!', 'El tercero ha sido borrado.', 'success')
-                    cargarTerceros()
+                    setReloadTable(prev => prev + 1)
                 } else {
                     Swal.fire('Error', res.error, 'error')
                 }
@@ -55,9 +43,32 @@ export const Terceros = () => {
         })
     }
 
-    const getNombreVisual = (t) => {
-        return t.tipo_persona === 'juridica' ? t.razon_social : `${t.nombres} ${t.apellidos}`
-    }
+    useEffect(() => {
+        const container = tableContainerRef.current
+        if (!container) return
+
+        const handleTableClick = (e) => {
+            const btn = e.target.closest('button[data-alldata]')
+            if (!btn) return
+            
+            try {
+                const rawData = decodeURIComponent(btn.dataset.alldata)
+                const item = JSON.parse(rawData);
+                
+                if (btn.classList.contains('btn-edit')) {
+                    handleEditar(item)
+                } else if (btn.classList.contains('btn-delete')) {
+                    const nombreVisual = item.tipo_persona === 'juridica' ? item.razon_social : `${item.nombres} ${item.apellidos}`
+                    handleEliminar(item.id, nombreVisual)
+                }
+            } catch(err) {
+                console.error("Error leyendo datos del botón", err)
+            }
+        }
+
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
     return (
         <div>
@@ -68,78 +79,76 @@ export const Terceros = () => {
                 </button>
             </div>
 
-            {loading ? (
-                <div className="text-center p-5">
-                    <div className="spinner-border text-primary" role="status"></div>
-                    <p className="mt-2 text-muted">Cargando terceros...</p>
-                </div>
-            ) : (
-                <div className="table-responsive" style={{ maxHeight: '65vh' }}>
-                    <table className="table table-hover table-sm mb-0 align-middle">
-                        <thead className="table-light sticky-top">
-                            <tr>
-                                <th>Documento</th>
-                                <th>Nombre / Razón Social</th>
-                                <th>Roles</th>
-                                <th>Contacto</th>
-                                <th className="text-center">Estado</th>
-                                <th className="text-end pe-4">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {terceros.length === 0 ? (
-                                <tr>
-                                    <td colSpan="6" className="text-center p-4 text-muted">
-                                        No hay terceros registrados.
-                                    </td>
-                                </tr>
-                            ) : (
-                                terceros.map((t) => (
-                                    <tr key={t.id}>
-                                        <td>
-                                            <span className="fw-medium">{t.tipo_documento} {t.numero_documento}</span>
-                                            {t.digito_verificacion && `-${t.digito_verificacion}`}
-                                        </td>
-                                        <td>
-                                            <i className={`bi ${t.tipo_persona === 'juridica' ? 'bi-building' : 'bi-person'} text-secondary me-2`}></i>
-                                            {getNombreVisual(t)}
-                                        </td>
-                                        <td>
-                                            {t.es_cliente === 1 && <span className="badge bg-info me-1">Cliente</span>}
-                                            {t.es_proveedor === 1 && <span className="badge bg-warning text-dark">Proveedor</span>}
-                                        </td>
-                                        <td className="small text-muted">
-                                            {t.telefono && <div><i className="bi bi-telephone me-1"></i>{t.telefono}</div>}
-                                            {t.email && <div><i className="bi bi-envelope me-1"></i>{t.email}</div>}
-                                        </td>
-                                        <td className="text-center">
-                                            {t.estado === 1 ? 
-                                                <i className="bi bi-check-circle-fill text-success" title="Activo"></i> : 
-                                                <i className="bi bi-x-circle-fill text-danger" title="Inactivo"></i>
-                                            }
-                                        </td>
-                                        <td className="text-end pe-4">
-                                            <button className="btn btn-sm btn-secondary me-2" onClick={() => handleEditar(t)}>
-                                                <i className="bi bi-pencil"></i>
-                                            </button>
-                                            <button className="btn btn-sm btn-danger" onClick={() => handleEliminar(t.id, getNombreVisual(t))}>
-                                                <i className="bi bi-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+            <div ref={tableContainerRef} className="w-100 overflow-hidden">
+                <CustomDataTable 
+                    key={`terceros-${reloadTable}`} 
+                    ajaxData={(params) => window.contaAPI.getTercerosPaginados(params)}
+                    columns={[
+                        { 
+                            data: null, title: 'Documento',
+                            render: (data, type, row) => {
+                                const dv = row.digito_verificacion ? `-${row.digito_verificacion}` : ''
+                                return `<span class="fw-medium">${row.tipo_documento} ${row.numero_documento}</span>${dv}`
+                            }
+                        },
+                        { 
+                            data: null, title: 'Nombre / Razón Social',
+                            render: (data, type, row) => {
+                                const icon = row.tipo_persona === 'juridica' ? 'bi-building' : 'bi-person'
+                                const nombre = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`
+                                return `<i class="bi ${icon} text-secondary me-2"></i>${nombre || ''}`
+                            }
+                        },
+                        { 
+                            data: null, title: 'Roles',
+                            render: (data, type, row) => {
+                                let html = '';
+                                if (row.es_cliente === 1) html += '<span class="badge bg-info me-1">Cliente</span>'
+                                if (row.es_proveedor === 1) html += '<span class="badge bg-warning text-dark">Proveedor</span>'
+                                return html
+                            }
+                        },
+                        { 
+                            data: null, title: 'Contacto',
+                            render: (data, type, row) => {
+                                let html = ''
+                                if (row.telefono) html += `<div><i class="bi bi-telephone me-1"></i>${row.telefono}</div>`
+                                if (row.email) html += `<div><i class="bi bi-envelope me-1"></i>${row.email}</div>`
+                                return `<div class="small text-muted">${html}</div>`
+                            }
+                        },
+                        { 
+                            data: 'estado', title: 'Estado', className: 'text-center',
+                            render: (data) => {
+                                return data === 1 
+                                    ? '<i class="bi bi-check-circle-fill text-success" title="Activo"></i>'
+                                    : '<i class="bi bi-x-circle-fill text-danger" title="Inactivo"></i>'
+                            }
+                        },
+                        {
+                            data: null, title: 'Acciones', orderable: false, className: 'text-end pe-4',
+                            render: function (data, type, row) {
+                                const safeData = encodeURIComponent(JSON.stringify(row))
+                                return `
+                                    <button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger btn-delete" data-alldata="${safeData}" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                `
+                            }
+                        }
+                    ]}
+                />
+            </div>
             
             <ModalTercero 
                 show={showModal} 
                 handleClose={() => setShowModal(false)} 
-                onSuccess={cargarTerceros}
+                onSuccess={() => setReloadTable(prev => prev + 1)}
                 editData={terceroAEditar}
             />
         </div>
-    )
-}
+    );
+};

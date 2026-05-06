@@ -5,13 +5,14 @@ import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Row, Col } from 'react-bootstrap'
 
-export const ModalTercero = ({ show, handleClose, onSuccess, editData }) => {
+export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceCliente }) => {
     const defaultData = {
         id: '', tipo_documento: 'NIT', numero_documento: '', digito_verificacion: '',
         tipo_persona: 'juridica', razon_social: '', nombres: '', apellidos: '',
         direccion: '', telefono: '', email: '', ciudad_id: '',
-        es_cliente: 0, es_proveedor: 0, estado: 1
-    };
+        es_cliente: forceCliente ? 1 : 0,
+        es_proveedor: 0, estado: 1
+    }
     
     const [formData, setFormData] = useState(defaultData)
 
@@ -71,6 +72,7 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData }) => {
                                 type="checkbox" label="Es Cliente" id="es_cliente"
                                 checked={formData.es_cliente === 1}
                                 onChange={(e) => setFormData({...formData, es_cliente: e.target.checked ? 1 : 0})}
+                                disabled={forceCliente}
                             />
                             <Form.Check 
                                 type="checkbox" label="Es Proveedor" id="es_proveedor"

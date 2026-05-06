@@ -124,6 +124,7 @@ contextBridge.exposeInMainWorld('contaAPI', {
   eliminarCuenta: (id) => ipcRenderer.invoke('eliminar-cuenta', id),
 
   getTerceros: () => ipcRenderer.invoke('get-terceros'),
+  getTercerosPaginados: (params) => ipcRenderer.invoke('get-terceros-paginados', params),
   crearTercero: (data) => ipcRenderer.invoke('crear-tercero', data),
   actualizarTercero: (data) => ipcRenderer.invoke('actualizar-tercero', data),
   eliminarTercero: (id) => ipcRenderer.invoke('eliminar-tercero', id),
