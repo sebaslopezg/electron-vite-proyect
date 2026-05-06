@@ -11,9 +11,11 @@ Encargos:
 
 
 
-modificaciones generales:
+ modificaciones generales:
 
- - terminar crud contabilidad arbol de cuentas 
+ # Lanzar la modal de creacion de clientes (terceros) cuando no se encuentre un cliente en facturacion
+ - Pestaña comprobantes
+ - Pestaña reportes financieros   
 
  - organizar preload.js porque esta muy largo
  - Separar todas las modales de sus archivos en componentes pa que esos archivos no sean tan largos
