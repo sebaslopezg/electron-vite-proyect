@@ -16,7 +16,6 @@ export const ContabilidadIndex = () => {
 
             <div className="card">
                 <div className="card-body">
-                    {/* Navegación de Pestañas */}
                     <ul className="nav nav-tabs nav-tabs-bordered mt-3" role="tablist">
                         <li className="nav-item" role="presentation">
                             <button className="nav-link active" data-bs-toggle="tab" data-bs-target="#puc" type="button" role="tab">
@@ -40,15 +39,12 @@ export const ContabilidadIndex = () => {
                         </li>
                     </ul>
 
-                    {/* Contenido de las Pestañas */}
                     <div className="tab-content pt-4">
                         
-                        {/* PESTAÑA 1: EL PUC */}
                         <div className="tab-pane fade show active" id="puc" role="tabpanel">
                             <Puc />
                         </div>
                         
-                        {/* PESTAÑA 2: TERCEROS (En construcción) */}
                         <div className="tab-pane fade" id="terceros" role="tabpanel">
                             <div className="text-center text-muted p-5">
                                 <i className="bi bi-tools fs-1 mb-3"></i>
@@ -57,7 +53,6 @@ export const ContabilidadIndex = () => {
                             </div>
                         </div>
 
-                        {/* PESTAÑA 3: COMPROBANTES (En construcción) */}
                         <div className="tab-pane fade" id="comprobantes" role="tabpanel">
                             <div className="text-center text-muted p-5">
                                 <i className="bi bi-tools fs-1 mb-3"></i>
@@ -66,7 +61,6 @@ export const ContabilidadIndex = () => {
                             </div>
                         </div>
 
-                        {/* PESTAÑA 4: REPORTES (En construcción) */}
                         <div className="tab-pane fade" id="reportes" role="tabpanel">
                             <div className="text-center text-muted p-5">
                                 <i className="bi bi-tools fs-1 mb-3"></i>

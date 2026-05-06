@@ -120,6 +120,8 @@ contextBridge.exposeInMainWorld("api", {
 contextBridge.exposeInMainWorld('contaAPI', {
   getPuc: () => ipcRenderer.invoke('get-puc'),
   crearCuenta: (cuenta) => ipcRenderer.invoke('crear-cuenta', cuenta),
+  actualizarCuenta: (cuenta) => ipcRenderer.invoke('actualizar-cuenta', cuenta),
+  eliminarCuenta: (id) => ipcRenderer.invoke('eliminar-cuenta', id),
 })
 
 contextBridge.exposeInMainWorld('updaterAPI', {

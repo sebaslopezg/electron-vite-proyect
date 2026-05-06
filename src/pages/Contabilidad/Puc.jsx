@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { ModalCuenta } from './components/ModalCuenta'
 
 export const Puc = () => {
     const [cuentas, setCuentas] = useState([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
+    const [cuentaAEditar, setCuentaAEditar] = useState(null)
 
     useEffect(() => {
         cargarCuentas()
@@ -23,6 +25,39 @@ export const Puc = () => {
         setLoading(false)
     }
 
+    const handleNuevo = () => {
+        setCuentaAEditar(null);
+        setShowModal(true);
+    };
+
+    const handleEditar = (cuenta) => {
+        setCuentaAEditar(cuenta);
+        setShowModal(true);
+    };
+
+    const handleEliminar = (id, nombre) => {
+        Swal.fire({
+            title: `¿Eliminar la cuenta ${id}?`,
+            text: `Estás a punto de borrar "${nombre}". Esta acción no se puede deshacer.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const res = await window.contaAPI.eliminarCuenta(id);
+                if (res.success) {
+                    Swal.fire('¡Eliminada!', 'La cuenta ha sido borrada.', 'success');
+                    cargarCuentas();
+                } else {
+                    Swal.fire('No se pudo eliminar', res.error, 'error');
+                }
+            }
+        });
+    };
+
     const getIndentStyle = (id) => {
         const length = id.toString().length
         const padding = length === 1 ? 0 : length === 2 ? 20 : length === 4 ? 40 : 60
@@ -33,8 +68,8 @@ export const Puc = () => {
         <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="card-title mb-0">Gestión de Cuentas Contables</h5>
-                <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                    <i className="bi bi-plus-circle me-2"></i>Nueva Cuenta
+                <button className="btn btn-primary btn-sm" onClick={handleNuevo}>
+                    <i className="bi bi-plus-lg me-2"></i>Nueva Cuenta
                 </button>
             </div>
 
@@ -90,7 +125,20 @@ export const Puc = () => {
                                             }
                                         </td>
                                         <td className="text-end pe-4">
-                                            <button className="btn btn-sm btn-light me-1"><i className="bi bi-pencil"></i></button>
+                                            <button 
+                                                className="btn btn-sm btn-light me-1 text-primary" 
+                                                onClick={() => handleEditar(cuenta)}
+                                                title="Editar"
+                                            >
+                                                <i className="bi bi-pencil"></i>
+                                            </button>
+                                            <button 
+                                                className="btn btn-sm btn-light text-danger" 
+                                                onClick={() => handleEliminar(cuenta.id, cuenta.nombre)}
+                                                title="Eliminar"
+                                            >
+                                                <i className="bi bi-trash"></i>
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
@@ -104,6 +152,7 @@ export const Puc = () => {
             show={showModal} 
             handleClose={() => setShowModal(false)} 
             onSuccess={cargarCuentas}
+            editData={cuentaAEditar}
         />
     </>
 };
