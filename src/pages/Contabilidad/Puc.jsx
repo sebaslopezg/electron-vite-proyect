@@ -68,8 +68,8 @@ export const Puc = () => {
         <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="card-title mb-0">Gestión de Cuentas Contables</h5>
-                <button className="btn btn-primary btn-sm" onClick={handleNuevo}>
-                    <i className="bi bi-plus-lg me-2"></i>Nueva Cuenta
+                <button className="btn btn-primary" onClick={handleNuevo}>
+                    <i className="bi bi-plus-circle me-2"></i>Nueva Cuenta
                 </button>
             </div>
 

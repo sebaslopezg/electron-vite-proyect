@@ -63,8 +63,8 @@ export const Terceros = () => {
         <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="card-title mb-0">Directorio de Terceros</h5>
-                <button className="btn btn-primary btn-sm" onClick={handleNuevo}>
-                    <i className="bi bi-plus-lg me-2"></i>Nuevo Tercero
+                <button className="btn btn-primary" onClick={handleNuevo}>
+                    <i className="bi bi-plus-circle me-2"></i>Nuevo Tercero
                 </button>
             </div>
 
@@ -119,10 +119,10 @@ export const Terceros = () => {
                                             }
                                         </td>
                                         <td className="text-end pe-4">
-                                            <button className="btn btn-sm btn-light me-1 text-primary" onClick={() => handleEditar(t)}>
+                                            <button className="btn btn-sm btn-secondary me-2" onClick={() => handleEditar(t)}>
                                                 <i className="bi bi-pencil"></i>
                                             </button>
-                                            <button className="btn btn-sm btn-light text-danger" onClick={() => handleEliminar(t.id, getNombreVisual(t))}>
+                                            <button className="btn btn-sm btn-danger" onClick={() => handleEliminar(t.id, getNombreVisual(t))}>
                                                 <i className="bi bi-trash"></i>
                                             </button>
                                         </td>

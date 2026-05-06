@@ -8,149 +8,149 @@ import Swal from 'sweetalert2'
 import { formatCurrency } from '../../utils/currencies'
 
 export const Inventario = () => {
-  const [show, setShow] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState(null)
-  const [reloadTable, setReloadTable] = useState(0)
+    const [show, setShow] = useState(false)
+    const [selectedProduct, setSelectedProduct] = useState(null)
+    const [reloadTable, setReloadTable] = useState(0)
 
-  const [categoriasList, setCategoriasList] = useState([])
-  const [etiquetasList, setEtiquetasList] = useState([])
+    const [categoriasList, setCategoriasList] = useState([])
+    const [etiquetasList, setEtiquetasList] = useState([])
   
-  const [filterCategory, setFilterCategory] = useState('')
-  const [filterTag, setFilterTag] = useState('')
+    const [filterCategory, setFilterCategory] = useState('')
+    const [filterTag, setFilterTag] = useState('')
 
-  const [form, setForm] = useState({ cantidad: '', type: '' })
-  const [modalInfo, setModalInfo] = useState({ 
-    title: 'Registro', 
-    description: 'Ingrese la cantidad', 
-    increase: null 
-  })
-
-  const [showHistory, setShowHistory] = useState(false)
-  const [historyProductId, setHistoryProductId] = useState(null)
-  const [historyTitle, setHistoryTitle] = useState('')
-
-  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
-
-  const loadConfig = async () => {
-      const configData = await window.api.getConfiguracion();
-      const confAppRaw = configData.find(c => c.key === 'confApp');
-      if (confAppRaw) {
-          try {
-              const parsed = JSON.parse(confAppRaw.value);
-              setAppConfig({
-                  moneda: parsed.moneda || 'COP',
-                  formato_numero: parsed.formato_numero || 'es-CO'
-              });
-          } catch(e) {}
-      }
-  };
-
-  const renderCurrency = (val) => {
-      return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
-  };
-
-  const handleClose = () => {
-    setShow(false)
-    setSelectedProduct(null)
-    setForm({ cantidad: '', type: '' })
-  }
-
-  const handleShow = () => setShow(true)
-
-  const loadFilters = async () => {
-    const [cats, tags] = await Promise.all([
-        window.api.getCategorias(),
-        window.api.getEtiquetas()
-    ]);
-    setCategoriasList(cats || [])
-    setEtiquetasList(tags || [])
-  }
-
-  useEffect(() => { 
-      loadFilters();
-      loadConfig();
-      window.addEventListener('config-actualizada', loadConfig);
-      return () => window.removeEventListener('config-actualizada', loadConfig);
-  }, [])
-
-  const handleIncrease = async (row) => {
-    setSelectedProduct(row)
-    setModalInfo({ 
-        title: `Ingreso de stock - ${row.ref_name}`, 
-        description: 'Ingrese la cantidad a sumar:', 
-        increase: true 
+    const [form, setForm] = useState({ cantidad: '', type: '' })
+    const [modalInfo, setModalInfo] = useState({ 
+        title: 'Registro', 
+        description: 'Ingrese la cantidad', 
+        increase: null 
     })
-    setForm({ cantidad: '', type: 'ingreso' })
-    handleShow()
-  }
 
-  const handleDecrease = async (row) => {
-    setSelectedProduct(row)
-    setModalInfo({ 
-        title: `Egreso de stock - ${row.ref_name}`, 
-        description: 'Ingrese la cantidad a restar:', 
-        increase: false })
-    setForm({ 
-        cantidad: '', 
-        type: 'egreso' 
-    })
-    handleShow()
-  }
+    const [showHistory, setShowHistory] = useState(false)
+    const [historyProductId, setHistoryProductId] = useState(null)
+    const [historyTitle, setHistoryTitle] = useState('')
 
-  const handleSave = async () => {
-    if (!selectedProduct) return Swal.fire({ icon: 'error', title: 'Error', text: 'No hay producto seleccionado' })
-    if (!form.cantidad || parseFloat(form.cantidad) <= 0) return Swal.fire({ icon: 'error', title: 'Error', text: 'La cantidad debe ser mayor a 0' })
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
 
-    try {
-      const result = await window.api.setInventario({
-        id: selectedProduct.id,
-        cantidad: parseFloat(form.cantidad),
-        type: form.type,
-        usuario: 'current_user',
-        notas: '' 
-      })
-
-      if (result.success) {
-        Swal.fire({
-            icon: 'success', title: 'Éxito', text: `Stock actualizado: ${result.stockAnterior} → ${result.stockNuevo}`, timer: 2000
-        })
-        handleClose()
-        setReloadTable(prev => prev + 1)
-      } else {
-        Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo actualizar' })
-      }
-    } catch (error) {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'Ocurrió un error al procesar' })
+    const loadConfig = async () => {
+        const configData = await window.api.getConfiguracion()
+        const confAppRaw = configData.find(c => c.key === 'confApp')
+        if (confAppRaw) {
+            try {
+                const parsed = JSON.parse(confAppRaw.value)
+                setAppConfig({
+                    moneda: parsed.moneda || 'COP',
+                    formato_numero: parsed.formato_numero || 'es-CO'
+                })
+            } catch(e) {}
+        }
     }
-  }
 
-  const viewHistory = (row) => {
-      setHistoryTitle(`Historial - ${row.ref_name}`)
-      setHistoryProductId(row.id)
-      setShowHistory(true)
-  }
+    const renderCurrency = (val) => {
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+    }
 
-  const tableContainerRef = useRef(null);
+    const handleClose = () => {
+        setShow(false)
+        setSelectedProduct(null)
+        setForm({ cantidad: '', type: '' })
+    }
 
-  useEffect(() => {
-      const container = tableContainerRef.current;
-      if (!container) return;
-      const handleTableClick = (e) => {
-          const btn = e.target.closest('button[data-alldata]');
-          if (!btn) return;
-          try {
-              const rawData = decodeURIComponent(btn.dataset.alldata);
-              const item = JSON.parse(rawData);
-              if (btn.classList.contains('btn-increase')) handleIncrease(item);
-              else if (btn.classList.contains('btn-decrease')) handleDecrease(item);
-              else if (btn.classList.contains('btn-history')) viewHistory(item);
-          } catch(err) { console.error("Error leyendo datos", err); }
-      };
-      container.addEventListener('click', handleTableClick);
-      return () => container.removeEventListener('click', handleTableClick);
-  }, []);
+    const handleShow = () => setShow(true)
 
-  return <>
+    const loadFilters = async () => {
+        const [cats, tags] = await Promise.all([
+            window.api.getCategorias(),
+            window.api.getEtiquetas()
+        ])
+        setCategoriasList(cats || [])
+        setEtiquetasList(tags || [])
+    }
+
+    useEffect(() => { 
+        loadFilters()
+        loadConfig()
+        window.addEventListener('config-actualizada', loadConfig)
+        return () => window.removeEventListener('config-actualizada', loadConfig)
+    }, [])
+
+    const handleIncrease = async (row) => {
+        setSelectedProduct(row)
+        setModalInfo({ 
+            title: `Ingreso de stock - ${row.ref_name}`, 
+            description: 'Ingrese la cantidad a sumar:', 
+            increase: true 
+        })
+        setForm({ cantidad: '', type: 'ingreso' })
+        handleShow()
+    }
+
+    const handleDecrease = async (row) => {
+        setSelectedProduct(row)
+        setModalInfo({ 
+            title: `Egreso de stock - ${row.ref_name}`, 
+            description: 'Ingrese la cantidad a restar:', 
+            increase: false })
+        setForm({ 
+            cantidad: '', 
+            type: 'egreso' 
+        })
+        handleShow()
+    }
+
+    const handleSave = async () => {
+        if (!selectedProduct) return Swal.fire({ icon: 'error', title: 'Error', text: 'No hay producto seleccionado' })
+        if (!form.cantidad || parseFloat(form.cantidad) <= 0) return Swal.fire({ icon: 'error', title: 'Error', text: 'La cantidad debe ser mayor a 0' })
+
+        try {
+            const result = await window.api.setInventario({
+                id: selectedProduct.id,
+                cantidad: parseFloat(form.cantidad),
+                type: form.type,
+                usuario: 'current_user',
+                notas: '' 
+            })
+
+            if (result.success) {
+              Swal.fire({
+                  icon: 'success', title: 'Éxito', text: `Stock actualizado: ${result.stockAnterior} → ${result.stockNuevo}`, timer: 2000
+              })
+              handleClose()
+              setReloadTable(prev => prev + 1)
+            } else {
+              Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo actualizar' })
+            }
+        } catch (error) {
+          Swal.fire({ icon: 'error', title: 'Error', text: 'Ocurrió un error al procesar' })
+        }
+    }
+
+    const viewHistory = (row) => {
+        setHistoryTitle(`Historial - ${row.ref_name}`)
+        setHistoryProductId(row.id)
+        setShowHistory(true)
+    }
+
+    const tableContainerRef = useRef(null);
+
+    useEffect(() => {
+        const container = tableContainerRef.current
+        if (!container) return
+        const handleTableClick = (e) => {
+            const btn = e.target.closest('button[data-alldata]')
+            if (!btn) return
+            try {
+                const rawData = decodeURIComponent(btn.dataset.alldata)
+                const item = JSON.parse(rawData)
+                if (btn.classList.contains('btn-increase')) handleIncrease(item)
+                else if (btn.classList.contains('btn-decrease')) handleDecrease(item)
+                else if (btn.classList.contains('btn-history')) viewHistory(item)
+            } catch(err) { console.error("Error leyendo datos", err); }
+        }
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
+
+    return <>
         <div className="pagetitle">
             <h1><i className="bi bi-clipboard-check me-2"></i>Inventario</h1>
         </div>
