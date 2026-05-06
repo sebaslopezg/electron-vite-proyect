@@ -116,6 +116,12 @@ contextBridge.exposeInMainWorld("api", {
   exportDatabase: () => ipcRenderer.invoke('export-db'),
 })
 
+  //contabilidad
+contextBridge.exposeInMainWorld('contaAPI', {
+  getPuc: () => ipcRenderer.invoke('get-puc'),
+  crearCuenta: (cuenta) => ipcRenderer.invoke('crear-cuenta', cuenta),
+})
+
 contextBridge.exposeInMainWorld('updaterAPI', {
   getVersion: () => ipcRenderer.invoke('get-app-version'),
   checkUpdates: () => ipcRenderer.invoke('check-updates'),

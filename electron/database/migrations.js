@@ -16,34 +16,37 @@ import { runV1Producto } from './tables/producto.js'
 import { runV1VentasDetalle } from './tables/ventasDetalle.js'
 import { runV1VentasMaestro } from './tables/ventasMaestro.js'
 import { runV1Bitacora } from './tables/bitacora.js'
+import { runV1CuentasContables } from './tables/cuentasContables.js'
+import { runV1Terceros } from './tables/terceros.js'
 
 const migrations = [
     {
         version: 1,
         up: () => {
-            console.log("Setting up base schema (V1)...");
+            console.log("Setting up base schema (V1)...")
             
-            runV1AlmacenConf();
-            runV1CategoriasEtiquetas();
-            runV1Clientes();
-            runV1Configurar();
-            runV1Encargos();
-            runV1EstadoEncargo();
-            runV1Inventario();
-            runV1Notas();
-            runV1NotasDetalle();
-            runV1NotasMaestro();
-            runV1Producto();
-            runV1VentasDetalle();
-            runV1VentasMaestro();
-            runV1Bitacora();
+            runV1AlmacenConf()
+            runV1CategoriasEtiquetas()
+            runV1Clientes()
+            runV1Configurar()
+            runV1Encargos()
+            runV1EstadoEncargo()
+            runV1Inventario()
+            runV1Notas()
+            runV1NotasDetalle()
+            runV1NotasMaestro()
+            runV1Producto()
+            runV1VentasDetalle()
+            runV1VentasMaestro()
+            runV1Bitacora()
         }
     },
     
     {
-        version: 2,
+        version: 3,
         up: () => {
-            //Migraciones futuras aqui!!!!!
+            runV1CuentasContables()
+            runV1Terceros()
         }
     }
 ]
