@@ -147,6 +147,60 @@ export const registerContabilidadHandlers = () => {
     }
   })
 
+  ipcMain.handle("get-comprobante-detalle", (event, id) => {
+    try {
+      const cabecera = db.prepare("SELECT * FROM comprobantes WHERE id = ?").get(id)
+      if (!cabecera) return { success: false, error: "Comprobante no encontrado" }
+      
+      const detalles = db.prepare("SELECT * FROM comprobantesDetalle WHERE comprobante_id = ?").all(id)
+      return { success: true, data: { cabecera, detalles } }
+    } catch (error) {
+      console.error("Error obteniendo detalle de comprobante:", error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle("actualizar-comprobante", async (event, { id, cabecera, detalles }) => {
+    try {
+      let sumDebitos = 0; let sumCreditos = 0
+      for (const linea of detalles) {
+        sumDebitos += Number(linea.debito) || 0
+        sumCreditos += Number(linea.credito) || 0
+      }
+      if (sumDebitos.toFixed(2) !== sumCreditos.toFixed(2)) {
+        return { success: false, error: "El asiento no cuadra." }
+      }
+
+      const updateComprobante = db.transaction(() => {
+         db.prepare(`
+           UPDATE comprobantes 
+           SET fecha = ?, concepto = ?, documento_referencia = ?
+           WHERE id = ?
+         `).run(cabecera.fecha, cabecera.concepto, cabecera.documento_referencia || '', id)
+
+         db.prepare("DELETE FROM comprobantesDetalle WHERE comprobante_id = ?").run(id)
+
+         const stmtDetalle = db.prepare(`
+           INSERT INTO comprobantesDetalle (id, comprobante_id, cuenta_id, tercero_id, descripcion_linea, debito, credito)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+         `)
+
+          for (const linea of detalles) {
+            stmtDetalle.run(
+              uuidv4(), id, linea.cuenta_id, linea.tercero_id || null, 
+              linea.descripcion_linea || '', Number(linea.debito) || 0, Number(linea.credito) || 0
+            )
+          }
+      })
+
+      updateComprobante();
+      return { success: true }
+    } catch (error) {
+      console.error("Error actualizando comprobante:", error)
+      return { success: false, error: error.message }
+    }
+  })
+
   ipcMain.handle("get-cuentas-auxiliares", () => {
     try {
       return { success: true, data: db.prepare("SELECT id, nombre, exige_tercero FROM cuentasContables WHERE es_auxiliar = 1 AND estado = 1").all() }

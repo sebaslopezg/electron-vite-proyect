@@ -1,21 +1,14 @@
 - Revisar swal en todas las interacciones con los forms
-- Cambiar estilo de botones de accion.
-- agregar indexaciones para mejorar las consultas en la BD
-- probar todos los cruds con las nuevas implementaciones. (tecnicamente resuelto)
-- Crear crud para inventarios
-- implementar maestro detalle mejorado en ventas
-
-Encargos:
-- id del producto
-- quién lo creó, cuando loc reó y quién lo modificó
 
 
 
  modificaciones generales:
 
  # Lanzar la modal de creacion de clientes (terceros) cuando no se encuentre un cliente en facturacion
- - funcionalidad en comprobantes
- - Pestaña reportes financieros   
+ - arreglar vista de detalles en comprobantes
+ - Pestaña reportes financieros  
+
+ - Crear logs en todos los movimientos del sistema y visualizarlos 
 
  - organizar preload.js porque esta muy largo
  - Separar todas las modales de sus archivos en componentes pa que esos archivos no sean tan largos
