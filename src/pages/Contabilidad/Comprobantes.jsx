@@ -2,55 +2,60 @@ import { useState, useRef, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import { ModalComprobante } from './components/ModalComprobante'
+import { ModalVerComprobante } from './components/ModalVerComprobante'
 
 export const Comprobantes = () => {
-    const [showModal, setShowModal] = useState(false);
-    const [reloadTable, setReloadTable] = useState(0);
-    const [comprobanteAEditar, setComprobanteAEditar] = useState(null);
-    const [isViewOnly, setIsViewOnly] = useState(false);
+    const [showModalEdit, setShowModalEdit] = useState(false)
+    const [showModalView, setShowModalView] = useState(false)
     
-    const tableContainerRef = useRef(null);
+    const [reloadTable, setReloadTable] = useState(0)
+    const [comprobanteActivo, setComprobanteActivo] = useState(null)
+    
+    const tableContainerRef = useRef(null)
 
     const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(val || 0)
 
     const handleNuevo = () => {
-        setComprobanteAEditar(null);
-        setIsViewOnly(false);
-        setShowModal(true);
-    };
+        setComprobanteActivo(null)
+        setShowModalEdit(true)
+    }
 
     const handleAccion = async (id, accion) => {
-        const res = await window.contaAPI.getComprobanteDetalle(id);
+        const res = await window.contaAPI.getComprobanteDetalle(id)
         if (res.success) {
-            setComprobanteAEditar(res.data);
-            setIsViewOnly(accion === 'ver');
-            setShowModal(true);
+            setComprobanteActivo(res.data)
+            
+            if (accion === 'ver') {
+                setShowModalView(true)
+            } else if (accion === 'editar') {
+                setShowModalEdit(true)
+            }
         } else {
-            Swal.fire('Error', res.error, 'error');
+            Swal.fire('Error', res.error, 'error')
         }
-    };
+    }
 
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('button[data-id]');
-            if (!btn) return;
+            const btn = e.target.closest('button[data-id]')
+            if (!btn) return
             
-            const id = btn.dataset.id;
+            const id = btn.dataset.id
             if (btn.classList.contains('btn-view')) {
-                handleAccion(id, 'ver');
+                handleAccion(id, 'ver')
             } else if (btn.classList.contains('btn-edit')) {
-                handleAccion(id, 'editar');
+                handleAccion(id, 'editar')
             }
-        };
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
-    return (
+    return <>
         <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="card-title mb-0">Comprobantes Contables</h5>
@@ -102,13 +107,19 @@ export const Comprobantes = () => {
                     ]}
                 />
             </div>
+
             <ModalComprobante 
-                show={showModal} 
-                handleClose={() => setShowModal(false)} 
+                show={showModalEdit} 
+                handleClose={() => setShowModalEdit(false)} 
                 onSuccess={() => setReloadTable(prev => prev + 1)} 
-                editData={comprobanteAEditar}
-                isViewOnly={isViewOnly}
+                editData={comprobanteActivo}
+            />
+
+            <ModalVerComprobante
+                show={showModalView}
+                handleClose={() => setShowModalView(false)}
+                data={comprobanteActivo}
             />
         </div>
-    )
+    </>
 }

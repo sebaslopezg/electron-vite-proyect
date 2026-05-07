@@ -193,7 +193,7 @@ export const registerContabilidadHandlers = () => {
           }
       })
 
-      updateComprobante();
+      updateComprobante()
       return { success: true }
     } catch (error) {
       console.error("Error actualizando comprobante:", error)
@@ -205,5 +205,145 @@ export const registerContabilidadHandlers = () => {
     try {
       return { success: true, data: db.prepare("SELECT id, nombre, exige_tercero FROM cuentasContables WHERE es_auxiliar = 1 AND estado = 1").all() }
     } catch (error) { return { success: false, error: error.message } }
+  })
+
+
+  // REPORTES FINANCIEROS
+
+  ipcMain.handle("get-balance-prueba", async (event, { fechaInicio, fechaFin }) => {
+    try {
+      const query = `
+        SELECT 
+            c.id as cuenta, 
+            c.nombre, 
+            c.naturaleza,
+            c.tipo,
+            SUM(cd.debito) as total_debito, 
+            SUM(cd.credito) as total_credito
+        FROM cuentasContables c
+        INNER JOIN comprobantesDetalle cd ON c.id = cd.cuenta_id
+        INNER JOIN comprobantes comp ON cd.comprobante_id = comp.id
+        WHERE comp.estado = 1 
+          AND comp.fecha >= ? 
+          AND comp.fecha <= ?
+        GROUP BY c.id
+        ORDER BY c.id ASC
+      `;
+      
+      const movimientos = db.prepare(query).all(`${fechaInicio} 00:00:00`, `${fechaFin} 23:59:59`)
+      
+      const datosProcesados = movimientos.map(mov => {
+        let saldo = 0
+        if (mov.naturaleza === 'debito') {
+          saldo = mov.total_debito - mov.total_credito
+        } else {
+          saldo = mov.total_credito - mov.total_debito
+        }
+        return { ...mov, saldo }
+      })
+
+      const granTotalDebito = datosProcesados.reduce((acc, curr) => acc + curr.total_debito, 0)
+      const granTotalCredito = datosProcesados.reduce((acc, curr) => acc + curr.total_credito, 0)
+
+      return { 
+        success: true, 
+        data: datosProcesados, 
+        totales: { debito: granTotalDebito, credito: granTotalCredito } 
+      }
+    } catch (error) {
+      console.error("Error generando Balance de Prueba:", error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle("get-estado-resultados", async (event, { fechaInicio, fechaFin }) => {
+    try {
+      const query = `
+        SELECT c.id, c.nombre, c.naturaleza, SUBSTR(c.id, 1, 1) as clase,
+               SUM(cd.debito) as total_debito, SUM(cd.credito) as total_credito
+        FROM cuentasContables c
+        INNER JOIN comprobantesDetalle cd ON c.id = cd.cuenta_id
+        INNER JOIN comprobantes comp ON cd.comprobante_id = comp.id
+        WHERE comp.estado = 1 AND comp.fecha >= ? AND comp.fecha <= ?
+          AND (c.id LIKE '4%' OR c.id LIKE '5%' OR c.id LIKE '6%')
+        GROUP BY c.id ORDER BY c.id ASC
+      `
+      const movs = db.prepare(query).all(`${fechaInicio} 00:00:00`, `${fechaFin} 23:59:59`)
+
+      let ingresos = 0, gastos = 0, costos = 0;
+      const cuentasStr = movs.map(m => {
+        let saldo = m.naturaleza === 'credito' ? (m.total_credito - m.total_debito) : (m.total_debito - m.total_credito)
+        if (m.clase === '4') ingresos += saldo
+        if (m.clase === '5') gastos += saldo
+        if (m.clase === '6') costos += saldo
+        return { ...m, saldo }
+      })
+
+      return {
+        success: true,
+        data: {
+          cuentas: cuentasStr,
+          totales: { ingresos, gastos, costos, utilidad: ingresos - gastos - costos }
+        }
+      }
+    } catch(err) { return { success: false, error: err.message }; }
+  })
+
+  ipcMain.handle("get-balance-general", async (event, { fechaInicio, fechaFin }) => {
+    try {
+      const qPyG = `
+        SELECT SUBSTR(c.id, 1, 1) as clase, SUM(cd.debito) as deb, SUM(cd.credito) as cre
+        FROM cuentasContables c
+        INNER JOIN comprobantesDetalle cd ON c.id = cd.cuenta_id
+        INNER JOIN comprobantes comp ON cd.comprobante_id = comp.id
+        WHERE comp.estado = 1 AND comp.fecha >= ? AND comp.fecha <= ?
+          AND (c.id LIKE '4%' OR c.id LIKE '5%' OR c.id LIKE '6%')
+        GROUP BY clase
+      `
+      const pyg = db.prepare(qPyG).all(`${fechaInicio} 00:00:00`, `${fechaFin} 23:59:59`)
+      let ingresos = 0, gastos = 0, costos = 0
+      pyg.forEach(m => {
+        if (m.clase === '4') ingresos += (m.cre - m.deb)
+        if (m.clase === '5') gastos += (m.deb - m.cre)
+        if (m.clase === '6') costos += (m.deb - m.cre)
+      })
+      const utilidad = ingresos - gastos - costos
+
+      const queryBG = `
+        SELECT c.id, c.nombre, c.naturaleza, SUBSTR(c.id, 1, 1) as clase,
+               SUM(cd.debito) as total_debito, SUM(cd.credito) as total_credito
+        FROM cuentasContables c
+        INNER JOIN comprobantesDetalle cd ON c.id = cd.cuenta_id
+        INNER JOIN comprobantes comp ON cd.comprobante_id = comp.id
+        WHERE comp.estado = 1 AND comp.fecha >= ? AND comp.fecha <= ?
+          AND (c.id LIKE '1%' OR c.id LIKE '2%' OR c.id LIKE '3%')
+        GROUP BY c.id ORDER BY c.id ASC
+      `
+      const movsBG = db.prepare(queryBG).all(`${fechaInicio} 00:00:00`, `${fechaFin} 23:59:59`)
+
+      let activo = 0, pasivo = 0, patrimonio = 0;
+      const cuentasBG = movsBG.map(m => {
+        let saldo = m.naturaleza === 'debito' ? (m.total_debito - m.total_credito) : (m.total_credito - m.total_debito)
+        if (m.clase === '1') activo += saldo
+        if (m.clase === '2') pasivo += saldo
+        if (m.clase === '3') patrimonio += saldo
+        return { ...m, saldo }
+      })
+
+      return {
+        success: true,
+        data: {
+          cuentas: cuentasBG,
+          totales: { 
+            activo, 
+            pasivo, 
+            patrimonioPuro: patrimonio,
+            utilidadDelEjercicio: utilidad,
+            patrimonioTotal: patrimonio + utilidad,
+            pasivoMasPatrimonio: pasivo + patrimonio + utilidad 
+          }
+        }
+      }
+    } catch(err) { return { success: false, error: err.message } }
   })
 }

@@ -134,6 +134,11 @@ contextBridge.exposeInMainWorld('contaAPI', {
   actualizarComprobante: (data) => ipcRenderer.invoke('actualizar-comprobante', data),
   crearComprobante: (data) => ipcRenderer.invoke('crear-comprobante', data),
   getCuentasAuxiliares: () => ipcRenderer.invoke('get-cuentas-auxiliares'),
+  getBalancePrueba: (params) => ipcRenderer.invoke('get-balance-prueba', params),
+
+  getBalancePrueba: (params) => ipcRenderer.invoke('get-balance-prueba', params),
+  getEstadoResultados: (params) => ipcRenderer.invoke('get-estado-resultados', params),
+  getBalanceGeneral: (params) => ipcRenderer.invoke('get-balance-general', params),
 })
 
 contextBridge.exposeInMainWorld('updaterAPI', {
@@ -149,10 +154,10 @@ contextBridge.exposeInMainWorld('updaterAPI', {
   onError: (callback) => ipcRenderer.on('update-error', (_event, error) => callback(error)),
   
   removeAllListeners: () => {
-    ipcRenderer.removeAllListeners('update-available');
-    ipcRenderer.removeAllListeners('update-not-available');
-    ipcRenderer.removeAllListeners('download-progress');
-    ipcRenderer.removeAllListeners('update-downloaded');
-    ipcRenderer.removeAllListeners('update-error');
+    ipcRenderer.removeAllListeners('update-available')
+    ipcRenderer.removeAllListeners('update-not-available')
+    ipcRenderer.removeAllListeners('download-progress')
+    ipcRenderer.removeAllListeners('update-downloaded')
+    ipcRenderer.removeAllListeners('update-error')
   }
 })

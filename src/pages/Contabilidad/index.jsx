@@ -1,6 +1,7 @@
 import { Puc } from './Puc'
 import { Terceros } from './Terceros'
 import { Comprobantes } from './Comprobantes'
+import { Reportes } from './Reportes'
 
 export const ContabilidadIndex = () => {
     return (
@@ -49,11 +50,7 @@ export const ContabilidadIndex = () => {
                         </div>
 
                         <div className="tab-pane fade" id="reportes" role="tabpanel">
-                            <div className="text-center text-muted p-5">
-                                <i className="bi bi-tools fs-1 mb-3"></i>
-                                <h4>Reportes NIIF</h4>
-                                <p>Próximamente: Estado de Resultados, Balance General y Balance de Prueba.</p>
-                            </div>
+                            <Reportes />
                         </div>
 
                     </div>

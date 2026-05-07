@@ -5,7 +5,7 @@ import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Row, Col, Table } from 'react-bootstrap'
 
-export const ModalComprobante = ({ show, handleClose, onSuccess }) => {
+export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => {
     const [cabecera, setCabecera] = useState({
         fecha: new Date().toISOString().split('T')[0],
         concepto: '',
@@ -20,13 +20,34 @@ export const ModalComprobante = ({ show, handleClose, onSuccess }) => {
     useEffect(() => {
         if (show) {
             cargarCatalogos()
-            setDetalles([
-                { id: Date.now() + 1, cuenta_id: '', tercero_id: '', descripcion_linea: '', debito: '', credito: '' },
-                { id: Date.now() + 2, cuenta_id: '', tercero_id: '', descripcion_linea: '', debito: '', credito: '' }
-            ])
-            setCabecera({ fecha: new Date().toISOString().split('T')[0], concepto: '', documento_referencia: '' })
+            if (editData && editData.cabecera) {
+                try {
+                    const fechaSegura = editData.cabecera.fecha ? editData.cabecera.fecha.substring(0, 10) : new Date().toISOString().split('T')[0]
+                    
+                    setCabecera({
+                        fecha: fechaSegura,
+                        concepto: editData.cabecera.concepto || '',
+                        documento_referencia: editData.cabecera.documento_referencia || ''
+                    })
+                    
+                    const dts = editData.detalles.map(d => ({
+                        ...d,
+                        debito: d.debito > 0 ? d.debito : '',
+                        credito: d.credito > 0 ? d.credito : ''
+                    }));
+                    setDetalles(dts)
+                } catch (error) {
+                    console.error("Error cargando los datos en la modal:", error)
+                }
+            } else {
+                setDetalles([
+                    { id: Date.now() + 1, cuenta_id: '', tercero_id: '', descripcion_linea: '', debito: '', credito: '' },
+                    { id: Date.now() + 2, cuenta_id: '', tercero_id: '', descripcion_linea: '', debito: '', credito: '' }
+                ])
+                setCabecera({ fecha: new Date().toISOString().split('T')[0], concepto: '', documento_referencia: '' })
+            }
         }
-    }, [show])
+    }, [show, editData])
 
     const cargarCatalogos = async () => {
         if (window.contaAPI) {
