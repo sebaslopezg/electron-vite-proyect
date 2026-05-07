@@ -346,4 +346,33 @@ export const registerContabilidadHandlers = () => {
       }
     } catch(err) { return { success: false, error: err.message } }
   })
+
+
+  // CONFIGURACIÓN CONTABLE
+
+  ipcMain.handle("get-config-contable", () => {
+    try {
+      return { success: true, data: db.prepare("SELECT * FROM configuracionContable WHERE id = 1").get() }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  ipcMain.handle("update-config-contable", (event, config) => {
+    try {
+      const stmt = db.prepare(`
+        UPDATE configuracionContable SET 
+          cuenta_caja = ?, 
+          cuenta_cartera = ?, 
+          cuenta_ingresos = ?, 
+          cuenta_iva = ?, 
+          cuenta_descuento = ?
+        WHERE id = 1
+      `)
+      stmt.run(config.cuenta_caja, config.cuenta_cartera, config.cuenta_ingresos, config.cuenta_iva, config.cuenta_descuento)
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  })
 }

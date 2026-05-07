@@ -2,6 +2,7 @@ import { Puc } from './Puc'
 import { Terceros } from './Terceros'
 import { Comprobantes } from './Comprobantes'
 import { Reportes } from './Reportes'
+import { ConfiguracionContable } from './ConfiguracionContable'
 
 export const ContabilidadIndex = () => {
     return (
@@ -33,6 +34,11 @@ export const ContabilidadIndex = () => {
                                 <i className="bi bi-graph-up me-1"></i> Reportes Financieros
                             </button>
                         </li>
+                        <li className="nav-item" role="presentation">
+                            <button className="nav-link" data-bs-toggle="tab" data-bs-target="#configContable" type="button" role="tab">
+                                <i className="bi bi-gear me-1"></i> Configuración
+                            </button>
+                        </li>
                     </ul>
 
                     <div className="tab-content pt-4">
@@ -52,7 +58,9 @@ export const ContabilidadIndex = () => {
                         <div className="tab-pane fade" id="reportes" role="tabpanel">
                             <Reportes />
                         </div>
-
+                        <div className="tab-pane fade" id="configContable" role="tabpanel">
+                            <ConfiguracionContable />
+                        </div>
                     </div>
                 </div>
             </div>

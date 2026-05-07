@@ -139,6 +139,9 @@ contextBridge.exposeInMainWorld('contaAPI', {
   getBalancePrueba: (params) => ipcRenderer.invoke('get-balance-prueba', params),
   getEstadoResultados: (params) => ipcRenderer.invoke('get-estado-resultados', params),
   getBalanceGeneral: (params) => ipcRenderer.invoke('get-balance-general', params),
+
+  getConfigContable: () => ipcRenderer.invoke('get-config-contable'),
+  updateConfigContable: (data) => ipcRenderer.invoke('update-config-contable', data),
 })
 
 contextBridge.exposeInMainWorld('updaterAPI', {

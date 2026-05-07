@@ -6,7 +6,6 @@
 
  # Lanzar la modal de creacion de clientes (terceros) cuando no se encuentre un cliente en facturacion
  
- - terminar opciones en contabilidad
  - Crear configuracion contable para asocier cuentas en modulos existentes
  - Crear modulo de pagos (donde se ingresan facturas de proveedores a pagar)
  - Impuestos y Retenciones (Nivel Intermedio)
