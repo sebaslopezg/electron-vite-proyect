@@ -6,7 +6,6 @@ import { Row, Col } from 'react-bootstrap'
 
 export default function ProductModal({ show, handleClose, handleSubmit, form, setForm, editingId, categorias = [], etiquetas = [] }) {
     
-    // --- NUEVA FUNCIÓN PARA EL CONTRASTE DE TEXTO ---
     const getContrastText = (hexcolor) => {
         if (!hexcolor) return '#000000';
         const hex = hexcolor.replace('#', '');
@@ -14,7 +13,6 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
         const g = parseInt(hex.substr(2, 2), 16);
         const b = parseInt(hex.substr(4, 2), 16);
         const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-        // Si el color es claro (>= 128), el texto será negro. Si es oscuro, será blanco.
         return (yiq >= 128) ? '#000000' : '#ffffff';
     };
     // ------------------------------------------------

@@ -1,5 +1,6 @@
 import { Puc } from './Puc'
 import { Terceros } from './Terceros'
+import { Comprobantes } from './Comprobantes'
 
 export const ContabilidadIndex = () => {
     return (
@@ -44,11 +45,7 @@ export const ContabilidadIndex = () => {
                         </div>
 
                         <div className="tab-pane fade" id="comprobantes" role="tabpanel">
-                            <div className="text-center text-muted p-5">
-                                <i className="bi bi-tools fs-1 mb-3"></i>
-                                <h4>Asientos y Comprobantes</h4>
-                                <p>Próximamente: Registro de transacciones y partida doble.</p>
-                            </div>
+                            <Comprobantes />
                         </div>
 
                         <div className="tab-pane fade" id="reportes" role="tabpanel">

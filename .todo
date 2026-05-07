@@ -14,7 +14,7 @@ Encargos:
  modificaciones generales:
 
  # Lanzar la modal de creacion de clientes (terceros) cuando no se encuentre un cliente en facturacion
- - Pestaña comprobantes
+ - funcionalidad en comprobantes
  - Pestaña reportes financieros   
 
  - organizar preload.js porque esta muy largo

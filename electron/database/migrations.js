@@ -1,7 +1,6 @@
 import db from './index.js'
 import { getDatabaseVersion, setDatabaseVersion } from './version.js'
 
-// Import all your modular V1 setups
 import { runV1AlmacenConf } from './tables/almacenConf.js'
 import { runV1CategoriasEtiquetas } from './tables/categorias_etiquetas.js'
 import { runV1Clientes } from './tables/clientes.js'
@@ -18,6 +17,8 @@ import { runV1VentasMaestro } from './tables/ventasMaestro.js'
 import { runV1Bitacora } from './tables/bitacora.js'
 import { runV1CuentasContables } from './tables/cuentasContables.js'
 import { runV1Terceros } from './tables/terceros.js'
+import { runV1Comprobantes } from './tables/comprobantes.js'
+import { runV1ComprobantesDetalle } from './tables/comprobantesDetalle.js'
 
 const migrations = [
     {
@@ -48,7 +49,15 @@ const migrations = [
             runV1CuentasContables()
             runV1Terceros()
         }
-    }
+    },
+
+    {
+        version: 4,
+        up: () => {
+            runV1Comprobantes()
+            runV1ComprobantesDetalle()
+        }
+    },
 ]
 
 export const runMigrations = () => {
