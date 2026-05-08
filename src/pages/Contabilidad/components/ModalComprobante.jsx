@@ -106,14 +106,32 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
             }
             const cuentaConfig = cuentas.find(c => c.id === linea.cuenta_id)
             if (cuentaConfig?.exige_tercero === 1 && !linea.tercero_id) {
-                Swal.fire('Tercero Faltante', `La cuenta ${cuentaConfig.id} (${cuentaConfig.nombre}) exige un tercero. Por favor selecciónalo en la línea ${i + 1}.`, 'warning')
+                Swal.fire('Tercero Faltante', 
+                    `La cuenta ${cuentaConfig.id} (${cuentaConfig.nombre}) exige un tercero. Por favor selecciónalo en la línea ${i + 1}.`, 
+                    'warning')
                 return
             }
         }
 
-        const res = await window.contaAPI.crearComprobante({ cabecera, detalles })
+        let res;
+        if (editData) {
+            res = await window.contaAPI.actualizarComprobante({ 
+                id: editData.cabecera.id, 
+                cabecera, 
+                detalles 
+            })
+        } else {
+            res = await window.contaAPI.crearComprobante({ cabecera, detalles })
+        }
+
         if (res.success) {
-            Swal.fire({ title: '¡Asentado!', text: 'Comprobante guardado con éxito.', icon: 'success', timer: 1500, showConfirmButton: false })
+            Swal.fire({ 
+                title: editData ? '¡Actualizado!' : '¡Asentado!', 
+                text: 'Comprobante guardado con éxito.', 
+                icon: 'success', 
+                timer: 1500, 
+                showConfirmButton: false 
+            })
             onSuccess()
             handleClose()
         } else {
