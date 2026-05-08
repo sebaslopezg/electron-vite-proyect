@@ -1,8 +1,8 @@
-- Revisar swal en todas las interacciones con los forms
+ # Lista de actividades pendientes para desarrollar
 
- # Modificaciones generales:
+ ## Modificaciones Prioritarias:
 
- # Lanzar la modal de creacion de clientes (terceros) cuando no se encuentre un cliente en facturacion
+ - **Lanzar la modal de creacion de clientes (terceros) cuando no se encuentre un cliente en facturacion**
  
  - Crear modulo de pagos (donde se ingresan facturas de proveedores a pagar)
  - Impuestos y Retenciones (Nivel Intermedio)
@@ -10,7 +10,12 @@
  - Crear logs en todos los movimientos del sistema y visualizarlos 
 
  - Revisar todos los cruds y asegurarse de tener soft delete en todos.
+ - Conectar modulo de cartera con contabilidad
+ - Crear modulo cobranzas
+ - Crear modulo de servicios (sacar pestaña servicios de productos)
 
+ ## No prioritario
  - organizar preload.js porque esta muy largo
  - Separar todas las modales de sus archivos en componentes pa que esos archivos no sean tan largos
  - integrar todos los try catch de las tablas en los campos normales para limpiar todos los archivos de tablas.
+ - Revisar swal en todas las interacciones con los forms
