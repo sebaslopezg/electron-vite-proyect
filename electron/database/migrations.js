@@ -65,6 +65,12 @@ const migrations = [
             runV1ConfiguracionContable()
         }
     },
+    {
+        version: 6,
+        up: () => {
+            db.exec(`ALTER TABLE metodos_pago ADD COLUMN cuenta_id TEXT;`)
+        }
+    },
 ]
 
 export const runMigrations = () => {

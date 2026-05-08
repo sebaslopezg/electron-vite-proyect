@@ -26,42 +26,42 @@ export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-maestro-paginados", (_, dtParams) => {
         try {
-            const limit = parseInt(dtParams.length, 10) || 10;
-            const offset = parseInt(dtParams.start, 10) || 0;
-            const searchValue = dtParams.search?.value || '';
+            const limit = parseInt(dtParams.length, 10) || 10
+            const offset = parseInt(dtParams.start, 10) || 0
+            const searchValue = dtParams.search?.value || ''
 
-            const orderColIndex = dtParams.order?.[0]?.column || 0;
-            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+            const orderColIndex = dtParams.order?.[0]?.column || 0
+            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC'
             
-            const columnsMap = ['date_created', 'numero_factura', 'documento_cliente', 'nombre_cliente', 'status', 'status'];
-            let orderCol = columnsMap[orderColIndex] || 'date_created';
+            const columnsMap = ['date_created', 'numero_factura', 'documento_cliente', 'nombre_cliente', 'status', 'status']
+            let orderCol = columnsMap[orderColIndex] || 'date_created'
 
-            const startDate = dtParams.startDate;
-            const endDate = dtParams.endDate;
+            const startDate = dtParams.startDate
+            const endDate = dtParams.endDate
 
-            let baseQuery = `FROM ventasMaestro v WHERE v.status > 0`;
-            let queryParams = [];
+            let baseQuery = `FROM ventasMaestro v WHERE v.status > 0`
+            let queryParams = []
 
             if (startDate) {
-                baseQuery += " AND date(v.date_created) >= date(?)";
-                queryParams.push(startDate);
+                baseQuery += " AND date(v.date_created) >= date(?)"
+                queryParams.push(startDate)
             }
             if (endDate) {
-                baseQuery += " AND date(v.date_created) <= date(?)";
-                queryParams.push(endDate);
+                baseQuery += " AND date(v.date_created) <= date(?)"
+                queryParams.push(endDate)
             }
 
             if (searchValue) {
-                baseQuery += " AND (v.numero_factura LIKE ? OR v.documento_cliente LIKE ? OR v.nombre_cliente LIKE ?)";
-                const likeParam = `%${searchValue}%`;
-                queryParams.push(likeParam, likeParam, likeParam);
+                baseQuery += " AND (v.numero_factura LIKE ? OR v.documento_cliente LIKE ? OR v.nombre_cliente LIKE ?)"
+                const likeParam = `%${searchValue}%`
+                queryParams.push(likeParam, likeParam, likeParam)
             }
 
-            const totalRow = db.prepare("SELECT COUNT(*) as count FROM ventasMaestro WHERE status > 0").get();
-            const recordsTotal = totalRow.count;
+            const totalRow = db.prepare("SELECT COUNT(*) as count FROM ventasMaestro WHERE status > 0").get()
+            const recordsTotal = totalRow.count
 
-            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
-            const recordsFiltered = filteredRow.count;
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams)
+            const recordsFiltered = filteredRow.count
 
             const dataQuery = `
                 SELECT 
@@ -73,21 +73,21 @@ export const registerVentasHandlers = () => {
                 ${baseQuery}
                 ORDER BY v.${orderCol} ${orderDir} 
                 LIMIT ? OFFSET ?
-            `;
+            `
             
-            const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset)
 
             return {
                 draw: dtParams.draw,
                 recordsTotal: recordsTotal,
                 recordsFiltered: recordsFiltered,
                 data: data
-            };
+            }
         } catch (error) {
-            console.error("Error en paginación de facturas: ", error);
-            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+            console.error("Error en paginación de facturas: ", error)
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
-    });
+    })
 
     ipcMain.handle("get-detalle", (_, facturaId) => {
         try {
@@ -100,14 +100,14 @@ export const registerVentasHandlers = () => {
                 LEFT JOIN producto p ON df.id_producto = p.id
                 LEFT JOIN categoria c ON p.categoria_id = c.id
                 WHERE df.maestro_id = ?
-            `);
-            const detalles = stmt.all(facturaId);
+            `)
+            const detalles = stmt.all(facturaId)
 
-            const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`);
-            const notas = notasStmt.all(facturaId);
-            const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE id = ?').get(facturaId) || {};
-            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
-            const currentConf = confStmt.get() || {};
+            const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`)
+            const notas = notasStmt.all(facturaId)
+            const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE id = ?').get(facturaId) || {}
+            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`)
+            const currentConf = confStmt.get() || {}
 
             const configuracionSnapshot = {
                 nombre_almacen: maestro.nombre_almacen || currentConf.nombre_almacen,
@@ -121,14 +121,14 @@ export const registerVentasHandlers = () => {
                 separador: maestro.separador || currentConf.separador,
                 logo_almacen: currentConf.logo_almacen,
                 imprimir_logo_pos: currentConf.imprimir_logo_pos
-            };
+            }
 
-            return { success: true, data: detalles, notas: notas, configuracion: configuracionSnapshot };
+            return { success: true, data: detalles, notas: notas, configuracion: configuracionSnapshot }
         } catch (error) {
-            console.error("Error obteniendo detalles:", error);
-            return { success: false, error: error.message };
+            console.error("Error obteniendo detalles:", error)
+            return { success: false, error: error.message }
         }
-    });
+    })
 
     ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
         const transaction = db.transaction((maestroData, detallesData) => {
@@ -241,11 +241,24 @@ export const registerVentasHandlers = () => {
                 }
 
                 // D. CAJA / BANCOS (Débito)
-                // Calculamos el valor real pagado para evitar el descuadre con el cambio (vueltas)
                 const valorPagado = maestroData.total - maestroData.saldo_pendiente;
                 
                 if (valorPagado > 0) {
-                    insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_caja, terceroId, `Ingreso a Caja (${maestroData.metodo_pago})`, valorPagado, 0)
+                    const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(maestroData.metodo_pago)
+                    
+                    const cuentaDestinoEfectivo = (metodoInfo && metodoInfo.cuenta_id) 
+                        ? metodoInfo.cuenta_id 
+                        : configContable.cuenta_caja
+
+                    insertDetalleContable.run(
+                        uuidv4(), 
+                        comprobanteId, 
+                        cuentaDestinoEfectivo, 
+                        terceroId, 
+                        `Ingreso por ${maestroData.metodo_pago}`, 
+                        valorPagado, 
+                        0
+                    )
                 }
 
                 // E. CARTERA / CUENTAS POR COBRAR (Débito)

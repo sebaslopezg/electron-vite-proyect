@@ -79,6 +79,7 @@ contextBridge.exposeInMainWorld("api", {
   getMetodosPago: () => ipcRenderer.invoke('get-metodos-pago'),
   addMetodoPago: (nombre) => ipcRenderer.invoke('add-metodo-pago', nombre),
   deleteMetodoPago: (id) => ipcRenderer.invoke('delete-metodo-pago', id),
+  updateMetodoPagoCuenta: (data) => ipcRenderer.invoke('update-metodo-pago-cuenta', data),
 
   //notas - credito/debito
   getNotas: () => ipcRenderer.invoke("get-notas"),

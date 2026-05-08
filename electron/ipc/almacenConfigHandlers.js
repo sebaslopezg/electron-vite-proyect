@@ -83,21 +83,30 @@ export const registerAlmacenConfigHandlers = () => {
 
     ipcMain.handle("add-metodo-pago", (_, nombre) => {
         try {
-            const id = uuidv4();
-            db.prepare("INSERT INTO metodos_pago (id, nombre) VALUES (?, ?)").run(id, nombre);
-            return { success: true, id, nombre };
+            const id = uuidv4()
+            db.prepare("INSERT INTO metodos_pago (id, nombre) VALUES (?, ?)").run(id, nombre)
+            return { success: true, id, nombre }
         } catch (error) {
-            if (error.message.includes('UNIQUE')) return { success: false, error: 'Este método ya existe.' };
-            return { success: false, error: error.message };
+            if (error.message.includes('UNIQUE')) return { success: false, error: 'Este método ya existe.' }
+            return { success: false, error: error.message }
         }
-    });
+    })
+
+    ipcMain.handle("update-metodo-pago-cuenta", (_, { id, cuenta_id }) => {
+        try {
+            db.prepare("UPDATE metodos_pago SET cuenta_id = ? WHERE id = ?").run(cuenta_id, id)
+            return { success: true }
+        } catch (error) {
+            return { success: false, error: error.message }
+        }
+    })
 
     ipcMain.handle("delete-metodo-pago", (_, id) => {
         try {
-            db.prepare("DELETE FROM metodos_pago WHERE id = ?").run(id);
-            return { success: true };
+            db.prepare("DELETE FROM metodos_pago WHERE id = ?").run(id)
+            return { success: true }
         } catch (error) {
-            return { success: false, error: error.message };
+            return { success: false, error: error.message }
         }
-    });
+    })
 }

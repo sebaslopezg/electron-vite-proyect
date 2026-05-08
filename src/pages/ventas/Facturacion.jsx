@@ -330,25 +330,25 @@ const loadInitialData = async () => {
     const data = {
       maestro: {
         nombre_cliente: cliente?.nombre, documento_cliente: cliente?.documento,
-        subtotal: subtotal, descuento: valorDescuento, iva: ivaTotal, total: totalFinal,
+        subtotal: subtotal, descuento: resumen.totalDescuentos, iva: ivaTotal, total: totalFinal,
         total_recibido: recibidoNum, saldo_pendiente: saldoPendiente,
         tipo_pago: tipoPago, metodo_pago: metodoPago,
         moneda: appConfig.moneda, formato_numero: appConfig.formato_numero 
       },
       detalles: carrito
-    };
+    }
 
     const result = await window.api.createVenta(data)
 
     if (result.success) {
-      const printData = await window.api.getDetalle(result.maestroId);
+      const printData = await window.api.getDetalle(result.maestroId)
       const facturaGenerada = {
           id: result.maestroId, numero_factura: result.numero_factura, prefijo: result.prefijo,
           date_created: new Date().toISOString(), nombre_cliente: cliente.nombre, documento_cliente: cliente.documento,
-          subtotal: subtotal, descuento: valorDescuento, iva: ivaTotal, total_factura: totalFinal,
+          subtotal: subtotal, descuento: resumen.totalDescuentos, iva: ivaTotal, total_factura: totalFinal,
           total_recibido: recibidoNum, saldo_pendiente: saldoPendiente, tipo_pago: tipoPago, metodo_pago: metodoPago,
           moneda: appConfig.moneda, formato_numero: appConfig.formato_numero 
-      };
+      }
 
       Swal.fire({
           title: '¡Venta Exitosa!',
@@ -357,25 +357,25 @@ const loadInitialData = async () => {
           confirmButtonText: '<i class="bi bi-printer me-2"></i>Imprimir', cancelButtonText: 'Cerrar'
       }).then((res) => {
           if (res.isConfirmed && printData.success) {
-              setFacturaParaImprimir(facturaGenerada);
-              setDetallesParaImprimir(printData.data);
-              setAlmacenConfParaImprimir(printData.configuracion);
-              setShowPreviewImpresion(true);
+            setFacturaParaImprimir(facturaGenerada)
+            setDetallesParaImprimir(printData.data)
+            setAlmacenConfParaImprimir(printData.configuracion)
+            setShowPreviewImpresion(true)
           }
           
-          loadInitialData();
-          cleanForm();
-          window.dispatchEvent(new CustomEvent('factura-creada'));
-      });
+          loadInitialData()
+          cleanForm()
+          window.dispatchEvent(new CustomEvent('factura-creada'))
+      })
     } else {
       Swal.fire('Error', result.error, 'error')
     }
   }
 
   const cleanForm = () => {
-    setCarrito([]); setCliente(null); setDescuento(0);
-    setTotalRecibido(''); setTipoPago('contado'); setMetodoPago('Efectivo');
-  };
+    setCarrito([]); setCliente(null); setDescuento(0)
+    setTotalRecibido(''); setTipoPago('contado'); setMetodoPago('Efectivo')
+  }
 
   const updateQuantity = (id, delta, isEncargo) => {
     setCarrito(prev => {
