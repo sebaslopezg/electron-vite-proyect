@@ -1,6 +1,7 @@
 export const menuItems = [
     //{ path: '/', label: 'Dashboard', icon: 'bi-grid' },
     { path: '/ventas', label: 'Ventas', icon: 'bi-receipt-cutoff' },
+    { path: '/compras', label: 'Compras', icon: 'bi bi-cart4' },
     { path: '/clientes', label: 'Clientes', icon: 'bi-people' },
     { path: '/cartera', label: 'Cartera', icon: 'bi bi-wallet2 me-2' },
     { path: '/inventario', label: 'Inventario', icon: 'bi-clipboard-check' },

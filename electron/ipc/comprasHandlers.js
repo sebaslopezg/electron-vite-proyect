@@ -1,0 +1,125 @@
+import { ipcMain } from "electron"
+import { v4 as uuidv4 } from 'uuid'
+import db from "../database/index.js"
+
+export const registerComprasHandlers = () => {
+
+    ipcMain.handle("get-compras-paginadas", (_, dtParams) => {
+        try {
+            const limit = parseInt(dtParams.length, 10) || 10
+            const offset = parseInt(dtParams.start, 10) || 0
+            const searchValue = dtParams.search?.value || ''
+
+            let baseQuery = `FROM comprasMaestro c WHERE 1=1`
+            let queryParams = []
+
+            if (searchValue) {
+                baseQuery += " AND (c.numero_factura LIKE ? OR c.nombre_proveedor LIKE ? OR c.documento_proveedor LIKE ?)"
+                const likeParam = `%${searchValue}%`
+                queryParams.push(likeParam, likeParam, likeParam)
+            }
+
+            const totalRow = db.prepare("SELECT COUNT(*) as count FROM comprasMaestro").get()
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams)
+
+            const dataQuery = `
+                SELECT c.* 
+                ${baseQuery}
+                ORDER BY c.date_created DESC 
+                LIMIT ? OFFSET ?
+            `
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset)
+
+            return {
+                draw: dtParams.draw,
+                recordsTotal: totalRow.count,
+                recordsFiltered: filteredRow.count,
+                data: data
+            }
+        } catch (error) {
+            console.error("Error en paginación de compras: ", error);
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
+        }
+    })
+
+    ipcMain.handle("get-compra-detalle", (_, compraId) => {
+        try {
+            const maestro = db.prepare('SELECT * FROM comprasMaestro WHERE id = ?').get(compraId)
+            if (!maestro) return { success: false, error: "Compra no encontrada" }
+
+            const detalles = db.prepare(`
+                SELECT d.*, 
+                       p.sku, p.nombre_producto as nombre_inventario,
+                       c.nombre as nombre_cuenta
+                FROM comprasDetalle d
+                LEFT JOIN producto p ON d.producto_id = p.id
+                LEFT JOIN cuentasContables c ON d.cuenta_puc_id = c.id
+                WHERE d.compra_id = ?
+            `).all(compraId)
+
+            return { success: true, data: { maestro, detalles } }
+        } catch (error) {
+            return { success: false, error: error.message }
+        }
+    })
+
+    ipcMain.handle("crear-compra", (_, { maestro, detalles }) => {
+        const transaction = db.transaction(() => {
+            const now = new Date().toISOString()
+            const maestroId = uuidv4()
+
+            db.prepare(`
+                INSERT INTO comprasMaestro (
+                    id, proveedor_id, documento_proveedor, nombre_proveedor, numero_factura, 
+                    fecha_factura, fecha_vencimiento, concepto, subtotal, descuento, iva, 
+                    total_factura, total_pagado, saldo_pendiente, estado, date_created, modify_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'system')
+            `).run(
+                maestroId, maestro.proveedor_id, maestro.documento_proveedor, maestro.nombre_proveedor, 
+                maestro.numero_factura, maestro.fecha_factura, maestro.fecha_vencimiento, 
+                maestro.concepto, maestro.subtotal, maestro.descuento, maestro.iva, 
+                maestro.total_factura, maestro.total_pagado, maestro.saldo_pendiente, 
+                maestro.estado, now
+            )
+
+            const insertDetalle = db.prepare(`
+                INSERT INTO comprasDetalle (
+                    id, compra_id, cuenta_puc_id, producto_id, descripcion, 
+                    cantidad, precio_unitario, iva_percent, subtotal, total
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+
+            for (const item of detalles) {
+                insertDetalle.run(
+                    uuidv4(), maestroId, item.cuenta_puc_id || null, item.producto_id || null, 
+                    item.descripcion, item.cantidad, item.precio_unitario, item.iva_percent, 
+                    item.subtotal, item.total
+                )
+
+                if (item.producto_id) {
+                    const producto = db.prepare("SELECT stock FROM producto WHERE id = ?").get(item.producto_id);
+                    if (producto) {
+                        const stockAnterior = producto.stock;
+                        const stockNuevo = stockAnterior + item.cantidad;
+
+                        db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.producto_id);
+
+                        db.prepare(`
+                            INSERT INTO inventario (id, producto_id, tipo_movimiento, modulo_movimiento, cantidad, stock_anterior, stock_nuevo, fecha)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        `).run(uuidv4(), item.producto_id, 'ENTRADA', 'COMPRA', item.cantidad, stockAnterior, stockNuevo, now)
+                    }
+                }
+            }
+
+            return { success: true, maestroId }
+        });
+
+        try {
+            return transaction()
+        } catch (error) {
+            console.error("Error creando compra:", error)
+            return { success: false, error: error.message }
+        }
+    })
+}

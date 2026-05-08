@@ -9,6 +9,7 @@ import { ProductosIndex } from '../pages/Productos'
 import { IndexEncargos } from '../pages/encargos/Index'
 import { Cartera } from '../pages/cartera/Index';
 import { ContabilidadIndex } from '../pages/Contabilidad';
+import { Compras } from '../pages/compras';
 
 export const MainRoutes = () => {
 
@@ -16,6 +17,7 @@ export const MainRoutes = () => {
         <Routes>
             <Route path="/" element={<Ventas />} />
             <Route path="/ventas" element={<Ventas />} />
+            <Route path="/compras" element={<Compras />} />
             <Route path="/inventario" element={<Inventario />} />
             <Route path="/clientes" element={<Clientes />} />
             <Route path="/cartera" element={<Cartera />} />

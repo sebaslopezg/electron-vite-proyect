@@ -145,6 +145,12 @@ contextBridge.exposeInMainWorld('contaAPI', {
   updateConfigContable: (data) => ipcRenderer.invoke('update-config-contable', data),
 })
 
+  contextBridge.exposeInMainWorld('comprasAPI', {
+    getComprasPaginadas: (params) => ipcRenderer.invoke('get-compras-paginadas', params),
+    getCompraDetalle: (id) => ipcRenderer.invoke('get-compra-detalle', id),
+    crearCompra: (data) => ipcRenderer.invoke('crear-compra', data),
+  }),
+
 contextBridge.exposeInMainWorld('updaterAPI', {
   getVersion: () => ipcRenderer.invoke('get-app-version'),
   checkUpdates: () => ipcRenderer.invoke('check-updates'),
