@@ -20,6 +20,7 @@ import { runV1Terceros } from './tables/terceros.js'
 import { runV1Comprobantes } from './tables/comprobantes.js'
 import { runV1ComprobantesDetalle } from './tables/comprobantesDetalle.js'
 import { runV1ConfiguracionContable } from './tables/configuracionContable.js'
+import { runV1Compras } from './tables/compras.js'
 
 const migrations = [
     {
@@ -69,6 +70,12 @@ const migrations = [
         version: 6,
         up: () => {
             db.exec(`ALTER TABLE metodos_pago ADD COLUMN cuenta_id TEXT;`)
+        }
+    },
+    {
+        version: 7,
+        up: () => {
+            runV1Compras()
         }
     },
 ]
