@@ -718,7 +718,7 @@ const loadInitialData = async () => {
               <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
                 <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
                 <InputGroup size="sm">
-                  <Form.Control type="number" min="1" max="72" value={cuotas} onChange={(e) => setCuotas(Math.max(1, parseInt(e.target.value) || 1))} />
+                  <Form.Control type="text" min="1" max="72" value={cuotas} onChange={(e) => setCuotas(Math.max(1, parseInt(e.target.value) || ""))} />
                   <InputGroup.Text>Días</InputGroup.Text>
                 </InputGroup>
                 <Form.Text className="text-muted">Aplica para saldos pendientes</Form.Text>

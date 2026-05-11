@@ -44,24 +44,24 @@ export const registerComprasHandlers = () => {
 
     ipcMain.handle("get-compra-detalle", (_, compraId) => {
         try {
-            const maestro = db.prepare('SELECT * FROM comprasMaestro WHERE id = ?').get(compraId)
-            if (!maestro) return { success: false, error: "Compra no encontrada" }
+            const maestro = db.prepare('SELECT * FROM comprasMaestro WHERE id = ?').get(compraId);
+            if (!maestro) return { success: false, error: "Compra no encontrada" };
 
             const detalles = db.prepare(`
                 SELECT d.*, 
-                       p.sku, p.nombre_producto as nombre_inventario,
+                       p.sku, p.ref_name as nombre_inventario,
                        c.nombre as nombre_cuenta
                 FROM comprasDetalle d
                 LEFT JOIN producto p ON d.producto_id = p.id
                 LEFT JOIN cuentasContables c ON d.cuenta_puc_id = c.id
                 WHERE d.compra_id = ?
-            `).all(compraId)
+            `).all(compraId);
 
-            return { success: true, data: { maestro, detalles } }
+            return { success: true, data: { maestro, detalles } };
         } catch (error) {
-            return { success: false, error: error.message }
+            return { success: false, error: error.message };
         }
-    })
+    });
 
     ipcMain.handle("crear-compra", (_, { maestro, detalles }) => {
         const transaction = db.transaction(() => {
@@ -112,8 +112,46 @@ export const registerComprasHandlers = () => {
                 }
             }
 
+            const configContable = db.prepare('SELECT * FROM configuracionContable WHERE id = 1').get();
+
+            if (configContable && configContable.cuenta_proveedores) {
+                const comprobanteId = uuidv4()
+                const lastComp = db.prepare("SELECT MAX(numero_comprobante) as maxNum FROM comprobantes").get();
+                const numeroComprobante = (lastComp.maxNum || 0) + 1;
+                const conceptoComp = `Compra Factura ${maestro.numero_factura} - ${maestro.nombre_provider || maestro.nombre_proveedor}`
+
+                db.prepare(`
+                    INSERT INTO comprobantes (id, numero_comprobante, fecha, concepto, documento_referencia, estado, date_created, modify_by)
+                    VALUES (?, ?, ?, ?, ?, 1, ?, 'system')
+                `).run(comprobanteId, numeroComprobante, now, conceptoComp, maestro.numero_factura, now);
+
+                const insertDetalleContable = db.prepare(`
+                    INSERT INTO comprobantesDetalle (id, comprobante_id, cuenta_id, tercero_id, descripcion_linea, debito, credito)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `)
+
+                for (const d of detalles) {
+
+                    const cuentaLinea = d.producto_id ? configContable.cuenta_inventario : d.cuenta_puc_id
+                    
+                    if (cuentaLinea) {
+                        insertDetalleContable.run(uuidv4(), comprobanteId, cuentaLinea, maestro.proveedor_id, d.descripcion, d.subtotal, 0)
+                    }
+                }
+
+                if (maestro.iva > 0 && configContable.cuenta_iva_compras) {
+                    insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_iva_compras, maestro.proveedor_id, 'IVA Descontable', maestro.iva, 0)
+                }
+
+                if (maestro.tipo_pago === 'contado') {
+                    insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_caja, maestro.proveedor_id, 'Pago Factura Contado', 0, maestro.total_factura)
+                } else {
+                    insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_proveedores, maestro.proveedor_id, 'Cuenta por Pagar', 0, maestro.total_factura)
+                }
+            }
+
             return { success: true, maestroId }
-        });
+        })
 
         try {
             return transaction()

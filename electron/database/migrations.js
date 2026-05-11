@@ -21,6 +21,7 @@ import { runV1Comprobantes } from './tables/comprobantes.js'
 import { runV1ComprobantesDetalle } from './tables/comprobantesDetalle.js'
 import { runV1ConfiguracionContable } from './tables/configuracionContable.js'
 import { runV1Compras } from './tables/compras.js'
+import { runV2ConfiguracionContable } from './tables/configuracionContable.js'
 
 const migrations = [
     {
@@ -76,6 +77,12 @@ const migrations = [
         version: 7,
         up: () => {
             runV1Compras()
+        }
+    },
+    {
+        version: 8,
+        up: () => {
+            runV2ConfiguracionContable()
         }
     },
 ]

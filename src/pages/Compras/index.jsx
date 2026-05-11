@@ -1,13 +1,51 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import { ModalCompra } from './components/ModalCompra'
+import { ModalVerCompra } from './components/ModalVerCompra'
 
 export const Compras = () => {
-    const [showModal, setShowModal] = useState(false)
-    const [reloadTable, setReloadTable] = useState(0)
-    const tableContainerRef = useRef(null)
+    const [showModal, setShowModal] = useState(false);
+    const [showViewModal, setShowViewModal] = useState(false)
+    const [compraSeleccionada, setCompraSeleccionada] = useState(null)
+    const [reloadTable, setReloadTable] = useState(0);
+    const tableContainerRef = useRef(null);
 
     const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(val || 0)
+
+    const handleVerDetalles = async (id) => {
+        try {
+            const res = await window.comprasAPI.getCompraDetalle(id)
+            if (res.success) {
+                setCompraSeleccionada(res.data)
+                setShowViewModal(true)
+            } else {
+                Swal.fire('Error', res.error, 'error')
+            }
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Error', 'Hubo un problema al cargar los detalles.', 'error')
+        }
+    };
+
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const handleTableClick = (e) => {
+            const btn = e.target.closest('button[data-id]');
+            if (!btn) return;
+            
+            const id = btn.dataset.id;
+            
+            if (btn.classList.contains('btn-view')) {
+                handleVerDetalles(id);
+            }
+        };
+
+        container.addEventListener('click', handleTableClick);
+        return () => container.removeEventListener('click', handleTableClick);
+    }, []);
 
     return (
         <div>
@@ -68,6 +106,12 @@ export const Compras = () => {
                 show={showModal} 
                 handleClose={() => setShowModal(false)} 
                 onSuccess={() => setReloadTable(prev => prev + 1)} 
+            />
+
+            <ModalVerCompra
+                show={showViewModal}
+                handleClose={() => setShowViewModal(false)}
+                data={compraSeleccionada}
             />
         </div>
     );

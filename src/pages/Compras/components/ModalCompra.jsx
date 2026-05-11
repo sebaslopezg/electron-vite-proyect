@@ -65,18 +65,17 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
     const handleChangeRow = (id, field, value) => {
         setDetalles(detalles.map(d => {
             if (d.id === id) {
-                const updated = { ...d, [field]: value };
+                const updated = { ...d, [field]: value }
                 if (field === 'producto_id') {
-                    const prod = productos.find(p => p.id === value);
-                    if (prod) updated.descripcion = prod.nombre_producto;
+                    const prod = productos.find(p => p.id === value)
+                    if (prod) updated.descripcion = prod.ref_name
                 }
-                return updated;
+                return updated
             }
-            return d;
-        }));
-    };
+            return d
+        }))
+    }
 
-    // Cálculos
     const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(val || 0);
 
     const subtotal = detalles.reduce((acc, item) => acc + ((Number(item.cantidad) || 0) * (Number(item.precio_unitario) || 0)), 0);

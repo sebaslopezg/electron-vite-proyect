@@ -366,10 +366,22 @@ export const registerContabilidadHandlers = () => {
           cuenta_cartera = ?, 
           cuenta_ingresos = ?, 
           cuenta_iva = ?, 
-          cuenta_descuento = ?
+          cuenta_descuento = ?,
+          cuenta_proveedores = ?,
+          cuenta_iva_compras = ?,
+          cuenta_inventario = ?
         WHERE id = 1
       `)
-      stmt.run(config.cuenta_caja, config.cuenta_cartera, config.cuenta_ingresos, config.cuenta_iva, config.cuenta_descuento)
+      stmt.run(
+        config.cuenta_caja, 
+        config.cuenta_cartera, 
+        config.cuenta_ingresos, 
+        config.cuenta_iva, 
+        config.cuenta_descuento,
+        config.cuenta_proveedores,
+        config.cuenta_iva_compras,
+        config.cuenta_inventario
+      )
       return { success: true }
     } catch (error) {
       return { success: false, error: error.message }

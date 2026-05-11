@@ -16,3 +16,12 @@ export const runV1ConfiguracionContable = () => {
     `);
     console.log("Tabla Configuracion Contable inicializada.");
 }
+
+export const runV2ConfiguracionContable = () => {
+  db.exec(`
+    ALTER TABLE configuracionContable ADD COLUMN cuenta_proveedores TEXT;
+    ALTER TABLE configuracionContable ADD COLUMN cuenta_iva_compras TEXT;
+    ALTER TABLE configuracionContable ADD COLUMN cuenta_inventario TEXT;
+  `)
+  console.log("Tabla Configuracion Contable actualizada V2.");
+}
