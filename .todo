@@ -3,6 +3,10 @@
  ## Modificaciones Prioritarias:
 
  - **Lanzar la modal de creacion de clientes (terceros) cuando no se encuentre un cliente en facturacion**
+
+ - **Corregir input de días (credito) en facturacion**
+
+ - **Agregar input de comentarios a facturacion**
  
  - Primer pendiente: revisar Gemini para agregar las cuentas contables para la primera prueba
  - Crear modulo de pagos (donde se ingresan facturas de proveedores a pagar)
