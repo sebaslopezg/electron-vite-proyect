@@ -95,11 +95,17 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 <div>Cambio/Saldo: {renderCurrency(saldoPendienteReal)}</div>
             </div>
 
+            {factura.observaciones && (
+                <div className="mt-2 text-start border-top border-dark pt-1">
+                    <small><strong>Notas:</strong> {factura.observaciones}</small>
+                </div>
+            )}
+
             <div className="text-center mt-3 border-top border-dark pt-2">
                 <small>{almacenConf.footer_factura}</small>
             </div>
         </div>
-    );
+    )
 
     const A4Template = () => (
         <div className="formato-a4 text-black">
@@ -174,6 +180,13 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                     </table>
                 </Col>
             </Row>
+
+            {factura.observaciones && (
+                <div className="mt-4 p-2 bg-light border rounded text-start">
+                    <strong>Observaciones:</strong>
+                    <p className="mb-0 small">{factura.observaciones}</p>
+                </div>
+            )}
 
             <div className="text-center mt-5 pt-3 border-top border-dark">
                 <p className="fw-bold fs-6">{almacenConf.footer_factura}</p>

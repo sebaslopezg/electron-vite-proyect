@@ -147,9 +147,9 @@ export const registerVentasHandlers = () => {
                     nombre_almacen, nit_almacen, direccion_almacen, telefono_almacen, email_almacen,
                     footer, nombre_cliente, documento_cliente, subtotal, descuento, iva, total_factura, 
                     total_recibido, saldo_pendiente, total_recibido_original, saldo_pendiente_original,
-                    tipo_pago, metodo_pago, moneda, formato_numero, date_created, status
+                    tipo_pago, metodo_pago, moneda, formato_numero, date_created, status, observaciones
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?
                 )
             `)
             insertMaestro.run(
@@ -159,7 +159,7 @@ export const registerVentasHandlers = () => {
                 maestroData.nombre_cliente, maestroData.documento_cliente, maestroData.subtotal, maestroData.descuento,
                 maestroData.iva, maestroData.total, maestroData.total_recibido, maestroData.saldo_pendiente,
                 maestroData.total_recibido, maestroData.saldo_pendiente, maestroData.tipo_pago, maestroData.metodo_pago,
-                maestroData.moneda, maestroData.formato_numero, now
+                maestroData.moneda, maestroData.formato_numero, now, maestroData.observaciones || ''
             )
 
             db.prepare('UPDATE almacen_conf SET consecutivo = ? WHERE id = ?').run(nuevoNumeroFactura, config.id)

@@ -1,15 +1,50 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button, Form, Row, Col, Card, Alert } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import { ModalPreviewTabla } from './components/ModalPreviewTabla';
 import { ModalPreviewJson } from './components/ModalPreviewJson';
 import { ModalConfigurarJoin } from './components/ModalConfigurarJoin';
+import { Modal } from 'react-bootstrap';
+
+// DICCIONARIO DE DATOS CAEDRO
+const CAEDRO_DICTIONARY = {
+    terceros: {
+        tipo_documento: [
+            { value: 'NIT', label: 'NIT' },
+            { value: 'CC', label: 'CC (Cédula de Ciudadanía)' },
+            { value: 'CE', label: 'CE (Cédula de Extranjería)' },
+            { value: 'PAS', label: 'PAS (Pasaporte)' }
+        ],
+        tipo_persona: [
+            { value: 'juridica', label: 'juridica (Empresa)' },
+            { value: 'natural', label: 'natural (Persona)' }
+        ],
+        es_cliente: [{ value: '1', label: '1 (Sí)' }, { value: '0', label: '0 (No)' }],
+        es_proveedor: [{ value: '1', label: '1 (Sí)' }, { value: '0', label: '0 (No)' }],
+        estado: [{ value: '1', label: '1 (Activo)' }, { value: '0', label: '0 (Inactivo)' }]
+    },
+    producto: {
+        tipo: [{ value: 'producto', label: 'Producto físico' }, { value: 'servicio', label: 'Servicio' }],
+        estado: [{ value: '1', label: '1 (Activo)' }, { value: '0', label: '0 (Inactivo)' }],
+        isEncargo: [{ value: '1', label: '1 (Es Encargo)' }, { value: '0', label: '0 (Stock Normal)' }]
+    },
+    ventasMaestro: {
+        tipo_pago: [{ value: 'contado', label: 'Contado' }, { value: 'credito', label: 'Crédito' }],
+        status: [{ value: '1', label: '1 (Activa)' }, { value: '0', label: '0 (Anulada)' }]
+    }
+};
 
 export const Importar = () => {
     const [step, setStep] = useState(1);
+    const [fileType, setFileType] = useState(null); // 'csv' o 'sql'
     const [filePath, setFilePath] = useState(null);
     const [externalSchema, setExternalSchema] = useState({});
     const [internalSchema, setInternalSchema] = useState({});
+
+    //Estado de consola
+    const [showConsole, setShowConsole] = useState(false);
+    const [consoleLogs, setConsoleLogs] = useState([]);
+    const logsEndRef = useRef(null);
     
     // MODO DE IMPORTACIÓN ('simple', 'avanzado', 'relacional')
     const [importMode, setImportMode] = useState('simple');
@@ -24,7 +59,7 @@ export const Importar = () => {
     // ESTADOS MODO AVANZADO (SQL + JSON)
     const [customQuery, setCustomQuery] = useState('');
     const [queryCols, setQueryCols] = useState([]);
-    const [jsonColumn, setJsonColumn] = useState(''); // Opcional dentro de SQL
+    const [jsonColumn, setJsonColumn] = useState('');
     const [jsonKeysMapping, setJsonKeysMapping] = useState({});
 
     // ESTADOS MODO RELACIONAL
@@ -52,62 +87,135 @@ export const Importar = () => {
             if (res.success) setInternalSchema(res.schema);
         };
         loadInternal();
+
+        // INICIAMOS EL ESCUCHADOR DE LA CONSOLA
+        if (window.api.onImportLog) {
+            window.api.onImportLog((msg) => {
+                setConsoleLogs(prevLogs => [...prevLogs, msg]);
+            });
+        }
+        
+        // Limpiamos al desmontar
+        return () => {
+            if (window.api.removeAllImportLogs) window.api.removeAllImportLogs();
+        }
     }, []);
 
-    const handleFileSelect = async () => {
-        const fileResult = await window.api.selectDbFile();
-        if (fileResult.canceled) return;
+    useEffect(() => {
+        if (logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [consoleLogs]);
+
+    // Nueva función para manejar la selección según el tipo
+    const handleFileSelect = async (type) => {
+        setFileType(type); // Guardamos el tipo de archivo seleccionado
+
+        let fileResult;
+        if (type === 'csv') {
+            fileResult = await window.api.selectCsvFile();
+        } else {
+            fileResult = await window.api.selectDbFile(); // Usa la función original de SQL
+        }
+
+        if (fileResult.canceled) {
+            setFileType(null); // Reseteamos si cancela
+            return;
+        }
+
         setFilePath(fileResult.filePath);
-        Swal.fire({ title: 'Analizando y depurando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        const res = await window.api.readExternalDb(fileResult.filePath);
+        Swal.fire({ title: 'Leyendo archivo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        let res;
+        if (type === 'csv') {
+            res = await window.api.readCsvFile(fileResult.filePath);
+        } else {
+            res = await window.api.readExternalDb(fileResult.filePath); // Usa la función original de SQL
+        }
+        
         Swal.close();
+        
         if (res.success) {
-            if (res.newPath) setFilePath(res.newPath);
-            setExternalSchema(res.schema || {});
+            if (type === 'csv') {
+                // TRUCO CSV
+                setExternalSchema({ "Datos_CSV": res.columns });
+                setSourceTable("Datos_CSV");
+                setPreviewCols(res.columns);
+                setPreviewData(res.data); 
+                setPreviewTotalRows(res.totalRows);
+            } else {
+                // FLUJO NORMAL SQL
+                if (res.newPath) setFilePath(res.newPath);
+                setExternalSchema(res.schema || {});
+            }
             setStep(2);
-        } else Swal.fire('Error', res.error, 'error');
+        } else {
+            setFileType(null);
+            Swal.fire('Error', res.error, 'error');
+        }
     };
 
     const executeUniversalImport = async (type) => {
+
         if (Object.keys(mapping).length === 0 && Object.keys(fieldJoins).length === 0 && Object.keys(defaultValues).length === 0) {
             return Swal.fire('Atención', 'Debe mapear o fijar al menos un campo.', 'warning');
         }
 
-        // Si el usuario marcó una columna JSON dentro del modo Avanzado, usamos la acción de JSON.
-        // Si no la marcó, usamos la acción de SQL normal.
-        let actionMethod = window.api.executeImport;
-        let finalPayload = { filePath, targetTable, mapping, defaultValues, joins: fieldJoins, idPrefix };
-        let title = '¿Iniciar Importación?';
+        let actionMethod;
+        let finalPayload = { filePath, targetTable, mapping, defaultValues, idPrefix, joins: fieldJoins };
+        let title = '¿Iniciar Importación Simple?';
 
-        if (type === 'simple') {
-            title = '¿Iniciar Importación Simple?';
-            finalPayload.sourceTable = sourceTable;
-        } else if (type === 'avanzado') {
-            if (jsonColumn) {
-                title = '¿Ejecutar SQL y Extraer JSON?';
-                actionMethod = window.api.executeImportJson;
-                finalPayload.query = customQuery; // Pasamos la consulta en vez de sourceTable
-                finalPayload.jsonColumn = jsonColumn;
-                finalPayload.jsonKeysMapping = jsonKeysMapping;
-            } else {
-                title = '¿Iniciar Importación desde SQL?';
-                actionMethod = window.api.executeImportQuery;
-                finalPayload.query = customQuery;
+        // LÓGICA PARA ELEGIR LA FUNCIÓN DEL BACKEND
+        if (fileType === 'csv') {
+            actionMethod = window.api.executeImportCsv;
+            // Para CSV no se necesita customQuery ni jsonKeysMapping en este nivel
+        } else {
+             // Lógica original para SQL
+             if (type === 'simple') {
+                actionMethod = window.api.executeImport;
+                finalPayload.sourceTable = sourceTable;
+            } else if (type === 'avanzado') {
+                if (jsonColumn) {
+                    title = '¿Ejecutar SQL y Extraer JSON?';
+                    actionMethod = window.api.executeImportJson;
+                    finalPayload.query = customQuery; 
+                    finalPayload.jsonColumn = jsonColumn;
+                    finalPayload.jsonKeysMapping = jsonKeysMapping;
+                } else {
+                    title = '¿Iniciar Importación desde SQL?';
+                    actionMethod = window.api.executeImportQuery;
+                    finalPayload.query = customQuery;
+                }
             }
         }
 
-        const confirm = await Swal.fire({ title, icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, importar' });
-        
+        const confirm = await Swal.fire({ title, icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, importar' });   
+
         if (confirm.isConfirmed) {
-            Swal.fire({ title: 'Procesando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const res = await actionMethod(finalPayload);
-            if (res.success) {
-                let msg = `Importados <strong>${res.rows}</strong> registros.`;
-                if(res.fixed > 0) msg += `<br>Corregidos: ${res.fixed}`;
-                if(res.skipped > 0) msg += `<br>Ignorados: ${res.skipped}`;
-                Swal.fire({ title: '¡Éxito!', html: msg, icon: 'success' });
-                resetWizard();
-            } else Swal.fire('Error', res.error, 'error');
+            setConsoleLogs(["[SISTEMA] Iniciando asistente de migración..."]);
+            setShowConsole(true);
+
+            try {
+                const res = await actionMethod(finalPayload);
+                
+                if (res.success) {
+                    setConsoleLogs(prev => [...prev, "[SISTEMA] ✓ Guardado completado con éxito. Cerrando consola en 3 segundos..."]);
+                    
+                    setTimeout(() => {
+                        setShowConsole(false);
+                        let msg = `Importados <strong>${res.rows}</strong> registros.`;
+                        if(res.fixed > 0) msg += `<br>Corregidos: ${res.fixed}`;
+                        if(res.skipped > 0) msg += `<br>Ignorados: ${res.skipped}`;
+                        Swal.fire({ title: '¡Migración Exitosa!', html: msg, icon: 'success' });
+                        resetWizard(false); 
+                    }, 3000);
+
+                } else {
+                    setConsoleLogs(prev => [...prev, `[SISTEMA] ❌ ERROR: ${res.error}`]);
+                }
+            } catch (err) {
+                 setConsoleLogs(prev => [...prev, `[SISTEMA] ❌ ERROR CRÍTICO: Hubo un error de conexión.`]);
+            }
         }
     };
 
@@ -126,18 +234,38 @@ export const Importar = () => {
         }
     };
 
-    const resetWizard = () => {
-        setStep(1); setFilePath(null); setImportMode('simple'); setSourceTable(''); setTargetTable('');
+    const resetWizard = (fullReset = true) => {
+        if (fullReset) {
+            setStep(1); 
+            setFilePath(null); 
+            setFileType(null);
+        } else {
+            setStep(2);
+        }
+        setImportMode('simple'); setSourceTable(fileType === 'csv' ? 'Datos_CSV' : ''); setTargetTable('');
         setMapping({}); setDefaultValues({}); setJsonKeysMapping({}); setRelSourceMaestro(''); setRelSourceDetalle(''); 
         setRelMapMaestro({}); setRelMapDetalle({}); setJsonColumn(''); setFieldJoins({}); setCustomQuery(''); setQueryCols([]);
     };
 
     const handlePreview = async (tableToPreview) => {
         if (!tableToPreview) return;
-        setIsLoadingPreview(true); setShowPreview(true);
+        setIsLoadingPreview(true); 
+        setShowPreview(true);
+
+        if (tableToPreview === "Datos_CSV") {
+            setIsLoadingPreview(false);
+            return; 
+        }
+
         const res = await window.api.previewExternalTable({ filePath, tableName: tableToPreview });
-        if (res.success) { setPreviewCols(res.columns || []); setPreviewData(res.data || []); setPreviewTotalRows(res.totalRows || 0); } 
-        else { setShowPreview(false); Swal.fire('Error', res.error, 'error'); }
+        if (res.success) { 
+            setPreviewCols(res.columns || []); 
+            setPreviewData(res.data || []); 
+            setPreviewTotalRows(res.totalRows || 0); 
+        } else { 
+            setShowPreview(false); 
+            Swal.fire('Error', res.error, 'error'); 
+        }
         setIsLoadingPreview(false);
     };
 
@@ -209,7 +337,7 @@ export const Importar = () => {
                                 </Form.Select>
                             )}
                             
-                            {!isSystemRestricted && (
+                            {!isSystemRestricted && fileType !== 'csv' && ( // Desactivamos JOINS para CSV por ahora para simplificar
                                 <Button variant={joinActive ? "success" : "outline-success"} size="sm" title="Cruzar con otra tabla" 
                                         onClick={() => setJoinModalConfig({ show: true, targetField: reqCol, sourceColumns: sourceColsArray })}>
                                     <i className="bi bi-link"></i>
@@ -232,7 +360,30 @@ export const Importar = () => {
                         )}
 
                         {!joinActive && !isMapped && !isSystemRestricted && !isJsonDetalle && (
-                            <Form.Control size="sm" type="text" className="bg-light text-primary border-primary border-opacity-50" placeholder={isIdField ? 'Dejar vacío para autogenerar o escribir valor fijo...' : `Escribir valor fijo manual para ${reqCol}...`} value={defaultValues[reqCol] || ''} onChange={(e) => setDefaultValues({...defaultValues, [reqCol]: e.target.value})} />
+                            <>
+                                {CAEDRO_DICTIONARY[targetTable] && CAEDRO_DICTIONARY[targetTable][reqCol] ? (
+                                    <Form.Select 
+                                        size="sm" 
+                                        className="bg-light text-primary border-primary border-opacity-50 fw-bold" 
+                                        value={defaultValues[reqCol] || ''} 
+                                        onChange={(e) => setDefaultValues({...defaultValues, [reqCol]: e.target.value})}
+                                    >
+                                        <option value="">-- Seleccione una opción fija --</option>
+                                        {CAEDRO_DICTIONARY[targetTable][reqCol].map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </Form.Select>
+                                ) : (
+                                    <Form.Control 
+                                        size="sm" 
+                                        type="text" 
+                                        className="bg-light text-primary border-primary border-opacity-50" 
+                                        placeholder={isIdField ? 'Dejar vacío para autogenerar id...' : `Escribir valor fijo manual para ${reqCol}...`} 
+                                        value={defaultValues[reqCol] || ''} 
+                                        onChange={(e) => setDefaultValues({...defaultValues, [reqCol]: e.target.value})} 
+                                    />
+                                )}
+                            </>
                         )}
                     </div>
                 </Col>
@@ -240,10 +391,13 @@ export const Importar = () => {
         );
     };
 
-    return (
+return (
         <Card className="shadow-sm border-0">
             <Card.Body className="p-4">
-                <h5 className="mb-4 text-primary"><i className="bi bi-cloud-arrow-up me-2"></i>Asistente de Importación de Datos</h5>
+                <h5 className="mb-4 text-primary">
+                    <i className="bi bi-cloud-arrow-up me-2"></i>Asistente de Importación
+                    {fileType && <span className="text-muted ms-2 fs-6">({fileType.toUpperCase()})</span>}
+                </h5>
                 
                 <div className="d-flex justify-content-between mb-4 position-relative">
                     <div className="progress position-absolute" style={{ height: '2px', top: '15px', width: '100%', zIndex: 0 }}>
@@ -255,22 +409,46 @@ export const Importar = () => {
                 </div>
 
                 {step === 1 && (
-                    <div className="text-center py-5 border rounded bg-light">
-                        <i className="bi bi-database fs-1 text-muted mb-3 d-block"></i>
-                        <h6>Seleccione el archivo a importar</h6>
-                        <Button variant="outline-primary" size="lg" className="mt-3 px-5 py-3" onClick={handleFileSelect}>
-                            <i className="bi bi-folder2-open me-2"></i> Buscar Archivo
-                        </Button>
+                    <div className="animate__animated animate__fadeIn">
+                        <Alert variant="info" className="mb-4">
+                            <i className="bi bi-info-circle me-2"></i>Seleccione el formato de su base de datos origen.
+                        </Alert>
+                        <Row className="g-4">
+                            {/* OPCIÓN CSV */}
+                            <Col md={6}>
+                                <div className="text-center p-4 border rounded bg-light h-100 d-flex flex-column justify-content-center hover-shadow transition" style={{cursor: 'pointer'}} onClick={() => handleFileSelect('csv')}>
+                                    <i className="bi bi-filetype-csv fs-1 text-success mb-3 d-block"></i>
+                                    <h6 className="fw-bold">Importar Archivo CSV</h6>
+                                    <p className="small text-muted mb-0">Recomendado. Más rápido y sin errores de sintaxis. Ideal para tablas individuales exportadas desde Excel o phpMyAdmin.</p>
+                                </div>
+                            </Col>
+
+                            {/* OPCIÓN SQL */}
+                            <Col md={6}>
+                                <div className="text-center p-4 border rounded bg-light h-100 d-flex flex-column justify-content-center hover-shadow transition" style={{cursor: 'pointer'}} onClick={() => handleFileSelect('sql')}>
+                                    <i className="bi bi-filetype-sql fs-1 text-danger mb-3 d-block"></i>
+                                    <h6 className="fw-bold">Importar Base de Datos SQL / SQLite</h6>
+                                    <p className="small text-muted mb-0">Útil para exportaciones completas (mysqldump). Permite migraciones avanzadas y relaciones, pero puede requerir limpieza.</p>
+                                </div>
+                            </Col>
+                        </Row>
                     </div>
                 )}
 
                 {step === 2 && (
                     <div className="animate__animated animate__fadeIn">
-                        <Alert variant="info"><i className="bi bi-info-circle me-2"></i>Archivo cargado. ¿Qué tipo de importación desea realizar?</Alert>
+                        <Alert variant="success"><i className="bi bi-check-circle me-2"></i>Archivo {fileType?.toUpperCase()} cargado correctamente.</Alert>
+                        
+                        {/* BOTONES DE MODO DE IMPORTACIÓN */}
                         <div className="d-flex gap-3 mb-4 justify-content-center border-bottom pb-4 flex-wrap">
                             <Button variant={importMode === 'simple' ? 'primary' : 'outline-primary'} onClick={() => setImportMode('simple')}><i className="bi bi-table me-2"></i>Simple (Tabla a Tabla)</Button>
-                            <Button variant={importMode === 'avanzado' ? 'dark' : 'outline-dark'} onClick={() => setImportMode('avanzado')}><i className="bi bi-magic me-2"></i>Avanzado (SQL + JSON)</Button>
-                            <Button variant={importMode === 'relacional' ? 'success' : 'outline-success'} onClick={() => setImportMode('relacional')}><i className="bi bi-diagram-3 me-2"></i>Facturas (Auto-Ensamblar)</Button>
+                            
+                            {fileType === 'sql' && (
+                                <>
+                                    <Button variant={importMode === 'avanzado' ? 'dark' : 'outline-dark'} onClick={() => setImportMode('avanzado')}><i className="bi bi-magic me-2"></i>Avanzado (SQL + JSON)</Button>
+                                    <Button variant={importMode === 'relacional' ? 'success' : 'outline-success'} onClick={() => setImportMode('relacional')}><i className="bi bi-diagram-3 me-2"></i>Facturas (Auto-Ensamblar)</Button>
+                                </>
+                            )}
                         </div>
 
                         {importMode === 'simple' && (
@@ -280,8 +458,14 @@ export const Importar = () => {
                                         <Form.Label className="fw-bold text-danger">Origen</Form.Label>
                                         <div className="d-flex gap-2">
                                             <Form.Select value={sourceTable} onChange={(e) => { setSourceTable(e.target.value); setMapping({}); setFieldJoins({}); setJsonColumn(''); }}>
-                                                <option value="">-- Tabla Origen --</option>
-                                                {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                                                {fileType === 'csv' ? (
+                                                    <option value="Datos_CSV">Datos_CSV</option>
+                                                ) : (
+                                                    <>
+                                                        <option value="">-- Tabla Origen --</option>
+                                                        {Object.keys(externalSchema || {}).map(t => <option key={t} value={t}>{t}</option>)}
+                                                    </>
+                                                )}
                                             </Form.Select>
                                             <Button variant="info" className="text-white" disabled={!sourceTable} onClick={() => handlePreview(sourceTable)}><i className="bi bi-eye-fill"></i></Button>
                                         </div>
@@ -366,7 +550,7 @@ export const Importar = () => {
                         )}
 
                         <div className="mt-4 text-end">
-                            <Button variant="secondary" className="me-2" onClick={() => setStep(1)}>Atrás</Button>
+                            <Button variant="secondary" className="me-2" onClick={() => resetWizard(true)}>Cancelar</Button>
                             <Button variant="primary" disabled={
                                 (importMode === 'simple' && (!sourceTable || !targetTable)) || 
                                 (importMode === 'avanzado' && (!customQuery || !targetTable || queryCols.length === 0)) || 
@@ -378,7 +562,6 @@ export const Importar = () => {
 
                 {step === 3 && (
                     <div className="animate__animated animate__fadeIn">
-                        
                         {(importMode === 'simple' || importMode === 'avanzado') && (
                             <>
                                 <div className="d-flex justify-content-between align-items-center mb-3">
@@ -455,6 +638,26 @@ export const Importar = () => {
                     setFieldJoins(newJoins);
                 }}
             />
+
+            <Modal show={showConsole} backdrop="static" keyboard={false} size="lg">
+                <Modal.Header className="bg-dark text-white border-bottom border-secondary">
+                    <Modal.Title className="fs-5">
+                        <i className="bi bi-terminal-fill text-success me-2"></i> 
+                        Consola de Migración en Vivo
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="bg-dark text-success font-monospace p-3" style={{ height: '350px', overflowY: 'auto', fontSize: '0.85rem' }}>
+                    {consoleLogs.map((log, index) => (
+                        <div key={index} className="mb-1">
+                            <span className="text-secondary">{new Date().toLocaleTimeString()}</span> <span className="text-light">{">"}</span> {log}
+                        </div>
+                    ))}
+                    <div ref={logsEndRef} /> {/* Ancla para el auto-scroll */}
+                </Modal.Body>
+                <Modal.Footer className="bg-dark border-top border-secondary p-2">
+                    <span className="text-muted small w-100 text-center">Por favor, no cierre la aplicación mientras se ejecuta este proceso.</span>
+                </Modal.Footer>
+            </Modal>
         </Card>
     );
-}
+};

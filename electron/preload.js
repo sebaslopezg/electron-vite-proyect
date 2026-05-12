@@ -105,6 +105,13 @@ contextBridge.exposeInMainWorld("api", {
   getInternalSchema: () => ipcRenderer.invoke("get-internal-schema"),
   executeImport: (data) => ipcRenderer.invoke("execute-import", data),
   previewExternalTable: (data) => ipcRenderer.invoke("preview-external-table", data),
+  selectCsvFile: () => ipcRenderer.invoke('select-csv-file'),
+  readCsvFile: (filePath) => ipcRenderer.invoke('read-csv-file', filePath),
+  executeImportCsv: (data) => ipcRenderer.invoke('execute-import-csv', data),
+
+  //logs de consola en backend
+  onImportLog: (callback) => ipcRenderer.on('import-log', (_event, msg) => callback(msg)),
+  removeAllImportLogs: () => ipcRenderer.removeAllListeners('import-log'),
 
   // Cartera y cobranzas
   getCartera: () => ipcRenderer.invoke("get-cartera"),

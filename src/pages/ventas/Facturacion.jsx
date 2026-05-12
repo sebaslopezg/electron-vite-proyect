@@ -5,12 +5,14 @@ import { Button, InputGroup, Form, Row, Col } from 'react-bootstrap'
 import Modal from 'react-bootstrap/Modal'
 import { ImpresorFactura } from './components/ImpresorFactura'
 import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
+import { ModalTercero } from '../Contabilidad/components/ModalTercero'
 
 export const Facturacion = () => {
   const [productos, setProductos] = useState([])
   const [clientes, setClientes] = useState([])
   const [carrito, setCarrito] = useState([])
   const [show, setShow] = useState(false)
+  const [showTerceroModal, setShowTerceroModal] = useState(false)
   const [cliente, setCliente] = useState(null)
   const [modalData, setModalData] = useState({ title: '', columns: [], type: '' })
   const [descuento, setDescuento] = useState(0)
@@ -24,6 +26,7 @@ export const Facturacion = () => {
   const [totalRecibido, setTotalRecibido] = useState('')
   const [skuInput, setSkuInput] = useState('')
   const [docInput, setDocInput] = useState('')
+  const [observaciones, setObservaciones] = useState('')
 
   const [showPreviewImpresion, setShowPreviewImpresion] = useState(false);
   const [facturaParaImprimir, setFacturaParaImprimir] = useState(null);
@@ -169,7 +172,22 @@ const loadInitialData = async () => {
       setCliente(found);
       setDocInput(''); 
     } else {
-      handleAddClient();
+      Swal.fire({
+        title: 'Cliente no encontrado',
+        text: `No se encontró el documento ${docInput.trim()}. ¿Deseas crearlo ahora?`,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, crear cliente',
+        cancelButtonText: 'Buscar en la lista'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          setShowTerceroModal(true);
+        } else {
+          handleAddClient(); // Fallback: Abre la modal de la tabla
+        }
+      });
     }
   }
 
@@ -327,13 +345,20 @@ const loadInitialData = async () => {
       }
     }
 
-    const data = {
+const data = {
       maestro: {
-        nombre_cliente: cliente?.nombre, documento_cliente: cliente?.documento,
-        subtotal: subtotal, descuento: resumen.totalDescuentos, iva: ivaTotal, total: totalFinal,
-        total_recibido: recibidoNum, saldo_pendiente: saldoPendiente,
-        tipo_pago: tipoPago, metodo_pago: metodoPago,
-        moneda: appConfig.moneda, formato_numero: appConfig.formato_numero 
+        nombre_cliente: cliente?.nombre, 
+        documento_cliente: cliente?.documento,
+        subtotal: subtotal, 
+        descuento: resumen.totalDescuentos, 
+        iva: ivaTotal, total: totalFinal,
+        total_recibido: recibidoNum, 
+        saldo_pendiente: saldoPendiente,
+        tipo_pago: tipoPago, 
+        metodo_pago: metodoPago,
+        moneda: appConfig.moneda, 
+        formato_numero: appConfig.formato_numero,
+        observaciones: observaciones
       },
       detalles: carrito
     }
@@ -343,11 +368,22 @@ const loadInitialData = async () => {
     if (result.success) {
       const printData = await window.api.getDetalle(result.maestroId)
       const facturaGenerada = {
-          id: result.maestroId, numero_factura: result.numero_factura, prefijo: result.prefijo,
-          date_created: new Date().toISOString(), nombre_cliente: cliente.nombre, documento_cliente: cliente.documento,
-          subtotal: subtotal, descuento: resumen.totalDescuentos, iva: ivaTotal, total_factura: totalFinal,
-          total_recibido: recibidoNum, saldo_pendiente: saldoPendiente, tipo_pago: tipoPago, metodo_pago: metodoPago,
-          moneda: appConfig.moneda, formato_numero: appConfig.formato_numero 
+          id: result.maestroId, 
+          numero_factura: result.numero_factura, 
+          prefijo: result.prefijo,
+          date_created: new Date().toISOString(), 
+          nombre_cliente: cliente.nombre, 
+          documento_cliente: cliente.documento,
+          subtotal: subtotal, 
+          descuento: resumen.totalDescuentos, 
+          iva: ivaTotal, total_factura: totalFinal,
+          total_recibido: recibidoNum, 
+          saldo_pendiente: saldoPendiente, 
+          tipo_pago: tipoPago, 
+          metodo_pago: metodoPago,
+          moneda: appConfig.moneda, 
+          formato_numero: appConfig.formato_numero,
+          observaciones: observaciones
       }
 
       Swal.fire({
@@ -374,7 +410,10 @@ const loadInitialData = async () => {
 
   const cleanForm = () => {
     setCarrito([]); setCliente(null); setDescuento(0)
-    setTotalRecibido(''); setTipoPago('contado'); setMetodoPago('Efectivo')
+    setTotalRecibido('')
+    setTipoPago('contado')
+    setMetodoPago('Efectivo')
+    setObservaciones('')
   }
 
   const updateQuantity = (id, delta, isEncargo) => {
@@ -691,7 +730,19 @@ const loadInitialData = async () => {
               </div>
             )}
 
-            <Row className="border-top pt-3">
+            <Form.Group className="mb-3 border-top pt-3">
+              <Form.Label><small className="fw-bold">Observaciones en factura</small></Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                size="sm"
+                placeholder=""
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+              />
+            </Form.Group>
+
+            <Row className="mb-2">
                 <Col xs={6}>
                     <Form.Group className="mb-3">
                     <Form.Label><small className="fw-bold">Tipo de Pago</small></Form.Label>
@@ -718,7 +769,20 @@ const loadInitialData = async () => {
               <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
                 <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
                 <InputGroup size="sm">
-                  <Form.Control type="text" min="1" max="72" value={cuotas} onChange={(e) => setCuotas(Math.max(1, parseInt(e.target.value) || ""))} />
+                  <Form.Control 
+                    type="text" 
+                    inputMode="numeric"
+                    value={cuotas} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setCuotas('');
+                      } 
+                      else if (/^\d+$/.test(val)) {
+                        setCuotas(parseInt(val, 10));
+                      }
+                    }} 
+                  />
                   <InputGroup.Text>Días</InputGroup.Text>
                 </InputGroup>
                 <Form.Text className="text-muted">Aplica para saldos pendientes</Form.Text>
@@ -815,6 +879,25 @@ const loadInitialData = async () => {
         detalles={detallesParaImprimir} 
         almacenConf={almacenConfParaImprimir} 
         textoVolver="Volver a Facturación" 
+    />
+
+    <ModalTercero 
+        show={showTerceroModal} 
+        handleClose={() => setShowTerceroModal(false)} 
+        forceCliente={true}
+        initialDocument={docInput.trim()}
+        onSuccess={async () => {
+            setShowTerceroModal(false);
+            const updatedClients = await window.api.getClientes();
+            setClientes(updatedClients);
+            
+            const newlyCreated = updatedClients.find(c => c.documento === docInput.trim());
+            if (newlyCreated) {
+                setCliente(newlyCreated);
+                setDocInput('');
+                Swal.fire('¡Listo!', 'Cliente asignado a la factura.', 'success');
+            }
+        }}
     />
 
   </>

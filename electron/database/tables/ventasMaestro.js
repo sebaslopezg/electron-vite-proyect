@@ -41,7 +41,8 @@ export function runV1VentasMaestro() {
         status INTEGER,
         date_created TEXT,
         date_modify TEXT,
-        modify_by TEXT
+        modify_by TEXT,
+        observaciones TEXT
       )
     `);
 

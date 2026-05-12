@@ -85,6 +85,19 @@ const migrations = [
             runV2ConfiguracionContable()
         }
     },
+    {
+        version: 9,
+        up: () => {
+            console.log("Applying migration V9: Adding observaciones to ventasMaestro");
+            try {
+                db.exec(`ALTER TABLE ventasMaestro ADD COLUMN observaciones TEXT;`);
+            } catch (error) {
+                if (!error.message.includes('duplicate column name')) {
+                    throw error;
+                }
+            }
+        }
+    }
 ]
 
 export const runMigrations = () => {

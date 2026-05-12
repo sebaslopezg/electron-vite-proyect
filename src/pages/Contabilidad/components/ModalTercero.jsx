@@ -5,10 +5,13 @@ import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Row, Col } from 'react-bootstrap'
 
-export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceCliente }) => {
+export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceCliente, initialDocument = '' }) => {
     const defaultData = {
-        id: '', tipo_documento: 'NIT', numero_documento: '', digito_verificacion: '',
-        tipo_persona: 'juridica', razon_social: '', nombres: '', apellidos: '',
+        id: '', tipo_documento: 'CC',
+        numero_documento: initialDocument,
+        digito_verificacion: '',
+        tipo_persona: 'natural',
+        razon_social: '', nombres: '', apellidos: '',
         direccion: '', telefono: '', email: '', ciudad_id: '',
         es_cliente: forceCliente ? 1 : 0,
         es_proveedor: 0, estado: 1
@@ -17,9 +20,12 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceClie
     const [formData, setFormData] = useState(defaultData)
 
     useEffect(() => {
-        if (editData) setFormData(editData)
-        else setFormData(defaultData)
-    }, [editData, show])
+        if (editData) {
+            setFormData(editData)
+        } else {
+            setFormData({...defaultData, numero_documento: initialDocument})
+        }
+    }, [editData, show, initialDocument])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
