@@ -3,7 +3,6 @@ import { Ventas } from '../pages/ventas'
 import { Inventario } from '../pages/inventario'
 import { Clientes } from '../pages/Clientes'
 import { ConfiguracionIndex as Configuracion } from '../pages/configuracion/index';
-//import { Bitacoras } from '../pages/Bitacoras'
 import { ProductosIndex } from '../pages/productos'
 import { IndexEncargos } from '../pages/encargos/index'
 import { Cartera } from '../pages/cartera/index';
@@ -23,7 +22,6 @@ export const MainRoutes = () => {
             <Route path="/productos" element={<ProductosIndex />} />
             <Route path="/encargos" element={<IndexEncargos />} />
             <Route path="/contabilidad" element={<ContabilidadIndex />} />
-            <Route path="/bitacoras" element={<Bitacoras />} />
             <Route path="/configuracion" element={<Configuracion />} />
         </Routes>
     </>
