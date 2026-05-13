@@ -6,8 +6,8 @@ import { Clientes } from '../pages/Clientes'
 import { ConfiguracionIndex as Configuracion } from '../pages/Configuracion/index';
 import { Bitacoras } from '../pages/Bitacoras'
 import { ProductosIndex } from '../pages/Productos'
-import { IndexEncargos } from '../pages/encargos/Index'
-import { Cartera } from '../pages/cartera/Index';
+import { IndexEncargos } from '../pages/encargos/index'
+import { Cartera } from '../pages/cartera/index';
 import { ContabilidadIndex } from '../pages/Contabilidad';
 import { Compras } from '../pages/compras';
 
