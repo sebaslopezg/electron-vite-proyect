@@ -3,7 +3,7 @@ import { ModalAbono } from './components/ModalAbono'
 
 import { TabCuentasPorCobrar } from './components/CuentasPorCobrar'
 import { TabHistorialAbonos } from './components/HistorialAbonos'
-
+ 
 export const Cartera = () => {
     const [reloadKey, setReloadKey] = useState(0)
     const [almacenConf, setAlmacenConf] = useState(null)
