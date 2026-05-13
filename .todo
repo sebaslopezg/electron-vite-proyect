@@ -2,7 +2,8 @@
 
  ## Modificaciones Prioritarias:
 
- - **Lanzar la modal de creacion de clientes (terceros) cuando no se encuentre un cliente en facturacion**
+ - **Sistema instalable en version linux**
+ - **Poder crear encargos sin necesidad de agotamiento de stock**
  
  - Crear logs en todos los movimientos del sistema y visualizarlos 
  - Mejorar modulo de pagos (mas sencillo)

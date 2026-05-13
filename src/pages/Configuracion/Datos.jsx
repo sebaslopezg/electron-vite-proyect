@@ -1,40 +1,39 @@
-import { useState, useEffect } from 'react';
-import { Button, Form, Row, Col, Modal } from 'react-bootstrap';
-import Swal from 'sweetalert2';
-import DataTableComponent from '../../components/DataTableComponent'; 
-// NUEVO: Importamos el Modal de previsualización
-import { ModalPreviewTabla } from './components/ModalPreviewTabla';
+import { useState, useEffect } from 'react'
+import { Button, Form, Row, Col, Modal } from 'react-bootstrap'
+import Swal from 'sweetalert2'
+import DataTableComponent from '../../components/DataTableComponent'
+import { ModalPreviewTabla } from './components/ModalPreviewTabla'
 
 export const Datos = () => {
-    const [perfiles, setPerfiles] = useState([]);
-    const [showPerfilModal, setShowPerfilModal] = useState(false);
-    const [nuevoPerfilNombre, setNuevoPerfilNombre] = useState('');
-    const [showStatsModal, setShowStatsModal] = useState(false);
-    const [statsData, setStatsData] = useState({ nombre: '', filename: '', size: '0 KB', tables: [] });
-    const [loadingStats, setLoadingStats] = useState(false);
+    const [perfiles, setPerfiles] = useState([])
+    const [showPerfilModal, setShowPerfilModal] = useState(false)
+    const [nuevoPerfilNombre, setNuevoPerfilNombre] = useState('')
+    const [showStatsModal, setShowStatsModal] = useState(false)
+    const [statsData, setStatsData] = useState({ nombre: '', filename: '', size: '0 KB', tables: [] })
+    const [loadingStats, setLoadingStats] = useState(false)
 
     // NUEVO: Estados para la previsualización de tablas
-    const [showPreview, setShowPreview] = useState(false);
-    const [previewCols, setPreviewCols] = useState([]);
-    const [previewData, setPreviewData] = useState([]);
-    const [previewTableName, setPreviewTableName] = useState('');
-    const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+    const [showPreview, setShowPreview] = useState(false)
+    const [previewCols, setPreviewCols] = useState([])
+    const [previewData, setPreviewData] = useState([])
+    const [previewTableName, setPreviewTableName] = useState('')
+    const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
     const load = async () => {
-        const perfilesData = await window.api.getPerfiles();
-        setPerfiles(perfilesData || []);
+        const perfilesData = await window.api.getPerfiles()
+        setPerfiles(perfilesData || [])
     }
 
     const handleCreatePerfil = async (e) => {
         e.preventDefault();
-        const result = await window.api.addPerfil({ nombre: nuevoPerfilNombre });
+        const result = await window.api.addPerfil({ nombre: nuevoPerfilNombre })
         if (result.success) {
-            setShowPerfilModal(false);
-            setNuevoPerfilNombre('');
-            load();
-            Swal.fire("Creado", "Perfil de datos creado correctamente", "success");
+            setShowPerfilModal(false)
+            setNuevoPerfilNombre('')
+            load()
+            Swal.fire("Creado", "Perfil de datos creado correctamente", "success")
         } else {
-            Swal.fire("Error", result.error, "error");
+            Swal.fire("Error", result.error, "error")
         }
     }
 
@@ -46,10 +45,10 @@ export const Datos = () => {
             showCancelButton: true,
             confirmButtonText: 'Sí, reiniciar y cambiar',
             cancelButtonText: 'Cancelar'
-        });
+        })
 
         if (confirm.isConfirmed) {
-            await window.api.switchPerfil(id);
+            await window.api.switchPerfil(id)
         }
     }
 
@@ -63,9 +62,9 @@ export const Datos = () => {
             cancelButtonColor: '#3085d6',
             confirmButtonText: 'Sí, estoy seguro',
             cancelButtonText: 'Cancelar'
-        });
+        })
 
-        if (!warnRes.isConfirmed) return;
+        if (!warnRes.isConfirmed) return
 
         const confirmRes = await Swal.fire({
             title: 'Confirmación de Seguridad',
@@ -78,76 +77,74 @@ export const Datos = () => {
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#d33',
             preConfirm: (inputValue) => {
-                if (inputValue !== nombre) Swal.showValidationMessage('El nombre escrito no coincide.');
+                if (inputValue !== nombre) Swal.showValidationMessage('El nombre escrito no coincide.')
             }
-        });
+        })
 
         if (confirmRes.isConfirmed) {
-            const res = await window.api.deletePerfil(id);
+            const res = await window.api.deletePerfil(id)
             if (res.success) {
-                Swal.fire('Eliminado', `El perfil "${nombre}" ha sido destruido.`, 'success');
-                load();
+                Swal.fire('Eliminado', `El perfil "${nombre}" ha sido destruido.`, 'success')
+                load()
             } else {
-                Swal.fire('Error', res.error, 'error');
+                Swal.fire('Error', res.error, 'error')
             }
         }
     }
 
     const handleShowStats = async (filename, nombre) => {
-        setLoadingStats(true);
-        setStatsData({ nombre, filename, size: 'Calculando...', tables: [] });
-        setShowStatsModal(true);
+        setLoadingStats(true)
+        setStatsData({ nombre, filename, size: 'Calculando...', tables: [] })
+        setShowStatsModal(true)
 
-        const result = await window.api.getPerfilStats(filename);
+        const result = await window.api.getPerfilStats(filename)
         if (result.success) {
-            setStatsData({ nombre, filename, size: result.size, tables: result.tables });
+            setStatsData({ nombre, filename, size: result.size, tables: result.tables })
         } else {
-            setShowStatsModal(false);
-            Swal.fire('Error', result.error, 'error');
+            setShowStatsModal(false)
+            Swal.fire('Error', result.error, 'error')
         }
-        setLoadingStats(false);
+        setLoadingStats(false)
     }
 
-    // NUEVO: Función para pedir los datos de la tabla y abrir el modal
     const handleViewTableData = async (tableName) => {
-        setPreviewTableName(tableName);
-        setIsLoadingPreview(true);
-        setShowPreview(true);
+        setPreviewTableName(tableName)
+        setIsLoadingPreview(true)
+        setShowPreview(true)
 
         const result = await window.api.getPerfilTableData({ 
             filename: statsData.filename, 
             tableName: tableName 
-        });
+        })
 
         if (result.success) {
-            setPreviewCols(result.columns);
-            setPreviewData(result.data);
+            setPreviewCols(result.columns)
+            setPreviewData(result.data)
         } else {
-            setShowPreview(false);
-            Swal.fire('Error', result.error, 'error');
+            setShowPreview(false)
+            Swal.fire('Error', result.error, 'error')
         }
-        setIsLoadingPreview(false);
+        setIsLoadingPreview(false)
     }
 
     useEffect(() => { 
         load() 
-        const handleReactSwitch = (e) => handleSwitchPerfil(e.detail.id, e.detail.nombre);
-        const handleReactDelete = (e) => handleDeletePerfil(e.detail.id, e.detail.nombre);
-        const handleReactStats = (e) => handleShowStats(e.detail.filename, e.detail.nombre);
+        const handleReactSwitch = (e) => handleSwitchPerfil(e.detail.id, e.detail.nombre)
+        const handleReactDelete = (e) => handleDeletePerfil(e.detail.id, e.detail.nombre)
+        const handleReactStats = (e) => handleShowStats(e.detail.filename, e.detail.nombre)
         
-        window.addEventListener('react-switch-perfil', handleReactSwitch);
-        window.addEventListener('react-delete-perfil', handleReactDelete);
-        window.addEventListener('react-stats-perfil', handleReactStats);
+        window.addEventListener('react-switch-perfil', handleReactSwitch)
+        window.addEventListener('react-delete-perfil', handleReactDelete)
+        window.addEventListener('react-stats-perfil', handleReactStats)
         
         return () => {
-            window.removeEventListener('react-switch-perfil', handleReactSwitch);
-            window.removeEventListener('react-delete-perfil', handleReactDelete);
-            window.removeEventListener('react-stats-perfil', handleReactStats);
+            window.removeEventListener('react-switch-perfil', handleReactSwitch)
+            window.removeEventListener('react-delete-perfil', handleReactDelete)
+            window.removeEventListener('react-stats-perfil', handleReactStats)
         }
     }, [])
 
-    return (
-        <>
+    return <>
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h5 className="card-title p-0 m-0">Perfiles de Bases de Datos</h5>
@@ -183,19 +180,19 @@ export const Datos = () => {
                                 ? `<button class="btn btn-sm btn-light me-2" disabled>En uso</button>`
                                 : `<button class="btn btn-sm btn-primary text-white me-2" onclick="document.dispatchEvent(new CustomEvent('switch-perfil-action', {detail: {id: '${row.id}', nombre: '${row.nombre}'}}))" title="Cargar Perfil">
                                         <i class="bi bi-box-arrow-in-right"></i>
-                                   </button>`;
+                                   </button>`
                             
                             let infoBtn = `<button class="btn btn-sm btn-info text-white me-2" onclick="document.dispatchEvent(new CustomEvent('stats-perfil-action', {detail: {filename: '${row.filename}', nombre: '${row.nombre}'}}))" title="Información de la Base de Datos">
                                         <i class="bi bi-info-circle"></i>
-                                   </button>`;
+                                   </button>`
                             
                             let deleteBtn = (isMain || isActive)
                                 ? `<button class="btn btn-sm btn-secondary" disabled title="No se puede eliminar"><i class="bi bi-trash3"></i></button>`
                                 : `<button class="btn btn-sm btn-danger" onclick="document.dispatchEvent(new CustomEvent('delete-perfil-action', {detail: {id: '${row.id}', nombre: '${row.nombre}'}}))" title="Eliminar Base de Datos">
                                         <i class="bi bi-trash3"></i>
-                                   </button>`;
+                                   </button>`
 
-                            return switchBtn + infoBtn + deleteBtn;
+                            return switchBtn + infoBtn + deleteBtn
                         }
                     }
                 ]}
@@ -222,7 +219,7 @@ export const Datos = () => {
             </Modal>
 
             {/* Modal Estadísticas */}
-            <Modal show={showStatsModal} onHide={() => setShowStatsModal(false)} centered scrollable>
+            <Modal size="lg" show={showStatsModal} onHide={() => setShowStatsModal(false)} centered scrollable>
                 <Modal.Header closeButton className="bg-light">
                     <Modal.Title className="fs-5"><i className="bi bi-server me-2 text-primary"></i>Información de Datos</Modal.Title>
                 </Modal.Header>
@@ -257,14 +254,13 @@ export const Datos = () => {
                                             <td className="text-capitalize"><i className="bi bi-table me-2 text-muted"></i> {t.name}</td>
                                             <td className="text-center d-flex justify-content-end align-items-center gap-2">
                                                 <span className="badge bg-secondary rounded-pill">{t.rows}</span>
-                                                {/* NUEVO: Botón de previsualización al lado del contador de filas */}
                                                 <Button 
                                                     variant="outline-info" 
                                                     size="sm" 
                                                     className="py-0 px-2" 
                                                     title="Ver Contenido"
                                                     onClick={() => handleViewTableData(t.name)}
-                                                    disabled={t.rows === 0} // Deshabilitado si no hay datos
+                                                    disabled={t.rows === 0}
                                                 >
                                                     <i className="bi bi-eye-fill"></i>
                                                 </Button>
@@ -281,7 +277,6 @@ export const Datos = () => {
                 </Modal.Footer>
             </Modal>
 
-            {/* NUEVO: Modal de Previsualización que reutilizamos del componente de Importar */}
             <ModalPreviewTabla 
                 show={showPreview} 
                 onHide={() => setShowPreview(false)} 
@@ -289,16 +284,15 @@ export const Datos = () => {
                 isLoading={isLoadingPreview} 
                 columns={previewCols} 
                 data={previewData} 
-                totalRows={previewData.length} // Muestra que estás viendo una muestra
+                totalRows={previewData.length}
             />
         </>
-    );
 }
 
 // Registro global de eventos
 if (!window.perfilListenersRegistered) {
-    document.addEventListener('switch-perfil-action', (e) => window.dispatchEvent(new CustomEvent('react-switch-perfil', { detail: e.detail })));
-    document.addEventListener('delete-perfil-action', (e) => window.dispatchEvent(new CustomEvent('react-delete-perfil', { detail: e.detail })));
-    document.addEventListener('stats-perfil-action', (e) => window.dispatchEvent(new CustomEvent('react-stats-perfil', { detail: e.detail })));
-    window.perfilListenersRegistered = true;
+    document.addEventListener('switch-perfil-action', (e) => window.dispatchEvent(new CustomEvent('react-switch-perfil', { detail: e.detail })))
+    document.addEventListener('delete-perfil-action', (e) => window.dispatchEvent(new CustomEvent('react-delete-perfil', { detail: e.detail })))
+    document.addEventListener('stats-perfil-action', (e) => window.dispatchEvent(new CustomEvent('react-stats-perfil', { detail: e.detail })))
+    window.perfilListenersRegistered = true
 }

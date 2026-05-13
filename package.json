@@ -11,7 +11,8 @@
     "build:react": "vite build",
     "pack": "npm run build:react && electron-builder --dir",
     "dist": "npm run build:react && electron-builder",
-    "publish-app": "npm run build:react && electron-builder --publish always"
+    "publish-app": "npm run build:react && electron-builder --publish always",
+    "publish-linux": "npm run build:react && electron-builder --linux --publish always"
   },
   "dependencies": {
     "@fullcalendar/daygrid": "^6.1.20",
@@ -64,6 +65,14 @@
     "mac": {
       "target": "dmg",
       "icon": "assets/favicon.icns"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/favicon.png",
+      "category": "Office"
     }
   },
   "devDependencies": {

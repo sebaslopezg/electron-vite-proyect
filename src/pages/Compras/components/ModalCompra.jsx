@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import Swal from 'sweetalert2';
-import { Modal, Button, Form, Row, Col, Table } from 'react-bootstrap';
+import { useState, useEffect } from 'react'
+import Swal from 'sweetalert2'
+import { Modal, Button, Form, Row, Col, Table, ListGroup } from 'react-bootstrap'
 
 export const ModalCompra = ({ show, handleClose, onSuccess }) => {
     const [maestro, setMaestro] = useState({
@@ -8,28 +8,44 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
         numero_factura: '', fecha_factura: new Date().toISOString().split('T')[0], 
         fecha_vencimiento: new Date().toISOString().split('T')[0], concepto: '',
         tipo_pago: 'contado', descuento_global: 0
-    });
+    })
 
-    const [detalles, setDetalles] = useState([
-        { id: Date.now(), tipo_item: 'gasto', cuenta_puc_id: '', producto_id: '', descripcion: '', cantidad: 1, precio_unitario: '', iva_percent: 0 }
-    ]);
+    const rowInitialState = { 
+        id: Date.now(), tipo_item: 'gasto', 
+        cuenta_puc_id: '', cuenta_search: '', show_cuenta_results: false,
+        producto_id: '', producto_search: '', show_producto_results: false,
+        descripcion: '', cantidad: 1, precio_unitario: '', iva_percent: 0 
+    };
 
-    const [proveedores, setProveedores] = useState([]);
+    const [detalles, setDetalles] = useState([{ ...rowInitialState }]);
+
+    const [proveedoresTotales, setProveedoresTotales] = useState([]); 
+    const [busquedaProveedor, setBusquedaProveedor] = useState(''); 
+    const [resultadosProveedor, setResultadosProveedor] = useState([]); 
+    const [mostrarResultados, setMostrarResultados] = useState(false);
+
     const [cuentasPuc, setCuentasPuc] = useState([]);
     const [productos, setProductos] = useState([]);
 
     useEffect(() => {
         if (show) {
             cargarCatalogos();
-            setMaestro({ ...maestro, numero_factura: '', concepto: '', descuento_global: 0 });
-            setDetalles([{ id: Date.now(), tipo_item: 'gasto', cuenta_puc_id: '', producto_id: '', descripcion: '', cantidad: 1, precio_unitario: '', iva_percent: 0 }]);
+            setMaestro({ 
+                proveedor_id: '', documento_proveedor: '', nombre_proveedor: '', 
+                numero_factura: '', fecha_factura: new Date().toISOString().split('T')[0], 
+                fecha_vencimiento: new Date().toISOString().split('T')[0], concepto: '',
+                tipo_pago: 'contado', descuento_global: 0 
+            });
+            setDetalles([{ ...rowInitialState, id: Date.now() }]);
+            setBusquedaProveedor('');
+            setResultadosProveedor([]);
         }
     }, [show]);
 
     const cargarCatalogos = async () => {
         if (window.contaAPI && window.api) {
             const resTerceros = await window.contaAPI.getTerceros();
-            if (resTerceros.success) setProveedores(resTerceros.data);
+            if (resTerceros.success) setProveedoresTotales(resTerceros.data);
 
             const resCuentas = await window.contaAPI.getCuentasAuxiliares();
             if (resCuentas.success) setCuentasPuc(resCuentas.data);
@@ -39,22 +55,95 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
         }
     };
 
-    const handleProveedorChange = (e) => {
-        const prov = proveedores.find(p => p.id === e.target.value);
-        if (prov) {
-            setMaestro({ 
-                ...maestro, 
-                proveedor_id: prov.id, 
-                documento_proveedor: prov.numero_documento, 
-                nombre_proveedor: prov.tipo_persona === 'juridica' ? prov.razon_social : `${prov.nombres} ${prov.apellidos}` 
-            });
-        } else {
+    // ==========================================
+    // BUSCADOR PROVEEDORES
+    // ==========================================
+    const handleBuscarProveedor = (e) => {
+        const texto = e.target.value;
+        setBusquedaProveedor(texto);
+        
+        if (texto.trim() === '') {
+            setResultadosProveedor([]);
+            setMostrarResultados(false);
             setMaestro({ ...maestro, proveedor_id: '', documento_proveedor: '', nombre_proveedor: '' });
+            return;
         }
+
+        const textoLower = texto.toLowerCase();
+        const filtrados = proveedoresTotales.filter(p => {
+            const nombreCompleto = p.tipo_persona === 'juridica' ? p.razon_social : `${p.nombres || ''} ${p.apellidos || ''}`;
+            return (p.numero_documento && p.numero_documento.toLowerCase().includes(textoLower)) || 
+                   (nombreCompleto && nombreCompleto.toLowerCase().includes(textoLower));
+        }).slice(0, 10);
+
+        setResultadosProveedor(filtrados);
+        setMostrarResultados(true);
     };
 
+    const handleSeleccionarProveedor = (prov) => {
+        const nombreDisplay = prov.tipo_persona === 'juridica' ? prov.razon_social : `${prov.nombres || ''} ${prov.apellidos || ''}`;
+        setMaestro({ 
+            ...maestro, proveedor_id: prov.id, documento_proveedor: prov.numero_documento, nombre_proveedor: nombreDisplay 
+        });
+        setBusquedaProveedor(`${prov.numero_documento} - ${nombreDisplay}`);
+        setMostrarResultados(false);
+    };
+
+    // ==========================================
+    // BUSCADOR DE CUENTAS PUC (En las filas)
+    // ==========================================
+    const handleBuscarCuenta = (idFila, texto) => {
+        setDetalles(detalles.map(d => {
+            if (d.id === idFila) {
+                if (texto.trim() === '') return { ...d, cuenta_search: texto, show_cuenta_results: false, cuenta_puc_id: '' };
+                return { ...d, cuenta_search: texto, show_cuenta_results: true, cuenta_puc_id: '' };
+            }
+            return { ...d, show_cuenta_results: false }; // Cierra la lista en otras filas
+        }));
+    };
+
+    const handleSeleccionarCuenta = (idFila, cuenta) => {
+        setDetalles(detalles.map(d => {
+            if (d.id === idFila) {
+                return { ...d, cuenta_puc_id: cuenta.id, cuenta_search: `${cuenta.id} - ${cuenta.nombre}`, show_cuenta_results: false };
+            }
+            return d;
+        }));
+    };
+
+    // ==========================================
+    // BUSCADOR DE PRODUCTOS (En las filas)
+    // ==========================================
+    const handleBuscarProducto = (idFila, texto) => {
+        setDetalles(detalles.map(d => {
+            if (d.id === idFila) {
+                if (texto.trim() === '') return { ...d, producto_search: texto, show_producto_results: false, producto_id: '', descripcion: '' };
+                return { ...d, producto_search: texto, show_producto_results: true, producto_id: '', descripcion: '' };
+            }
+            return { ...d, show_producto_results: false };
+        }));
+    };
+
+    const handleSeleccionarProducto = (idFila, prod) => {
+        setDetalles(detalles.map(d => {
+            if (d.id === idFila) {
+                return { 
+                    ...d, 
+                    producto_id: prod.id, 
+                    producto_search: `${prod.sku} - ${prod.nombre_producto}`, 
+                    descripcion: prod.ref_name || prod.nombre_producto,
+                    show_producto_results: false 
+                };
+            }
+            return d;
+        }));
+    };
+
+    // ==========================================
+    // MANEJO DE LA TABLA
+    // ==========================================
     const handleAddRow = () => {
-        setDetalles([...detalles, { id: Date.now(), tipo_item: 'gasto', cuenta_puc_id: '', producto_id: '', descripcion: '', cantidad: 1, precio_unitario: '', iva_percent: 0 }]);
+        setDetalles([...detalles, { ...rowInitialState, id: Date.now() }]);
     };
 
     const handleRemoveRow = (id) => {
@@ -65,16 +154,15 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
     const handleChangeRow = (id, field, value) => {
         setDetalles(detalles.map(d => {
             if (d.id === id) {
-                const updated = { ...d, [field]: value }
-                if (field === 'producto_id') {
-                    const prod = productos.find(p => p.id === value)
-                    if (prod) updated.descripcion = prod.ref_name
+                // Si cambia el tipo de ítem, limpiamos las selecciones
+                if (field === 'tipo_item') {
+                    return { ...d, [field]: value, cuenta_puc_id: '', cuenta_search: '', producto_id: '', producto_search: '', descripcion: '' };
                 }
-                return updated
+                return { ...d, [field]: value };
             }
-            return d
-        }))
-    }
+            return d;
+        }));
+    };
 
     const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(val || 0);
 
@@ -89,18 +177,14 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!maestro.proveedor_id) return Swal.fire('Error', 'Seleccione un proveedor.', 'error');
-        if (detalles.some(d => d.tipo_item === 'gasto' && !d.cuenta_puc_id)) return Swal.fire('Error', 'Seleccione una cuenta contable para los gastos.', 'error');
-        if (detalles.some(d => d.tipo_item === 'inventario' && !d.producto_id)) return Swal.fire('Error', 'Seleccione el producto de inventario.', 'error');
+        if (!maestro.proveedor_id) return Swal.fire('Error', 'Debe buscar y seleccionar un proveedor válido.', 'error');
+        if (detalles.some(d => d.tipo_item === 'gasto' && !d.cuenta_puc_id)) return Swal.fire('Error', 'Seleccione una cuenta contable válida de la lista para los gastos.', 'error');
+        if (detalles.some(d => d.tipo_item === 'inventario' && !d.producto_id)) return Swal.fire('Error', 'Seleccione un producto de inventario válido de la lista.', 'error');
 
-        // Preparamos los datos
         const payload = {
             maestro: {
                 ...maestro,
-                subtotal,
-                descuento: descuentoTotal,
-                iva: ivaTotal,
-                total_factura: totalFactura,
+                subtotal, descuento: descuentoTotal, iva: ivaTotal, total_factura: totalFactura,
                 total_pagado: maestro.tipo_pago === 'contado' ? totalFactura : 0,
                 saldo_pendiente: maestro.tipo_pago === 'credito' ? totalFactura : 0,
                 estado: maestro.tipo_pago === 'contado' ? 'pagada' : 'pendiente'
@@ -127,20 +211,34 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5"><i className="bi bi-cart-check-fill me-2 text-success"></i>Registrar Factura de Compra / Gasto</Modal.Title>
             </Modal.Header>
-            <Modal.Body className="bg-light">
+            <Modal.Body className="bg-light pb-5">
                 <Form id="formCompra" onSubmit={handleSubmit}>
                     <div className="card shadow-sm mb-3">
                         <div className="card-body py-3">
                             <Row className="g-3">
-                                <Col md={4}>
+                                <Col md={4} className="position-relative">
                                     <Form.Group>
-                                        <Form.Label className="fw-bold small mb-1">Proveedor (Tercero)</Form.Label>
-                                        <Form.Select size="sm" value={maestro.proveedor_id} onChange={handleProveedorChange} required>
-                                            <option value="">Seleccione...</option>
-                                            {proveedores.map(p => (
-                                                <option key={p.id} value={p.id}>{p.numero_documento} - {p.tipo_persona === 'juridica' ? p.razon_social : `${p.nombres} ${p.apellidos}`}</option>
-                                            ))}
-                                        </Form.Select>
+                                        <Form.Label className="fw-bold small mb-1">Proveedor (NIT o Nombre) <span className="text-danger">*</span></Form.Label>
+                                        <Form.Control 
+                                            type="text" size="sm" placeholder="Escriba para buscar proveedor..." 
+                                            value={busquedaProveedor} onChange={handleBuscarProveedor} autoComplete="off"
+                                            className={maestro.proveedor_id ? "border-success bg-light text-success fw-bold" : "border-primary"}
+                                        />
+                                        {mostrarResultados && resultadosProveedor.length > 0 && (
+                                            <ListGroup className="position-absolute w-100 shadow" style={{zIndex: 1000, maxHeight: '200px', overflowY: 'auto', top: '100%'}}>
+                                                {resultadosProveedor.map(p => (
+                                                    <ListGroup.Item key={p.id} action onClick={() => handleSeleccionarProveedor(p)} className="py-1 px-2 small border-bottom">
+                                                        <strong>{p.numero_documento}</strong> <br/>
+                                                        <span className="text-muted">{p.tipo_persona === 'juridica' ? p.razon_social : `${p.nombres || ''} ${p.apellidos || ''}`}</span>
+                                                    </ListGroup.Item>
+                                                ))}
+                                            </ListGroup>
+                                        )}
+                                        {mostrarResultados && busquedaProveedor.length > 0 && resultadosProveedor.length === 0 && (
+                                            <ListGroup className="position-absolute w-100 shadow" style={{zIndex: 1000, top: '100%'}}>
+                                                <ListGroup.Item className="py-2 text-center text-muted small">No se encontraron resultados.</ListGroup.Item>
+                                            </ListGroup>
+                                        )}
                                     </Form.Group>
                                 </Col>
                                 <Col md={2}>
@@ -182,12 +280,12 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
 
                     <div className="card shadow-sm">
                         <div className="card-body p-0">
-                            <Table responsive hover size="sm" className="mb-0 align-middle">
+                            <Table responsive hover size="sm" className="mb-0 align-middle pb-5" style={{overflow: 'visible'}}>
                                 <thead className="table-dark">
                                     <tr>
                                         <th width="12%">Destino</th>
-                                        <th width="20%">Cuenta o Producto</th>
-                                        <th width="25%">Descripción del ítem</th>
+                                        <th width="22%">Cuenta o Producto</th>
+                                        <th width="23%">Descripción del ítem</th>
                                         <th width="8%">Cant.</th>
                                         <th width="12%">V. Unitario</th>
                                         <th width="8%">IVA %</th>
@@ -204,17 +302,52 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
                                                     <option value="inventario">Inventario</option>
                                                 </Form.Select>
                                             </td>
-                                            <td>
+                                            {/* COLUMNA OPTIMIZADA CON AUTOCOMPLETADO */}
+                                            <td className="position-relative">
                                                 {row.tipo_item === 'gasto' ? (
-                                                    <Form.Select size="sm" value={row.cuenta_puc_id} onChange={(e) => handleChangeRow(row.id, 'cuenta_puc_id', e.target.value)} required>
-                                                        <option value="">Seleccione cuenta...</option>
-                                                        {cuentasPuc.map(c => <option key={c.id} value={c.id}>{c.id} - {c.nombre}</option>)}
-                                                    </Form.Select>
+                                                    <>
+                                                        <Form.Control 
+                                                            type="text" size="sm" placeholder="Buscar código o cuenta..." 
+                                                            value={row.cuenta_search} onChange={(e) => handleBuscarCuenta(row.id, e.target.value)} 
+                                                            autoComplete="off"
+                                                            className={row.cuenta_puc_id ? "border-success bg-light text-success fw-bold" : "border-primary"}
+                                                        />
+                                                        {row.show_cuenta_results && row.cuenta_search && (
+                                                            <ListGroup className="position-absolute shadow w-100" style={{zIndex: 1050, maxHeight: '160px', overflowY: 'auto', top: '100%', left: 0}}>
+                                                                {cuentasPuc
+                                                                    .filter(c => String(c.id).includes(row.cuenta_search) || c.nombre.toLowerCase().includes(row.cuenta_search.toLowerCase()))
+                                                                    .slice(0, 10)
+                                                                    .map(c => (
+                                                                        <ListGroup.Item key={c.id} action onClick={() => handleSeleccionarCuenta(row.id, c)} className="py-1 px-2 small border-bottom">
+                                                                            <strong>{c.id}</strong> - {c.nombre}
+                                                                        </ListGroup.Item>
+                                                                    ))
+                                                                }
+                                                            </ListGroup>
+                                                        )}
+                                                    </>
                                                 ) : (
-                                                    <Form.Select size="sm" value={row.producto_id} onChange={(e) => handleChangeRow(row.id, 'producto_id', e.target.value)} required>
-                                                        <option value="">Seleccione producto...</option>
-                                                        {productos.map(p => <option key={p.id} value={p.id}>{p.sku} - {p.nombre_producto}</option>)}
-                                                    </Form.Select>
+                                                    <>
+                                                        <Form.Control 
+                                                            type="text" size="sm" placeholder="Buscar código o producto..." 
+                                                            value={row.producto_search} onChange={(e) => handleBuscarProducto(row.id, e.target.value)} 
+                                                            autoComplete="off"
+                                                            className={row.producto_id ? "border-success bg-light text-success fw-bold" : "border-primary"}
+                                                        />
+                                                        {row.show_producto_results && row.producto_search && (
+                                                            <ListGroup className="position-absolute shadow w-100" style={{zIndex: 1050, maxHeight: '160px', overflowY: 'auto', top: '100%', left: 0}}>
+                                                                {productos
+                                                                    .filter(p => p.sku?.toLowerCase().includes(row.producto_search.toLowerCase()) || p.nombre_producto?.toLowerCase().includes(row.producto_search.toLowerCase()))
+                                                                    .slice(0, 10)
+                                                                    .map(p => (
+                                                                        <ListGroup.Item key={p.id} action onClick={() => handleSeleccionarProducto(row.id, p)} className="py-1 px-2 small border-bottom">
+                                                                            <strong>{p.sku}</strong> - {p.nombre_producto}
+                                                                        </ListGroup.Item>
+                                                                    ))
+                                                                }
+                                                            </ListGroup>
+                                                        )}
+                                                    </>
                                                 )}
                                             </td>
                                             <td><Form.Control size="sm" type="text" value={row.descripcion} onChange={(e) => handleChangeRow(row.id, 'descripcion', e.target.value)} required /></td>
@@ -229,14 +362,14 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
                                     ))}
                                 </tbody>
                             </Table>
-                            <div className="p-2 border-top bg-white">
+                            <div className="p-2 border-top bg-white rounded-bottom">
                                 <Button variant="outline-primary" size="sm" onClick={handleAddRow}><i className="bi bi-plus-lg me-1"></i> Agregar Ítem</Button>
                             </div>
                         </div>
                     </div>
                 </Form>
             </Modal.Body>
-            <Modal.Footer className="bg-light d-flex justify-content-between">
+            <Modal.Footer className="bg-light d-flex justify-content-between position-relative z-3">
                 <div className="d-flex gap-4">
                     <div><span className="text-muted small d-block">Subtotal</span><strong className="fs-6">{formatMoney(subtotal)}</strong></div>
                     <div><span className="text-muted small d-block">IVA</span><strong className="fs-6">{formatMoney(ivaTotal)}</strong></div>
