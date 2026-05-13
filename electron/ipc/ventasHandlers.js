@@ -94,11 +94,12 @@ export const registerVentasHandlers = () => {
             const stmt = db.prepare(`
                 SELECT df.*, 
                     p.sku, 
-                    c.sku_prefix, 
-                    c.separador
+                    (IFNULL(c.sku_prefix, '') || IFNULL(s.sku_prefix, '')) as sku_prefix,
+                    COALESCE(NULLIF(s.separador, ''), NULLIF(c.separador, ''), '') as separador
                 FROM ventasDetalle df
                 LEFT JOIN producto p ON df.id_producto = p.id
                 LEFT JOIN categoria c ON p.categoria_id = c.id
+                LEFT JOIN subcategoria s ON p.subcategoria_id = s.id
                 WHERE df.maestro_id = ?
             `)
             const detalles = stmt.all(facturaId)

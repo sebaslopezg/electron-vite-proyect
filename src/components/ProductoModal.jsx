@@ -4,7 +4,7 @@ import Form from 'react-bootstrap/Form'
 import InputGroup from 'react-bootstrap/InputGroup'
 import { Row, Col } from 'react-bootstrap'
 
-export default function ProductModal({ show, handleClose, handleSubmit, form, setForm, editingId, categorias = [], etiquetas = [] }) {
+export default function ProductModal({ show, handleClose, handleSubmit, form, setForm, editingId, categorias = [], subcategorias = [], etiquetas = [] }) {
     
     const getContrastText = (hexcolor) => {
         if (!hexcolor) return '#000000';
@@ -22,9 +22,29 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
         return catIds.includes(form.categoria_id);
     });
 
+    const selectedSubIds = form.subcategorias_ids || [];
     const selectedCategory = categorias.find(cat => cat.id === form.categoria_id);
-    const skuPrefix = selectedCategory?.sku_prefix;
-    const skuSeparator = selectedCategory?.separador || '';
+    
+    // --- LÓGICA DE CONCATENACIÓN PERFECTA ---
+    let combinedPrefix = selectedCategory?.sku_prefix || '';
+    let currentSeparator = selectedCategory?.separador || '';
+
+    selectedSubIds.forEach(id => {
+        const sub = subcategorias.find(s => s.id === id);
+        if (sub && sub.sku_prefix) {
+            if (combinedPrefix) {
+                // Si ya existe un prefijo previo, agregamos el separador antes del nuevo
+                combinedPrefix += `${currentSeparator}${sub.sku_prefix}`;
+            } else {
+                combinedPrefix = sub.sku_prefix;
+            }
+            // Actualizamos el separador actual para el siguiente ciclo o el final
+            if (sub.separador !== undefined && sub.separador !== null) {
+                currentSeparator = sub.separador;
+            }
+        }
+    });
+    // ----------------------------------------
 
     const handleTagToggle = (tagId) => {
         setForm(prev => {
@@ -37,6 +57,22 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
         });
     };
 
+    const addSubcategoriaRow = () => {
+        setForm({ ...form, subcategorias_ids: [...selectedSubIds, ''] });
+    }
+
+    const removeSubcategoriaRow = (index) => {
+        const newIds = [...selectedSubIds];
+        newIds.splice(index, 1);
+        setForm({ ...form, subcategorias_ids: newIds });
+    }
+
+    const updateSubcategoriaId = (index, value) => {
+        const newIds = [...selectedSubIds];
+        newIds[index] = value;
+        setForm({ ...form, subcategorias_ids: newIds });
+    }
+
     return (
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton>
@@ -44,7 +80,6 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
             </Modal.Header>
             <Modal.Body>
                 <Form onSubmit={handleSubmit} id="productoForm">
-                    
                     <Row className="mb-3">
                         <Col md={6}>
                             <Form.Group>
@@ -57,26 +92,71 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                         </Col>
                         <Col md={6}>
                             <Form.Group>
-                                <Form.Label>Categoría</Form.Label>
-                                <Form.Select value={form.categoria_id} onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}>
+                                <Form.Label>Categoría Principal</Form.Label>
+                                <Form.Select 
+                                    value={form.categoria_id} 
+                                    onChange={(e) => setForm({ ...form, categoria_id: e.target.value, subcategorias_ids: [] })}
+                                >
                                     {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                                 </Form.Select>
                             </Form.Group>
                         </Col>
                     </Row>
 
+                    <div className="bg-light p-3 border rounded mb-3">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <Form.Label className="fw-bold m-0 text-primary">Subcategorías Anidadas</Form.Label>
+                            <Button variant="outline-primary" size="sm" onClick={addSubcategoriaRow} disabled={!form.categoria_id}>
+                                <i className="bi bi-plus-circle me-1"></i> Añadir Nivel
+                            </Button>
+                        </div>
+                        {selectedSubIds.length === 0 && <span className="text-muted small">No hay subcategorías asignadas.</span>}
+                        {selectedSubIds.map((subId, index) => (
+                            <Row key={index} className="mb-2 animate__animated animate__fadeIn">
+                                <Col md={10}>
+                                    <InputGroup size="sm">
+                                        <InputGroup.Text className="bg-white text-muted">Nivel {index + 1}</InputGroup.Text>
+                                        <Form.Select 
+                                            value={subId} 
+                                            onChange={(e) => updateSubcategoriaId(index, e.target.value)}
+                                        >
+                                            <option value="">Seleccione subcategoría...</option>
+                                            {subcategorias
+                                                .filter(s => s.categoria_id === form.categoria_id)
+                                                .map(s => <option key={s.id} value={s.id}>{s.nombre} ({s.sku_prefix})</option>)
+                                            }
+                                        </Form.Select>
+                                    </InputGroup>
+                                </Col>
+                                <Col md={2}>
+                                    <Button variant="outline-danger" size="sm" onClick={() => removeSubcategoriaRow(index)} className="w-100">
+                                        <i className="bi bi-trash"></i>
+                                    </Button>
+                                </Col>
+                            </Row>
+                        ))}
+                    </div>
+
                     <Row className="mb-3">
                         <Col md={6}>
                             <Form.Group>
-                                <Form.Label>Código SKU</Form.Label>
+                                <Form.Label className="fw-bold text-primary">Código SKU Final</Form.Label>
                                 <InputGroup>
-                                    {skuPrefix && <InputGroup.Text>{skuPrefix}{skuSeparator}</InputGroup.Text>}
+                                    {combinedPrefix && (
+                                        <InputGroup.Text className="bg-primary text-white border-primary fw-bold">
+                                            {combinedPrefix}{currentSeparator}
+                                        </InputGroup.Text>
+                                    )}
                                     <Form.Control 
                                         value={form.sku} 
                                         onChange={(e) => setForm({ ...form, sku: e.target.value })} 
                                         style={{ textTransform: 'uppercase' }} 
+                                        placeholder="Código correlativo..."
                                     />
                                 </InputGroup>
+                                <Form.Text className="text-muted">
+                                    El código resultante será: <strong>{combinedPrefix}{currentSeparator}{form.sku.toUpperCase()}</strong>
+                                </Form.Text>
                             </Form.Group>
                         </Col>
                         <Col md={6}>
@@ -102,7 +182,6 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                         </Col>
                     </Row>
 
-                    {/* BLOQUE DE INVENTARIO Y ENCARGOS */}
                     {form.tipo === 'producto' && (
                         <div className="bg-light p-3 border rounded mb-3">
                             <h6 className="fw-bold mb-3 text-primary border-bottom pb-2">Control de Inventario y Encargos</h6>

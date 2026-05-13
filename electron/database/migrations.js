@@ -21,6 +21,7 @@ import { runV1Comprobantes } from './tables/comprobantes.js'
 import { runV1ComprobantesDetalle } from './tables/comprobantesDetalle.js'
 import { runV1ConfiguracionContable } from './tables/configuracionContable.js'
 import { runV1Compras } from './tables/compras.js'
+import { runV1Subcategorias } from './tables/subcategorias.js'
 import { runV2ConfiguracionContable } from './tables/configuracionContable.js'
 
 const migrations = [
@@ -105,6 +106,28 @@ const migrations = [
             try {
                 db.exec(`ALTER TABLE producto ADD COLUMN allow_encargo INTEGER DEFAULT 1;`)
                 db.exec(`ALTER TABLE producto ADD COLUMN encargo_solo_sin_stock INTEGER DEFAULT 1;`)
+            } catch (error) {
+                if (!error.message.includes('duplicate column name')) throw error
+            }
+        }
+    },
+    {
+        version: 11,
+        up: () => {
+            runV1Subcategorias()
+            try {
+                db.exec(`ALTER TABLE producto ADD COLUMN subcategoria_id TEXT;`)
+            } catch (error) {
+                if (!error.message.includes('duplicate column name')) throw error
+            }
+        }
+    },
+    {
+        version: 12,
+        up: () => {
+            console.log("Applying migration V12: Soporte para múltiples subcategorías")
+            try {
+                db.exec(`ALTER TABLE producto ADD COLUMN subcategorias_ids_json TEXT;`)
             } catch (error) {
                 if (!error.message.includes('duplicate column name')) throw error
             }

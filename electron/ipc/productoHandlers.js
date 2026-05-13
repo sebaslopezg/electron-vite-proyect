@@ -4,11 +4,34 @@ import db from "../database/index.js"
 
 export const registerProductoHandlers = () => {
 
+  const processProductPrefixes = (data) => {
+    return data.map(p => {
+        let fullPrefix = p.cat_prefix || ''; 
+        let finalSeparator = p.cat_separador || '';
+        
+        const subIds = p.subcategorias_ids_json ? JSON.parse(p.subcategorias_ids_json) : [];
+        
+        if (subIds.length > 0) {
+            const placeholders = subIds.map(() => '?').join(',');
+            const subs = db.prepare(`SELECT sku_prefix, separador FROM subcategoria WHERE id IN (${placeholders})`).all(...subIds);
+            
+            subs.forEach(s => {
+                fullPrefix += (s.sku_prefix || '');
+                if (s.separador) finalSeparator = s.separador; 
+            });
+        }
+
+        return { ...p, sku_prefix: fullPrefix, separador: finalSeparator };
+    });
+  }
+
   ipcMain.handle("get-productos", () => {
     try {
       const stmt = db.prepare(`
         SELECT p.*,
           c.nombre as categoria_nombre,
+          c.sku_prefix as cat_prefix,
+          c.separador as cat_separador,
           GROUP_CONCAT(pe.etiqueta_id, ',') as etiquetas_ids
         FROM producto p
         LEFT JOIN categoria c ON p.categoria_id = c.id
@@ -16,7 +39,8 @@ export const registerProductoHandlers = () => {
         WHERE p.status > 0 AND p.tipo = 'producto'
         GROUP BY p.id
       `)
-      return stmt.all()
+      const data = stmt.all();
+      return processProductPrefixes(data);
     } catch (error) {
       console.error("Error al intentar obtener productos:", error)
       return []
@@ -74,7 +98,7 @@ export const registerProductoHandlers = () => {
       const dataQuery = `
         SELECT p.*,
                c.nombre as categoria_nombre,
-               c.sku_prefix, c.separador,
+               c.sku_prefix as cat_prefix, c.separador as cat_separador,
                (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
         ${baseQuery}
         ORDER BY ${orderCol} ${orderDir} 
@@ -82,12 +106,13 @@ export const registerProductoHandlers = () => {
       `;
       
       const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+      const processedData = processProductPrefixes(data);
 
       return {
           draw: dtParams.draw,
           recordsTotal: recordsTotal,
           recordsFiltered: recordsFiltered,
-          data: data
+          data: processedData
       };
     } catch (error) {
         console.error("Error en paginación de productos: ", error);
@@ -128,19 +153,20 @@ export const registerProductoHandlers = () => {
       const recordsFiltered = filteredRow.count;
 
       const dataQuery = `
-        SELECT p.*, c.sku_prefix, c.separador
+        SELECT p.*, c.sku_prefix as cat_prefix, c.separador as cat_separador
         ${baseQuery}
         ORDER BY ${orderCol} ${orderDir} 
         LIMIT ? OFFSET ?
       `;
           
       const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+      const processedData = processProductPrefixes(data);
 
       return {
         draw: dtParams.draw,
         recordsTotal: recordsTotal,
         recordsFiltered: recordsFiltered,
-        data: data
+        data: processedData
       };
     } catch (error) {
       console.error("Error en paginación de servicios: ", error);
@@ -160,12 +186,13 @@ export const registerProductoHandlers = () => {
   ipcMain.handle("get-allProductos", () => {
     try {
       const stmt = db.prepare(`
-        SELECT p.*, c.sku_prefix, c.separador 
+        SELECT p.*, c.sku_prefix as cat_prefix, c.separador as cat_separador
         FROM producto p
         LEFT JOIN categoria c ON p.categoria_id = c.id
         WHERE p.status > 0
       `)
-      return stmt.all()
+      const data = stmt.all();
+      return processProductPrefixes(data);
     } catch (error) {
       console.error("Error getAllProductos:", error);
       return []
@@ -181,12 +208,12 @@ export const registerProductoHandlers = () => {
       db.prepare(`
         INSERT INTO producto (
           id, ref_name, sku, precio, tipo, allow_negative, stock, 
-          min_stock, max_stock, categoria_id, iva, unidad_medida, descripcion, 
+          min_stock, max_stock, categoria_id, subcategorias_ids_json, iva, unidad_medida, descripcion, 
           allow_encargo, encargo_solo_sin_stock,
           status, date_created, date_modify
         ) VALUES (
           @id, @ref_name, @sku, @precio, @tipo, @allow_negative, @stock, 
-          @min_stock, @max_stock, @categoria_id, @iva, @unidad_medida, @descripcion, 
+          @min_stock, @max_stock, @categoria_id, @subcategorias_ids_json, @iva, @unidad_medida, @descripcion, 
           @allow_encargo, @encargo_solo_sin_stock,
           @status, @date_created, @date_modify
         )
@@ -199,6 +226,7 @@ export const registerProductoHandlers = () => {
         min_stock: data.min_stock || 5,
         max_stock: data.max_stock || 100,
         categoria_id: data.categoria_id || 'general',
+        subcategorias_ids_json: JSON.stringify(data.subcategorias_ids || []),
         allow_encargo: data.allow_encargo !== undefined ? data.allow_encargo : 1,
         encargo_solo_sin_stock: data.encargo_solo_sin_stock !== undefined ? data.encargo_solo_sin_stock : 1
       })
@@ -244,6 +272,7 @@ export const registerProductoHandlers = () => {
           ref_name = @ref_name, sku = @sku, precio = @precio, tipo = @tipo,
           allow_negative = @allow_negative, stock = @stock, 
           min_stock = @min_stock, max_stock = @max_stock, categoria_id = @categoria_id,
+          subcategorias_ids_json = @subcategorias_ids_json,
           iva = @iva, unidad_medida = @unidad_medida, descripcion = @descripcion,
           allow_encargo = @allow_encargo, encargo_solo_sin_stock = @encargo_solo_sin_stock,
           date_modify = @date_modify, status = @status
@@ -255,6 +284,7 @@ export const registerProductoHandlers = () => {
         min_stock: data.min_stock || 5,
         max_stock: data.max_stock || 100,
         categoria_id: data.categoria_id || 'general',
+        subcategorias_ids_json: JSON.stringify(data.subcategorias_ids || []),
         allow_encargo: data.allow_encargo !== undefined ? data.allow_encargo : 1,
         encargo_solo_sin_stock: data.encargo_solo_sin_stock !== undefined ? data.encargo_solo_sin_stock : 1
       })

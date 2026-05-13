@@ -123,6 +123,12 @@ contextBridge.exposeInMainWorld("api", {
 
   // Exportación de Datos
   exportDatabase: () => ipcRenderer.invoke('export-db'),
+
+  // Subcategorias
+  getSubcategorias: () => ipcRenderer.invoke("get-subcategorias"),
+  addSubcategoria: (item) => ipcRenderer.invoke("add-subcategoria", item),
+  updateSubcategoria: (item) => ipcRenderer.invoke("update-subcategoria", item),
+  deleteSubcategoria: (id) => ipcRenderer.invoke("delete-subcategoria", id),
 })
 
   //contabilidad

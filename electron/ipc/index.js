@@ -17,6 +17,7 @@ import { registerUpdaterHandlers } from "./updaterHandlers.js"
 import { registerContabilidadHandlers } from "./contabilidadHandlers.js"
 import { registerTercerosHandlers } from "./tercerosHandlers.js"
 import { registerComprasHandlers } from './comprasHandlers.js'
+import { registerSubcategoriaHandlers } from "./subcategoriaHandlers.js"
 
 export const registerAllHandlers = () => {
   registerProductoHandlers()
@@ -38,4 +39,5 @@ export const registerAllHandlers = () => {
   registerContabilidadHandlers()
   registerTercerosHandlers()
   registerComprasHandlers()
+  registerSubcategoriaHandlers()
 }
