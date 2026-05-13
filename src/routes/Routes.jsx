@@ -1,14 +1,13 @@
 import { Routes, Route } from 'react-router-dom'
 import { Ventas } from '../pages/ventas'
 import { Inventario } from '../pages/inventario'
-import { Clientes } from '../pages/Clientes'
-//import { Configuracion } from '../pages/Configuracion'
-import { ConfiguracionIndex as Configuracion } from '../pages/Configuracion/index';
-import { Bitacoras } from '../pages/Bitacoras'
-import { ProductosIndex } from '../pages/Productos'
+import { Clientes } from '../pages/clientes'
+import { ConfiguracionIndex as Configuracion } from '../pages/configuracion/index';
+//import { Bitacoras } from '../pages/Bitacoras'
+import { ProductosIndex } from '../pages/productos'
 import { IndexEncargos } from '../pages/encargos/index'
 import { Cartera } from '../pages/cartera/index';
-import { ContabilidadIndex } from '../pages/Contabilidad';
+import { ContabilidadIndex } from '../pages/contabilidad';
 import { Compras } from '../pages/compras';
 
 export const MainRoutes = () => {

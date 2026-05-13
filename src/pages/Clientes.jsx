@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../components/DataTableComponent'
-import { ModalTercero } from './Contabilidad/components/ModalTercero'
+import { ModalTercero } from './contabilidad/components/ModalTercero'
 
 export const Clientes = () => {
     const [showModal, setShowModal] = useState(false)

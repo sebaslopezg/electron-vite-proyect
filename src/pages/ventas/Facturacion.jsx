@@ -5,7 +5,7 @@ import { Button, InputGroup, Form, Row, Col } from 'react-bootstrap'
 import Modal from 'react-bootstrap/Modal'
 import { ImpresorFactura } from './components/ImpresorFactura'
 import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
-import { ModalTercero } from '../Contabilidad/components/ModalTercero'
+import { ModalTercero } from '../contabilidad/components/ModalTercero'
 
 export const Facturacion = () => {
   const [productos, setProductos] = useState([])
