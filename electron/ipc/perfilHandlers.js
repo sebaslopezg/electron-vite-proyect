@@ -81,7 +81,6 @@ export const registerPerfilHandlers = () => {
         }
     })
 
-    // --- NUEVO: Obtener estadísticas de la Base de Datos ---
     ipcMain.handle("get-perfil-stats", (_, filename) => {
         try {
             const dbPath = path.join(app.getPath("userData"), "app2", filename);
@@ -90,17 +89,13 @@ export const registerPerfilHandlers = () => {
                 return { success: false, error: "El archivo físico de la base de datos no existe." };
             }
 
-            // 1. Obtener tamaño del archivo
             const stats = fs.statSync(dbPath);
             const sizeFormatted = formatBytes(stats.size);
 
-            // 2. Abrir conexión temporal en modo solo lectura
             const tempDb = new Database(dbPath, { readonly: true });
             
-            // 3. Buscar todas las tablas (ignorando las del sistema interno de sqlite)
             const tables = tempDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
             
-            // 4. Contar las filas de cada tabla
             const tableStats = tables.map(t => {
                 const countRow = tempDb.prepare(`SELECT COUNT(*) as count FROM ${t.name}`).get();
                 return {
@@ -109,13 +104,36 @@ export const registerPerfilHandlers = () => {
                 };
             });
 
-            tempDb.close(); // Cerrar conexión temporal
+            tempDb.close()
 
             return { 
                 success: true, 
                 size: sizeFormatted, 
                 tables: tableStats 
             };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    })
+
+    ipcMain.handle("get-perfil-table-data", (_, { filename, tableName }) => {
+        try {
+            const dbPath = path.join(app.getPath("userData"), "app2", filename);
+            
+            if (!fs.existsSync(dbPath)) {
+                return { success: false, error: "El archivo de la base de datos no existe." };
+            }
+
+            const tempDb = new Database(dbPath, { readonly: true });
+            
+            const colInfo = tempDb.prepare(`PRAGMA table_info(${tableName})`).all();
+            const columns = colInfo.map(c => c.name);
+            
+            const data = tempDb.prepare(`SELECT * FROM ${tableName} LIMIT 200`).all();
+            
+            tempDb.close();
+
+            return { success: true, columns, data };
         } catch (error) {
             return { success: false, error: error.message };
         }

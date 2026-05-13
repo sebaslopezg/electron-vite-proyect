@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld("api", {
   switchPerfil: (id) => ipcRenderer.invoke("switch-perfil", id),
   deletePerfil: (id) => ipcRenderer.invoke("delete-perfil", id),
   getPerfilStats: (filename) => ipcRenderer.invoke("get-perfil-stats", filename),
+  getPerfilTableData: (data) => ipcRenderer.invoke("get-perfil-table-data", data),
 
   //conf almacen
   getAllConfAlmacen: () => ipcRenderer.invoke("getAll-almacenConf"),

@@ -107,51 +107,61 @@ export const Importar = () => {
         }
     }, [consoleLogs]);
 
-    // Nueva función para manejar la selección según el tipo
     const handleFileSelect = async (type) => {
-        setFileType(type); // Guardamos el tipo de archivo seleccionado
+        setFileType(type); 
 
         let fileResult;
         if (type === 'csv') {
             fileResult = await window.api.selectCsvFile();
         } else {
-            fileResult = await window.api.selectDbFile(); // Usa la función original de SQL
+            fileResult = await window.api.selectDbFile(); 
         }
 
         if (fileResult.canceled) {
-            setFileType(null); // Reseteamos si cancela
+            setFileType(null); 
             return;
         }
 
         setFilePath(fileResult.filePath);
-        Swal.fire({ title: 'Leyendo archivo...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        let res;
-        if (type === 'csv') {
-            res = await window.api.readCsvFile(fileResult.filePath);
-        } else {
-            res = await window.api.readExternalDb(fileResult.filePath); // Usa la función original de SQL
-        }
+        // 1. ABRIMOS LA CONSOLA EN LUGAR DEL SWAL DE CARGA INFINITA
+        setConsoleLogs([`[SISTEMA] Iniciando lectura de archivo ${type.toUpperCase()}...`]);
+        setShowConsole(true);
         
-        Swal.close();
-        
-        if (res.success) {
+        try {
+            let res;
             if (type === 'csv') {
-                // TRUCO CSV
-                setExternalSchema({ "Datos_CSV": res.columns });
-                setSourceTable("Datos_CSV");
-                setPreviewCols(res.columns);
-                setPreviewData(res.data); 
-                setPreviewTotalRows(res.totalRows);
+                res = await window.api.readCsvFile(fileResult.filePath);
             } else {
-                // FLUJO NORMAL SQL
-                if (res.newPath) setFilePath(res.newPath);
-                setExternalSchema(res.schema || {});
+                res = await window.api.readExternalDb(fileResult.filePath); 
             }
-            setStep(2);
-        } else {
-            setFileType(null);
-            Swal.fire('Error', res.error, 'error');
+            
+            if (res.success) {
+                setConsoleLogs(prev => [...prev, `[SISTEMA] ✅ Lectura completada. Pasando al siguiente paso...`]);
+                
+                // 2. PAUSA CORTA PARA QUE SE VEA EL MENSAJE DE ÉXITO ANTES DE CERRAR
+                setTimeout(() => {
+                    setShowConsole(false);
+                    if (type === 'csv') {
+                        setExternalSchema({ "Datos_CSV": res.columns });
+                        setSourceTable("Datos_CSV");
+                        setPreviewCols(res.columns);
+                        setPreviewData(res.data); 
+                        setPreviewTotalRows(res.totalRows);
+                    } else {
+                        if (res.newPath) setFilePath(res.newPath);
+                        setExternalSchema(res.schema || {});
+                    }
+                    setStep(2);
+                }, 1500);
+
+            } else {
+                setFileType(null);
+                setConsoleLogs(prev => [...prev, `[SISTEMA] ❌ ERROR: ${res.error}`]);
+                // No cerramos la consola si hay error para que el usuario lo lea
+            }
+        } catch (err) {
+             setConsoleLogs(prev => [...prev, `[SISTEMA] ❌ ERROR CRÍTICO de conexión.`]);
         }
     };
 

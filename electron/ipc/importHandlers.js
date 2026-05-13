@@ -86,8 +86,10 @@ export const registerImportHandlers = () => {
         return { canceled: false, filePath, sizeBytes: stats.size, sizeFormatted: formatBytes(stats.size) };
     });
 
-    // Lector de CSV
-    ipcMain.handle("read-csv-file", async (_, filePath) => {
+    ipcMain.handle("read-csv-file", async (event, filePath) => {
+        const sendLog = (msg) => { if (event && event.sender) event.sender.send('import-log', msg); };
+        sendLog(`[CSV] >> Abriendo flujo de lectura de archivo...`);
+
         return new Promise((resolve) => {
             const previewData = [];
             let columns = [];
@@ -96,23 +98,31 @@ export const registerImportHandlers = () => {
             fs.createReadStream(filePath)
                 .pipe(csv())
                 .on('headers', (headers) => {
-                    columns = headers
+                    columns = headers;
+                    sendLog(`[CSV] 🔍 Columnas detectadas: ${columns.length}`);
                 })
                 .on('data', (data) => {
                     totalRows++;
                     if (totalRows <= 50) {
                         previewData.push(data);
                     }
+                    if (totalRows > 0 && totalRows % 10000 === 0) {
+                        sendLog(`[CSV] Contando registros: ${totalRows} filas procesadas...`);
+                    }
                 })
                 .on('end', () => {
+                    sendLog(`[CSV] >> Archivo pre-cargado. Total exacto: ${totalRows} filas.`);
                     resolve({ 
                         success: true, 
                         columns: columns, 
-                        data: previewData, // Solo viajan 50 filas, la app no se congela
+                        data: previewData, 
                         totalRows: totalRows 
                     });
                 })
-                .on('error', (error) => resolve({ success: false, error: error.message }));
+                .on('error', (error) => {
+                    sendLog(`[CSV] X Error leyendo el archivo: ${error.message}`);
+                    resolve({ success: false, error: error.message });
+                });
         });
     });
 
@@ -260,7 +270,9 @@ export const registerImportHandlers = () => {
         }
     });
 
-    ipcMain.handle("read-external-db", (_, filePath) => {
+    ipcMain.handle("read-external-db", async (event, filePath) => {
+        const sendLog = (msg) => { if (event && event.sender) event.sender.send('import-log', msg); };
+
         try {
             if (!filePath) return { success: false, error: "La ruta del archivo es inválida." };
 
@@ -268,14 +280,27 @@ export const registerImportHandlers = () => {
             let isTempFile = false;
 
             if (filePath.toLowerCase().endsWith('.sql')) {
+                sendLog(`[SQL] >> Archivo SQL detectado. Leyendo contenido completo...`);
+                // Pausa inicial para que la UI muestre el modal de consola
+                await new Promise(r => setTimeout(r, 50)); 
+
                 const sqlContent = fs.readFileSync(filePath, 'utf8');
+
+                sendLog(`[SQL] >> Limpiando sintaxis incompatible (Puede tomar unos segundos)...`);
+                await new Promise(r => setTimeout(r, 50)); 
                 const sanitizedSql = sanitizeSqlToSqlite(sqlContent);
 
+                sendLog(`[SQL] >> Construyendo base de datos temporal...`);
                 const tempDbPath = path.join(app.getPath("userData"), `temp_import_${Date.now()}.db`);
                 const tempDb = new Database(tempDbPath);
 
+                sendLog(`[SQL] >> Dividiendo archivo en instrucciones individuales...`);
+                await new Promise(r => setTimeout(r, 50));
                 const statements = sanitizedSql.split(/;\s*[\r\n]+/);
                 
+                sendLog(`[SQL] >> Ejecutando ${statements.length} instrucciones en la memoria...`);
+                
+                let count = 0;
                 for (let stmt of statements) {
                     const cleanStmt = stmt.trim();
                     if (cleanStmt && cleanStmt.length > 5) {
@@ -283,16 +308,24 @@ export const registerImportHandlers = () => {
                             tempDb.exec(cleanStmt + ';'); 
                         } 
                         catch (err) { 
-                            const preview = cleanStmt.substring(0, 100).replace(/\n/g, ' ');
-                            console.warn("SQL Ignorado:", err.message, "->", preview, "..."); 
+                        }
+                        count++;
+                        
+                        if (count % 500 === 0) {
+                            sendLog(`[SQL] Construyendo entorno: ${count} / ${statements.length} instrucciones completadas...`);
+                            await new Promise(r => setTimeout(r, 5)); // <-- Esto evita que salga "No Responde"
                         }
                     }
                 }
                 tempDb.close();
 
+                sendLog(`[SQL] >> Base de datos temporal construida con éxito.`);
                 activeFilePath = tempDbPath;
                 isTempFile = true;
             }
+
+            sendLog(`[SQL] >> Extrayendo el esquema y nombre de las tablas...`);
+            await new Promise(r => setTimeout(r, 10));
 
             const extDb = new Database(activeFilePath, { readonly: true });
             const tables = extDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
@@ -304,8 +337,10 @@ export const registerImportHandlers = () => {
             }
             extDb.close();
 
+            sendLog(`[SQL] >> Esquema listo. Preparando entorno de mapeo...`);
             return { success: true, schema, newPath: isTempFile ? activeFilePath : filePath };
         } catch (error) {
+            sendLog(`[SQL] [X] ERROR CRÍTICO: ${error.message}`);
             console.error("ERROR CRÍTICO AL LEER DB:", error);
             return { success: false, error: `Error procesando el archivo: ${error.message}` };
         }
@@ -382,7 +417,8 @@ export const registerImportHandlers = () => {
             sendLog(`[SQL] Lectura completa. Total a importar: ${sourceData.length} filas.`);
             sendLog(`[SQL] Preparando motor SQLite para tabla '${targetTable}'...`);
 
-            const targetCols = db.prepare(`PRAGMA table_info(${targetTable})`).all().map(c => c.name);
+            const targetColsInfo = db.prepare(`PRAGMA table_info(${targetTable})`).all();
+            const targetCols = targetColsInfo.map(c => c.name);
             const placeholders = targetCols.map(() => '?').join(', ');
             const insertStmt = db.prepare(`INSERT INTO ${targetTable} (${targetCols.join(', ')}) VALUES (${placeholders})`);
 
@@ -463,7 +499,7 @@ export const registerImportHandlers = () => {
                 skipped += res.s;
                 
                 sendLog(`[SQL] Progreso: ${count + fixed} registros procesados...`);
-                await new Promise(r => setTimeout(r, 10))
+                await new Promise(r => setTimeout(r, 10)); 
             }
 
             sendLog(`[SQL] ✅ Proceso completado exitosamente.`);

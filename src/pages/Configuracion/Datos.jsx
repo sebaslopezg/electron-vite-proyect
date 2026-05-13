@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button, Form, Row, Col, Modal } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import DataTableComponent from '../../components/DataTableComponent'; 
+// NUEVO: Importamos el Modal de previsualización
+import { ModalPreviewTabla } from './components/ModalPreviewTabla';
 
 export const Datos = () => {
     const [perfiles, setPerfiles] = useState([]);
@@ -10,6 +12,13 @@ export const Datos = () => {
     const [showStatsModal, setShowStatsModal] = useState(false);
     const [statsData, setStatsData] = useState({ nombre: '', filename: '', size: '0 KB', tables: [] });
     const [loadingStats, setLoadingStats] = useState(false);
+
+    // NUEVO: Estados para la previsualización de tablas
+    const [showPreview, setShowPreview] = useState(false);
+    const [previewCols, setPreviewCols] = useState([]);
+    const [previewData, setPreviewData] = useState([]);
+    const [previewTableName, setPreviewTableName] = useState('');
+    const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
     const load = async () => {
         const perfilesData = await window.api.getPerfiles();
@@ -97,6 +106,27 @@ export const Datos = () => {
             Swal.fire('Error', result.error, 'error');
         }
         setLoadingStats(false);
+    }
+
+    // NUEVO: Función para pedir los datos de la tabla y abrir el modal
+    const handleViewTableData = async (tableName) => {
+        setPreviewTableName(tableName);
+        setIsLoadingPreview(true);
+        setShowPreview(true);
+
+        const result = await window.api.getPerfilTableData({ 
+            filename: statsData.filename, 
+            tableName: tableName 
+        });
+
+        if (result.success) {
+            setPreviewCols(result.columns);
+            setPreviewData(result.data);
+        } else {
+            setShowPreview(false);
+            Swal.fire('Error', result.error, 'error');
+        }
+        setIsLoadingPreview(false);
     }
 
     useEffect(() => { 
@@ -216,13 +246,29 @@ export const Datos = () => {
                         <div className="table-responsive">
                             <table className="table table-hover table-sm border align-middle">
                                 <thead className="table-light">
-                                    <tr><th>Nombre de la Tabla</th><th className="text-center">Total Registros</th></tr>
+                                    <tr>
+                                        <th>Nombre de la Tabla</th>
+                                        <th className="text-center" style={{width: '120px'}}>Registros</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {statsData.tables.map((t, index) => (
                                         <tr key={index}>
                                             <td className="text-capitalize"><i className="bi bi-table me-2 text-muted"></i> {t.name}</td>
-                                            <td className="text-center"><span className="badge bg-secondary rounded-pill">{t.rows}</span></td>
+                                            <td className="text-center d-flex justify-content-end align-items-center gap-2">
+                                                <span className="badge bg-secondary rounded-pill">{t.rows}</span>
+                                                {/* NUEVO: Botón de previsualización al lado del contador de filas */}
+                                                <Button 
+                                                    variant="outline-info" 
+                                                    size="sm" 
+                                                    className="py-0 px-2" 
+                                                    title="Ver Contenido"
+                                                    onClick={() => handleViewTableData(t.name)}
+                                                    disabled={t.rows === 0} // Deshabilitado si no hay datos
+                                                >
+                                                    <i className="bi bi-eye-fill"></i>
+                                                </Button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -234,11 +280,22 @@ export const Datos = () => {
                     <Button variant="secondary" onClick={() => setShowStatsModal(false)}>Cerrar</Button>
                 </Modal.Footer>
             </Modal>
+
+            {/* NUEVO: Modal de Previsualización que reutilizamos del componente de Importar */}
+            <ModalPreviewTabla 
+                show={showPreview} 
+                onHide={() => setShowPreview(false)} 
+                tableName={previewTableName} 
+                isLoading={isLoadingPreview} 
+                columns={previewCols} 
+                data={previewData} 
+                totalRows={previewData.length} // Muestra que estás viendo una muestra
+            />
         </>
     );
 }
 
-// Registro global de eventos (Se asegura de que solo se registre una vez)
+// Registro global de eventos
 if (!window.perfilListenersRegistered) {
     document.addEventListener('switch-perfil-action', (e) => window.dispatchEvent(new CustomEvent('react-switch-perfil', { detail: e.detail })));
     document.addEventListener('delete-perfil-action', (e) => window.dispatchEvent(new CustomEvent('react-delete-perfil', { detail: e.detail })));
