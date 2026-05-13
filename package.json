@@ -2,6 +2,8 @@
   "name": "caedro_app",
   "private": true,
   "version": "0.1.7",
+  "author": "Sebastian Lopez <sebaslg96@gmail.com>",
+  "description": "Caedro ERP System",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
