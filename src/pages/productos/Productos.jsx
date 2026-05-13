@@ -23,6 +23,7 @@ export const Productos = () => {
     ref_name: '', sku: '', stock: 0, min_stock: 5, max_stock: 50,
     categoria_id: 'general', etiquetas: [], unidad_medida: 'Unidad',
     iva: 0, allow_negative: 0, descripcion: '', precio: 0, status: 1, tipo: 'producto',
+    allow_encargo: 1, encargo_solo_sin_stock: 1
   }
 
   const [form, setForm] = useState({ ...emptyForm })
@@ -87,9 +88,11 @@ export const Productos = () => {
             categoria_id: item.categoria_id || 'general', etiquetas: tagsArray,
             unidad_medida: item.unidad_medida || 'Unidad', iva: item.iva || 0,
             allow_negative: item.allow_negative || 0, descripcion: item.descripcion || '',
-            precio: item.precio || 0, status: item.status || 1, tipo: item.tipo || 'producto'
-          });
-          setEditingId(item.id);
+            precio: item.precio || 0, status: item.status || 1, tipo: item.tipo || 'producto',
+            allow_encargo: item.allow_encargo !== undefined ? item.allow_encargo : 1,
+            encargo_solo_sin_stock: item.encargo_solo_sin_stock !== undefined ? item.encargo_solo_sin_stock : 1
+          })
+          setEditingId(item.id)
           handleShow();
         } catch(err) { console.error("Error leyendo datos", err); }
       }

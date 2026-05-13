@@ -217,9 +217,30 @@ const loadInitialData = async () => {
           orderable: false,
           render: function (data, type, row) {
             const safeData = encodeURIComponent(JSON.stringify(row));
-            return `<button class="btn btn-sm btn-primary btn-select-product" data-alldata="${safeData}">
-              <i class="bi bi-cart-plus me-1"></i> ${row.stock > 0 ? "Agregar" : "Encargar"}
-            </button>`;
+            let buttons = ''
+            
+            const allowEncargo = row.allow_encargo !== undefined ? row.allow_encargo : 1
+            const encargoSoloSinStock = row.encargo_solo_sin_stock !== undefined ? row.encargo_solo_sin_stock : 1;
+
+            if (row.stock > 0 || row.tipo === 'servicio') {
+              buttons += `<button class="btn btn-sm btn-primary btn-select-product me-1 mb-1" data-alldata="${safeData}" data-force-encargo="0">
+                <i class="bi bi-cart-plus me-1"></i> Agregar
+              </button>`;
+            }
+            if (allowEncargo === 1 && row.tipo === 'producto') {
+              if (row.stock <= 0) {
+                buttons += `<button class="btn btn-sm btn-warning text-dark btn-select-product mb-1" data-alldata="${safeData}" data-force-encargo="1">
+                <i class="bi bi-box-seam me-1"></i> Encargar
+                </button>`;
+              } else if (encargoSoloSinStock === 0) {
+                buttons += `<button class="btn btn-sm btn-warning text-dark btn-select-product mb-1" data-alldata="${safeData}" data-force-encargo="1">
+                <i class="bi bi-box-seam me-1"></i> Encargar
+                </button>`;
+              }
+            } else if (allowEncargo === 0 && row.stock <= 0) {
+              buttons += `<button class="btn btn-sm btn-secondary disabled mb-1"><i class="bi bi-x-circle me-1"></i> Agotado</button>`;
+            }
+            return buttons;
           }
         }
       ]
@@ -290,32 +311,44 @@ const loadInitialData = async () => {
     });
   };
 
-  const agregarAlCarrito = (prod) => {
+  const agregarAlCarrito = (prod, forceEncargo = false) => {
     setCarrito((prev) => {
       const unitsInCartWithStock = prev
         .filter(item => item.id === prod.id && item.isEncargo === '0')
-        .reduce((acc, item) => acc + item.cantidad, 0);
+        .reduce((acc, item) => acc + item.cantidad, 0)
+      let isEncargoVal = forceEncargo ? '1' : '0'
 
-      const needsToBeEncargo = prod.tipo === "producto" && unitsInCartWithStock >= prod.stock;
-      const isEncargoVal = needsToBeEncargo ? '1' : '0';
+      if (!forceEncargo && prod.tipo === "producto" && unitsInCartWithStock >= prod.stock) {
+        const allowEncargo = prod.allow_encargo !== undefined ? prod.allow_encargo : 1;
+        if (allowEncargo === 0) {
+          setTimeout(() => Swal.fire('Agotado', 'Stock físico agotado y este producto no permite ser encargado.', 'warning'), 0)
+          return prev
+        }
+        isEncargoVal = '1'
+      }
 
-      const existe = prev.find(item => item.id === prod.id && item.isEncargo === isEncargoVal);
+      const existe = prev.find(item => item.id === prod.id && item.isEncargo === isEncargoVal)
 
       if (existe) {
         if (isEncargoVal === '0' && (existe.cantidad + 1) > prod.stock) {
-          return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: '1' }];
+          const allowEncargo = prod.allow_encargo !== undefined ? prod.allow_encargo : 1
+          if (allowEncargo === 0) {
+              setTimeout(() => Swal.fire('Agotado', 'Alcanzaste el límite de stock y el producto no permite encargos.', 'warning'), 0)
+              return prev
+          }
+          return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: '1' }]
         }
 
         return prev.map(item =>
           (item.id === prod.id && item.isEncargo === isEncargoVal)
             ? { ...item, cantidad: item.cantidad + 1 }
             : item
-        );
+        )
       } else {
         return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: isEncargoVal }];
       }
-    });
-  };
+    })
+  }
 
   const finalizarVenta = async () => {
     if (carrito.length === 0) return
@@ -423,21 +456,31 @@ const data = {
       const newQty = item.cantidad + delta;
 
       if (delta > 0 && isEncargo === '0' && newQty > item.stock && item.tipo === "producto") {
+        const allowEncargo = item.allow_encargo !== undefined ? item.allow_encargo : 1;
+        if (allowEncargo === 0) {
+          setTimeout(() => Swal.fire(
+            'Agotado', 
+            'Has alcanzado el límite de stock y este producto no permite crear encargos adicionales.', 
+            'warning'
+          ), 0)
+          return prev
+        }
+
         Swal.fire({
           title: 'Sin stock físico', text: '¿Deseas agregar las unidades adicionales como un encargo?',
           icon: 'info', showCancelButton: true, confirmButtonText: 'Sí, encargar', cancelButtonText: 'Cancelar'
         }).then((result) => {
-          if (result.isConfirmed) agregarAlCarrito(item);
-        });
-        return prev;
+          if (result.isConfirmed) agregarAlCarrito(item, true)
+        })
+        return prev
       }
 
       return prev.map(i => {
-        if (i.id === id && i.isEncargo === isEncargo) return newQty > 0 ? { ...i, cantidad: newQty } : i;
-        return i;
-      });
-    });
-  };
+        if (i.id === id && i.isEncargo === isEncargo) return newQty > 0 ? { ...i, cantidad: newQty } : i
+        return i
+      })
+    })
+  }
 
   useEffect(() => {
     const handleGlobalEvents = (e) => {
@@ -469,8 +512,9 @@ const data = {
         if (target.closest('.btn-select-product')) {
           const btn = target.closest('.btn-select-product');
           if (btn.dataset.alldata) {
-            const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata));
-            agregarAlCarrito(selected);
+            const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata))
+            const forceEncargo = btn.dataset.forceEncargo === "1"
+            agregarAlCarrito(selected, forceEncargo);
           }
         }
 

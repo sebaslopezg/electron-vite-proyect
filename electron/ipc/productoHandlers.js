@@ -8,8 +8,8 @@ export const registerProductoHandlers = () => {
     try {
       const stmt = db.prepare(`
         SELECT p.*,
-               c.nombre as categoria_nombre,
-               GROUP_CONCAT(pe.etiqueta_id, ',') as etiquetas_ids
+          c.nombre as categoria_nombre,
+          GROUP_CONCAT(pe.etiqueta_id, ',') as etiquetas_ids
         FROM producto p
         LEFT JOIN categoria c ON p.categoria_id = c.id
         LEFT JOIN producto_etiqueta pe ON p.id = pe.producto_id
@@ -23,7 +23,6 @@ export const registerProductoHandlers = () => {
     }
   })
 
-  // Paginación del lado del servidor para Productos ---
   ipcMain.handle("get-productos-paginados", (_, dtParams) => {
     try {
       const limit = parseInt(dtParams.length, 10) || 10;
@@ -39,7 +38,6 @@ export const registerProductoHandlers = () => {
       if (orderCol === 'categoria_nombre') orderCol = 'c.nombre';
       else orderCol = `p.${orderCol}`;
 
-      // NUEVO: Recibir variables de filtro
       const customCategory = dtParams.customCategory;
       const customTag = dtParams.customTag;
 
@@ -51,13 +49,11 @@ export const registerProductoHandlers = () => {
       
       let queryParams = [];
 
-      // NUEVO: Aplicar filtro de categoría
       if (customCategory) {
           baseQuery += " AND p.categoria_id = ?";
           queryParams.push(customCategory);
       }
 
-      // NUEVO: Aplicar filtro de etiqueta (buscando en la tabla intermedia)
       if (customTag) {
           baseQuery += " AND EXISTS (SELECT 1 FROM producto_etiqueta pe WHERE pe.producto_id = p.id AND pe.etiqueta_id = ?)";
           queryParams.push(customTag);
@@ -186,10 +182,12 @@ export const registerProductoHandlers = () => {
         INSERT INTO producto (
           id, ref_name, sku, precio, tipo, allow_negative, stock, 
           min_stock, max_stock, categoria_id, iva, unidad_medida, descripcion, 
+          allow_encargo, encargo_solo_sin_stock,
           status, date_created, date_modify
         ) VALUES (
           @id, @ref_name, @sku, @precio, @tipo, @allow_negative, @stock, 
           @min_stock, @max_stock, @categoria_id, @iva, @unidad_medida, @descripcion, 
+          @allow_encargo, @encargo_solo_sin_stock,
           @status, @date_created, @date_modify
         )
       `).run({
@@ -200,7 +198,9 @@ export const registerProductoHandlers = () => {
         status,
         min_stock: data.min_stock || 5,
         max_stock: data.max_stock || 100,
-        categoria_id: data.categoria_id || 'general'
+        categoria_id: data.categoria_id || 'general',
+        allow_encargo: data.allow_encargo !== undefined ? data.allow_encargo : 1,
+        encargo_solo_sin_stock: data.encargo_solo_sin_stock !== undefined ? data.encargo_solo_sin_stock : 1
       })
 
       if (data.etiquetas && data.etiquetas.length > 0) {
@@ -245,6 +245,7 @@ export const registerProductoHandlers = () => {
           allow_negative = @allow_negative, stock = @stock, 
           min_stock = @min_stock, max_stock = @max_stock, categoria_id = @categoria_id,
           iva = @iva, unidad_medida = @unidad_medida, descripcion = @descripcion,
+          allow_encargo = @allow_encargo, encargo_solo_sin_stock = @encargo_solo_sin_stock,
           date_modify = @date_modify, status = @status
         WHERE id = @id
       `).run({
@@ -253,7 +254,9 @@ export const registerProductoHandlers = () => {
         status,
         min_stock: data.min_stock || 5,
         max_stock: data.max_stock || 100,
-        categoria_id: data.categoria_id || 'general'
+        categoria_id: data.categoria_id || 'general',
+        allow_encargo: data.allow_encargo !== undefined ? data.allow_encargo : 1,
+        encargo_solo_sin_stock: data.encargo_solo_sin_stock !== undefined ? data.encargo_solo_sin_stock : 1
       })
 
       db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(data.id)

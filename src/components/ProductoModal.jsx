@@ -15,7 +15,6 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
         const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
         return (yiq >= 128) ? '#000000' : '#ffffff';
     };
-    // ------------------------------------------------
 
     const etiquetasFiltradas = etiquetas.filter(tag => {
         if (!tag.categorias_ids) return false;
@@ -44,7 +43,6 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                 <Modal.Title>{editingId ? 'Editar Producto' : 'Crear Producto'}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                {/* ... (Todo tu formulario superior queda exactamente igual hasta llegar a las etiquetas) ... */}
                 <Form onSubmit={handleSubmit} id="productoForm">
                     
                     <Row className="mb-3">
@@ -104,37 +102,67 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                         </Col>
                     </Row>
 
-                    <Row className="mb-3">
-                        <Col md={4}>
-                            <Form.Group>
-                                <Form.Label>Stock inicial</Form.Label>
-                                <Form.Control type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} disabled={!!editingId} />
-                            </Form.Group>
-                        </Col>
-                        <Col md={4}>
-                            <Form.Group>
-                                <Form.Label>Stock Mínimo</Form.Label>
-                                <Form.Control type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: e.target.value })} />
-                            </Form.Group>
-                        </Col>
-                        <Col md={4}>
-                            <Form.Group>
-                                <Form.Label>Stock Máximo</Form.Label>
-                                <Form.Control type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: e.target.value })} />
-                            </Form.Group>
-                        </Col>
-                    </Row>
+                    {/* BLOQUE DE INVENTARIO Y ENCARGOS */}
+                    {form.tipo === 'producto' && (
+                        <div className="bg-light p-3 border rounded mb-3">
+                            <h6 className="fw-bold mb-3 text-primary border-bottom pb-2">Control de Inventario y Encargos</h6>
+                            
+                            <Row className="mb-3">
+                                <Col md={4}>
+                                    <Form.Group>
+                                        <Form.Label className="small">Stock inicial</Form.Label>
+                                        <Form.Control type="number" size="sm" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} disabled={!!editingId} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={4}>
+                                    <Form.Group>
+                                        <Form.Label className="small">Stock Mínimo</Form.Label>
+                                        <Form.Control type="number" size="sm" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={4}>
+                                    <Form.Group>
+                                        <Form.Label className="small">Stock Máximo</Form.Label>
+                                        <Form.Control type="number" size="sm" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: e.target.value })} />
+                                    </Form.Group>
+                                </Col>
+                            </Row>
+
+                            <Row className="align-items-start">
+                                <Col md={5}>
+                                    <Form.Check 
+                                        type="switch" 
+                                        id="allow_negative"
+                                        label="Permitir vender sin stock físico" 
+                                        checked={form.allow_negative === 1 || form.allow_negative === true}
+                                        onChange={(e) => setForm({ ...form, allow_negative: e.target.checked ? 1 : 0 })} 
+                                    />
+                                </Col>
+                                <Col md={7}>
+                                    <Form.Check 
+                                        type="switch"
+                                        id="allow_encargo"
+                                        label="Permitir tomar encargos/pedidos"
+                                        checked={form.allow_encargo === 1}
+                                        onChange={(e) => setForm({ ...form, allow_encargo: e.target.checked ? 1 : 0 })}
+                                    />
+                                    {form.allow_encargo === 1 && (
+                                        <Form.Check 
+                                            className="ms-4 mt-2 text-muted small"
+                                            type="checkbox"
+                                            id="encargo_solo_sin_stock"
+                                            label="Requerir agotamiento previo de stock físico"
+                                            checked={form.encargo_solo_sin_stock === 1}
+                                            onChange={(e) => setForm({ ...form, encargo_solo_sin_stock: e.target.checked ? 1 : 0 })}
+                                        />
+                                    )}
+                                </Col>
+                            </Row>
+                        </div>
+                    )}
 
                     <Row className="mb-3">
-                        <Col md={6} className="d-flex align-items-center">
-                            <Form.Check 
-                                type="switch" 
-                                label="Permitir negativos" 
-                                checked={form.allow_negative === 1 || form.allow_negative === true}
-                                onChange={(e) => setForm({ ...form, allow_negative: e.target.checked ? 1 : 0 })} 
-                            />
-                        </Col>
-                        <Col md={3}>
+                        <Col md={6}>
                             <Form.Group>
                                 <Form.Label>Unidad de medida</Form.Label>
                                 <Form.Select value={form.unidad_medida} onChange={(e) => setForm({ ...form, unidad_medida: e.target.value })}>
@@ -145,7 +173,7 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                                 </Form.Select>
                             </Form.Group>
                         </Col>
-                        <Col md={3}>
+                        <Col md={6}>
                             <Form.Group>
                                 <Form.Label>Estado</Form.Label>
                                 <Form.Select value={form.status} onChange={(e) => setForm({ ...form, status: parseInt(e.target.value) })}>
@@ -156,13 +184,11 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                         </Col>
                     </Row>
 
-                    {/* SECCIÓN DE ETIQUETAS DINÁMICAS ACTUALIZADA */}
                     {etiquetasFiltradas.length > 0 && (
                         <div className="mb-3 p-3 bg-light border rounded">
                             <Form.Label className="fw-bold d-block mb-2">Etiquetas de la Categoría</Form.Label>
                             <div className="d-flex flex-wrap gap-3">
                                 {etiquetasFiltradas.map(tag => {
-                                    // CAMBIO AQUÍ: Calculamos el color del texto para esta etiqueta en específico
                                     const textColor = getContrastText(tag.color);
                                     
                                     return (
@@ -173,7 +199,7 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                                             label={
                                                 <span 
                                                     className="badge" 
-                                                    style={{ backgroundColor: tag.color, color: textColor }} // <-- APLICADO AQUÍ
+                                                    style={{ backgroundColor: tag.color, color: textColor }} 
                                                 >
                                                     {tag.nombre}
                                                 </span>

@@ -18,6 +18,10 @@ export const runV1Producto = () => {
         iva REAL,
         unidad_medida TEXT,
         descripcion TEXT,
+
+        allow_encargo INTEGER DEFAULT 1,
+        encargo_solo_sin_stock INTEGER DEFAULT 1,
+
         status INTEGER,
         date_created TEXT,
         date_modify TEXT,
@@ -28,7 +32,7 @@ export const runV1Producto = () => {
 
       CREATE INDEX idx_producto_ref ON producto(ref_name);
       CREATE INDEX idx_producto_sku ON producto(sku);
-    `);
+    `)
 
-    console.log("Tabla Producto inicializada.");
+    console.log("Tabla Producto inicializada.")
 }

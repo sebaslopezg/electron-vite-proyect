@@ -97,6 +97,18 @@ const migrations = [
                 }
             }
         }
+    },
+    {
+        version: 10,
+        up: () => {
+            console.log("Applying migration V10: Configuración de encargos por producto")
+            try {
+                db.exec(`ALTER TABLE producto ADD COLUMN allow_encargo INTEGER DEFAULT 1;`)
+                db.exec(`ALTER TABLE producto ADD COLUMN encargo_solo_sin_stock INTEGER DEFAULT 1;`)
+            } catch (error) {
+                if (!error.message.includes('duplicate column name')) throw error
+            }
+        }
     }
 ]
 
