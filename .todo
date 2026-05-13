@@ -3,6 +3,7 @@
  ## Modificaciones Prioritarias:
 
  - **Poder crear encargos sin necesidad de agotamiento de stock**
+ - Generar cierre del día: Crear una pestaña de "Informes" en modulo de ventas
  
  - Crear logs en todos los movimientos del sistema y visualizarlos 
  - Mejorar modulo de pagos (mas sencillo)

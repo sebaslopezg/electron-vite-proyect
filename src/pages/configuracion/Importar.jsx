@@ -675,10 +675,10 @@ return <>
             <Modal.Header className="bg-light border-bottom border-secondary">
                 <Modal.Title className="fs-5">
                     <Spinner className="me-2" variant="primary" animation="border" role="status" size="sm"></Spinner> 
-                    Migracion de datos
+                    Migración de datos
                 </Modal.Title>
             </Modal.Header>
-            <Modal.Body className="text-success font-monospace p-3" style={{ height: '350px', overflowY: 'auto', fontSize: '0.85rem' }}>
+            <Modal.Body className="bg-dark text-success font-monospace p-3" style={{ height: '350px', overflowY: 'auto', fontSize: '0.85rem' }}>
                 {consoleLogs.map((log, index) => (
                     <div key={index} className="mb-1">
                         <span className="text-secondary">{new Date().toLocaleTimeString()}</span> <span className="text-light">{">"}</span> {log}

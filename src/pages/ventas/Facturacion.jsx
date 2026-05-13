@@ -185,7 +185,7 @@ const loadInitialData = async () => {
         if (result.isConfirmed) {
           setShowTerceroModal(true);
         } else {
-          handleAddClient(); // Fallback: Abre la modal de la tabla
+          handleAddClient()
         }
       });
     }
