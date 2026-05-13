@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { Ventas } from '../pages/ventas'
 import { Inventario } from '../pages/inventario'
-import { Clientes } from '../pages/clientes'
+import { Clientes } from '../pages/Clientes'
 import { ConfiguracionIndex as Configuracion } from '../pages/configuracion/index';
 //import { Bitacoras } from '../pages/Bitacoras'
 import { ProductosIndex } from '../pages/productos'
