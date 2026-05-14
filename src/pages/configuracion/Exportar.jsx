@@ -13,16 +13,16 @@ export const Exportar = () => {
             }
         });
 
-        const result = await window.api.exportDatabase();
+        const result = await window.api.exportDatabase()
 
         if (result.success) {
-            Swal.fire('¡Éxito!', result.message, 'success');
+            Swal.fire('¡Éxito!', result.message, 'success')
         } else if (result.message !== 'Exportación cancelada') {
-            Swal.fire('Error', 'No se pudo exportar la base de datos', 'error');
+            Swal.fire('Error', 'No se pudo exportar la base de datos: ' + result.message, 'error')
         } else {
-            Swal.close();
+            Swal.close()
         }
-    };
+    }
 
     return (<>
         <Card className="text-center shadow-sm border-0 p-5">
