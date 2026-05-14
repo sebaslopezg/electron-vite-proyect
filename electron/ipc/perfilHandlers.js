@@ -138,4 +138,39 @@ export const registerPerfilHandlers = () => {
             return { success: false, error: error.message };
         }
     })
+
+    // --- NUEVO: FUNCIÓN PARA VACIAR UNA TABLA COMPLETAMENTE ---
+    ipcMain.handle("clear-perfil-table-data", (_, { filename, tableName }) => {
+        try {
+            const dbPath = path.join(app.getPath("userData"), "app2", filename);
+            
+            if (!fs.existsSync(dbPath)) {
+                return { success: false, error: "El archivo de la base de datos no existe." };
+            }
+
+            // Aquí NO abrimos en readonly para poder escribir/borrar
+            const tempDb = new Database(dbPath)
+            
+            // Usamos una transacción para que, si falla en algún punto, no corrompa los datos
+            const clearTransaction = tempDb.transaction(() => {
+                // Borramos todo el contenido de la tabla
+                tempDb.prepare(`DELETE FROM ${tableName}`).run();
+                
+                // Intentamos reiniciar la secuencia autoincrementable si existe para esa tabla
+                // Esto previene que los IDs sigan subiendo si la tabla quedó vacía
+                try {
+                    tempDb.prepare(`DELETE FROM sqlite_sequence WHERE name = ?`).run(tableName);
+                } catch (e) {
+                    console.log('Error: ', e)
+                }
+            });
+
+            clearTransaction();
+            tempDb.close();
+
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    })
 }

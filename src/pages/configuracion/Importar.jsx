@@ -41,7 +41,7 @@ export const Importar = () => {
     const [externalSchema, setExternalSchema] = useState({})
     const [internalSchema, setInternalSchema] = useState({})
 
-    //Estado de consola
+    //Estado de consola (Ahora guardará objetos { time, text })
     const [showConsole, setShowConsole] = useState(false)
     const [consoleLogs, setConsoleLogs] = useState([])
     const logsEndRef = useRef(null)
@@ -90,7 +90,8 @@ export const Importar = () => {
 
         if (window.api.onImportLog) {
             window.api.onImportLog((msg) => {
-                setConsoleLogs(prevLogs => [...prevLogs, msg])
+                // Almacenamos el timestamp fijo al momento de recibir el log
+                setConsoleLogs(prevLogs => [...prevLogs, { time: new Date().toLocaleTimeString(), text: msg }])
             })
         }
 
@@ -122,7 +123,7 @@ export const Importar = () => {
 
         setFilePath(fileResult.filePath)
         
-        setConsoleLogs([`[SISTEMA] Iniciando lectura de archivo ${type.toUpperCase()}...`])
+        setConsoleLogs([{ time: new Date().toLocaleTimeString(), text: `[SISTEMA] Iniciando lectura de archivo ${type.toUpperCase()}...` }])
         setShowConsole(true)
         
         try {
@@ -134,7 +135,7 @@ export const Importar = () => {
             }
             
             if (res.success) {
-                setConsoleLogs(prev => [...prev, `[SISTEMA] Lectura completada. Pasando al siguiente paso...`])
+                setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: `[SISTEMA] Lectura completada. Pasando al siguiente paso...` }])
                 
                 setTimeout(() => {
                     setShowConsole(false)
@@ -153,10 +154,10 @@ export const Importar = () => {
 
             } else {
                 setFileType(null)
-                setConsoleLogs(prev => [...prev, `[SISTEMA] X ERROR: ${res.error}`])
+                setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: `[SISTEMA] X ERROR: ${res.error}` }])
             }
         } catch (err) {
-            setConsoleLogs(prev => [...prev, `[SISTEMA] X ERROR CRÍTICO de conexión.`])
+            setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: `[SISTEMA] X ERROR CRÍTICO de conexión.` }])
         }
     }
 
@@ -194,14 +195,14 @@ export const Importar = () => {
         const confirm = await Swal.fire({ title, icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, importar' })  
 
         if (confirm.isConfirmed) {
-            setConsoleLogs(["[SISTEMA] Iniciando asistente de migración..."])
+            setConsoleLogs([{ time: new Date().toLocaleTimeString(), text: "[SISTEMA] Iniciando asistente de migración..." }])
             setShowConsole(true)
 
             try {
                 const res = await actionMethod(finalPayload)
                 
                 if (res.success) {
-                    setConsoleLogs(prev => [...prev, "[SISTEMA] ✓ Guardado completado con éxito. Cerrando consola en 3 segundos..."])
+                    setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: "[SISTEMA] ✓ Guardado completado con éxito. Cerrando consola en 3 segundos..." }])
                     
                     setTimeout(() => {
                         setShowConsole(false)
@@ -213,10 +214,10 @@ export const Importar = () => {
                     }, 3000)
 
                 } else {
-                    setConsoleLogs(prev => [...prev, `[SISTEMA] X ERROR: ${res.error}`])
+                    setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: `[SISTEMA] X ERROR: ${res.error}` }])
                 }
             } catch (err) {
-                setConsoleLogs(prev => [...prev, `[SISTEMA] X ERROR CRÍTICO: Hubo un error de conexión.`]);
+                setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: `[SISTEMA] X ERROR CRÍTICO: Hubo un error de conexión.` }]);
             }
         }
     };
@@ -333,6 +334,47 @@ export const Importar = () => {
             } else setJsonPreviewData("No se encontró ningún JSON válido en los resultados de la consulta.")
         } else { setShowJsonPreview(false); Swal.fire('Error', res.error || 'No hay datos', 'error')}
         setIsLoadingPreview(false)
+    };
+
+    const handleAutoMap = () => {
+        if (!targetTable) return;
+        
+        let sourceCols = [];
+        if (importMode === 'avanzado') {
+            sourceCols = queryCols || [];
+        } else {
+             sourceCols = externalSchema[sourceTable] || [];
+        }
+
+        if (sourceCols.length === 0) {
+            Swal.fire('Atención', 'No hay columnas de origen disponibles para mapear. ¿Cargaste una tabla o consulta?', 'warning');
+            return;
+        }
+
+        const newMapping = { ...mapping };
+        let matchedCount = 0;
+
+        const internalCols = internalSchema[targetTable] || [];
+        
+        internalCols.forEach(internalCol => {
+            if (sourceCols.includes(internalCol)) {
+                newMapping[internalCol] = internalCol;
+                matchedCount++;
+            }
+        });
+
+        if (matchedCount > 0) {
+            setMapping(newMapping);
+            Swal.fire({
+                title: 'Mapeo Exitoso',
+                text: `Se asociaron ${matchedCount} columnas automáticamente.`,
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } else {
+             Swal.fire('Sin Coincidencias', 'No se encontraron columnas con el mismo nombre entre el origen y el destino.', 'info');
+        }
     };
 
     const renderMappingRow = (reqCol, isRequired, sourceColsArray, mapState, setMapState, isJsonDetalle = false) => {
@@ -452,7 +494,7 @@ return <>
                         <div className="text-center p-4 border rounded bg-light h-100 d-flex flex-column justify-content-center hover-shadow transition" style={{cursor: 'pointer'}} onClick={() => handleFileSelect('csv')}>
                             <i className="bi bi-filetype-csv fs-1 text-success mb-3 d-block"></i>
                             <h6 className="fw-bold">Importar Archivo CSV</h6>
-                            <p className="small text-muted mb-0">Recomendado. Más rápido y sin errores de sintaxis. Ideal para tablas individuales exportadas desde Excel o phpMyAdmin.</p>
+                            <p className="small text-muted mb-0">Importa desde CSV plano sin alteraciones</p>
                         </div>
                     </Col>
 
@@ -461,7 +503,7 @@ return <>
                         <div className="text-center p-4 border rounded bg-light h-100 d-flex flex-column justify-content-center hover-shadow transition" style={{cursor: 'pointer'}} onClick={() => handleFileSelect('sql')}>
                             <i className="bi bi-filetype-sql fs-1 text-danger mb-3 d-block"></i>
                             <h6 className="fw-bold">Importar Base de Datos SQL / SQLite</h6>
-                            <p className="small text-muted mb-0">Útil para exportaciones completas (mysqldump). Permite migraciones avanzadas y relaciones, pero puede requerir limpieza.</p>
+                            <p className="small text-muted mb-0">Con soporte para Mysql y SQLlite</p>
                         </div>
                     </Col>
                 </Row>
@@ -601,12 +643,16 @@ return <>
                                 <Alert variant="warning" className="mb-0 flex-grow-1 me-3 py-2">
                                     <small>Asocie las columnas, extraiga de otras tablas <i className="bi bi-link"></i> o escriba un <strong>valor fijo</strong>.</small>
                                 </Alert>
-                                <div>
+                                <div className="d-flex gap-2">
+                                    <Button variant="outline-success" size="sm" onClick={handleAutoMap} title="Mapear automáticamente columnas con nombres idénticos">
+                                        <i className="bi bi-magic me-1"></i> Auto Mapear
+                                    </Button>
+                                    
                                     <Button variant="outline-info" size="sm" onClick={importMode === 'avanzado' ? handlePreviewQuery : () => handlePreview(sourceTable)}>
                                         <i className="bi bi-table me-2"></i>Ver Datos Origen
                                     </Button>
                                     {importMode === 'avanzado' && jsonColumn && (
-                                        <Button variant="outline-warning" size="sm" className="ms-2" onClick={handleJsonPreview}>
+                                        <Button variant="outline-warning" size="sm" onClick={handleJsonPreview}>
                                             <i className="bi bi-braces me-1"></i>Ver Estructura JSON
                                         </Button>
                                     )}
@@ -681,7 +727,7 @@ return <>
             <Modal.Body className="bg-dark text-success font-monospace p-3" style={{ height: '350px', overflowY: 'auto', fontSize: '0.85rem' }}>
                 {consoleLogs.map((log, index) => (
                     <div key={index} className="mb-1">
-                        <span className="text-secondary">{new Date().toLocaleTimeString()}</span> <span className="text-light">{">"}</span> {log}
+                        <span className="text-secondary">{log.time}</span> <span className="text-light">{">"}</span> {log.text}
                     </div>
                 ))}
                 <div ref={logsEndRef} />

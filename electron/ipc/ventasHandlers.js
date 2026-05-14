@@ -94,15 +94,47 @@ export const registerVentasHandlers = () => {
             const stmt = db.prepare(`
                 SELECT df.*, 
                     p.sku, 
-                    (IFNULL(c.sku_prefix, '') || IFNULL(s.sku_prefix, '')) as sku_prefix,
-                    COALESCE(NULLIF(s.separador, ''), NULLIF(c.separador, ''), '') as separador
+                    p.subcategorias_ids_json,
+                    c.sku_prefix as cat_prefix,
+                    c.separador as cat_separador
                 FROM ventasDetalle df
                 LEFT JOIN producto p ON df.id_producto = p.id
                 LEFT JOIN categoria c ON p.categoria_id = c.id
-                LEFT JOIN subcategoria s ON p.subcategoria_id = s.id
                 WHERE df.maestro_id = ?
             `)
-            const detalles = stmt.all(facturaId)
+            const detallesRaw = stmt.all(facturaId)
+
+            const detalles = detallesRaw.map(d => {
+                let fullPrefix = d.cat_prefix || ''; 
+                let finalSeparator = d.cat_separador || '';
+                
+                const subIds = d.subcategorias_ids_json ? JSON.parse(d.subcategorias_ids_json) : [];
+                
+                if (subIds.length > 0) {
+                    const placeholders = subIds.map(() => '?').join(',');
+                    const subs = db.prepare(`SELECT id, sku_prefix, separador FROM subcategoria WHERE id IN (${placeholders})`).all(...subIds);
+                    
+                    subIds.forEach(id => {
+                        const s = subs.find(sub => sub.id === id);
+                        if (s && s.sku_prefix) {
+                            if (fullPrefix) {
+                                fullPrefix += `${finalSeparator}${s.sku_prefix}`;
+                            } else {
+                                fullPrefix = s.sku_prefix;
+                            }
+                            if (s.separador !== undefined && s.separador !== null) {
+                                finalSeparator = s.separador; 
+                            }
+                        }
+                    });
+                }
+                
+                delete d.subcategorias_ids_json;
+                delete d.cat_prefix;
+                delete d.cat_separador;
+
+                return { ...d, sku_prefix: fullPrefix, separador: finalSeparator };
+            });
 
             const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`)
             const notas = notasStmt.all(facturaId)
@@ -203,7 +235,6 @@ export const registerVentasHandlers = () => {
                 }
             }
 
-            // --- INICIO INTEGRACIÓN CONTABLE ---
             const configContable = db.prepare('SELECT * FROM configuracionContable WHERE id = 1').get()
             
             if (configContable && configContable.cuenta_caja && configContable.cuenta_ingresos) {
@@ -241,7 +272,6 @@ export const registerVentasHandlers = () => {
                     insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_descuento, terceroId, 'Descuento Concedido', maestroData.descuento, 0)
                 }
 
-                // D. CAJA / BANCOS (Débito)
                 const valorPagado = maestroData.total - maestroData.saldo_pendiente;
                 
                 if (valorPagado > 0) {
@@ -262,12 +292,10 @@ export const registerVentasHandlers = () => {
                     )
                 }
 
-                // E. CARTERA / CUENTAS POR COBRAR (Débito)
                 if (maestroData.saldo_pendiente > 0 && configContable.cuenta_cartera) {
                     insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_cartera, terceroId, 'Cuenta por Cobrar (Crédito)', maestroData.saldo_pendiente, 0)
                 }
             }
-            // --- FIN INTEGRACIÓN CONTABLE ---
 
             return {
                 success: true,

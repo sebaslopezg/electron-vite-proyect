@@ -12,7 +12,7 @@ export const Datos = () => {
     const [statsData, setStatsData] = useState({ nombre: '', filename: '', size: '0 KB', tables: [] })
     const [loadingStats, setLoadingStats] = useState(false)
 
-    // NUEVO: Estados para la previsualización de tablas
+    // Estados para la previsualización de tablas
     const [showPreview, setShowPreview] = useState(false)
     const [previewCols, setPreviewCols] = useState([])
     const [previewData, setPreviewData] = useState([])
@@ -127,6 +127,51 @@ export const Datos = () => {
         setIsLoadingPreview(false)
     }
 
+    // --- NUEVA LÓGICA DE VACIADO DE TABLAS ---
+    const handleClearTable = async (tableName, filename) => {
+        const warnRes = await Swal.fire({
+            title: '¿Vaciar tabla?',
+            text: `Estás a punto de eliminar TODOS los registros de la tabla "${tableName}". ¡Este proceso NO se puede deshacer!`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, continuar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!warnRes.isConfirmed) return;
+
+        const confirmRes = await Swal.fire({
+            title: 'Confirmación de Seguridad',
+            text: `Escribe el nombre exacto de la tabla para vaciarla: "${tableName}"`,
+            input: 'text',
+            inputPlaceholder: tableName,
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonText: 'Vaciar Contenido',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#d33',
+            preConfirm: (inputValue) => {
+                if (inputValue !== tableName) {
+                    Swal.showValidationMessage('El nombre de la tabla no coincide.');
+                }
+            }
+        });
+
+        if (confirmRes.isConfirmed) {
+            const res = await window.api.clearPerfilTableData({ filename, tableName });
+            if (res.success) {
+                Swal.fire('Vaciada', `La tabla "${tableName}" ha sido limpiada exitosamente.`, 'success');
+                // Recargamos los datos para que el usuario vea el contador de registros en 0
+                handleShowStats(filename, statsData.nombre);
+            } else {
+                Swal.fire('Error', res.error, 'error');
+            }
+        }
+    };
+    // ------------------------------------------
+
     useEffect(() => { 
         load() 
         const handleReactSwitch = (e) => handleSwitchPerfil(e.detail.id, e.detail.nombre)
@@ -219,8 +264,7 @@ export const Datos = () => {
             </Modal>
 
             {/* Modal Estadísticas */}
-            <Modal size="lg" show={showStatsModal} onHide={() => setShowStatsModal(false)} centered scrollable>
-                <Modal.Header closeButton className="bg-light">
+                <Modal size="lg" show={showStatsModal} onHide={() => setShowStatsModal(false)} centered scrollable enforceFocus={false}>                <Modal.Header closeButton className="bg-light">
                     <Modal.Title className="fs-5"><i className="bi bi-server me-2 text-primary"></i>Información de Datos</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
@@ -245,7 +289,7 @@ export const Datos = () => {
                                 <thead className="table-light">
                                     <tr>
                                         <th>Nombre de la Tabla</th>
-                                        <th className="text-center" style={{width: '120px'}}>Registros</th>
+                                        <th className="text-center" style={{width: '180px'}}>Registros / Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -253,7 +297,7 @@ export const Datos = () => {
                                         <tr key={index}>
                                             <td className="text-capitalize"><i className="bi bi-table me-2 text-muted"></i> {t.name}</td>
                                             <td className="text-center d-flex justify-content-end align-items-center gap-2">
-                                                <span className="badge bg-secondary rounded-pill">{t.rows}</span>
+                                                <span className="badge bg-secondary rounded-pill me-1">{t.rows}</span>
                                                 <Button 
                                                     variant="outline-info" 
                                                     size="sm" 
@@ -263,6 +307,17 @@ export const Datos = () => {
                                                     disabled={t.rows === 0}
                                                 >
                                                     <i className="bi bi-eye-fill"></i>
+                                                </Button>
+                                                {/* NUEVO BOTÓN BORRAR CONTENIDO DE LA TABLA */}
+                                                <Button 
+                                                    variant="outline-danger" 
+                                                    size="sm" 
+                                                    className="py-0 px-2" 
+                                                    title="Vaciar Toda la Tabla"
+                                                    onClick={() => handleClearTable(t.name, statsData.filename)}
+                                                    disabled={t.rows === 0}
+                                                >
+                                                    <i className="bi bi-eraser-fill"></i>
                                                 </Button>
                                             </td>
                                         </tr>
