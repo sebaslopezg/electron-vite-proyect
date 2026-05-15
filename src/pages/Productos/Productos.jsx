@@ -17,27 +17,14 @@ export const Productos = () => {
 
   const [reloadTable, setReloadTable] = useState(0)
   const [categorias, setCategorias] = useState([])
-  const [subcategorias, setSubcategorias] = useState([])
+  const [subcategorias, setSubcategorias] = useState([]) 
   const [etiquetas, setEtiquetas] = useState([])
 
   const emptyForm = {
-    ref_name: '', 
-    sku: '', 
-    stock: 0, 
-    min_stock: 5, 
-    max_stock: 50,
-    categoria_id: 'general', 
-    subcategorias_ids: [],
-    etiquetas: [], 
-    unidad_medida: 'Unidad',
-    iva: 0, 
-    allow_negative: 0, 
-    descripcion: '', 
-    precio: 0, 
-    status: 1, 
-    tipo: 'producto',
-    allow_encargo: 1, 
-    encargo_solo_sin_stock: 1
+    ref_name: '', sku: '', stock: 0, min_stock: 5, max_stock: 50,
+    categoria_id: 'general', subcategorias_ids: [], etiquetas: [], unidad_medida: 'Unidad', 
+    iva: 0, allow_negative: 0, descripcion: '', precio: 0, status: 1, tipo: 'producto',
+    allow_encargo: 1, encargo_solo_sin_stock: 1
   }
 
   const [form, setForm] = useState({ ...emptyForm })
@@ -68,11 +55,11 @@ export const Productos = () => {
       window.api.getCategorias(),
       window.api.getEtiquetas(),
       window.api.getSubcategorias()
-    ])
+    ]);
     setCategorias(catsData || [])
     setEtiquetas(tagsData || [])
-    setSubcategorias(subcatsData || [])
-  }, [])
+    setSubcategorias(subcatsData || []) 
+  }, []);
 
   const cleanForm = () => setForm({ ...emptyForm })
 
@@ -98,22 +85,28 @@ export const Productos = () => {
           const item = JSON.parse(rawData);
           
           const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : [];
-            setForm({
-            ref_name: item.ref_name || '', 
-            sku: item.sku || '', 
-            stock: item.stock || 0,
-            min_stock: item.min_stock || 5, 
-            max_stock: item.max_stock || 50,
+          
+          // --- CORRECCIÓN VITAL AQUÍ ---
+          // Desempaquetamos el JSON de la base de datos de vuelta a un arreglo para el Modal
+          let subcatIds = [];
+          if (item.subcategorias_ids_json) {
+              try {
+                  subcatIds = JSON.parse(item.subcategorias_ids_json);
+              } catch (e) {
+                  console.warn("Error parseando subcategorias", e);
+              }
+          }
+          // -----------------------------
+
+          setForm({
+            ref_name: item.ref_name || '', sku: item.sku || '', stock: item.stock || 0,
+            min_stock: item.min_stock || 5, max_stock: item.max_stock || 50,
             categoria_id: item.categoria_id || 'general', 
-            subcategoria_id: item.subcategoria_id || '',
+            subcategorias_ids: subcatIds, // <-- Asignamos el arreglo limpio
             etiquetas: tagsArray,
-            unidad_medida: item.unidad_medida || 'Unidad', 
-            iva: item.iva || 0,
-            allow_negative: item.allow_negative || 0, 
-            descripcion: item.descripcion || '',
-            precio: item.precio || 0, 
-            status: item.status || 1, 
-            tipo: item.tipo || 'producto',
+            unidad_medida: item.unidad_medida || 'Unidad', iva: item.iva || 0,
+            allow_negative: item.allow_negative || 0, descripcion: item.descripcion || '',
+            precio: item.precio || 0, status: item.status || 1, tipo: item.tipo || 'producto',
             allow_encargo: item.allow_encargo !== undefined ? item.allow_encargo : 1,
             encargo_solo_sin_stock: item.encargo_solo_sin_stock !== undefined ? item.encargo_solo_sin_stock : 1
           })

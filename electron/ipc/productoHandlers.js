@@ -4,6 +4,7 @@ import db from "../database/index.js"
 
 export const registerProductoHandlers = () => {
 
+  // Lógica de concatenación estricta y a prueba de balas
   const processProductPrefixes = (data) => {
     return data.map(p => {
         let fullPrefix = p.cat_prefix || ''; 
@@ -13,11 +14,20 @@ export const registerProductoHandlers = () => {
         
         if (subIds.length > 0) {
             const placeholders = subIds.map(() => '?').join(',');
-            const subs = db.prepare(`SELECT sku_prefix, separador FROM subcategoria WHERE id IN (${placeholders})`).all(...subIds);
+            const subs = db.prepare(`SELECT id, sku_prefix, separador FROM subcategoria WHERE id IN (${placeholders})`).all(...subIds);
             
-            subs.forEach(s => {
-                fullPrefix += (s.sku_prefix || '');
-                if (s.separador) finalSeparator = s.separador; 
+            subIds.forEach(id => {
+                const s = subs.find(sub => sub.id === id);
+                if (s && s.sku_prefix) {
+                    if (fullPrefix) {
+                        // Forzamos la inserción del separador anterior, si no hay, no ponemos nada
+                        fullPrefix += (finalSeparator ? finalSeparator : '') + s.sku_prefix;
+                    } else {
+                        fullPrefix = s.sku_prefix;
+                    }
+                    // Actualizamos el separador para la siguiente vuelta
+                    finalSeparator = s.separador || ''; 
+                }
             });
         }
 

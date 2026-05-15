@@ -132,6 +132,29 @@ const migrations = [
                 if (!error.message.includes('duplicate column name')) throw error
             }
         }
+    },
+    {
+        version: 13,
+        up: () => {
+            console.log("Applying migration V13: Subcategorías Multi-Categoría");
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS subcategoria_categoria (
+                    subcategoria_id TEXT,
+                    categoria_id TEXT,
+                    PRIMARY KEY (subcategoria_id, categoria_id),
+                    FOREIGN KEY(subcategoria_id) REFERENCES subcategoria(id) ON DELETE CASCADE,
+                    FOREIGN KEY(categoria_id) REFERENCES categoria(id) ON DELETE CASCADE
+                );
+            `);
+            try {
+                db.exec(`
+                    INSERT OR IGNORE INTO subcategoria_categoria (subcategoria_id, categoria_id)
+                    SELECT id, categoria_id FROM subcategoria WHERE categoria_id IS NOT NULL AND categoria_id != '';
+                `);
+            } catch (e) {
+                console.error("Error migrando subcategorías antiguas", e);
+            }
+        }
     }
 ]
 

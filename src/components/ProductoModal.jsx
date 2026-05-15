@@ -25,7 +25,7 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
     const selectedSubIds = form.subcategorias_ids || [];
     const selectedCategory = categorias.find(cat => cat.id === form.categoria_id);
     
-    // --- LÓGICA DE CONCATENACIÓN PERFECTA ---
+    // --- LÓGICA DE CONCATENACIÓN ESTRICTA (IDÉNTICA AL BACKEND) ---
     let combinedPrefix = selectedCategory?.sku_prefix || '';
     let currentSeparator = selectedCategory?.separador || '';
 
@@ -33,18 +33,16 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
         const sub = subcategorias.find(s => s.id === id);
         if (sub && sub.sku_prefix) {
             if (combinedPrefix) {
-                // Si ya existe un prefijo previo, agregamos el separador antes del nuevo
-                combinedPrefix += `${currentSeparator}${sub.sku_prefix}`;
+                // Forzamos la inserción del separador anterior
+                combinedPrefix += (currentSeparator ? currentSeparator : '') + sub.sku_prefix;
             } else {
                 combinedPrefix = sub.sku_prefix;
             }
-            // Actualizamos el separador actual para el siguiente ciclo o el final
-            if (sub.separador !== undefined && sub.separador !== null) {
-                currentSeparator = sub.separador;
-            }
+            // Actualizamos el separador para la siguiente vuelta
+            currentSeparator = sub.separador || '';
         }
     });
-    // ----------------------------------------
+    // -------------------------------------------------------------
 
     const handleTagToggle = (tagId) => {
         setForm(prev => {
@@ -122,7 +120,7 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                                         >
                                             <option value="">Seleccione subcategoría...</option>
                                             {subcategorias
-                                                .filter(s => s.categoria_id === form.categoria_id)
+                                                .filter(s => s.categorias_ids && s.categorias_ids.split(',').includes(form.categoria_id))
                                                 .map(s => <option key={s.id} value={s.id}>{s.nombre} ({s.sku_prefix})</option>)
                                             }
                                         </Form.Select>
@@ -155,7 +153,7 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                                     />
                                 </InputGroup>
                                 <Form.Text className="text-muted">
-                                    El código resultante será: <strong>{combinedPrefix}{currentSeparator}{form.sku.toUpperCase()}</strong>
+                                    El código resultante será: <strong>{combinedPrefix}{currentSeparator}{form.sku?.toUpperCase()}</strong>
                                 </Form.Text>
                             </Form.Group>
                         </Col>

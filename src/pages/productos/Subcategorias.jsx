@@ -12,7 +12,8 @@ export const Subcategorias = () => {
     const [categorias, setCategorias] = useState([])
     const [reloadTable, setReloadTable] = useState(0)
 
-    const emptyForm = { nombre: '', descripcion: '', sku_prefix: '', separador: '', categoria_id: '' }
+    // 1. Estado inicial preparado para múltiples categorías
+    const emptyForm = { nombre: '', descripcion: '', sku_prefix: '', separador: '', categorias_ids: [] }
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
 
@@ -32,7 +33,8 @@ export const Subcategorias = () => {
         e.preventDefault()
         
         let result;
-        const payload = { ...form, sku_prefix: form.sku_prefix.toUpperCase() }
+        // 2. Prevenir crash si el prefijo está vacío
+        const payload = { ...form, sku_prefix: (form.sku_prefix || '').toUpperCase() }
 
         if (editingId) {
             result = await window.api.updateSubcategoria({ ...payload, id: editingId })
@@ -84,9 +86,12 @@ export const Subcategorias = () => {
                 try {
                     const item = JSON.parse(decodeURIComponent(editBtn.dataset.alldata))
                     setForm({
-                        nombre: item.nombre || '', descripcion: item.descripcion || '',
-                        sku_prefix: item.sku_prefix || '', separador: item.separador || '',
-                        categoria_id: item.categoria_id || ''
+                        nombre: item.nombre || '', 
+                        descripcion: item.descripcion || '',
+                        sku_prefix: item.sku_prefix || '', 
+                        separador: item.separador || '',
+                        // 3. Convertir el texto de la DB en un arreglo para el Modal
+                        categorias_ids: item.categorias_ids ? item.categorias_ids.split(',') : []
                     });
                     setEditingId(item.id)
                     handleShow()
@@ -114,7 +119,12 @@ export const Subcategorias = () => {
                 data={dataInTable}
                 columns={[
                     { data: 'nombre', title: 'Subcategoría' },
-                    { data: 'categoria_nombre', title: 'Categoría Padre', render: (data) => `<span class="badge bg-info text-dark">${data}</span>` },
+                    // 4. Renderizado visual de múltiples categorías como etiquetas
+                    { 
+                        data: 'categoria_nombre', 
+                        title: 'Categorías Vinculadas', 
+                        render: (data) => data ? data.split(' • ').map(c => `<span class="badge bg-info text-dark me-1 mb-1">${c}</span>`).join('') : '<span class="text-muted small">Ninguna</span>' 
+                    },
                     { 
                         data: 'sku_prefix', title: 'Prefijo SKU',
                         render: (data, type, row) => data ? `<code>${data}${row.separador || ''}</code>` : '<span class="text-muted">-</span>'
