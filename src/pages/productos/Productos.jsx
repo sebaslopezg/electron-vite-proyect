@@ -6,14 +6,14 @@ import {
 } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
-import ProductModal from '../../components/ProductoModal';
-import { formatCurrency } from '../../utils/currencies';
+import ProductModal from './components/ProductoModal'
+import { formatCurrency } from '../../utils/currencies'
 
 export const Productos = () => {
 
-  const [show, setShow] = useState(false);
-  const handleClose = () => setShow(false);
-  const handleShow = () => setShow(true);
+  const [show, setShow] = useState(false)
+  const handleClose = () => setShow(false)
+  const handleShow = () => setShow(true)
 
   const [reloadTable, setReloadTable] = useState(0)
   const [categorias, setCategorias] = useState([])
@@ -30,21 +30,21 @@ export const Productos = () => {
   const [form, setForm] = useState({ ...emptyForm })
   const [editingId, setEditingId] = useState(null)
   
-  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
   const loadConfig = async () => {
-      const configData = await window.api.getConfiguracion();
-      const confAppRaw = configData.find(c => c.key === 'confApp');
-      if (confAppRaw) {
-          try {
-              const parsed = JSON.parse(confAppRaw.value);
-              setAppConfig({
-                  moneda: parsed.moneda || 'COP',
-                  formato_numero: parsed.formato_numero || 'es-CO'
-              });
-          } catch(e) {}
-      }
-  };
+    const configData = await window.api.getConfiguracion()
+    const confAppRaw = configData.find(c => c.key === 'confApp')
+    if (confAppRaw) {
+      try {
+        const parsed = JSON.parse(confAppRaw.value)
+        setAppConfig({
+          moneda: parsed.moneda || 'COP',
+          formato_numero: parsed.formato_numero || 'es-CO'
+        })
+      } catch(e) {}
+    }
+  }
 
   const renderCurrency = (val) => {
       return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
@@ -55,54 +55,60 @@ export const Productos = () => {
       window.api.getCategorias(),
       window.api.getEtiquetas(),
       window.api.getSubcategorias()
-    ]);
+    ])
     setCategorias(catsData || [])
     setEtiquetas(tagsData || [])
     setSubcategorias(subcatsData || []) 
-  }, []);
+  }, [])
 
   const cleanForm = () => setForm({ ...emptyForm })
 
   useEffect(() => { 
-    loadSelectsData();
-    loadConfig();
+    loadSelectsData()
+    loadConfig()
     
-    window.addEventListener('config-actualizada', loadConfig);
-    return () => window.removeEventListener('config-actualizada', loadConfig);
+    window.addEventListener('config-actualizada', loadConfig)
+    window.addEventListener('categorias-actualizadas', loadSelectsData)
+    window.addEventListener('subcategorias-actualizadas', loadSelectsData)
+    window.addEventListener('etiquetas-actualizadas', loadSelectsData)
+
+    return () => {
+        window.removeEventListener('config-actualizada', loadConfig)
+        window.removeEventListener('categorias-actualizadas', loadSelectsData)
+        window.removeEventListener('subcategorias-actualizadas', loadSelectsData)
+        window.removeEventListener('etiquetas-actualizadas', loadSelectsData)
+    }
   }, [loadSelectsData])
 
-  const tableContainerRef = useRef(null);
+  const tableContainerRef = useRef(null)
 
   useEffect(() => {
-    const container = tableContainerRef.current;
-    if (!container) return;
+    const container = tableContainerRef.current
+    if (!container) return
 
     const handleTableClick = (e) => {
-      const editBtn = e.target.closest('.btn-edit');
+      const editBtn = e.target.closest('.btn-edit')
       if (editBtn) {
         try {
-          const rawData = decodeURIComponent(editBtn.dataset.alldata);
-          const item = JSON.parse(rawData);
+          const rawData = decodeURIComponent(editBtn.dataset.alldata)
+          const item = JSON.parse(rawData)
           
-          const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : [];
+          const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : []
           
-          // --- CORRECCIÓN VITAL AQUÍ ---
-          // Desempaquetamos el JSON de la base de datos de vuelta a un arreglo para el Modal
-          let subcatIds = [];
+          let subcatIds = []
           if (item.subcategorias_ids_json) {
-              try {
-                  subcatIds = JSON.parse(item.subcategorias_ids_json);
-              } catch (e) {
-                  console.warn("Error parseando subcategorias", e);
-              }
+            try {
+              subcatIds = JSON.parse(item.subcategorias_ids_json)
+            } catch (e) {
+              console.warn("Error parseando subcategorias", e)
+            }
           }
-          // -----------------------------
 
           setForm({
             ref_name: item.ref_name || '', sku: item.sku || '', stock: item.stock || 0,
             min_stock: item.min_stock || 5, max_stock: item.max_stock || 50,
             categoria_id: item.categoria_id || 'general', 
-            subcategorias_ids: subcatIds, // <-- Asignamos el arreglo limpio
+            subcategorias_ids: subcatIds,
             etiquetas: tagsArray,
             unidad_medida: item.unidad_medida || 'Unidad', iva: item.iva || 0,
             allow_negative: item.allow_negative || 0, descripcion: item.descripcion || '',

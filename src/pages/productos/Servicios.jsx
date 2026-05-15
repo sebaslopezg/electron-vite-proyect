@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
-import ProductModal from '../../components/ProductoModal';
-import { formatCurrency } from '../../utils/currencies';
+import ProductModal from './components/ProductoModal'
+import { formatCurrency } from '../../utils/currencies'
 
 export const Servicios = () => {
     const [show, setShow] = useState(false);
@@ -31,11 +31,11 @@ export const Servicios = () => {
     const [categorias, setCategorias] = useState([])
     const [etiquetas, setEtiquetas] = useState([])
 
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion();
-        const confAppRaw = configData.find(c => c.key === 'confApp');
+        const configData = await window.api.getConfiguracion()
+        const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
                 const parsed = JSON.parse(confAppRaw.value);
@@ -45,11 +45,11 @@ export const Servicios = () => {
                 });
             } catch(e) {}
         }
-    };
+    }
 
     const renderCurrency = (val) => {
-        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
-    };
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+    }
 
     useEffect(() => {
         const loadExtras = async () => {

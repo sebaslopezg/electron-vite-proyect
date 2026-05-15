@@ -27,13 +27,20 @@ export const Subcategorias = () => {
 
     const cleanForm = () => setForm({ ...emptyForm })
 
-    useEffect(() => { load() }, [])
+    useEffect(() => { 
+        load() 
+        
+        window.addEventListener('categorias-actualizadas', load)
+        
+        return () => {
+            window.removeEventListener('categorias-actualizadas', load)
+        }
+    }, [])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         
         let result;
-        // 2. Prevenir crash si el prefijo está vacío
         const payload = { ...form, sku_prefix: (form.sku_prefix || '').toUpperCase() }
 
         if (editingId) {
