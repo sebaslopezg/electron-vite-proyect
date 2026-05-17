@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
-import CategoriaModal from '../../components/CategoriaModal'
+import CategoriaModal from './components/CategoriaModal'
 
 export const Categorias = () => {
     const [show, setShow] = useState(false);

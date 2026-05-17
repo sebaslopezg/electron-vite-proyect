@@ -5,7 +5,7 @@ import esLocale from "@fullcalendar/core/locales/es";
 import { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
 import { Button, Col, Modal, Row } from "react-bootstrap";
-import { EncargoDetalles } from "../../components/EncargoDetalles";
+import { EncargoDetalles } from "./components/EncargoDetalles";
 
 function renderEventContent(eventInfo) {
   return (

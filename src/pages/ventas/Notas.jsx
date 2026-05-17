@@ -4,7 +4,7 @@ import Swal from 'sweetalert2'
 import { NuevaNota } from './NuevaNota.jsx'
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col } from 'react-bootstrap'
-import { ImpresorNota } from '../../components/ImpresorNota'
+import { ImpresorNota } from './components/ImpresorNota'
 import { getCurrencySymbol } from '../../utils/currencies'
 
 export const Notas = () => {

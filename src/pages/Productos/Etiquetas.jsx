@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
-import EtiquetaModal from '../../components/EtiquetaModal'
+import EtiquetaModal from './components/EtiquetaModal'
 
 export const Etiquetas = () => {
     const [show, setShow] = useState(false);

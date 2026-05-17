@@ -2,8 +2,6 @@
 
  ## Modificaciones Prioritarias:
 
- - Crear subcategorias del producto
- - Migraciones automaticas cuando detecte tablas del sistema
  - Generar cierre del día: Crear una pestaña de "Informes" en modulo de ventas
  
  - Crear logs en todos los movimientos del sistema y visualizarlos 

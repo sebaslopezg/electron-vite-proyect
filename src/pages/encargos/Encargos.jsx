@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
 import { Button, Col, Form, FormGroup, Modal } from "react-bootstrap"
 import Swal from "sweetalert2"
-import { EncargoDetalles } from "../../components/EncargoDetalles"
+import { EncargoDetalles } from "./components/EncargoDetalles"
 
 export const Encargos = () => {
     const [show, setShow] = useState(false)
