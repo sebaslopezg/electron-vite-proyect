@@ -5,6 +5,7 @@ import { Facturacion } from './Facturacion.jsx'
 import { Configuracion } from './Configuracion.jsx'
 import { VerFacturas } from './VerFacturas.jsx'
 import { Notas } from './Notas.jsx'
+import { Reportes } from './Reportes.jsx'
 
 
 
@@ -76,6 +77,18 @@ export const Ventas = () => {
                         <li className="nav-item" role="presentation">
                             <button
                                 className="nav-link"
+                                id="reportes-tab"
+                                data-bs-toggle="tab"
+                                data-bs-target="#reportes"
+                                type="button"
+                                role="tab"
+                            >
+                                Reportes
+                            </button>
+                        </li>
+                        <li className="nav-item" role="presentation">
+                            <button
+                                className="nav-link"
                                 id="notas-tab"
                                 data-bs-toggle="tab"
                                 data-bs-target="#notas"
@@ -111,6 +124,9 @@ export const Ventas = () => {
                         </div>
                         <div className="tab-pane fade" id="verFacturas" role="tabpanel" aria-labelledby="verFacturas-tab">
                             <VerFacturas />
+                        </div>
+                        <div className="tab-pane fade" id="reportes" role="tabpanel" aria-labelledby="reportes-tab">
+                            <Reportes />
                         </div>
                         <div className="tab-pane fade" id="notas" role="tabpanel" aria-labelledby="notas-tab">
                                 <Notas />

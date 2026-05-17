@@ -1,13 +1,10 @@
  # Lista de actividades pendientes para desarrollar
 
  ## Modificaciones Prioritarias:
-
- - Generar cierre del día: Crear una pestaña de "Informes" en modulo de ventas
  
  - Crear logs en todos los movimientos del sistema y visualizarlos 
  - Mejorar modulo de pagos (mas sencillo)
  - Impuestos y Retenciones (Nivel Intermedio)
-
 
  - Revisar todos los cruds y asegurarse de tener soft delete en todos.
  - Conectar modulo de cartera con contabilidad
@@ -16,6 +13,7 @@
  - Opciones desplegables con cuadro de busqueda
  - Crear modulo de usuarios
  - Crear modulo de roles y permisos
+ - Crear un manejador de modulos
 
  ## No prioritario
  - permitir cambiar de posicion las opciones de metodo de pago en el menu desplegable

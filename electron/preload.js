@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("api", {
   getDetalle: (id) => ipcRenderer.invoke("get-detalle", id),
   createVenta: (data) => ipcRenderer.invoke("create-venta", data),
   getFacturasPaginadas: (params) => ipcRenderer.invoke('get-maestro-paginados', params),
+  getReporteVentas: (data) => ipcRenderer.invoke("get-reporte-ventas", data),
 
   //inventario
   getInventario: () => ipcRenderer.invoke("get-inventario"),

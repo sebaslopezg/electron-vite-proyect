@@ -163,6 +163,39 @@ export const registerVentasHandlers = () => {
         }
     })
 
+    ipcMain.handle("get-reporte-ventas", (_, { startDate, endDate }) => {
+        try {
+            let baseQuery = `FROM ventasMaestro WHERE status > 0`;
+            let queryParams = [];
+
+            if (startDate) {
+                baseQuery += " AND date(date_created) >= date(?)";
+                queryParams.push(startDate);
+            }
+            if (endDate) {
+                baseQuery += " AND date(date_created) <= date(?)";
+                queryParams.push(endDate);
+            }
+
+            const query = `
+                SELECT *,
+                (SELECT separador FROM almacen_conf LIMIT 1) AS separador
+                ${baseQuery}
+                ORDER BY date_created ASC
+            `;
+            
+            const data = db.prepare(query).all(...queryParams);
+            
+            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
+            const configuracion = confStmt.get() || {};
+
+            return { success: true, data, configuracion };
+        } catch (error) {
+            console.error("Error obteniendo reporte de ventas:", error);
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
         const transaction = db.transaction((maestroData, detallesData) => {
             const now = new Date().toISOString()
@@ -186,13 +219,34 @@ export const registerVentasHandlers = () => {
                 )
             `)
             insertMaestro.run(
-                maestroId, nuevoNumeroFactura, prefijoFactura, config.separador || '', config.resolucionDian || '',
-                config.nombreFactura || '', config.nombre_almacen || '', config.nit_almacen || '', config.direccion_almacen || '',
-                config.telefono_almacen || '', config.email_almacen || '', config.footer_factura || '',
-                maestroData.nombre_cliente, maestroData.documento_cliente, maestroData.subtotal, maestroData.descuento,
-                maestroData.iva, maestroData.total, maestroData.total_recibido, maestroData.saldo_pendiente,
-                maestroData.total_recibido, maestroData.saldo_pendiente, maestroData.tipo_pago, maestroData.metodo_pago,
-                maestroData.moneda, maestroData.formato_numero, now, maestroData.observaciones || ''
+                maestroId, 
+                nuevoNumeroFactura, 
+                prefijoFactura, 
+                config.separador || '', 
+                config.resolucionDian || '',
+                config.nombreFactura || '', 
+                config.nombre_almacen || '', 
+                config.nit_almacen || '', 
+                config.direccion_almacen || '',
+                config.telefono_almacen || '', 
+                config.email_almacen || '', 
+                config.footer_factura || '',
+                maestroData.nombre_cliente, 
+                maestroData.documento_cliente, 
+                maestroData.subtotal, 
+                maestroData.descuento,
+                maestroData.iva, 
+                maestroData.total, 
+                maestroData.total_recibido, 
+                maestroData.saldo_pendiente,
+                maestroData.total_recibido, 
+                maestroData.saldo_pendiente, 
+                maestroData.tipo_pago, 
+                maestroData.metodo_pago,
+                maestroData.moneda, 
+                maestroData.formato_numero, 
+                now, 
+                maestroData.observaciones || ''
             )
 
             db.prepare('UPDATE almacen_conf SET consecutivo = ? WHERE id = ?').run(nuevoNumeroFactura, config.id)
@@ -223,78 +277,95 @@ export const registerVentasHandlers = () => {
                     `)
                     insertInventario.run(uuidv4(), item.id, 'SALIDA', 'VENTA', item.cantidad, stockAnterior, stockNuevo, now)
                 } else {
-                    const prevNum = db.prepare('SELECT COUNT(*) as count FROM encargos').get()
-                    const newNum = prevNum.count + 1
-                    const insertEncargo = db.prepare(
-                        `INSERT INTO encargos(
-                            id, factura_id, producto_id, estado_id, cliente_nombre, cliente_documento,
-                            factura_numero, producto_cantidad, encargo_numero, date_created, status
-                        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
-                    )
-                    insertEncargo.run(uuidv4(), maestroId, item.id, 'pendiente', maestroData.nombre_cliente, maestroData.documento_cliente, nuevoNumeroFactura, item.cantidad, newNum, now)
+                    try {
+                        const prevNum = db.prepare('SELECT COUNT(*) as count FROM encargos').get()
+                        const newNum = prevNum.count + 1
+                        const insertEncargo = db.prepare(
+                            `INSERT INTO encargos(
+                                id, factura_id, producto_id, estado_id, cliente_nombre, cliente_documento,
+                                factura_numero, producto_cantidad, encargo_numero, date_created, status
+                            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
+                        )
+                        let estadoIdObj = db.prepare("SELECT id FROM estadoEncargo WHERE nombre = 'Pendiente'").get();
+                        let estadoId = estadoIdObj ? estadoIdObj.id : 'pendiente';
+
+                        insertEncargo.run(uuidv4(), maestroId, item.id, estadoId, maestroData.nombre_cliente, maestroData.documento_cliente, nuevoNumeroFactura, item.cantidad, newNum, now)
+                    } catch (err) {
+                        if (err.message.includes('FOREIGN KEY')) {
+                            throw new Error("Fallo en Sistema de Encargos. Es posible que hayas eliminado los Estados de Encargo (Pendiente, Completado, etc.).");
+                        }
+                        throw err;
+                    }
                 }
             }
 
-            const configContable = db.prepare('SELECT * FROM configuracionContable WHERE id = 1').get()
-            
-            if (configContable && configContable.cuenta_caja && configContable.cuenta_ingresos) {
+            try {
+                const configContable = db.prepare('SELECT * FROM configuracionContable WHERE id = 1').get()
                 
-                const tercero = db.prepare('SELECT id FROM terceros WHERE numero_documento = ?').get(maestroData.documento_cliente)
-                const terceroId = tercero ? tercero.id : null
-
-                const comprobanteId = uuidv4()
-                const lastComp = db.prepare("SELECT MAX(numero_comprobante) as maxNum FROM comprobantes").get()
-                const numeroComprobante = (lastComp.maxNum || 0) + 1
-                
-                const conceptoFactura = `Venta ${prefijoFactura}${config.separador || ''}${nuevoNumeroFactura} - ${maestroData.nombre_cliente}`
-
-                db.prepare(`
-                    INSERT INTO comprobantes (id, numero_comprobante, fecha, concepto, documento_referencia, estado, date_created, modify_by)
-                    VALUES (?, ?, ?, ?, ?, 1, ?, 'system')
-                `).run(comprobanteId, numeroComprobante, now, conceptoFactura, `${prefijoFactura}${nuevoNumeroFactura}`, now)
-
-                const insertDetalleContable = db.prepare(`
-                    INSERT INTO comprobantesDetalle (id, comprobante_id, cuenta_id, tercero_id, descripcion_linea, debito, credito)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                `)
-
-                const tieneCuentaDesc = configContable.cuenta_descuento ? true : false;
-                const valorIngreso = tieneCuentaDesc ? maestroData.subtotal : (maestroData.subtotal - maestroData.descuento)
-                if (valorIngreso > 0) {
-                    insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_ingresos, terceroId, 'Ingresos por Venta', 0, valorIngreso)
-                }
-
-                if (maestroData.iva > 0 && configContable.cuenta_iva) {
-                    insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_iva, terceroId, 'IVA Generado', 0, maestroData.iva)
-                }
-
-                if (maestroData.descuento > 0 && tieneCuentaDesc) {
-                    insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_descuento, terceroId, 'Descuento Concedido', maestroData.descuento, 0)
-                }
-
-                const valorPagado = maestroData.total - maestroData.saldo_pendiente;
-                
-                if (valorPagado > 0) {
-                    const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(maestroData.metodo_pago)
+                if (configContable && configContable.cuenta_caja && configContable.cuenta_ingresos) {
                     
-                    const cuentaDestinoEfectivo = (metodoInfo && metodoInfo.cuenta_id) 
-                        ? metodoInfo.cuenta_id 
-                        : configContable.cuenta_caja
+                    const tercero = db.prepare('SELECT id FROM terceros WHERE numero_documento = ?').get(maestroData.documento_cliente)
+                    const terceroId = tercero ? tercero.id : null
 
-                    insertDetalleContable.run(
-                        uuidv4(), 
-                        comprobanteId, 
-                        cuentaDestinoEfectivo, 
-                        terceroId, 
-                        `Ingreso por ${maestroData.metodo_pago}`, 
-                        valorPagado, 
-                        0
-                    )
-                }
+                    const comprobanteId = uuidv4()
+                    const lastComp = db.prepare("SELECT MAX(numero_comprobante) as maxNum FROM comprobantes").get()
+                    const numeroComprobante = (lastComp.maxNum || 0) + 1
+                    
+                    const conceptoFactura = `Venta ${prefijoFactura}${config.separador || ''}${nuevoNumeroFactura} - ${maestroData.nombre_cliente}`
 
-                if (maestroData.saldo_pendiente > 0 && configContable.cuenta_cartera) {
-                    insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_cartera, terceroId, 'Cuenta por Cobrar (Crédito)', maestroData.saldo_pendiente, 0)
+                    db.prepare(`
+                        INSERT INTO comprobantes (id, numero_comprobante, fecha, concepto, documento_referencia, estado, date_created, modify_by)
+                        VALUES (?, ?, ?, ?, ?, 1, ?, 'system')
+                    `).run(comprobanteId, numeroComprobante, now, conceptoFactura, `${prefijoFactura}${nuevoNumeroFactura}`, now)
+
+                    const insertDetalleContable = db.prepare(`
+                        INSERT INTO comprobantesDetalle (id, comprobante_id, cuenta_id, tercero_id, descripcion_linea, debito, credito)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    `)
+
+                    const tieneCuentaDesc = configContable.cuenta_descuento ? true : false;
+                    const valorIngreso = tieneCuentaDesc ? maestroData.subtotal : (maestroData.subtotal - maestroData.descuento)
+                    if (valorIngreso > 0) {
+                        insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_ingresos, terceroId, 'Ingresos por Venta', 0, valorIngreso)
+                    }
+
+                    if (maestroData.iva > 0 && configContable.cuenta_iva) {
+                        insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_iva, terceroId, 'IVA Generado', 0, maestroData.iva)
+                    }
+
+                    if (maestroData.descuento > 0 && tieneCuentaDesc) {
+                        insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_descuento, terceroId, 'Descuento Concedido', maestroData.descuento, 0)
+                    }
+
+                    const valorPagado = maestroData.total - maestroData.saldo_pendiente;
+                    
+                    if (valorPagado > 0) {
+                        const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(maestroData.metodo_pago)
+                        
+                        const cuentaDestinoEfectivo = (metodoInfo && metodoInfo.cuenta_id) 
+                            ? metodoInfo.cuenta_id 
+                            : configContable.cuenta_caja
+
+                        insertDetalleContable.run(
+                            uuidv4(), 
+                            comprobanteId, 
+                            cuentaDestinoEfectivo, 
+                            terceroId, 
+                            `Ingreso por ${maestroData.metodo_pago}`, 
+                            valorPagado, 
+                            0
+                        )
+                    }
+
+                    if (maestroData.saldo_pendiente > 0 && configContable.cuenta_cartera) {
+                        insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_cartera, terceroId, 'Cuenta por Cobrar (Crédito)', maestroData.saldo_pendiente, 0)
+                    }
                 }
+            } catch (err) {
+                if (err.message.includes('FOREIGN KEY')) {
+                    throw new Error("ERROR CONTABLE: Al intentar registrar la factura se descubrió que una Cuenta Contable que tenías configurada ya no existe. Por favor, ve a Contabilidad -> Configurar, y vuelve a enlazar las Cuentas de Ingresos/Caja/etc.");
+                }
+                throw err;
             }
 
             return {
