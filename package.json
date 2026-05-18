@@ -1,7 +1,7 @@
 {
   "name": "caedro_app",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Sebastian Lopez <sebaslg96@gmail.com>",
   "description": "Caedro ERP System",
   "type": "module",
