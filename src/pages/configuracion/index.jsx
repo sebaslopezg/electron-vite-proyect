@@ -1,8 +1,9 @@
-import { General } from './General';
-import { Datos } from './Datos';
-import { Importar } from './Importar';
-import { Exportar } from './Exportar';
+import { General } from './General'
+import { Datos } from './Datos'
+import { Importar } from './Importar'
+import { Exportar } from './Exportar'
 import { Actualizaciones } from './Actualizaciones'
+import { Logs } from './Logs'
 
 export const ConfiguracionIndex = () => {
     return (
@@ -20,6 +21,11 @@ export const ConfiguracionIndex = () => {
                         <li className="nav-item" role="presentation">
                             <button className="nav-link" data-bs-toggle="tab" data-bs-target="#actualizaciones" type="button" role="tab">
                                 <i className="bi bi-arrow-repeat me-1"></i> Actualizaciones
+                            </button>
+                        </li>
+                        <li className="nav-item" role="presentation">
+                            <button className="nav-link" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">
+                                <i class="bi bi-journal-text"></i> Logs
                             </button>
                         </li>
                         <li className="nav-item" role="presentation">
@@ -54,6 +60,9 @@ export const ConfiguracionIndex = () => {
                         </div>
                         <div className="tab-pane fade" id="actualizaciones" role="tabpanel">
                             <Actualizaciones />
+                        </div>
+                        <div className="tab-pane fade" id="logs" role="tabpanel">
+                            <Logs />
                         </div>
                     </div>
                 </div>

@@ -1,6 +1,7 @@
 import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
+import { logger } from "../utils/logger.js"
 
 export const registerInventarioHandler = () => {
 
@@ -29,7 +30,7 @@ export const registerInventarioHandler = () => {
             `)
             return stmt.all()
         } catch (error) {
-            console.error("Error al intentar obtener productos:", error)
+            logger.error('INVENTARIO', "Error al intentar obtener la lista completa de inventario", error)
             return []
         }
     })
@@ -98,7 +99,7 @@ export const registerInventarioHandler = () => {
                 data: data
             };
         } catch (error) {
-            console.error("Error en paginación de inventario: ", error);
+            logger.error('INVENTARIO', "Error en paginación y filtros del inventario", error);
             return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
         }
     });
@@ -109,9 +110,7 @@ export const registerInventarioHandler = () => {
             const id = uuidv4()
             const now = new Date().toISOString()
 
-            const getStock = db.prepare(`
-            SELECT stock FROM producto WHERE id = ?
-        `)
+            const getStock = db.prepare(`SELECT stock, ref_name FROM producto WHERE id = ?`)
             const currentProduct = getStock.get(item.id)
 
             if (!currentProduct) {
@@ -132,12 +131,12 @@ export const registerInventarioHandler = () => {
             }
 
             const updateStock = db.prepare(`
-          UPDATE producto SET 
-            stock = ?,
-            date_modify = ?,
-            modify_by = ?
-          WHERE id = ?
-        `)
+                UPDATE producto SET 
+                    stock = ?,
+                    date_modify = ?,
+                    modify_by = ?
+                WHERE id = ?
+            `)
 
             const updateInfo = updateStock.run(
                 stockNuevo,
@@ -151,30 +150,30 @@ export const registerInventarioHandler = () => {
             }
 
             const insertInventario = db.prepare(`
-            INSERT INTO inventario(
-                id,
-                producto_id,
-                tipo_movimiento,
-                modulo_movimiento,
-                cantidad,
-                stock_anterior,
-                stock_nuevo,
-                fecha,
-                usuario,
-                notas
-            ) VALUES (
-                @id,
-                @producto_id,
-                @tipo_movimiento,
-                @modulo_movimiento,
-                @cantidad,
-                @stock_anterior,
-                @stock_nuevo,
-                @fecha,
-                @usuario,
-                @notas
-            )
-        `)
+                INSERT INTO inventario(
+                    id,
+                    producto_id,
+                    tipo_movimiento,
+                    modulo_movimiento,
+                    cantidad,
+                    stock_anterior,
+                    stock_nuevo,
+                    fecha,
+                    usuario,
+                    notas
+                ) VALUES (
+                    @id,
+                    @producto_id,
+                    @tipo_movimiento,
+                    @modulo_movimiento,
+                    @cantidad,
+                    @stock_anterior,
+                    @stock_nuevo,
+                    @fecha,
+                    @usuario,
+                    @notas
+                )
+            `)
 
             insertInventario.run({
                 id: id,
@@ -194,15 +193,21 @@ export const registerInventarioHandler = () => {
                 inventarioId: id,
                 stockAnterior,
                 stockNuevo,
+                nombreProducto: currentProduct.ref_name,
                 changes: updateInfo.changes
             }
         })
 
         try {
             const result = transaction(item)
+            logger.success(
+                'INVENTARIO', 
+                `Ajuste de inventario realizado: ${item.type.toUpperCase()}`, 
+                `Producto: ${result.nombreProducto} | Cantidad: ${item.cantidad} | Stock: ${result.stockAnterior} -> ${result.stockNuevo} | Usuario: ${item.usuario || 'nouser'}`
+            );
             return result
         } catch (error) {
-            console.error("Error en transacción de inventario:", error)
+            logger.error('INVENTARIO', "Error crítico en transacción de ajuste de inventario", error)
             return {
                 success: false,
                 error: error.message
@@ -213,23 +218,22 @@ export const registerInventarioHandler = () => {
     ipcMain.handle("get-inventario-history", (_, productoId) => {
         try {
             const stmt = db.prepare(`
-            SELECT 
-                i.*,
-                p.ref_name,
-                p.sku
-            FROM inventario i
-            LEFT JOIN producto p ON i.producto_id = p.id
-            WHERE i.producto_id = ?
-            ORDER BY i.fecha DESC
-        `)
+                SELECT 
+                    i.*,
+                    p.ref_name,
+                    p.sku
+                FROM inventario i
+                LEFT JOIN producto p ON i.producto_id = p.id
+                WHERE i.producto_id = ?
+                ORDER BY i.fecha DESC
+            `)
             return stmt.all(productoId)
         } catch (error) {
-            console.error("Error al obtener historial de inventario:", error)
+            logger.error('INVENTARIO', `Error al obtener historial de inventario para el producto (ID: ${productoId})`, error)
             return []
         }
     })
 
-    // Paginación del lado del servidor para Historial ---
     ipcMain.handle("get-inventario-history-paginados", (_, dtParams) => {
         try {
             const limit = parseInt(dtParams.length, 10) || 10;
@@ -275,7 +279,7 @@ export const registerInventarioHandler = () => {
                 data: data
             };
         } catch (error) {
-            console.error("Error en paginación de historial: ", error);
+            logger.error('INVENTARIO', "Error en paginación del historial de inventario", error);
             return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
         }
     });

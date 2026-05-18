@@ -1,6 +1,7 @@
 import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
+import { logger } from "../utils/logger.js"
 
 export const registerVentasHandlers = () => {
 
@@ -19,7 +20,7 @@ export const registerVentasHandlers = () => {
             `)
             return stmt.all()
         } catch (error) {
-            console.error("Error al intentar obtener facturas:", error)
+            logger.error('VENTAS', "Error al intentar obtener el listado histórico de facturas", error)
             return []
         }
     })
@@ -84,7 +85,7 @@ export const registerVentasHandlers = () => {
                 data: data
             }
         } catch (error) {
-            console.error("Error en paginación de facturas: ", error)
+            logger.error('VENTAS', "Error en paginación o filtros del listado de ventas", error)
             return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
     })
@@ -158,7 +159,7 @@ export const registerVentasHandlers = () => {
 
             return { success: true, data: detalles, notas: notas, configuracion: configuracionSnapshot }
         } catch (error) {
-            console.error("Error obteniendo detalles:", error)
+            logger.error('VENTAS', `Error obteniendo los detalles de la factura (ID: ${facturaId})`, error)
             return { success: false, error: error.message }
         }
     })
@@ -191,7 +192,7 @@ export const registerVentasHandlers = () => {
 
             return { success: true, data, configuracion };
         } catch (error) {
-            console.error("Error obteniendo reporte de ventas:", error);
+            logger.error('REPORTES_VENTAS', "Error generando el reporte de ventas por rango de fechas", error);
             return { success: false, error: error.message };
         }
     });
@@ -276,7 +277,7 @@ export const registerVentasHandlers = () => {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     `)
                     insertInventario.run(uuidv4(), item.id, 'SALIDA', 'VENTA', item.cantidad, stockAnterior, stockNuevo, now)
-                } else {
+                } else if (item.isEncargo === '1') {
                     try {
                         const prevNum = db.prepare('SELECT COUNT(*) as count FROM encargos').get()
                         const newNum = prevNum.count + 1
@@ -292,9 +293,9 @@ export const registerVentasHandlers = () => {
                         insertEncargo.run(uuidv4(), maestroId, item.id, estadoId, maestroData.nombre_cliente, maestroData.documento_cliente, nuevoNumeroFactura, item.cantidad, newNum, now)
                     } catch (err) {
                         if (err.message.includes('FOREIGN KEY')) {
-                            throw new Error("Fallo en Sistema de Encargos. Es posible que hayas eliminado los Estados de Encargo (Pendiente, Completado, etc.).");
+                            throw new Error("Fallo en Sistema de Encargos. Es posible que hayas eliminado los Estados de Encargo (Pendiente, Completado, etc.).")
                         }
-                        throw err;
+                        throw err
                     }
                 }
             }
@@ -363,9 +364,9 @@ export const registerVentasHandlers = () => {
                 }
             } catch (err) {
                 if (err.message.includes('FOREIGN KEY')) {
-                    throw new Error("ERROR CONTABLE: Al intentar registrar la factura se descubrió que una Cuenta Contable que tenías configurada ya no existe. Por favor, ve a Contabilidad -> Configurar, y vuelve a enlazar las Cuentas de Ingresos/Caja/etc.");
+                    throw new Error("ERROR CONTABLE: Al intentar registrar la factura se descubrió que una Cuenta Contable que tenías configurada ya no existe. Por favor, ve a Contabilidad -> Configurar, y vuelve a enlazar las Cuentas de Ingresos/Caja/etc.")
                 }
-                throw err;
+                throw err
             }
 
             return {
@@ -377,9 +378,17 @@ export const registerVentasHandlers = () => {
         })
 
         try {
-            return transaction(maestro, detalles)
+            const result = transaction(maestro, detalles);
+            
+            logger.success(
+                'VENTAS', 
+                `Venta procesada exitosamente: Factura N° ${result.prefijo}${result.numero_factura}`, 
+                `Cliente: ${maestro.nombre_cliente} | Total: ${maestro.total} | Pago: ${maestro.tipo_pago} (${maestro.metodo_pago})`
+            );
+            
+            return result;
         } catch (error) {
-            console.error("Transaction Error:", error)
+            logger.error('VENTAS', "Error crítico al intentar registrar una nueva venta", error)
             return { success: false, error: error.message }
         }
     })

@@ -1,6 +1,7 @@
-import { ipcMain } from "electron";
-import db from "../database/index.js";
-import { v4 as uuidv4 } from "uuid";
+import { ipcMain } from "electron"
+import db from "../database/index.js"
+import { v4 as uuidv4 } from "uuid"
+import { logger } from "../utils/logger.js"
 
 export const registerEstadoHandlers = () => {
     ipcMain.handle("get-estados", () => {
@@ -8,7 +9,7 @@ export const registerEstadoHandlers = () => {
             const stmt = db.prepare("SELECT * FROM estadoEncargo WHERE status > 0")
             return stmt.all()
         } catch (error) {
-            console.error("Error al intentar obtener datos: ", error);
+            logger.error('ESTADOS_ENCARGO', "Error al obtener la lista de estados de encargo", error)
             return []
         }
     })
@@ -20,24 +21,24 @@ export const registerEstadoHandlers = () => {
             const id = uuidv4()
             const stmt = db.prepare(`
                     INSERT INTO estadoEncargo(
-                    id,
-                    titulo,
-                    descripcion,
-                    color,
-                    allow_calendar,
-                    icon_data,
-                    status, 
-                    date_created
+                        id,
+                        titulo,
+                        descripcion,
+                        color,
+                        allow_calendar,
+                        icon_data,
+                        status, 
+                        date_created
                     )
                     VALUES(
-                    @id,
-                    @titulo,
-                    @descripcion,
-                    @color,
-                    @allow_calendar,
-                    @icon_data,
-                    @status, 
-                    @date_created
+                        @id,
+                        @titulo,
+                        @descripcion,
+                        @color,
+                        @allow_calendar,
+                        @icon_data,
+                        @status, 
+                        @date_created
                     )
                 `)
             const info = stmt.run({
@@ -48,10 +49,12 @@ export const registerEstadoHandlers = () => {
                 date_modify: now,
                 status: status
             })
+
+            logger.success('ESTADOS_ENCARGO', `Nuevo estado de encargo creado: ${item.titulo}`)
             return { success: true, id: id, changes: info.changes }
         } catch (error) {
-            console.error("Error al intentar insertar datos: ", error)
-            return []
+            logger.error('ESTADOS_ENCARGO', `Error al intentar crear el estado de encargo: ${item.titulo}`, error)
+            return { success: false, error: error.message }
         }
     })
 
@@ -59,17 +62,16 @@ export const registerEstadoHandlers = () => {
         try {
             const now = new Date().toISOString()
             const defaultStatus = 1
-            const id = uuidv4()
             const stmt = db.prepare(`
                     UPDATE estadoEncargo SET
-                    titulo=@titulo,
-                    descripcion=@descripcion,
-                    color=@color,
-                    allow_calendar=@allow_calendar,
-                    icon_data=@icon_data,
-                    status=@status, 
-                    modify_by=@modify_by,
-                    date_modify=@date_modify
+                        titulo=@titulo,
+                        descripcion=@descripcion,
+                        color=@color,
+                        allow_calendar=@allow_calendar,
+                        icon_data=@icon_data,
+                        status=@status, 
+                        modify_by=@modify_by,
+                        date_modify=@date_modify
                     WHERE id=@id
                 `)
             const info = stmt.run({
@@ -78,17 +80,20 @@ export const registerEstadoHandlers = () => {
                 date_modify: now,
                 status: item.status === 1 || item.status === 2 ? item.status : defaultStatus
             })
-            return { success: true, id: id, changes: info.changes }
+            
+            logger.success('ESTADOS_ENCARGO', `Estado de encargo actualizado: ${item.titulo} (ID: ${item.id})`)
+            return { success: true, id: item.id, changes: info.changes }
         } catch (error) {
-            console.error("Error al intentar insertar datos: ", error)
+            logger.error('ESTADOS_ENCARGO', `Error al intentar actualizar el estado de encargo (ID: ${item.id})`, error)
             return { success: false, error: error.message }
         }
     })
+
     ipcMain.handle("delete-estado", (_, item) => {
         try {
             const now = new Date().toISOString()
             const stmt = db.prepare(`
-            UPDATE estadoEncargo SET 
+                UPDATE estadoEncargo SET 
                   status = 0,
                   date_modify = @date_modify,
                   modify_by = @modify_by
@@ -102,12 +107,14 @@ export const registerEstadoHandlers = () => {
             })
 
             if (info.changes > 0) {
-                return { success: true, changes: info.changes };
+                logger.warning('ESTADOS_ENCARGO', `Estado de encargo eliminado (Soft delete) (ID: ${item})`)
+                return { success: true, changes: info.changes }
             } else {
-                return { success: false, changes: 0, message: "ID not found." };
+                logger.warning('ESTADOS_ENCARGO', `Intento de eliminar un estado de encargo inexistente (ID: ${item})`)
+                return { success: false, changes: 0, message: "ID not found." }
             }
         } catch (error) {
-            console.error("Error al intentar eliminar datos: ", error)
+            logger.error('ESTADOS_ENCARGO', `Error crítico al intentar eliminar el estado de encargo (ID: ${item})`, error)
             return { success: false, error: error.message }
         }
     })

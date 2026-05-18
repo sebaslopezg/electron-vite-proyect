@@ -1,6 +1,7 @@
 import { ipcMain } from "electron"
 import db from "../database/index.js"
 import { v4 as uuidv4 } from "uuid"
+import { logger } from "../utils/logger.js"
 
 export const registerContabilidadHandlers = () => {
   ipcMain.handle("get-puc", () => {
@@ -8,7 +9,7 @@ export const registerContabilidadHandlers = () => {
       const cuentas = db.prepare("SELECT * FROM cuentasContables ORDER BY id ASC").all()
       return { success: true, data: cuentas }
     } catch (error) {
-      console.error("Error obteniendo PUC:", error)
+      logger.error('CONTABILIDAD', "Error al consultar el Plan Único de Cuentas (PUC)", error)
       return { success: false, error: error.message }
     }
   })
@@ -21,11 +22,15 @@ export const registerContabilidadHandlers = () => {
         VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'))
       `)
       stmt.run(cuenta.id, cuenta.nombre, cuenta.tipo, cuenta.naturaleza, cuenta.es_auxiliar, cuenta.exige_tercero)
+      
+      logger.success('CONTABILIDAD', `Cuenta contable creada: [${cuenta.id}] ${cuenta.nombre}`);
       return { success: true }
     } catch (error) {
       if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+        logger.warning('CONTABILIDAD', `Intento de duplicar el código de cuenta contable: ${cuenta.id}`);
         return { success: false, error: "El código de esta cuenta ya existe en el PUC." }
       }
+      logger.error('CONTABILIDAD', `Error al intentar crear la cuenta contable ${cuenta.id}`, error)
       return { success: false, error: error.message }
     }
   })
@@ -38,8 +43,11 @@ export const registerContabilidadHandlers = () => {
         WHERE id = ?
       `);
       stmt.run(cuenta.nombre, cuenta.exige_tercero, cuenta.estado, cuenta.id)
+      
+      logger.success('CONTABILIDAD', `Cuenta contable actualizada: [${cuenta.id}] ${cuenta.nombre}`);
       return { success: true }
     } catch (error) {
+      logger.error('CONTABILIDAD', `Error al actualizar la cuenta contable ${cuenta.id}`, error)
       return { success: false, error: error.message }
     }
   })
@@ -49,13 +57,17 @@ export const registerContabilidadHandlers = () => {
       const hijas = db.prepare("SELECT COUNT(*) as total FROM cuentasContables WHERE id LIKE ? AND id != ?").get(`${id}%`, id)
       
       if (hijas.total > 0) {
+        logger.warning('CONTABILIDAD', `Intento denegado de eliminar cuenta padre [${id}]. Tiene ${hijas.total} subcuentas.`);
         return { success: false, error: `No puedes eliminar esta cuenta porque tiene ${hijas.total} subcuentas asignadas. Elimina las hijas primero.` }
       }
 
       const stmt = db.prepare("DELETE FROM cuentasContables WHERE id = ?")
       stmt.run(id);
+      
+      logger.info('CONTABILIDAD', `Cuenta contable eliminada definitivamente del sistema: [${id}]`);
       return { success: true }
     } catch (error) {
+      logger.error('CONTABILIDAD', `Error al intentar eliminar la cuenta contable ${id}`, error)
       return { success: false, error: error.message }
     }
   })
@@ -93,7 +105,7 @@ export const registerContabilidadHandlers = () => {
         data: dataQuery
       }
     } catch (error) {
-      console.error("Error en paginación de comprobantes:", error)
+      logger.error('CONTABILIDAD', "Error en paginación y búsqueda del historial de comprobantes", error)
       return { error: error.message }
     }
   })
@@ -108,19 +120,23 @@ export const registerContabilidadHandlers = () => {
       }
       
       if (sumDebitos.toFixed(2) !== sumCreditos.toFixed(2)) {
+        logger.warning('CONTABILIDAD', `Intento de guardar comprobante manual descuadrado (Débitos: ${sumDebitos.toFixed(2)} | Créditos: ${sumCreditos.toFixed(2)})`);
         return { success: false, error: "El asiento no cuadra. La suma de los débitos no es igual a los créditos." }
       }
 
+      let comprobanteIdGenerado = null;
+      let numeroComprobanteGenerado = null;
+
       const saveComprobante = db.transaction(() => {
-         const comprobanteId = uuidv4()
+         comprobanteIdGenerado = uuidv4()
          
          const lastComp = db.prepare("SELECT MAX(numero_comprobante) as maxNum FROM comprobantes").get()
-         const numeroComprobante = (lastComp.maxNum || 0) + 1
+         numeroComprobanteGenerado = (lastComp.maxNum || 0) + 1
 
          db.prepare(`
            INSERT INTO comprobantes (id, numero_comprobante, fecha, concepto, documento_referencia, estado, date_created, modify_by)
            VALUES (?, ?, ?, ?, ?, 1, datetime('now'), 'system')
-         `).run(comprobanteId, numeroComprobante, cabecera.fecha, cabecera.concepto, cabecera.documento_referencia || '')
+         `).run(comprobanteIdGenerado, numeroComprobanteGenerado, cabecera.fecha, cabecera.concepto, cabecera.documento_referencia || '')
 
          const stmtDetalle = db.prepare(`
            INSERT INTO comprobantesDetalle (id, comprobante_id, cuenta_id, tercero_id, descripcion_linea, debito, credito)
@@ -130,7 +146,7 @@ export const registerContabilidadHandlers = () => {
          for (const linea of detalles) {
             stmtDetalle.run(
               uuidv4(), 
-              comprobanteId, 
+              comprobanteIdGenerado, 
               linea.cuenta_id, 
               linea.tercero_id || null, 
               linea.descripcion_linea || '', 
@@ -140,9 +156,11 @@ export const registerContabilidadHandlers = () => {
          }
       })
       saveComprobante()
+      
+      logger.success('CONTABILIDAD', `Comprobante manual N° ${numeroComprobanteGenerado} registrado con éxito`, `Concepto: ${cabecera.concepto} | Total: ${sumDebitos.toFixed(2)}`)
       return { success: true }
     } catch (error) {
-      console.error("Error creando comprobante:", error)
+      logger.error('CONTABILIDAD', "Error crítico al intentar guardar el comprobante manual", error)
       return { success: false, error: error.message }
     }
   })
@@ -155,7 +173,7 @@ export const registerContabilidadHandlers = () => {
       const detalles = db.prepare("SELECT * FROM comprobantesDetalle WHERE comprobante_id = ?").all(id)
       return { success: true, data: { cabecera, detalles } }
     } catch (error) {
-      console.error("Error obteniendo detalle de comprobante:", error)
+      logger.error('CONTABILIDAD', `Error obteniendo detalle de comprobante (ID: ${id})`, error)
       return { success: false, error: error.message }
     }
   })
@@ -168,6 +186,7 @@ export const registerContabilidadHandlers = () => {
         sumCreditos += Number(linea.credito) || 0
       }
       if (sumDebitos.toFixed(2) !== sumCreditos.toFixed(2)) {
+        logger.warning('CONTABILIDAD', `Intento de actualización que descuadra comprobante existente (ID: ${id})`);
         return { success: false, error: "El asiento no cuadra." }
       }
 
@@ -194,9 +213,11 @@ export const registerContabilidadHandlers = () => {
       })
 
       updateComprobante()
+      
+      logger.success('CONTABILIDAD', `Comprobante manual actualizado con éxito`, `Ref: ${cabecera.documento_referencia} | Nuevo Total: ${sumDebitos.toFixed(2)}`);
       return { success: true }
     } catch (error) {
-      console.error("Error actualizando comprobante:", error)
+      logger.error('CONTABILIDAD', `Error crítico actualizando comprobante (ID: ${id})`, error)
       return { success: false, error: error.message }
     }
   })
@@ -204,7 +225,10 @@ export const registerContabilidadHandlers = () => {
   ipcMain.handle("get-cuentas-auxiliares", () => {
     try {
       return { success: true, data: db.prepare("SELECT id, nombre, exige_tercero FROM cuentasContables WHERE es_auxiliar = 1 AND estado = 1").all() }
-    } catch (error) { return { success: false, error: error.message } }
+    } catch (error) { 
+      logger.error('CONTABILIDAD', "Error al obtener lista de cuentas auxiliares", error)
+      return { success: false, error: error.message } 
+    }
   })
 
 
@@ -251,7 +275,7 @@ export const registerContabilidadHandlers = () => {
         totales: { debito: granTotalDebito, credito: granTotalCredito } 
       }
     } catch (error) {
-      console.error("Error generando Balance de Prueba:", error)
+      logger.error('REPORTES_CONTABLES', `Error generando Balance de Prueba (${fechaInicio} a ${fechaFin})`, error)
       return { success: false, error: error.message }
     }
   })
@@ -286,7 +310,10 @@ export const registerContabilidadHandlers = () => {
           totales: { ingresos, gastos, costos, utilidad: ingresos - gastos - costos }
         }
       }
-    } catch(err) { return { success: false, error: err.message }; }
+    } catch(err) { 
+      logger.error('REPORTES_CONTABLES', `Error generando Estado de Resultados (${fechaInicio} a ${fechaFin})`, err)
+      return { success: false, error: err.message }; 
+    }
   })
 
   ipcMain.handle("get-balance-general", async (event, { fechaInicio, fechaFin }) => {
@@ -344,7 +371,10 @@ export const registerContabilidadHandlers = () => {
           }
         }
       }
-    } catch(err) { return { success: false, error: err.message } }
+    } catch(err) { 
+      logger.error('REPORTES_CONTABLES', `Error generando Balance General (${fechaInicio} a ${fechaFin})`, err)
+      return { success: false, error: err.message } 
+    }
   })
 
 
@@ -354,6 +384,7 @@ export const registerContabilidadHandlers = () => {
     try {
       return { success: true, data: db.prepare("SELECT * FROM configuracionContable WHERE id = 1").get() }
     } catch (error) {
+      logger.error('CONFIG_CONTABLE', "Error al obtener la configuración de cuentas automáticas", error)
       return { success: false, error: error.message }
     }
   })
@@ -382,8 +413,11 @@ export const registerContabilidadHandlers = () => {
         config.cuenta_iva_compras,
         config.cuenta_inventario
       )
+      
+      logger.success('CONFIG_CONTABLE', "Cuentas contables automáticas enlazadas y actualizadas con éxito")
       return { success: true }
     } catch (error) {
+      logger.error('CONFIG_CONTABLE', "Error guardando la configuración contable automática", error)
       return { success: false, error: error.message }
     }
   })

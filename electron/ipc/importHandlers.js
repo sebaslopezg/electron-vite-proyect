@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import fs from 'fs'
 import csv from 'csv-parser'
 import path from 'path'
+import { logger } from "../utils/logger.js"
 
 const formatBytes = (bytes, decimals = 2) => {
     if (!+bytes) return '0 Bytes';
@@ -16,16 +17,12 @@ const formatBytes = (bytes, decimals = 2) => {
 }
 
 const sanitizeSqlToSqlite = (sql) => {
-    // 0. Eliminar el BOM (Byte Order Mark) y caracteres invisibles al inicio
     let clean = sql.replace(/^\uFEFF/, '');
 
-    // 1. LIMPIEZA INICIAL: Comentarios de MariaDB/MySQL
-    // Atrapamos espacios, tabs o caracteres invisibles ANTES del comentario
     clean = clean.replace(/^[ \t\uFEFF\xA0]*--.*$/gm, '');
     clean = clean.replace(/^[ \t\uFEFF\xA0]*#.*$/gm, '');
     clean = clean.replace(/\/\*[\s\S]*?\*\//g, '');
 
-    // 2. COMANDOS QUE SQLITE NO ENTIENDE
     clean = clean.replace(/^[ \t]*LOCK TABLES.*?;/gmi, '');
     clean = clean.replace(/^[ \t]*UNLOCK TABLES;/gmi, '');
     clean = clean.replace(/^[ \t]*SET .*?;/gmi, '');
@@ -36,34 +33,27 @@ const sanitizeSqlToSqlite = (sql) => {
     clean = clean.replace(/^[ \t]*DELIMITER[\s\S]*?^[ \t]*DELIMITER ;/gmi, '');
     clean = clean.replace(/^[ \t]*CREATE TRIGGER[\s\S]*?END(;| \$\$)/gmi, '');
 
-    // 3. LIMPIEZA DEL CREATE TABLE (Corta todas las etiquetas de MySQL al final)
-    // Cambia todo el "ENGINE=MyISAM DEFAULT CHARSET=..." por un simple ");"
     clean = clean.replace(/\)\s*(ENGINE|DEFAULT CHARSET|CHARSET|COLLATE)[^;]+;/gmi, ');');
 
-    // 4. PALABRAS RESERVADAS DENTRO DE LAS COLUMNAS
     clean = clean.replace(/\bAUTO_INCREMENT=\d+\b/gi, ''); 
     clean = clean.replace(/\bAUTO_INCREMENT\b/gi, ''); 
     clean = clean.replace(/\bUNSIGNED\b/gi, '');
     clean = clean.replace(/ON UPDATE CURRENT_TIMESTAMP/gi, '');
-    clean = clean.replace(/current_timestamp\(\)/gi, 'CURRENT_TIMESTAMP'); // Adaptación a SQLite
+    clean = clean.replace(/current_timestamp\(\)/gi, 'CURRENT_TIMESTAMP'); 
 
-    // 5. LLAVES Y RESTRICCIONES (Constraints que SQLite maneja diferente)
     clean = clean.replace(/,\s*(UNIQUE\s+)?KEY\s+[`'"]?[a-zA-Z0-9_]+[`'"]?\s*\([^)]+\)/gmi, '');
     clean = clean.replace(/,\s*(UNIQUE\s+)?INDEX\s+[`'"]?[a-zA-Z0-9_]+[`'"]?\s*\([^)]+\)/gmi, '');
     clean = clean.replace(/,\s*FULLTEXT\s+KEY\s+[`'"]?[a-zA-Z0-9_]+[`'"]?\s*\([^)]+\)/gmi, '');
     clean = clean.replace(/,\s*CONSTRAINT\s+[`'"]?[a-zA-Z0-9_]+[`'"]?\s+FOREIGN\s+KEY[^\n)]+\)/gmi, '');
 
-    // 6. TIPOS DE DATOS (Adaptación de MySQL a SQLite)
     clean = clean.replace(/\bint\(\d+\)\b/gi, 'INTEGER');
     clean = clean.replace(/\btinyint\(\d+\)\b/gi, 'INTEGER');
     clean = clean.replace(/\bbigint\(\d+\)\b/gi, 'INTEGER');
 
-    // 7. ESCAPE DE CARACTERES (Previene roturas en los INSERTs)
     clean = clean.replace(/\\'/g, "''");
     clean = clean.replace(/\\"/g, '"');
     clean = clean.replace(/\\\\/g, '\\');
 
-    // 8. BORRAR SALTOS DE LÍNEA VACÍOS RESIDUALES
     clean = clean.replace(/^\s*[\r\n]/gm, '');
 
     return clean.trim();
@@ -71,8 +61,6 @@ const sanitizeSqlToSqlite = (sql) => {
 
 export const registerImportHandlers = () => {
 
-
-    // 1. Selector exclusivo para CSV
     ipcMain.handle("select-csv-file", async () => {
         const result = await dialog.showOpenDialog({
             title: 'Seleccionar Archivo CSV',
@@ -121,6 +109,7 @@ export const registerImportHandlers = () => {
                 })
                 .on('error', (error) => {
                     sendLog(`[CSV] X Error leyendo el archivo: ${error.message}`);
+                    logger.error('IMPORTACION', "Error pre-cargando archivo CSV", error);
                     resolve({ success: false, error: error.message });
                 });
         });
@@ -143,12 +132,14 @@ export const registerImportHandlers = () => {
                 })
                 .on('error', (error) => {
                     sendLog(`[CSV] ❌ Error leyendo el archivo: ${error.message}`);
+                    logger.error('IMPORTACION', "Error ejecutando lectura de archivo CSV", error);
                     resolve({ success: false, error: "Error leyendo CSV: " + error.message });
                 })
                 .on('end', async () => {
                     try {
                         if (sourceData.length === 0) {
                             sendLog(`[CSV] ❌ El archivo está vacío.`);
+                            logger.warning('IMPORTACION', "Intento de importación CSV cancelado: El archivo estaba vacío.");
                             return resolve({ success: false, error: "El archivo CSV está vacío." });
                         }
 
@@ -163,7 +154,6 @@ export const registerImportHandlers = () => {
                         let count = 0, fixed = 0, skipped = 0;
                         sendLog(`[CSV] Insertando datos (En bloques para evitar congelamiento)...`);
 
-                        // Función interna que inserta un bloque pequeño
                         const processChunk = db.transaction((rows) => {
                             let c = 0, f = 0, s = 0;
                             for (const row of rows) {
@@ -181,7 +171,6 @@ export const registerImportHandlers = () => {
                                     else if (mapping[targetCol]) finalValue = row[mapping[targetCol]];
                                     else if (defaultValues[targetCol] !== undefined && defaultValues[targetCol] !== '') finalValue = defaultValues[targetCol];
 
-                                    // Limpieza de tipos universal
                                     if (finalValue === undefined || finalValue === "undefined") {
                                         finalValue = null;
                                     } else if (finalValue === "") {
@@ -222,7 +211,6 @@ export const registerImportHandlers = () => {
                             return { c, f, s };
                         });
 
-                        // CHUNKING: Cortamos el trabajo en bloques de 1500
                         const CHUNK_SIZE = 1500;
                         for (let i = 0; i < sourceData.length; i += CHUNK_SIZE) {
                             const chunk = sourceData.slice(i, i + CHUNK_SIZE);
@@ -232,16 +220,16 @@ export const registerImportHandlers = () => {
                             skipped += res.s;
                             
                             sendLog(`[CSV] Progreso: ${count + fixed} registros procesados...`);
-                            
-                            // TRUCO MÁGICO: Pausa de 10ms para refrescar la consola en pantalla y no congelar la app
                             await new Promise(r => setTimeout(r, 10)); 
                         }
 
                         sendLog(`[CSV] ✅ Proceso completado exitosamente.`);
+                        logger.success('IMPORTACION', `Importación CSV a tabla '${targetTable}' completada`, `Insertados: ${count} | Corregidos: ${fixed} | Omitidos: ${skipped}`);
                         resolve({ success: true, rows: count, fixed: fixed, skipped: skipped });
 
                     } catch (error) {
                         sendLog(`[CSV] ❌ Error general: ${error.message}`);
+                        logger.error('IMPORTACION', `Error crítico al importar datos CSV a la tabla '${targetTable}'`, error);
                         resolve({ success: false, error: error.message });
                     }
                 });
@@ -281,7 +269,6 @@ export const registerImportHandlers = () => {
 
             if (filePath.toLowerCase().endsWith('.sql')) {
                 sendLog(`[SQL] >> Archivo SQL detectado. Leyendo contenido completo...`);
-                // Pausa inicial para que la UI muestre el modal de consola
                 await new Promise(r => setTimeout(r, 50)); 
 
                 const sqlContent = fs.readFileSync(filePath, 'utf8');
@@ -313,7 +300,7 @@ export const registerImportHandlers = () => {
                         
                         if (count % 500 === 0) {
                             sendLog(`[SQL] Construyendo entorno: ${count} / ${statements.length} instrucciones completadas...`);
-                            await new Promise(r => setTimeout(r, 5)); // <-- Esto evita que salga "No Responde"
+                            await new Promise(r => setTimeout(r, 5)); 
                         }
                     }
                 }
@@ -341,7 +328,7 @@ export const registerImportHandlers = () => {
             return { success: true, schema, newPath: isTempFile ? activeFilePath : filePath };
         } catch (error) {
             sendLog(`[SQL] [X] ERROR CRÍTICO: ${error.message}`);
-            console.error("ERROR CRÍTICO AL LEER DB:", error);
+            logger.error('IMPORTACION', "Error crítico al leer o sanitizar archivo de BD Externa / SQL", error);
             return { success: false, error: `Error procesando el archivo: ${error.message}` };
         }
     });
@@ -370,7 +357,7 @@ export const registerImportHandlers = () => {
                 const map = new Map(rows.map(r => [String(r[joinConf.pkCol]), r[joinConf.extCol]]));
                 cache[targetCol] = { map, fkCol: joinConf.fkCol };
             } catch(e) {
-                console.warn(`Error cargando tabla de join ${joinConf.extTable}:`, e.message);
+                logger.warning('IMPORTACION', `Error construyendo Joins Caché para la tabla externa '${joinConf.extTable}'`, e);
             }
         }
         return cache;
@@ -394,7 +381,9 @@ export const registerImportHandlers = () => {
             const countRow = extDb.prepare(`SELECT COUNT(*) as total FROM ${tableName}`).get();
             extDb.close();
             return { success: true, columns, data, totalRows: countRow.total };
-        } catch (error) { return { success: false, error: error.message }; }
+        } catch (error) { 
+            return { success: false, error: error.message }; 
+        }
     });
     
     ipcMain.handle("execute-import", async (event, { filePath, sourceTable, targetTable, mapping, defaultValues, joins, idPrefix }) => {
@@ -411,6 +400,7 @@ export const registerImportHandlers = () => {
 
             if (sourceData.length === 0) {
                 sendLog(`[SQL] ❌ La tabla de origen está vacía.`);
+                logger.warning('IMPORTACION', `Intento de importación cancelado: La tabla origen '${sourceTable}' está vacía.`);
                 return { success: false, error: "La tabla de origen está vacía." };
             }
 
@@ -465,9 +455,8 @@ export const registerImportHandlers = () => {
 
                         values.push(finalValue);
                     }
-                    try { 
-                        insertStmt.run(values); c++; 
-                    } catch (err) {
+                    try { insertStmt.run(values); c++; } 
+                    catch (err) {
                         if (err.message.includes('UNIQUE constraint failed')) {
                             try {
                                 const parts = err.message.split(': ');
@@ -503,10 +492,11 @@ export const registerImportHandlers = () => {
             }
 
             sendLog(`[SQL] ✅ Proceso completado exitosamente.`);
+            logger.success('IMPORTACION', `Importación SQL desde la tabla '${sourceTable}' a la tabla '${targetTable}' completada`, `Insertados: ${count} | Corregidos: ${fixed} | Omitidos: ${skipped}`);
             return { success: true, rows: count, fixed: fixed, skipped: skipped };
 
         } catch (error) { 
-            sendLog(`[SQL] ❌ Error general: ${error.message}`);
+            logger.error('IMPORTACION', `Error ejecutando importación SQL a la tabla '${targetTable}'`, error);
             return { success: false, error: error.message }; 
         }
     });
@@ -565,8 +555,15 @@ export const registerImportHandlers = () => {
                 }
                 return { facturasImportadas, detallesImportados };
             });
-            return { success: true, ...transaction() };
-        } catch (error) { if (extDb && extDb.open) extDb.close(); return { success: false, error: error.message }; }
+            
+            const result = transaction();
+            logger.success('IMPORTACION', 'Importación de facturas relacionadas completada con éxito', `Facturas: ${result.facturasImportadas} | Ítems: ${result.detallesImportados}`);
+            return { success: true, ...result };
+        } catch (error) { 
+            if (extDb && extDb.open) extDb.close(); 
+            logger.error('IMPORTACION', "Error crítico importando facturas relacionadas", error);
+            return { success: false, error: error.message }; 
+        }
     });
 
     ipcMain.handle("execute-import-json", (_, { filePath, sourceTable, query, targetTable, jsonColumn, mapping, jsonKeysMapping, defaultValues, joins, idPrefix }) => {
@@ -583,7 +580,10 @@ export const registerImportHandlers = () => {
             const joinsCache = buildJoinsCache(joins, extDb);
             extDb.close();
 
-            if (sourceData.length === 0) return { success: false, error: "La tabla origen o consulta está vacía." };
+            if (sourceData.length === 0) {
+                logger.warning('IMPORTACION', "Intento de importación JSON cancelado: La tabla o consulta origen está vacía.");
+                return { success: false, error: "La tabla origen o consulta está vacía." };
+            }
 
             const extractItems = (obj) => {
                 if (Array.isArray(obj)) return obj;
@@ -653,32 +653,36 @@ export const registerImportHandlers = () => {
                             try { insertStmt.run(values); count++; } 
                             catch (err) {
                                 if (err.message.includes('UNIQUE constraint failed')) {
-                                    const parts = err.message.split(': ');
-                                    if (parts.length > 1) {
-                                        const failedFields = parts[1].split(', ');
-                                        failedFields.forEach(field => {
-                                            const colName = field.includes('.') ? field.split('.')[1] : field;
-                                            const colIdx = targetCols.indexOf(colName);
-                                            if (colIdx !== -1) {
-                                                const oldVal = values[colIdx];
-                                                values[colIdx] = oldVal ? `${oldVal}_dup${Math.floor(Math.random()*10000)}` : `sin_dato_${Math.floor(Math.random()*100000)}`;
-                                            }
-                                        });
-                                        try { insertStmt.run(values); count++; fixed++; } catch (e2) { skipped++; }
-                                    } else skipped++;
+                                    try {
+                                        const parts = err.message.split(': ');
+                                        if (parts.length > 1) {
+                                            const failedFields = parts[1].split(', ');
+                                            failedFields.forEach(field => {
+                                                const colName = field.includes('.') ? field.split('.')[1] : field;
+                                                const colIdx = targetCols.indexOf(colName);
+                                                if (colIdx !== -1) {
+                                                    const oldVal = values[colIdx];
+                                                    values[colIdx] = oldVal ? `${oldVal}_dup${Math.floor(Math.random()*10000)}` : `sin_dato_${Math.floor(Math.random()*100000)}`;
+                                                }
+                                            });
+                                            insertStmt.run(values); count++; fixed++; 
+                                        } else skipped++;
+                                    } catch (e2) { skipped++; }
                                 } else skipped++;
                             }
                         }
                     } catch(e) {
-                        console.warn("Fila ignorada por JSON inválido");
+                        // Ignorado silenciosamente para no detener el bucle
                     }
                 }
                 return { count, fixed, skipped };
             });
 
             const stats = transaction(sourceData);
+            logger.success('IMPORTACION', `Importación JSON a la tabla '${targetTable}' completada con éxito`, `Insertados: ${stats.count} | Corregidos: ${stats.fixed} | Omitidos: ${stats.skipped}`);
             return { success: true, rows: stats.count, fixed: stats.fixed, skipped: stats.skipped };
         } catch (error) { 
+            logger.error('IMPORTACION', `Error crítico importando JSON a la tabla '${targetTable}'`, error);
             return { success: false, error: error.message }; 
         }
     });
@@ -712,7 +716,10 @@ export const registerImportHandlers = () => {
             const joinsCache = buildJoinsCache(joins, extDb);
             extDb.close();
 
-            if (sourceData.length === 0) return { success: false, error: "La consulta no arrojó resultados." };
+            if (sourceData.length === 0) {
+                logger.warning('IMPORTACION', "Intento de importación por consulta SQL cancelado: La consulta no arrojó resultados.");
+                return { success: false, error: "La consulta no arrojó resultados." };
+            }
 
             const transaction = db.transaction((data) => {
                 const targetCols = db.prepare(`PRAGMA table_info(${targetTable})`).all().map(c => c.name);
@@ -770,7 +777,11 @@ export const registerImportHandlers = () => {
             });
 
             const stats = transaction(sourceData);
+            logger.success('IMPORTACION', `Importación por consulta SQL a la tabla '${targetTable}' completada con éxito`, `Insertados: ${stats.count} | Corregidos: ${stats.fixed} | Omitidos: ${stats.skipped}`);
             return { success: true, rows: stats.count, fixed: stats.fixed, skipped: stats.skipped };
-        } catch (error) { return { success: false, error: error.message }; }
+        } catch (error) { 
+            logger.error('IMPORTACION', `Error crítico ejecutando importación por consulta SQL a la tabla '${targetTable}'`, error);
+            return { success: false, error: error.message }; 
+        }
     });
 };

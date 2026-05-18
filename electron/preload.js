@@ -65,6 +65,10 @@ contextBridge.exposeInMainWorld("api", {
   executeImportQuery: (data) => ipcRenderer.invoke('execute-import-query', data),
   executeImportJson: (data) => ipcRenderer.invoke('execute-import-json', data),
 
+  //logs
+  getSystemLogs: (limit) => ipcRenderer.invoke("get-system-logs", limit),
+  clearSystemLogs: () => ipcRenderer .invoke("clear-system-logs"),
+
   // Perfiles de Datos
   getPerfiles: () => ipcRenderer.invoke("get-perfiles"),
   addPerfil: (data) => ipcRenderer.invoke("add-perfil", data),

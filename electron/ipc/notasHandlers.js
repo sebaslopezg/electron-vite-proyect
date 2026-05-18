@@ -1,6 +1,7 @@
-import { ipcMain } from "electron";
-import { v4 as uuidv4 } from 'uuid';
-import db from "../database/index.js";
+import { ipcMain } from "electron"
+import { v4 as uuidv4 } from 'uuid'
+import db from "../database/index.js"
+import { logger } from "../utils/logger.js"
 
 export const registerNotasHandlers = () => {
 
@@ -14,31 +15,31 @@ export const registerNotasHandlers = () => {
         FROM nota n
         LEFT JOIN ventasMaestro v ON n.id_factura_origen = v.id
         ORDER BY n.date_created DESC
-      `);
-      return stmt.all();
+      `)
+      return stmt.all()
     } catch (error) {
-      console.error("Error obteniendo notas:", error);
-      return [];
+      logger.error('NOTAS', "Error al intentar obtener el historial de notas", error)
+      return []
     }
-  });
+  })
 
 
   ipcMain.handle("add-nota", (_, data) => {
     const createNotaTransaction = db.transaction((notaData) => {
-      const now = new Date().toISOString();
-      const notaId = uuidv4();
-      const currentUser = notaData.usuario || 'system';
+      const now = new Date().toISOString()
+      const notaId = uuidv4()
+      const currentUser = notaData.usuario || 'system'
 
       const config = db.prepare('SELECT id, consecutivo_nota, consecutivo_nota_debito FROM almacen_conf LIMIT 1').get()
       if (!config) throw new Error("No se encontró configuración del almacén")
       
-      const prefijoCalculado = notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND';
+      const prefijoCalculado = notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND'
       
-      let nuevoNumeroNota = 0;
+      let nuevoNumeroNota = 0
       if (notaData.tipo_nota === 'Crédito') {
-          nuevoNumeroNota = config.consecutivo_nota + 1;
+        nuevoNumeroNota = config.consecutivo_nota + 1
       } else {
-          nuevoNumeroNota = config.consecutivo_nota_debito + 1;
+        nuevoNumeroNota = config.consecutivo_nota_debito + 1
       }
 
       const insertNota = db.prepare(`
@@ -84,7 +85,7 @@ export const registerNotasHandlers = () => {
           @now, 
           @usuario
         )
-      `);
+      `)
 
       insertNota.run({
         id: notaId,
@@ -104,12 +105,12 @@ export const registerNotasHandlers = () => {
         formato_numero: notaData.formato_numero || 'es-CO',
         now: now,
         usuario: currentUser
-      });
+      })
 
       if (notaData.tipo_nota === 'Crédito') {
-          db.prepare('UPDATE almacen_conf SET consecutivo_nota = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
+        db.prepare('UPDATE almacen_conf SET consecutivo_nota = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
       } else {
-          db.prepare('UPDATE almacen_conf SET consecutivo_nota_debito = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
+        db.prepare('UPDATE almacen_conf SET consecutivo_nota_debito = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
       }
 
       const insertItem = db.prepare(`
@@ -120,10 +121,10 @@ export const registerNotasHandlers = () => {
           @id, @id_nota, @id_producto, @nombre_producto, @cantidad, 
           @precio_unitario, @iva_percent, @subtotal, @total
         )
-      `);
+      `)
 
-      const getStock = db.prepare(`SELECT stock FROM producto WHERE id = ?`);
-      const updateStock = db.prepare(`UPDATE producto SET stock = @stock, date_modify = @now WHERE id = @id`);
+      const getStock = db.prepare(`SELECT stock FROM producto WHERE id = ?`)
+      const updateStock = db.prepare(`UPDATE producto SET stock = @stock, date_modify = @now WHERE id = @id`)
       
       const insertInventario = db.prepare(`
         INSERT INTO inventario (
@@ -133,7 +134,7 @@ export const registerNotasHandlers = () => {
           @id, @producto_id, @tipo_movimiento, @modulo_movimiento, @cantidad, 
           @stock_anterior, @stock_nuevo, @fecha, @usuario, @notas
         )
-      `);
+      `)
 
       for (const item of notaData.items) {
         insertItem.run({
@@ -146,18 +147,18 @@ export const registerNotasHandlers = () => {
           iva_percent: item.iva_percent,
           subtotal: item.subtotal,
           total: item.total
-        });
+        })
 
         if (notaData.afecta_inventario) {
-          const currentProduct = getStock.get(item.id_producto);
+          const currentProduct = getStock.get(item.id_producto)
           
           if (currentProduct) {
-            const stockAnterior = currentProduct.stock;
+            const stockAnterior = currentProduct.stock
             const stockNuevo = notaData.tipo_nota === 'Crédito' 
               ? stockAnterior + item.cantidad 
-              : stockAnterior - item.cantidad;
+              : stockAnterior - item.cantidad
 
-            updateStock.run({ stock: stockNuevo, now: now, id: item.id_producto });
+            updateStock.run({ stock: stockNuevo, now: now, id: item.id_producto })
 
             insertInventario.run({
               id: uuidv4(),
@@ -170,30 +171,37 @@ export const registerNotasHandlers = () => {
               fecha: now,
               usuario: currentUser,
               notas: `Asociado a Nota ${prefijoCalculado}-${nuevoNumeroNota}` 
-            });
+            })
           }
         }
       }
 
-      return notaId;
-    });
+      logger.success(
+        'NOTAS', 
+        `Nota ${notaData.tipo_nota} N° ${prefijoCalculado}-${nuevoNumeroNota} creada con éxito`, 
+        `Aplicada a la Factura Origen N° ${notaData.numero_factura_origen} | Total de la nota: ${notaData.total_final}`
+      )
+
+      return notaId
+    })
 
     try {
-      const newNotaId = createNotaTransaction(data);
-      return { success: true, id: newNotaId };
+      const newNotaId = createNotaTransaction(data)
+      return { success: true, id: newNotaId }
     } catch (error) {
-      console.error("Error en transacción de Nota:", error);
-      return { success: false, error: error.message };
+      logger.error('NOTAS', "Error crítico en la transacción al intentar generar una Nota (Crédito/Débito)", error)
+      return { success: false, error: error.message }
     }
-  });
+  })
 
 
   ipcMain.handle("search-factura", (_, numero_factura) => {
     try {
-      const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ? AND status > 0').get(numero_factura);
+      const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ? AND status > 0').get(numero_factura)
       
       if (!maestro) {
-        return { success: false, message: 'Factura no encontrada' };
+        logger.warning('NOTAS', `Intento de buscar factura inexistente (N°: ${numero_factura})`)
+        return { success: false, message: 'Factura no encontrada' }
       }
 
       const detalles = db.prepare(`
@@ -205,14 +213,14 @@ export const registerNotasHandlers = () => {
           LEFT JOIN producto p ON df.id_producto = p.id
           LEFT JOIN categoria c ON p.categoria_id = c.id
           WHERE df.maestro_id = ?
-      `).all(maestro.id);
+      `).all(maestro.id)
       
-      return { success: true, maestro, detalles };
+      return { success: true, maestro, detalles }
     } catch (error) {
-      console.error("Error buscando factura:", error);
-      return { success: false, error: error.message };
+      logger.error('NOTAS', `Error al intentar buscar la factura N° ${numero_factura} en la base de datos`, error)
+      return { success: false, error: error.message }
     }
-  });
+  })
 
   ipcMain.handle("get-nota-detalle", (_, notaId) => {
     try {
@@ -227,15 +235,15 @@ export const registerNotasHandlers = () => {
           WHERE ni.id_nota = ?
       `);
       
-      const detalles = stmt.all(notaId);
-      const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
-      const configuracion = confStmt.get();
+      const detalles = stmt.all(notaId)
+      const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`)
+      const configuracion = confStmt.get()
 
-      return { success: true, data: detalles, configuracion: configuracion };
+      return { success: true, data: detalles, configuracion: configuracion }
     } catch (error) {
-      console.error("Error obteniendo detalles de nota:", error);
-      return { success: false, error: error.message };
+      logger.error('NOTAS', `Error al obtener los detalles de la nota (ID: ${notaId})`, error)
+      return { success: false, error: error.message }
     }
-  });
+  })
 
-};
+}

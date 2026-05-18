@@ -1,7 +1,7 @@
-
 import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
+import { logger } from "../utils/logger.js"
 
 export const registerEncargosHandlers = () => {
     ipcMain.handle("get-encargos", () => {
@@ -12,25 +12,25 @@ export const registerEncargosHandlers = () => {
                     en.factura_numero, 
                     en.cliente_nombre, 
                     en.cliente_documento,
-					en.descripcion,
+                    en.descripcion,
                     en.fecha_entrega, 
-					en.producto_cantidad,
+                    en.producto_cantidad,
                     es.titulo as estado_titulo, 
                     es.id as estado_id,
                     es.allow_calendar,
                     es.color as estado_color,
                     es.icon_data as icon,
-					p.ref_name as producto_nombre,
-					vm.prefijo 
-                    FROM encargos en
+                    p.ref_name as producto_nombre,
+                    vm.prefijo 
+                FROM encargos en
                 LEFT JOIN estadoEncargo es ON en.estado_id = es.id
-				LEFT JOIN producto p ON en.producto_id = p.id
-				LEFT JOIN ventasMaestro vm ON en.factura_id = vm.id
+                LEFT JOIN producto p ON en.producto_id = p.id
+                LEFT JOIN ventasMaestro vm ON en.factura_id = vm.id
                 WHERE en.status > 0
-                `)
+            `)
             return stmt.all()
         } catch (error) {
-            console.error("Error al intentar obtener encargos:", error)
+            logger.error('ENCARGOS', "Error al intentar obtener la lista de encargos", error)
             return []
         }
     })
@@ -42,40 +42,40 @@ export const registerEncargosHandlers = () => {
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
 
             const stmt = db.prepare(`
-        INSERT INTO encargos (
-            id,
-            factura_id,
-            producto_id
-            estado_id,
-            almacen_id,
-            cliente_id,
-            cliente_nombre,
-            cliente_documento,
-            factura_numero,
-            producto_cantidad,
-            encargo_numero,
-            fecha_entrega,
-            descripcion,
-            status,
-            date_created
-        ) VALUES (
-            @id,
-            @factura_id,
-            @producto_id
-            @estado_id,
-            @almacen_id,
-            @cliente_id,
-            @cliente_nombre,
-            @cliente_documento,
-            @factura_numero,
-            @producto_cantidad,
-            @encargo_numero,
-            @fecha_entrega,
-            @descripcion,
-            @status,
-            @date_created,
-        )
-      `)
+                INSERT INTO encargos (
+                    id,
+                    factura_id,
+                    producto_id,
+                    estado_id,
+                    almacen_id,
+                    cliente_id,
+                    cliente_nombre,
+                    cliente_documento,
+                    factura_numero,
+                    producto_cantidad,
+                    encargo_numero,
+                    fecha_entrega,
+                    descripcion,
+                    status,
+                    date_created
+                ) VALUES (
+                    @id,
+                    @factura_id,
+                    @producto_id,
+                    @estado_id,
+                    @almacen_id,
+                    @cliente_id,
+                    @cliente_nombre,
+                    @cliente_documento,
+                    @factura_numero,
+                    @producto_cantidad,
+                    @encargo_numero,
+                    @fecha_entrega,
+                    @descripcion,
+                    @status,
+                    @date_created
+                )
+            `)
 
             const info = stmt.run({
                 ...item,
@@ -85,10 +85,11 @@ export const registerEncargosHandlers = () => {
                 status: status
             })
 
+            logger.success('ENCARGOS', `Encargo N° ${item.encargo_numero} creado exitosamente`, `Factura: ${item.factura_numero} | Cliente: ${item.cliente_nombre}`)
             return { success: true, id: id, changes: info.changes }
 
         } catch (error) {
-            console.error("Error adding product:", error)
+            logger.error('ENCARGOS', "Error al intentar registrar un nuevo encargo", error)
             return { success: false, error: error.message }
         }
     })
@@ -98,14 +99,14 @@ export const registerEncargosHandlers = () => {
             const now = new Date().toISOString()
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
             const stmt = db.prepare(`
-        UPDATE encargos SET
-            fecha_entrega = @fecha_entrega,
-            estado_id = @estado_id,
-            descripcion = @descripcion,
-            date_modify = @date_modify,
-            modify_by = @modify_by
-        WHERE id = @id
-      `)
+                UPDATE encargos SET
+                    fecha_entrega = @fecha_entrega,
+                    estado_id = @estado_id,
+                    descripcion = @descripcion,
+                    date_modify = @date_modify,
+                    modify_by = @modify_by
+                WHERE id = @id
+            `)
             const info = stmt.run({
                 ...item,
                 date_modify: now,
@@ -113,10 +114,11 @@ export const registerEncargosHandlers = () => {
                 status: status
             })
 
+            logger.success('ENCARGOS', `Encargo actualizado con éxito`, `ID Encargo: ${item.id} | Nuevo Estado: ${item.estado_id}`)
             return { success: true, changes: info.changes }
 
         } catch (error) {
-            console.error("Error updating encargo:", error)
+            logger.error('ENCARGOS', `Error al intentar actualizar el encargo (ID: ${item.id})`, error)
             return { success: false, error: error.message }
         }
     })
@@ -125,13 +127,13 @@ export const registerEncargosHandlers = () => {
         try {
             const now = new Date().toISOString();
             const stmt = db.prepare(`
-        UPDATE encargos
-        SET 
-          status = 0,
-          date_modify = @date_modify,
-          modify_by = @modify_by
-        WHERE id = @id
-      `)
+                UPDATE encargos
+                SET 
+                    status = 0,
+                    date_modify = @date_modify,
+                    modify_by = @modify_by
+                WHERE id = @id
+            `)
 
             const info = stmt.run({
                 id: item,
@@ -140,14 +142,15 @@ export const registerEncargosHandlers = () => {
             })
 
             if (info.changes > 0) {
+                logger.warning('ENCARGOS', `Encargo eliminado (Soft delete)`, `ID Encargo: ${item}`);
                 return { success: true, changes: info.changes };
             } else {
-                console.log(`Error: ${info.changes}`)
+                logger.warning('ENCARGOS', `Intento de eliminar un encargo que no existe`, `ID no encontrado: ${item}`);
                 return { success: false, changes: 0, message: "Product ID not found." }
             }
 
         } catch (error) {
-            console.error("Error deleting product:", error)
+            logger.error('ENCARGOS', `Error crítico al intentar eliminar el encargo (ID: ${item})`, error)
             return { success: false, error: error.message }
         }
     })

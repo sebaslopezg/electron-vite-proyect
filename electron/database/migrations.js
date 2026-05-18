@@ -152,8 +152,24 @@ const migrations = [
                     SELECT id, categoria_id FROM subcategoria WHERE categoria_id IS NOT NULL AND categoria_id != '';
                 `);
             } catch (e) {
-                console.error("Error migrando subcategorías antiguas", e);
+                console.error("Error migrando subcategorías antiguas", e)
             }
+        }
+    },
+    {
+        version: 14,
+        up: () => {
+            console.log("Applying migration: Tabla de System Logs")
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS system_logs (
+                    id TEXT PRIMARY KEY,
+                    tipo TEXT NOT NULL,
+                    modulo TEXT NOT NULL,
+                    mensaje TEXT NOT NULL,
+                    detalles TEXT,
+                    fecha TEXT NOT NULL
+                );
+            `)
         }
     }
 ]

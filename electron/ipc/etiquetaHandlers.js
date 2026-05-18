@@ -1,12 +1,12 @@
 import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
+import { logger } from "../utils/logger.js"
 
 export const registerEtiquetaHandlers = () => {
 
     ipcMain.handle("get-etiquetas", () => {
         try {
-            // Obtenemos las etiquetas y concatenamos los nombres e IDs de sus categorías
             const stmt = db.prepare(`
                 SELECT e.*, 
                        GROUP_CONCAT(c.nombre, ', ') as categorias_nombres,
@@ -19,7 +19,7 @@ export const registerEtiquetaHandlers = () => {
             `)
             return stmt.all()
         } catch (error) {
-            console.error("Error al obtener etiquetas:", error)
+            logger.error('ETIQUETAS', "Error al obtener la lista de etiquetas", error)
             return []
         }
     })
@@ -28,46 +28,43 @@ export const registerEtiquetaHandlers = () => {
         const transaction = db.transaction((data) => {
             const id = uuidv4()
             
-            // 1. Insertar la Etiqueta
             db.prepare(`
                 INSERT INTO etiqueta (id, nombre, descripcion, color, status) 
                 VALUES (@id, @nombre, @descripcion, @color, 1)
             `).run({ ...data, id })
 
-            // 2. Insertar las relaciones con las categorías
             const insertRelacion = db.prepare(`INSERT INTO etiqueta_categoria (etiqueta_id, categoria_id) VALUES (?, ?)`)
             
-            const categorias = data.categorias && data.categorias.length > 0 ? data.categorias : ['general'];
+            const categorias = data.categorias && data.categorias.length > 0 ? data.categorias : ['general']
             for (const catId of categorias) {
                 insertRelacion.run(id, catId)
             }
 
-            return id;
-        });
+            return id
+        })
 
         try {
             const id = transaction(item)
+            logger.success('ETIQUETAS', `Nueva etiqueta creada: ${item.nombre}`)
             return { success: true, id }
         } catch (error) {
+            logger.error('ETIQUETAS', `Error al intentar crear la etiqueta: ${item.nombre}`, error)
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("update-etiqueta", (_, item) => {
         const transaction = db.transaction((data) => {
-            // 1. Actualizar la Etiqueta
             db.prepare(`
                 UPDATE etiqueta SET 
                     nombre = @nombre, descripcion = @descripcion, color = @color 
                 WHERE id = @id
             `).run(data)
 
-            // 2. Borrar relaciones viejas
             db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(data.id)
 
-            // 3. Insertar relaciones nuevas
             const insertRelacion = db.prepare(`INSERT INTO etiqueta_categoria (etiqueta_id, categoria_id) VALUES (?, ?)`)
-            const categorias = data.categorias && data.categorias.length > 0 ? data.categorias : ['general'];
+            const categorias = data.categorias && data.categorias.length > 0 ? data.categorias : ['general']
             for (const catId of categorias) {
                 insertRelacion.run(data.id, catId)
             }
@@ -75,19 +72,24 @@ export const registerEtiquetaHandlers = () => {
 
         try {
             transaction(item)
+            logger.success('ETIQUETAS', `Etiqueta actualizada: ${item.nombre} (ID: ${item.id})`)
             return { success: true }
         } catch (error) {
+            logger.error('ETIQUETAS', `Error al intentar actualizar la etiqueta (ID: ${item.id})`, error)
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("delete-etiqueta", (_, id) => {
         try {
-            // En lugar de borrarla físicamente, la ocultamos (status = 0)
             const stmt = db.prepare("UPDATE etiqueta SET status = 0 WHERE id = ?")
             const info = stmt.run(id)
+            if (info.changes > 0) {
+                logger.warning('ETIQUETAS', `Etiqueta enviada a la papelera (Soft delete) (ID: ${id})`)
+            }
             return { success: true, changes: info.changes }
         } catch (error) {
+            logger.error('ETIQUETAS', `Error crítico al intentar eliminar la etiqueta (ID: ${id})`, error)
             return { success: false, error: error.message }
         }
     })
