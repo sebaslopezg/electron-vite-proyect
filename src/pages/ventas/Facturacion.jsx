@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
 import { Button, InputGroup, Form, Row, Col } from 'react-bootstrap'
-import Modal from 'react-bootstrap/Modal'
 import { ImpresorFactura } from './components/ImpresorFactura'
 import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
 import { ModalTercero } from '../contabilidad/components/ModalTercero'
+import { ModalBusquedaVentas } from './components/ModalBusquedaVentas'
 
 export const Facturacion = () => {
   const [productos, setProductos] = useState([])
@@ -28,65 +28,65 @@ export const Facturacion = () => {
   const [docInput, setDocInput] = useState('')
   const [observaciones, setObservaciones] = useState('')
 
-  const [showPreviewImpresion, setShowPreviewImpresion] = useState(false);
-  const [facturaParaImprimir, setFacturaParaImprimir] = useState(null);
-  const [detallesParaImprimir, setDetallesParaImprimir] = useState([]);
-  const [almacenConfParaImprimir, setAlmacenConfParaImprimir] = useState(null);
+  const [showPreviewImpresion, setShowPreviewImpresion] = useState(false)
+  const [facturaParaImprimir, setFacturaParaImprimir] = useState(null)
+  const [detallesParaImprimir, setDetallesParaImprimir] = useState([])
+  const [almacenConfParaImprimir, setAlmacenConfParaImprimir] = useState(null)
 
   const [categoriasList, setCategoriasList] = useState([])
   const [etiquetasList, setEtiquetasList] = useState([])
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTag, setFilterTag] = useState('')
 
-  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
   const loadConfig = async () => {
-      const configData = await window.api.getConfiguracion();
-      const confAppRaw = configData.find(c => c.key === 'confApp');
+      const configData = await window.api.getConfiguracion()
+      const confAppRaw = configData.find(c => c.key === 'confApp')
       if (confAppRaw) {
           try {
-              const parsed = JSON.parse(confAppRaw.value);
+              const parsed = JSON.parse(confAppRaw.value)
               setAppConfig({
-                  moneda: parsed.moneda || 'COP',
-                  formato_numero: parsed.formato_numero || 'es-CO'
-              });
+                moneda: parsed.moneda || 'COP',
+                formato_numero: parsed.formato_numero || 'es-CO'
+              })
           } catch(e) {}
       }
   };
 
 const loadMetodosDePago = async () => {
-  const metodos = await window.api.getMetodosPago();
-  setListaMetodosPago(metodos || []);
-  if (metodos && metodos.length > 0) setMetodoPago(metodos[0].nombre);
+  const metodos = await window.api.getMetodosPago()
+  setListaMetodosPago(metodos || [])
+  if (metodos && metodos.length > 0) setMetodoPago(metodos[0].nombre)
 }
 
 const loadInitialData = async () => {
-    const prods = await window.api.getAllProductos();
-    setProductos(prods);
-    const clis = await window.api.getClientes();
-    setClientes(clis);
-    const cats = await window.api.getCategorias();
-    const tags = await window.api.getEtiquetas();
-    setCategoriasList(cats || []);
-    setEtiquetasList(tags || []);
+    const prods = await window.api.getAllProductos()
+    setProductos(prods)
+    const clis = await window.api.getClientes()
+    setClientes(clis)
+    const cats = await window.api.getCategorias()
+    const tags = await window.api.getEtiquetas()
+    setCategoriasList(cats || [])
+    setEtiquetasList(tags || [])
     
-    await loadConfig();
-    await loadMetodosDePago();
+    await loadConfig()
+    await loadMetodosDePago()
   }
 
   useEffect(() => {
-    loadInitialData();
-    window.addEventListener('config-actualizada', loadConfig);
-    window.addEventListener('metodos-pago-actualizados', loadMetodosDePago);
+    loadInitialData()
+    window.addEventListener('config-actualizada', loadConfig)
+    window.addEventListener('metodos-pago-actualizados', loadMetodosDePago)
     return () => {
-        window.removeEventListener('config-actualizada', loadConfig);
-        window.removeEventListener('metodos-pago-actualizados', loadMetodosDePago);
+        window.removeEventListener('config-actualizada', loadConfig)
+        window.removeEventListener('metodos-pago-actualizados', loadMetodosDePago)
     }
   }, [])
 
   const renderCurrency = (val) => {
-      return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
-  };
+    return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+  }
 
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
   const valorDescuento = esPorcentaje ? subtotal * (descuento / 100) : descuento
@@ -95,82 +95,82 @@ const loadInitialData = async () => {
     const bruto = item.precio * item.cantidad;
     const ahorro = item.tipoDescuento === 'porcentaje' ? bruto * (item.descuento / 100) : item.descuento * item.cantidad
     const baseIndividual = bruto - ahorro
-    const tasaIva = (Number(item.iva) || 0) / 100;
-    const ivaIndividual = baseIndividual * tasaIva;
+    const tasaIva = (Number(item.iva) || 0) / 100
+    const ivaIndividual = baseIndividual * tasaIva
 
-    acc.subtotal += bruto;
-    acc.totalDescuentos += ahorro;
-    acc.totalIva += ivaIndividual;
-    acc.totalFinal += (baseIndividual + ivaIndividual);
+    acc.subtotal += bruto
+    acc.totalDescuentos += ahorro
+    acc.totalIva += ivaIndividual
+    acc.totalFinal += (baseIndividual + ivaIndividual)
     return acc
   }, { subtotal: 0, totalDescuentos: 0, totalIva: 0, totalFinal: 0 })
 
-  const subtotalNeto = resumen.subtotal - resumen.totalDescuentos;
-  const ivaTotal = resumen.totalIva;
-  const totalFinal = resumen.totalFinal;
-  const recibidoNum = parseFloat(totalRecibido) || 0;
-  const cambio = recibidoNum >= totalFinal ? recibidoNum - totalFinal : 0;
-  const saldoPendiente = recibidoNum < totalFinal ? totalFinal - recibidoNum : 0;
+  const subtotalNeto = resumen.subtotal - resumen.totalDescuentos
+  const ivaTotal = resumen.totalIva
+  const totalFinal = resumen.totalFinal
+  const recibidoNum = parseFloat(totalRecibido) || 0
+  const cambio = recibidoNum >= totalFinal ? recibidoNum - totalFinal : 0
+  const saldoPendiente = recibidoNum < totalFinal ? totalFinal - recibidoNum : 0
 
   const handleClose = () => {
-    setShow(false);
-    setFilterCategory('');
-    setFilterTag('');
+    setShow(false)
+    setFilterCategory('')
+    setFilterTag('')
   }
   const handleShow = () => setShow(true)
 
   const handleClosePreviewImpresion = () => {
-    setShowPreviewImpresion(false);
-    setFacturaParaImprimir(null);
-    setDetallesParaImprimir([]);
-    setAlmacenConfParaImprimir(null);
+    setShowPreviewImpresion(false)
+    setFacturaParaImprimir(null)
+    setDetallesParaImprimir([])
+    setAlmacenConfParaImprimir(null)
   }
 
   const handleSearchProduct = async () => {
     if (!skuInput.trim()) {
-      handleAddProduct();
-      return;
+      handleAddProduct()
+      return
     }
     
-    let currentProducts = productos;
+    let currentProducts = productos
     if (currentProducts.length === 0) {
-      currentProducts = await window.api.getAllProductos();
-      setProductos(currentProducts);
+      currentProducts = await window.api.getAllProductos()
+      setProductos(currentProducts)
     }
 
-    const searchStr = skuInput.trim().toLowerCase();
+    const searchStr = skuInput.trim().toLowerCase()
 
     const found = currentProducts.find(p => {
-      if (!p.sku) return false;
-      const fullSku = p.sku_prefix ? `${p.sku_prefix}${p.separador || ''}${p.sku}` : p.sku;
-      return fullSku.toLowerCase() === searchStr || p.sku.toLowerCase() === searchStr;
-    });
+      if (!p.sku) return false
+      const fullSku = p.sku_prefix ? `${p.sku_prefix}${p.separador || ''}${p.sku}` : p.sku
+      return fullSku.toLowerCase() === searchStr || p.sku.toLowerCase() === searchStr
+    })
     
     if (found) {
-      agregarAlCarrito(found);
-      setSkuInput('');
+      agregarAlCarrito(found)
+      setSkuInput('')
     } else {
-      handleAddProduct();
+      handleAddProduct()
     }
   }
 
   const handleSearchClient = async () => {
     if (!docInput.trim()) {
-      handleAddClient();
-      return;
+      handleAddClient()
+      return
     }
 
-    let currentClients = clientes;
+    let currentClients = clientes
     if (currentClients.length === 0) {
-      currentClients = await window.api.getClientes();
-      setClientes(currentClients);
+      currentClients = await window.api.getClientes()
+      setClientes(currentClients)
     }
 
-    const found = currentClients.find(c => c.documento === docInput.trim());
+    const found = currentClients.find(c => c.documento === docInput.trim())
     
     if (found) {
-      setCliente(found);
-      setDocInput(''); 
+      setCliente(found)
+      setDocInput('')
     } else {
       Swal.fire({
         title: 'Cliente no encontrado',
@@ -183,11 +183,11 @@ const loadInitialData = async () => {
         cancelButtonText: 'Buscar en la lista'
       }).then((result) => {
         if (result.isConfirmed) {
-          setShowTerceroModal(true);
+          setShowTerceroModal(true)
         } else {
           handleAddClient()
         }
-      });
+      })
     }
   }
 
@@ -201,8 +201,8 @@ const loadInitialData = async () => {
           data: 'sku', 
           title: 'SKU',
           render: (data, type, row) => {
-            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-            return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
+            return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-'
           }
         },
         { data: 'stock', title: 'Stock' },
@@ -216,31 +216,31 @@ const loadInitialData = async () => {
           title: 'Agregar',
           orderable: false,
           render: function (data, type, row) {
-            const safeData = encodeURIComponent(JSON.stringify(row));
+            const safeData = encodeURIComponent(JSON.stringify(row))
             let buttons = ''
             
             const allowEncargo = row.allow_encargo !== undefined ? row.allow_encargo : 1
-            const encargoSoloSinStock = row.encargo_solo_sin_stock !== undefined ? row.encargo_solo_sin_stock : 1;
+            const encargoSoloSinStock = row.encargo_solo_sin_stock !== undefined ? row.encargo_solo_sin_stock : 1
 
             if (row.stock > 0 || row.tipo === 'servicio') {
               buttons += `<button class="btn btn-sm btn-primary btn-select-product me-1 mb-1" data-alldata="${safeData}" data-force-encargo="0">
                 <i class="bi bi-cart-plus me-1"></i> Agregar
-              </button>`;
+              </button>`
             }
             if (allowEncargo === 1 && row.tipo === 'producto') {
               if (row.stock <= 0) {
                 buttons += `<button class="btn btn-sm btn-warning text-dark btn-select-product mb-1" data-alldata="${safeData}" data-force-encargo="1">
                 <i class="bi bi-box-seam me-1"></i> Encargar
-                </button>`;
+                </button>`
               } else if (encargoSoloSinStock === 0) {
                 buttons += `<button class="btn btn-sm btn-warning text-dark btn-select-product mb-1" data-alldata="${safeData}" data-force-encargo="1">
                 <i class="bi bi-box-seam me-1"></i> Encargar
-                </button>`;
+                </button>`
               }
             } else if (allowEncargo === 0 && row.stock <= 0) {
-              buttons += `<button class="btn btn-sm btn-secondary disabled mb-1"><i class="bi bi-x-circle me-1"></i> Agotado</button>`;
+              buttons += `<button class="btn btn-sm btn-secondary disabled mb-1"><i class="bi bi-x-circle me-1"></i> Agotado</button>`
             }
-            return buttons;
+            return buttons
           }
         }
       ]
@@ -260,12 +260,12 @@ const loadInitialData = async () => {
           data: null,
           title: 'Agregar',
           render: function (data, type, row) {
-            const safeData = encodeURIComponent(JSON.stringify(row));
+            const safeData = encodeURIComponent(JSON.stringify(row))
             return `
               <button class="btn btn-sm btn-success btn-select-client" data-alldata="${safeData}">
                 Agregar
               </button>
-            `;
+            `
           }
         }
       ]
@@ -274,7 +274,7 @@ const loadInitialData = async () => {
   }
 
   const aplicarDescuentoMasivo = () => {
-    if (carrito.length === 0) return;
+    if (carrito.length === 0) return
     Swal.fire({
       title: 'Descuento General',
       text: 'Ingresa el porcentaje de descuento para todos los productos:',
@@ -285,14 +285,14 @@ const loadInitialData = async () => {
       cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed && result.value) {
-        const pct = parseFloat(result.value);
+        const pct = parseFloat(result.value)
         setCarrito(prev => prev.map(item => ({
           ...item, descuento: pct, tipoDescuento: 'porcentaje'
         })));
-        Swal.fire('Aplicado', `${pct}% de descuento aplicado a la carreta`, 'success');
+        Swal.fire('Aplicado', `${pct}% de descuento aplicado a la carreta`, 'success')
       }
-    });
-  };
+    })
+  }
 
   const vaciarCarrito = () => {
     Swal.fire({
@@ -308,8 +308,8 @@ const loadInitialData = async () => {
       if (result.isConfirmed) {
         cleanForm();
       }
-    });
-  };
+    })
+  }
 
   const agregarAlCarrito = (prod, forceEncargo = false) => {
     setCarrito((prev) => {
@@ -345,7 +345,7 @@ const loadInitialData = async () => {
             : item
         )
       } else {
-        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: isEncargoVal }];
+        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: isEncargoVal }]
       }
     })
   }
@@ -354,14 +354,14 @@ const loadInitialData = async () => {
     if (carrito.length === 0) return
 
     if (!cliente) {
-      Swal.fire({ icon: 'warning', title: 'Falta el Cliente', text: 'Por favor seleccione o busque un cliente.' });
-      return;
+      Swal.fire({ icon: 'warning', title: 'Falta el Cliente', text: 'Por favor seleccione o busque un cliente.' })
+      return
     }
 
     if (recibidoNum < totalFinal) {
       if (tipoPago === 'contado') {
-        Swal.fire('Atención', 'El cliente no ha entregado el monto completo. Si es un abono, cambie el "Tipo de Pago" a Crédito.', 'warning');
-        return;
+        Swal.fire('Atención', 'El cliente no ha entregado el monto completo. Si es un abono, cambie el "Tipo de Pago" a Crédito.', 'warning')
+        return
       }
       if (tipoPago === 'credito') {
         const confirm = await Swal.fire({
@@ -373,7 +373,7 @@ const loadInitialData = async () => {
           cancelButtonColor: '#d33',
           confirmButtonText: 'Sí, guardar',
           cancelButtonText: 'Cancelar'
-        });
+        })
         if (!confirm.isConfirmed) return;
       }
     }
@@ -452,11 +452,11 @@ const data = {
   const updateQuantity = (id, delta, isEncargo) => {
     setCarrito(prev => {
       const item = prev.find(i => i.id === id && i.isEncargo === isEncargo);
-      if (!item) return prev;
-      const newQty = item.cantidad + delta;
+      if (!item) return prev
+      const newQty = item.cantidad + delta
 
       if (delta > 0 && isEncargo === '0' && newQty > item.stock && item.tipo === "producto") {
-        const allowEncargo = item.allow_encargo !== undefined ? item.allow_encargo : 1;
+        const allowEncargo = item.allow_encargo !== undefined ? item.allow_encargo : 1
         if (allowEncargo === 0) {
           setTimeout(() => Swal.fire(
             'Agotado', 
@@ -484,18 +484,22 @@ const data = {
 
   useEffect(() => {
     const handleGlobalEvents = (e) => {
-      const target = e.target.closest('button') || e.target;
-      const id = target.getAttribute('data-id');
-      const isEncargo = target.getAttribute('data-encargo');
+      const target = e.target.closest('button') || e.target
+      const id = target.getAttribute('data-id')
+      const isEncargo = target.getAttribute('data-encargo')
 
       if (e.type === 'change' && id) {
         if (e.target.classList.contains('change-iva')) {
-          const val = parseFloat(e.target.value) || 0;
-          setCarrito(prev => prev.map(item => (String(item.id) === String(id) && item.isEncargo === isEncargo) ? { ...item, iva: val } : item));
+          const val = parseFloat(e.target.value) || 0
+          setCarrito(prev => prev.map(item => (
+            String(item.id) === String(id) && item.isEncargo === isEncargo
+          ) ? { ...item, iva: val } : item))
         }
         if (e.target.classList.contains('change-discount')) {
-          const val = parseFloat(e.target.value) || 0;
-          setCarrito(prev => prev.map(item => (String(item.id) === String(id) && item.isEncargo === isEncargo) ? { ...item, descuento: val } : item));
+          const val = parseFloat(e.target.value) || 0
+          setCarrito(prev => prev.map(item => (
+            String(item.id) === String(id) && item.isEncargo === isEncargo
+          ) ? { ...item, descuento: val } : item))
         }
       }
 
@@ -503,46 +507,46 @@ const data = {
         if (target.closest('.toggle-discount-type') && id) {
           setCarrito(prev => prev.map(item => {
             if (String(item.id) === String(id) && item.isEncargo === isEncargo) {
-              return { ...item, tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje' };
+              return { ...item, tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje' }
             }
-            return item;
-          }));
+            return item
+          }))
         }
 
         if (target.closest('.btn-select-product')) {
-          const btn = target.closest('.btn-select-product');
+          const btn = target.closest('.btn-select-product')
           if (btn.dataset.alldata) {
             const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata))
             const forceEncargo = btn.dataset.forceEncargo === "1"
-            agregarAlCarrito(selected, forceEncargo);
+            agregarAlCarrito(selected, forceEncargo)
           }
         }
 
         if (target.closest('.btn-select-client')) {
-          const btn = target.closest('.btn-select-client');
+          const btn = target.closest('.btn-select-client')
           if (btn.dataset.alldata) {
-             const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata));
-             setCliente(selected);
-             handleClose();
+             const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata))
+             setCliente(selected)
+             handleClose()
           }
         }
 
-        if (target.closest('.btn-qty-plus') && id) updateQuantity(id, 1, isEncargo);
-        if (target.closest('.btn-qty-minus') && id) updateQuantity(id, -1, isEncargo);
+        if (target.closest('.btn-qty-plus') && id) updateQuantity(id, 1, isEncargo)
+        if (target.closest('.btn-qty-minus') && id) updateQuantity(id, -1, isEncargo)
         if (target.closest('.btn-remove-item') && id) {
-          setCarrito(prev => prev.filter(item => !(String(item.id) === String(id) && item.isEncargo === isEncargo)));
+          setCarrito(prev => prev.filter(item => !(String(item.id) === String(id) && item.isEncargo === isEncargo)))
         }
       }
-    };
+    }
 
-    document.addEventListener('change', handleGlobalEvents);
-    document.addEventListener('click', handleGlobalEvents);
+    document.addEventListener('change', handleGlobalEvents)
+    document.addEventListener('click', handleGlobalEvents)
 
     return () => {
-      document.removeEventListener('change', handleGlobalEvents);
-      document.removeEventListener('click', handleGlobalEvents);
+      document.removeEventListener('change', handleGlobalEvents)
+      document.removeEventListener('click', handleGlobalEvents)
     }
-  }, [productos, clientes, carrito]);
+  }, [productos, clientes, carrito])
 
   return <>
 
@@ -623,8 +627,8 @@ const data = {
                 data: 'sku', 
                 title: 'SKU',
                 render: (data, type, row) => {
-                  const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                  return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+                  const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
+                  return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-'
                 }
               },
               {
@@ -682,20 +686,20 @@ const data = {
                 data: null,
                 title: 'Tipo',
                 render: function (data, type, row) {
-                  let badges = '';
-                  if (row.tipo === 'producto') badges += '<span class="badge bg-primary me-1">Producto</span>';
-                  else badges += '<span class="badge bg-success me-1">Servicio</span>';
-                  if (row.isEncargo > 0) badges += '<span class="badge bg-warning text-dark me-1">Encargo</span>';
-                  return badges;
+                  let badges = ''
+                  if (row.tipo === 'producto') badges += '<span class="badge bg-primary me-1">Producto</span>'
+                  else badges += '<span class="badge bg-success me-1">Servicio</span>'
+                  if (row.isEncargo > 0) badges += '<span class="badge bg-warning text-dark me-1">Encargo</span>'
+                  return badges
                 }
               },
               {
                 data: null,
                 title: 'Total',
                 render: (data, type, row) => {
-                  const sub = row.precio * row.cantidad;
-                  const desc = row.tipoDescuento === 'porcentaje' ? sub * (row.descuento / 100) : row.descuento;
-                  return `<strong>${renderCurrency(sub - desc)}</strong>`;
+                  const sub = row.precio * row.cantidad
+                  const desc = row.tipoDescuento === 'porcentaje' ? sub * (row.descuento / 100) : row.descuento
+                  return `<strong>${renderCurrency(sub - desc)}</strong>`
                 }
               },
               {
@@ -848,73 +852,19 @@ const data = {
       </Col>
     </Row>
 
-    <Modal show={show} onHide={handleClose} size="xl" centered>
-      <Modal.Header closeButton className="bg-light">
-        <Modal.Title className="fs-5">{modalData.title}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        
-        {show && modalData.type === 'producto' && (
-          <>
-            <div className="bg-light p-3 rounded mb-3 border">
-              <Row className="align-items-end">
-                <Col md={5}>
-                  <Form.Group>
-                    <Form.Label className="fw-bold"><small>Categoría:</small></Form.Label>
-                    <Form.Select size="sm" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                      <option value="">Todas</option>
-                      {categoriasList.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={5}>
-                  <Form.Group>
-                    <Form.Label className="fw-bold"><small>Etiqueta:</small></Form.Label>
-                    <Form.Select size="sm" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
-                      <option value="">Todas</option>
-                      {etiquetasList.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={2}>
-                  <Button variant="outline-secondary" size="sm" className="w-100" onClick={() => { setFilterCategory(''); setFilterTag(''); }} disabled={!filterCategory && !filterTag}>
-                    <i className="bi bi-x-circle me-1"></i>Limpiar
-                  </Button>
-                </Col>
-              </Row>
-            </div>
-
-            <div className="w-100 overflow-hidden">
-                <DataTableComponent
-                  key={`prod-modal-${filterCategory}-${filterTag}-${appConfig.moneda}`}
-                  ajaxData={(params) => {
-                    params.customCategory = filterCategory;
-                    params.customTag = filterTag;
-                    return window.api.getProductosPaginados(params); 
-                  }}
-                  columns={modalData.columns}
-                />
-            </div>
-          </>
-        )}
-
-        {show && modalData.type === 'cliente' && (
-          <div className="w-100 overflow-hidden">
-            <DataTableComponent
-              key={modalData.type}
-              data={clientes}
-              columns={modalData.columns}
-            />
-          </div>
-        )}
-
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose}>
-          Cerrar
-        </Button>
-      </Modal.Footer>
-    </Modal>
+    <ModalBusquedaVentas
+        show={show}
+        handleClose={handleClose}
+        modalData={modalData}
+        filterCategory={filterCategory}
+        setFilterCategory={setFilterCategory}
+        filterTag={filterTag}
+        setFilterTag={setFilterTag}
+        categoriasList={categoriasList}
+        etiquetasList={etiquetasList}
+        appConfig={appConfig}
+        clientes={clientes}
+    />
 
     <ImpresorFactura 
         show={showPreviewImpresion} 
@@ -931,15 +881,15 @@ const data = {
         forceCliente={true}
         initialDocument={docInput.trim()}
         onSuccess={async () => {
-            setShowTerceroModal(false);
-            const updatedClients = await window.api.getClientes();
-            setClientes(updatedClients);
+            setShowTerceroModal(false)
+            const updatedClients = await window.api.getClientes()
+            setClientes(updatedClients)
             
-            const newlyCreated = updatedClients.find(c => c.documento === docInput.trim());
+            const newlyCreated = updatedClients.find(c => c.documento === docInput.trim())
             if (newlyCreated) {
-                setCliente(newlyCreated);
-                setDocInput('');
-                Swal.fire('¡Listo!', 'Cliente asignado a la factura.', 'success');
+                setCliente(newlyCreated)
+                setDocInput('')
+                Swal.fire('¡Listo!', 'Cliente asignado a la factura.', 'success')
             }
         }}
     />

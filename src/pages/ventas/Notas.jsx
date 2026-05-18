@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import DataTableComponent from '../../components/DataTableComponent'
 import Swal from 'sweetalert2'
 import { NuevaNota } from './NuevaNota.jsx'
-import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col } from 'react-bootstrap'
 import { ImpresorNota } from './components/ImpresorNota'
-import { getCurrencySymbol } from '../../utils/currencies'
+import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
+import { ModalDetalleNota } from './components/ModalDetalleNota'
 
 export const Notas = () => {
     const [notasData, setNotasData] = useState([])
@@ -19,32 +19,25 @@ export const Notas = () => {
     const [showPreview, setShowPreview] = useState(false)
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
 
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion();
-        const confAppRaw = configData.find(c => c.key === 'confApp');
+        const configData = await window.api.getConfiguracion()
+        const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
-                const parsed = JSON.parse(confAppRaw.value);
+                const parsed = JSON.parse(confAppRaw.value)
                 setAppConfig({
                     moneda: parsed.moneda || 'COP',
                     formato_numero: parsed.formato_numero || 'es-CO'
-                });
+                })
             } catch(e) {}
         }
-    };
+    }
 
-    const formatCurrency = (val) => {
-        const numeroFormateado = new Intl.NumberFormat(appConfig.formato_numero, { 
-            style: 'decimal', 
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2 
-        }).format(val || 0);
-        
-        const simbolo = getCurrencySymbol(appConfig.moneda);
-        return `${simbolo}${numeroFormateado}`;
-    };
+    const _formatCurrency = (val) => {
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+    }
 
     const loadNotas = async () => {
         try {
@@ -56,10 +49,10 @@ export const Notas = () => {
     }
 
     useEffect(() => {
-        loadNotas();
-        loadConfig();
-        window.addEventListener('config-actualizada', loadConfig);
-        return () => window.removeEventListener('config-actualizada', loadConfig);
+        loadNotas()
+        loadConfig()
+        window.addEventListener('config-actualizada', loadConfig)
+        return () => window.removeEventListener('config-actualizada', loadConfig)
     }, [])
 
     const handleCloseModal = () => {
@@ -89,63 +82,63 @@ export const Notas = () => {
             setDetalleData(response.data)
             setAlmacenConf(response.configuracion || null)
             
-            setAbiertoDesdeDetalles(false);
-            setShowPreview(true);
+            setAbiertoDesdeDetalles(false)
+            setShowPreview(true)
         }
     }
 
     const handlePrepararImpresion = () => {
-        setShowModal(false); 
-        setAbiertoDesdeDetalles(true);
-        setShowPreview(true);
+        setShowModal(false)
+        setAbiertoDesdeDetalles(true)
+        setShowPreview(true)
     }
 
     const handleCerrarPreview = () => {
-        setShowPreview(false);
+        setShowPreview(false)
         if (abiertoDesdeDetalles) {
-            setShowModal(true);
+            setShowModal(true)
         } else {
-            setNotaSeleccionada(null);
-            setDetalleData([]);
+            setNotaSeleccionada(null)
+            setDetalleData([])
         }
     }
 
-    const tableContainerRef = useRef(null);
+    const tableContainerRef = useRef(null)
 
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('button[data-alldata]');
-            if (!btn) return;
+            const btn = e.target.closest('button[data-alldata]')
+            if (!btn) return
 
             try {
-                const rawData = decodeURIComponent(btn.dataset.alldata);
-                const item = JSON.parse(rawData);
+                const rawData = decodeURIComponent(btn.dataset.alldata)
+                const item = JSON.parse(rawData)
 
-                if (btn.classList.contains('btn-view')) handleViewDetails(item);
-                else if (btn.classList.contains('btn-print')) imprimirDirecto(item); 
+                if (btn.classList.contains('btn-view')) handleViewDetails(item)
+                else if (btn.classList.contains('btn-print')) imprimirDirecto(item)
                 
-            } catch(err) { console.error("Error leyendo datos del botón", err); }
-        };
+            } catch(err) { console.error("Error leyendo datos del botón", err) }
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
         
-    }, [showForm, notasData]); 
+    }, [showForm, notasData])
 
     if (showForm) {
         return <NuevaNota 
             onBack={() => setShowForm(false)} 
             onSuccess={() => {
-                setShowForm(false);
-                loadNotas(); 
+                setShowForm(false)
+                loadNotas() 
             }} 
         />
     }
 
-    return (
+    return <>
         <div className="container-fluid mt-3">
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="card-title m-0">Gestión de Notas Crédito / Débito</h5>
@@ -177,7 +170,7 @@ export const Notas = () => {
                             title: 'Factura Relacionada',
                             render: (data, type, row) => {
                                 const prefix = row.prefijo_factura ? row.prefijo_factura : '';
-                                return `<strong>${prefix}${row.numero_factura || row.numero_factura_origen}</strong>`;
+                                return `<strong>${prefix}${row.numero_factura || row.numero_factura_origen}</strong>`
                             }
                         },
                         { 
@@ -195,9 +188,9 @@ export const Notas = () => {
                             data: 'total_final', 
                             title: 'Total',
                             render: (data, type, row) => {
-                                const color = row.tipo_nota === 'Crédito' ? 'text-danger' : 'text-primary';
-                                const sign = row.tipo_nota === 'Crédito' ? '-' : '+';
-                                return `<strong class="${color}">${sign}${formatCurrency(data)}</strong>`;
+                                const color = row.tipo_nota === 'Crédito' ? 'text-danger' : 'text-primary'
+                                const sign = row.tipo_nota === 'Crédito' ? '-' : '+'
+                                return `<strong class="${color}">${sign}${_formatCurrency(data)}</strong>`
                             }
                         },
                         {
@@ -205,7 +198,7 @@ export const Notas = () => {
                             title: 'Acciones',
                             orderable: false,
                             render: function (data, type, row) {
-                                const safeData = encodeURIComponent(JSON.stringify(row));
+                                const safeData = encodeURIComponent(JSON.stringify(row))
                                 return `
                                     <button class="btn btn-sm btn-secondary text-white me-1 btn-view" data-alldata="${safeData}" title="Ver Detalles">
                                         <i class="bi bi-eye"></i>
@@ -213,103 +206,21 @@ export const Notas = () => {
                                     <button class="btn btn-sm btn-primary text-white btn-print" data-alldata="${safeData}" title="Imprimir">
                                         <i class="bi bi-printer"></i>
                                     </button>
-                                `;
+                                `
                             }
                         }
                     ]}
                 />
             </div>
 
-            <Modal show={showModal} onHide={handleCloseModal} size="lg" centered scrollable>
-                <Modal.Header closeButton className="bg-light">
-                    <Modal.Title>
-                        Detalles de la Nota {notaSeleccionada ? `${notaSeleccionada.prefijo}-${notaSeleccionada.numero_nota}` : ''}                
-                    </Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <div className="d-flex justify-content-end mb-3">
-                        <Button variant="primary" onClick={handlePrepararImpresion}>
-                            <i className="bi bi-printer me-2"></i> Imprimir Nota
-                        </Button>
-                    </div>
-
-                    {notaSeleccionada && (
-                        <div className="bg-light p-3 rounded mb-3 border">
-                            <Row>
-                                <Col md={6}>
-                                    <p className="mb-1"><strong>Cliente:</strong> {notaSeleccionada.nombre_cliente}</p>
-                                    <p className="mb-0"><strong>Documento:</strong> {notaSeleccionada.documento_cliente}</p>
-                                </Col>
-                                <Col md={6} className="text-end">
-                                    <p className="mb-1">
-                                        <strong>Aplica a Factura:</strong>{' '}
-                                        <span className="badge bg-primary fs-6">
-                                            {notaSeleccionada.prefijo_factura || ''}{notaSeleccionada.numero_factura || notaSeleccionada.numero_factura_origen}
-                                        </span>
-                                    </p>
-                                    <p className="mb-0">
-                                        <strong>Motivo:</strong> {notaSeleccionada.motivo_dian}
-                                    </p>
-                                </Col>
-                            </Row>
-                        </div>
-                    )}
-
-                    <DataTableComponent
-                        key={`detalle-nota-${appConfig.moneda}-${appConfig.formato_numero}-${notaSeleccionada?.id}`}
-                        data={detalleData}
-                        columns={[
-                            { 
-                              data: null, title: 'SKU',
-                              render: (data, type, row) => {
-                                if (!row.sku) return '<span class="text-muted" title="Producto eliminado">Sin SKU</span>'; 
-                                const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                                return `<strong>${prefix}${row.sku.toUpperCase()}</strong>`;
-                              }
-                            },
-                            { data: 'nombre_producto', title: 'Producto' },
-                            { data: 'cantidad', title: 'Cant.' },
-                            { 
-                              data: 'precio_unitario', 
-                              title: 'V. Unitario',
-                              render: (data) => formatCurrency(data)
-                            },
-                            { data: 'iva_percent', title: 'IVA' },
-                            { 
-                              data: 'total', 
-                              title: 'Total',
-                              render: (data) => `<strong>${formatCurrency(data)}</strong>`
-                            },
-                        ]}
-                        customRenders={{
-                            iva_percent: (data) => `${(parseFloat(data) * 100).toFixed(0)}%`,
-                        }}
-                    />
-
-                    {notaSeleccionada && (
-                        <div className="mt-3 p-3 bg-light rounded border text-end">
-                            <p className="mb-1"><strong>Subtotal:</strong> {formatCurrency(notaSeleccionada.total_base)}</p>
-                            <p className="mb-2"><strong>IVA:</strong> {formatCurrency(notaSeleccionada.total_iva)}</p>
-                            <hr className="my-2" />
-                            <h4 className={`mb-0 ${notaSeleccionada.tipo_nota === 'Crédito' ? 'text-danger' : 'text-primary'}`}>
-                                <strong>Total {notaSeleccionada.tipo_nota === 'Crédito' ? 'a favor del cliente' : 'a cobrar'}:</strong> 
-                                {' '}{notaSeleccionada.tipo_nota === 'Crédito' ? '-' : '+'}{formatCurrency(notaSeleccionada.total_final)}
-                            </h4>
-                        </div>
-                    )}
-
-                    {notaSeleccionada && notaSeleccionada.observaciones && (
-                        <div className="mt-3">
-                            <strong>Observaciones:</strong>
-                            <p className="text-muted fst-italic border p-2 mt-1 rounded bg-white">{notaSeleccionada.observaciones}</p>
-                        </div>
-                    )}
-
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={handleCloseModal}>Cerrar</Button>
-                </Modal.Footer>
-            </Modal>
+            <ModalDetalleNota
+                show={showModal}
+                handleClose={handleCloseModal}
+                notaSeleccionada={notaSeleccionada}
+                detalleData={detalleData}
+                handlePrepararImpresion={handlePrepararImpresion}
+                appConfig={appConfig}
+            />
             
             <ImpresorNota 
                 show={showPreview} 
@@ -320,5 +231,5 @@ export const Notas = () => {
                 textoVolver={abiertoDesdeDetalles ? 'Volver a Detalles' : 'Cerrar'} 
             />
         </div>
-    )
+    </>
 }

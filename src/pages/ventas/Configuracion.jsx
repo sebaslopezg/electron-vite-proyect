@@ -1,32 +1,52 @@
 import { useState, useEffect, useRef } from 'react'
-import { Form, Button, Row, Col, Card, Modal, ListGroup } from 'react-bootstrap'
+import { Form, Button, Row, Col, Card } from 'react-bootstrap'
 import Swal from 'sweetalert2'
+import { ModalMetodosPago } from './components/ModalMetodosPago'
 
 export const Configuracion = ({ data, onReload }) => {
 
     const [form, setForm] = useState({
-        id:'', nombre_almacen:'', nit_almacen:'', logo_almacen:'', direccion_almacen:'', 
-        telefono_almacen:'', email_almacen: '', prefijo:'', separador: '', resolucionDian:'',
-        nombreFactura:'', footer_factura:'', consecutivo:'', consecutivo_nota: '',
-        consecutivo_nota_debito: '', imprimir_logo_pos: false
+        id:'', 
+        nombre_almacen:'', 
+        nit_almacen:'', 
+        logo_almacen:'', 
+        direccion_almacen:'', 
+        telefono_almacen:'', 
+        email_almacen: '', 
+        prefijo:'', 
+        separador: '', 
+        resolucionDian:'',
+        nombreFactura:'', 
+        footer_factura:'', 
+        consecutivo:'', 
+        consecutivo_nota: '',
+        consecutivo_nota_debito: '', 
+        imprimir_logo_pos: false
     })
 
-    const fileInputRef = useRef(null);
+    const fileInputRef = useRef(null)
     
-    const [showModalMetodos, setShowModalMetodos] = useState(false);
-    const [metodosList, setMetodosList] = useState([]);
-    const [nuevoMetodo, setNuevoMetodo] = useState('');
+    const [showModalMetodos, setShowModalMetodos] = useState(false)
+    const [metodosList, setMetodosList] = useState([])
+    const [nuevoMetodo, setNuevoMetodo] = useState('')
 
     useEffect(() => {
         if (data) {
             setForm({
-                id: data.id, nombre_almacen: data.nombre_almacen || '',
-                nit_almacen: data.nit_almacen || '', logo_almacen: data.logo_almacen || '',
-                direccion_almacen: data.direccion_almacen || '', telefono_almacen: data.telefono_almacen || '',
-                email_almacen: data.email_almacen || '', prefijo: data.prefijo || '',
-                separador: data.separador || '', resolucionDian: data.resolucionDian || '',
-                nombreFactura: data.nombreFactura || '', footer_factura: data.footer_factura || '',
-                consecutivo: data.consecutivo || '', consecutivo_nota: data.consecutivo_nota || '',
+                id: data.id, 
+                nombre_almacen: data.nombre_almacen || '',
+                nit_almacen: data.nit_almacen || '',
+                logo_almacen: data.logo_almacen || '',
+                direccion_almacen: data.direccion_almacen || '',
+                telefono_almacen: data.telefono_almacen || '',
+                email_almacen: data.email_almacen || '',
+                prefijo: data.prefijo || '',
+                separador: data.separador || '',
+                resolucionDian: data.resolucionDian || '',
+                nombreFactura: data.nombreFactura || '',
+                footer_factura: data.footer_factura || '',
+                consecutivo: data.consecutivo || '',
+                consecutivo_nota: data.consecutivo_nota || '',
                 consecutivo_nota_debito: data.consecutivo_nota_debito || '',
                 imprimir_logo_pos: data.imprimir_logo_pos === 1
             })
@@ -49,47 +69,47 @@ export const Configuracion = ({ data, onReload }) => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 2 * 1024 * 1024) { 
-                Swal.fire('Error', 'La imagen es demasiado grande. Máximo 2MB.', 'error');
+                Swal.fire('Error', 'La imagen es demasiado grande. Máximo 2MB.', 'error')
                 return;
             }
-            const reader = new FileReader();
-            reader.onloadend = () => setForm({ ...form, logo_almacen: reader.result });
+            const reader = new FileReader()
+            reader.onloadend = () => setForm({ ...form, logo_almacen: reader.result })
             reader.readAsDataURL(file);
         }
     };
 
     const loadMetodos = async () => {
-        const res = await window.api.getMetodosPago();
-        setMetodosList(res || []);
-    };
+        const res = await window.api.getMetodosPago()
+        setMetodosList(res || [])
+    }
 
     const handleOpenMetodos = () => {
-        loadMetodos();
-        setShowModalMetodos(true);
-    };
+        loadMetodos()
+        setShowModalMetodos(true)
+    }
 
     const handleAddMetodo = async (e) => {
-        e.preventDefault();
-        if(!nuevoMetodo.trim()) return;
+        e.preventDefault()
+        if(!nuevoMetodo.trim()) return
         
-        const res = await window.api.addMetodoPago(nuevoMetodo.trim());
+        const res = await window.api.addMetodoPago(nuevoMetodo.trim())
         if(res.success) {
-            setNuevoMetodo('');
-            loadMetodos();
-            window.dispatchEvent(new CustomEvent('metodos-pago-actualizados'));
+            setNuevoMetodo('')
+            loadMetodos()
+            window.dispatchEvent(new CustomEvent('metodos-pago-actualizados'))
         } else {
-            Swal.fire('Error', res.error, 'error');
+            Swal.fire('Error', res.error, 'error')
         }
-    };
+    }
 
     const handleDeleteMetodo = async (id) => {
-        const confirm = await Swal.fire({ title: '¿Eliminar método?', icon: 'warning', showCancelButton: true });
+        const confirm = await Swal.fire({ title: '¿Eliminar método?', icon: 'warning', showCancelButton: true })
         if(confirm.isConfirmed) {
-            await window.api.deleteMetodoPago(id);
+            await window.api.deleteMetodoPago(id)
             loadMetodos();
             window.dispatchEvent(new CustomEvent('metodos-pago-actualizados'));
         }
-    };
+    }
 
     if (!data) return <div>Cargando configuración...</div>
 
@@ -105,7 +125,17 @@ export const Configuracion = ({ data, onReload }) => {
             
             <div className="bg-light p-3 rounded mb-4 border">
                 <Card.Body className="d-flex align-items-center">
-                    <div className="me-4" style={{ width: '120px', height: '120px', border: '2px dashed #ccc', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: 'white' }}>
+                    <div className="me-4" style={{ 
+                            width: '120px', 
+                            height: '120px', 
+                            border: '2px dashed #ccc', 
+                            borderRadius: '10px', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            overflow: 'hidden', 
+                            backgroundColor: 'white' 
+                        }}>
                         {form.logo_almacen ? (
                             <img src={form.logo_almacen} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%' }} />
                         ) : (
@@ -347,40 +377,14 @@ export const Configuracion = ({ data, onReload }) => {
             </div>
         </Form>
 
-        <Modal show={showModalMetodos} onHide={() => setShowModalMetodos(false)} centered>
-            <Modal.Header closeButton className="bg-light">
-                <Modal.Title className="fs-5"><i className="bi bi-credit-card me-2"></i>Métodos de Pago</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-                <Form onSubmit={handleAddMetodo} className="mb-4">
-                    <Form.Group>
-                        <Form.Label className="fw-bold small">Añadir Nuevo Método</Form.Label>
-                        <div className="d-flex gap-2">
-                            <Form.Control 
-                                type="text" 
-                                value={nuevoMetodo} 
-                                onChange={(e)=>setNuevoMetodo(e.target.value)} 
-                                placeholder="Ej. Nequi, Daviplata..." 
-                                required 
-                            />
-                            <Button variant="primary" type="submit">Agregar</Button>
-                        </div>
-                    </Form.Group>
-                </Form>
-
-                <h6 className="fw-bold border-bottom pb-2">Métodos Actuales</h6>
-                <ListGroup variant="flush">
-                    {metodosList.length === 0 ? <p className="text-muted small">No hay métodos registrados.</p> : null}
-                    {metodosList.map(metodo => (
-                        <ListGroup.Item key={metodo.id} className="d-flex justify-content-between align-items-center px-0">
-                            {metodo.nombre}
-                            <Button variant="outline-danger" size="sm" onClick={() => handleDeleteMetodo(metodo.id)}>
-                                <i className="bi bi-trash"></i>
-                            </Button>
-                        </ListGroup.Item>
-                    ))}
-                </ListGroup>
-            </Modal.Body>
-        </Modal>
+        <ModalMetodosPago 
+            show={showModalMetodos}
+            handleClose={() => setShowModalMetodos(false)}
+            metodosList={metodosList}
+            nuevoMetodo={nuevoMetodo}
+            setNuevoMetodo={setNuevoMetodo}
+            handleAddMetodo={handleAddMetodo}
+            handleDeleteMetodo={handleDeleteMetodo}
+        />
   </>
 }

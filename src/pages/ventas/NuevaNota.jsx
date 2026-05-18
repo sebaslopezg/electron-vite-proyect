@@ -1,29 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
-import Swal from 'sweetalert2';
-import Modal from 'react-bootstrap/Modal';
-import Button from 'react-bootstrap/Button';
-import Form from 'react-bootstrap/Form';
-import DataTableComponent from '../../components/DataTableComponent';
-import { formatCurrency } from '../../utils/currencies';
+import { useState, useEffect, useRef } from 'react'
+import Swal from 'sweetalert2'
+import DataTableComponent from '../../components/DataTableComponent'
+import { formatCurrency } from '../../utils/currencies'
+import { ModalSeleccionItemNota } from './components/ModalSeleccionItemNota'
 
 export const NuevaNota = ({ onBack, onSuccess }) => {
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion();
-        const confAppRaw = configData.find(c => c.key === 'confApp');
+        const configData = await window.api.getConfiguracion()
+        const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
-                const parsed = JSON.parse(confAppRaw.value);
+                const parsed = JSON.parse(confAppRaw.value)
                 setAppConfig({
                     moneda: parsed.moneda || 'COP',
                     formato_numero: parsed.formato_numero || 'es-CO'
-                });
+                })
             } catch(e) {}
         }
-    };
+    }
 
-    useEffect(() => { loadConfig(); }, []);
+    useEffect(() => { loadConfig() }, [])
 
     const [formData, setFormData] = useState({
         tipo_nota: 'Crédito',
@@ -31,17 +29,17 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
         numero_factura_origen: '',
         observaciones: '',
         afecta_inventario: true
-    });
+    })
 
-    const [facturaCargada, setFacturaCargada] = useState(null);
-    const [productosDisponibles, setProductosDisponibles] = useState([]);
-    const [items, setItems] = useState([]);
+    const [facturaCargada, setFacturaCargada] = useState(null)
+    const [productosDisponibles, setProductosDisponibles] = useState([])
+    const [items, setItems] = useState([])
     
-    const [showModal, setShowModal] = useState(false);
-    const [itemForm, setItemForm] = useState({ id_producto: '', cantidad: 1 });
+    const [showModal, setShowModal] = useState(false)
+    const [itemForm, setItemForm] = useState({ id_producto: '', cantidad: 1 })
 
-    const motivosCredito = ["Devolución de parte de los bienes", "Anulación de factura electrónica", "Rebaja total", "Descuento parcial"];
-    const motivosDebito = ["Intereses", "Gastos por cobrar", "Cambio del valor"];
+    const motivosCredito = ["Devolución de parte de los bienes", "Anulación de factura electrónica", "Rebaja total", "Descuento parcial"]
+    const motivosDebito = ["Intereses", "Gastos por cobrar", "Cambio del valor"]
 
     const totales = items.reduce((acc, item) => {
         return {
@@ -49,62 +47,66 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             iva: acc.iva + ((item.subtotal * item.iva_percent) || 0),
             final: acc.final + (item.total || 0)
         };
-    }, { base: 0, iva: 0, final: 0 });
+    }, { base: 0, iva: 0, final: 0 })
 
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
-    };
+        const { name, value, type, checked } = e.target
+        setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value })
+    }
 
     const handleSearchFactura = async () => {
         if (!formData.numero_factura_origen) {
-            Swal.fire('Atención', 'Ingrese un número de factura', 'warning');
-            return;
+            Swal.fire('Atención', 'Ingrese un número de factura', 'warning')
+            return
         }
 
-        const numeroLimpio = formData.numero_factura_origen.replace(/\D/g, '');
+        const numeroLimpio = formData.numero_factura_origen.replace(/\D/g, '')
 
         if (!numeroLimpio) {
-            Swal.fire('Atención', 'Asegúrese de incluir el número de la factura', 'warning');
-            return;
+            Swal.fire('Atención', 'Asegúrese de incluir el número de la factura', 'warning')
+            return
         }
 
-        const result = await window.api.searchFactura(numeroLimpio);
+        const result = await window.api.searchFactura(numeroLimpio)
         
         if (result.success) {
-            setFacturaCargada(result.maestro);
-            setProductosDisponibles(result.detalles);
-            setItems([]);
-            Swal.fire({ icon: 'success', title: 'Factura Encontrada', text: `Cliente: ${result.maestro.nombre_cliente}`, timer: 1500 });
+            setFacturaCargada(result.maestro)
+            setProductosDisponibles(result.detalles)
+            setItems([])
+            Swal.fire({ icon: 'success', title: 'Factura Encontrada', text: `Cliente: ${result.maestro.nombre_cliente}`, timer: 1500 })
         } else {
-            Swal.fire('Error', result.message || 'Factura no encontrada', 'error');
-            setFacturaCargada(null);
-            setProductosDisponibles([]);
+            Swal.fire('Error', result.message || 'Factura no encontrada', 'error')
+            setFacturaCargada(null)
+            setProductosDisponibles([])
         }
-    };
+    }
 
-    const handleCloseModal = () => setShowModal(false);
+    const handleCloseModal = () => setShowModal(false)
+    
     const handleOpenModal = () => {
         if(productosDisponibles.length > 0) {
-            setItemForm({ id_producto: productosDisponibles[0].id_producto, cantidad: 1 });
+            setItemForm({ id_producto: productosDisponibles[0].id_producto, cantidad: 1 })
         }
-        setShowModal(true);
-    };
+        setShowModal(true)
+    }
 
     const handleConfirmAddItem = () => {
-        const prodFactura = productosDisponibles.find(p => p.id_producto === itemForm.id_producto);
-        if (!prodFactura) return;
+        const prodFactura = productosDisponibles.find(p => p.id_producto === itemForm.id_producto)
+        if (!prodFactura) return
 
-        const cantAAgregar = parseFloat(itemForm.cantidad);
+        const cantAAgregar = parseFloat(itemForm.cantidad)
 
         if (cantAAgregar <= 0) {
-            Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'error'); return;
+            Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'error')
+            return
         }
         if (cantAAgregar > prodFactura.cantidad_producto) {
-            Swal.fire('Error', `La cantidad supera lo vendido (${prodFactura.cantidad_producto})`, 'error'); return;
+            Swal.fire('Error', `La cantidad supera lo vendido (${prodFactura.cantidad_producto})`, 'error')
+            return
         }
         if (items.some(i => i.id_producto === prodFactura.id_producto)) {
-            Swal.fire('Atención', 'Este producto ya está en la nota', 'warning'); return;
+            Swal.fire('Atención', 'Este producto ya está en la nota', 'warning')
+            return
         }
 
         const newItem = {
@@ -117,40 +119,41 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             cantidad: cantAAgregar,
             precio_unitario: prodFactura.precio_producto,
             iva_percent: (prodFactura.iva || 19) / 100,
-            get subtotal() { return this.cantidad * this.precio_unitario; },
-            get total() { return this.subtotal * (1 + this.iva_percent); }
+            get subtotal() { return this.cantidad * this.precio_unitario },
+            get total() { return this.subtotal * (1 + this.iva_percent) }
         };
 
-        setItems([...items, newItem]);
-        handleCloseModal();
-    };
+        setItems([...items, newItem])
+        handleCloseModal()
+    }
 
     const handleDeleteItem = (id_producto_eliminar) => {
-        setItems(prevItems => prevItems.filter(item => item.id !== id_producto_eliminar));
-    };
+        setItems(prevItems => prevItems.filter(item => item.id !== id_producto_eliminar))
+    }
 
-    const tableContainerRef = useRef(null);
+    const tableContainerRef = useRef(null)
 
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const delBtn = e.target.closest('.btn-delete-item');
+            const delBtn = e.target.closest('.btn-delete-item')
             if (delBtn) {
-                const id = delBtn.dataset.id;
-                handleDeleteItem(id);
+                const id = delBtn.dataset.id
+                handleDeleteItem(id)
             }
-        };
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, [items]);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [items])
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        e.preventDefault()
         if (items.length === 0) {
-            Swal.fire('Error', 'Debe agregar al menos un producto', 'error'); return;
+            Swal.fire('Error', 'Debe agregar al menos un producto', 'error')
+            return
         }
 
         const payload = {
@@ -181,18 +184,18 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                 subtotal: item.subtotal,
                 total: item.total
             }))
-        };
-
-        const result = await window.api.addNota(payload);
-        if (result.success) {
-            Swal.fire('¡Éxito!', 'La nota ha sido registrada', 'success');
-            onSuccess(); 
-        } else {
-            Swal.fire('Error', result.error, 'error');
         }
-    };
 
-    return (
+        const result = await window.api.addNota(payload)
+        if (result.success) {
+            Swal.fire('¡Éxito!', 'La nota ha sido registrada', 'success')
+            onSuccess()
+        } else {
+            Swal.fire('Error', result.error, 'error')
+        }
+    }
+
+    return <>
         <div className="card shadow-sm border-0">
             <div className="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 className="mb-0 text-primary">Nueva Nota</h5>
@@ -283,9 +286,9 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                                         data: 'sku', 
                                         title: 'SKU',
                                         render: (data, type, row) => {
-                                            if (!data) return '-'; 
-                                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                                            return `<strong>${prefix}${data.toUpperCase()}</strong>`;
+                                            if (!data) return '-'
+                                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
+                                            return `<strong>${prefix}${data.toUpperCase()}</strong>`
                                         }
                                     },
                                     { data: 'nombre_producto', title: 'Producto' },
@@ -302,7 +305,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                                                 <button type="button" class="btn btn-sm btn-danger btn-delete-item" data-id="${row.id}">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
-                                            `;
+                                            `
                                         }
                                     }
                                 ]}
@@ -334,42 +337,14 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                 </form>
             </div>
 
-            <Modal show={showModal} onHide={handleCloseModal} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Agregar Producto a Nota</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Form>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Producto Facturado</Form.Label>
-                            <Form.Select 
-                                value={itemForm.id_producto} 
-                                onChange={(e) => setItemForm({...itemForm, id_producto: e.target.value})}
-                            >
-                                {productosDisponibles.map((prod, idx) => (
-                                    <option key={idx} value={prod.id_producto}>
-                                        {prod.sku_prefix ? `${prod.sku_prefix}${prod.separador || ''}` : ''}{prod.sku || ''} - {prod.nombre_producto} (Vendidos: {prod.cantidad_producto})
-                                    </option>
-                                ))}
-                            </Form.Select>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Cantidad a devolver/ajustar</Form.Label>
-                            <Form.Control 
-                                type="number" 
-                                min="0.1" 
-                                step="0.1"
-                                value={itemForm.cantidad} 
-                                onChange={(e) => setItemForm({...itemForm, cantidad: e.target.value})}
-                            />
-                        </Form.Group>
-                    </Form>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={handleCloseModal}>Cancelar</Button>
-                    <Button variant="primary" onClick={handleConfirmAddItem}>Agregar a la Nota</Button>
-                </Modal.Footer>
-            </Modal>
+            <ModalSeleccionItemNota 
+                show={showModal}
+                handleClose={handleCloseModal}
+                productosDisponibles={productosDisponibles}
+                itemForm={itemForm}
+                setItemForm={setItemForm}
+                handleConfirmAddItem={handleConfirmAddItem}
+            />
         </div>
-    );
-};
+    </>
+}

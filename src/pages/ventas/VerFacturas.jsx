@@ -2,9 +2,10 @@ import { useEffect, useState, useRef, useMemo } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
-import { ModalDetalleFactura } from "./components/ModalDetalleFactura" // <-- NUEVO IMPORT
+import { ModalDetalleFactura } from "./components/ModalDetalleFactura"
 
 export const VerFacturas = () => {
+
     const [reloadTable, setReloadTable] = useState(0);
 
     const [show, setShow] = useState(false)
@@ -20,27 +21,27 @@ export const VerFacturas = () => {
     const [showPreview, setShowPreview] = useState(false)
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
 
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion();
-        const confAppRaw = configData.find(c => c.key === 'confApp');
+        const configData = await window.api.getConfiguracion()
+        const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
-                const parsed = JSON.parse(confAppRaw.value);
+                const parsed = JSON.parse(confAppRaw.value)
                 setAppConfig({
                     moneda: parsed.moneda || 'COP',
                     formato_numero: parsed.formato_numero || 'es-CO'
-                });
+                })
             } catch(e) {}
         }
-    };
+    }
 
     useEffect(() => {
-        loadConfig();
-        window.addEventListener('config-actualizada', loadConfig);
-        return () => window.removeEventListener('config-actualizada', loadConfig);
-    }, []);
+        loadConfig()
+        window.addEventListener('config-actualizada', loadConfig)
+        return () => window.removeEventListener('config-actualizada', loadConfig)
+    }, [])
 
     const handleClose = () => {
         setShow(false)
@@ -50,38 +51,38 @@ export const VerFacturas = () => {
     const handleShow = () => setShow(true)
 
     useEffect(() => {
-        const handleNuevaFactura = () => setReloadTable(prev => prev + 1);
-        window.addEventListener('factura-creada', handleNuevaFactura);
-        return () => window.removeEventListener('factura-creada', handleNuevaFactura);
+        const handleNuevaFactura = () => setReloadTable(prev => prev + 1)
+        window.addEventListener('factura-creada', handleNuevaFactura)
+        return () => window.removeEventListener('factura-creada', handleNuevaFactura)
     }, [])
 
-    const tableContainerRef = useRef(null);
+    const tableContainerRef = useRef(null)
 
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const btnSee = e.target.closest('.btn-see-item');
+            const btnSee = e.target.closest('.btn-see-item')
             if (btnSee) {
                 try {
-                    const item = JSON.parse(decodeURIComponent(btnSee.dataset.alldata));
-                    verDetalle(item);
-                } catch(err) { console.error(err); }
+                    const item = JSON.parse(decodeURIComponent(btnSee.dataset.alldata))
+                    verDetalle(item)
+                } catch(err) { console.error(err) }
             }
 
-            const btnPrint = e.target.closest('.btn-print-item');
+            const btnPrint = e.target.closest('.btn-print-item')
             if (btnPrint) {
                 try {
-                    const item = JSON.parse(decodeURIComponent(btnPrint.dataset.alldata));
-                    imprimirDirecto(item);
-                } catch(err) { console.error(err); }
+                    const item = JSON.parse(decodeURIComponent(btnPrint.dataset.alldata))
+                    imprimirDirecto(item)
+                } catch(err) { console.error(err) }
             }
-        };
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
     const verDetalle = async (factura) => {
         setFacturaSeleccionada(factura)
@@ -104,24 +105,24 @@ export const VerFacturas = () => {
             setNotasFactura(response.notas || []) 
             setAlmacenConf(response.configuracion || null)
             
-            setAbiertoDesdeDetalles(false);
-            setShowPreview(true);
+            setAbiertoDesdeDetalles(false)
+            setShowPreview(true)
         }
     }
 
     const handlePrepararImpresion = () => {
-        setShow(false); 
-        setAbiertoDesdeDetalles(true);
-        setShowPreview(true);
+        setShow(false)
+        setAbiertoDesdeDetalles(true)
+        setShowPreview(true)
     }
 
     const handleCerrarPreview = () => {
-        setShowPreview(false);
+        setShowPreview(false)
         if (abiertoDesdeDetalles) {
-            setShow(true);
+            setShow(true)
         } else {
-            setFacturaSeleccionada(null);
-            setDetalleData([]);
+            setFacturaSeleccionada(null)
+            setDetalleData([])
         }
     }
 
@@ -134,7 +135,7 @@ export const VerFacturas = () => {
                 return new Date(data).toLocaleString(appConfig.formato_numero, {
                     day: '2-digit', month: '2-digit', year: 'numeric',
                     hour: '2-digit', minute: '2-digit', hour12: true
-                });
+                })
             }
         },
         { 
@@ -146,25 +147,25 @@ export const VerFacturas = () => {
         {
             data: null, title: 'Estado', orderable: false,
             render: function (data, type, row) {
-                let badges = '';
+                let badges = ''
                 if (row.tipo_pago === 'credito') {
-                    if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge bg-danger me-1">Crédito (Sin Abonos)</span>';
-                    else if (row.saldo_pendiente > 0) badges += '<span class="badge bg-warning text-dark me-1">Crédito (Abonado)</span>';
-                    else badges += '<span class="badge bg-success me-1">Crédito (Pagado)</span>';
+                    if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge bg-danger me-1">Crédito (Sin Abonos)</span>'
+                    else if (row.saldo_pendiente > 0) badges += '<span class="badge bg-warning text-dark me-1">Crédito (Abonado)</span>'
+                    else badges += '<span class="badge bg-success me-1">Crédito (Pagado)</span>'
                 } else {
-                    badges += '<span class="badge bg-primary me-1">Contado</span>';
+                    badges += '<span class="badge bg-primary me-1">Contado</span>'
                 }
                 if (row.notas_aplicadas) {
-                    if (row.notas_aplicadas.includes('Crédito')) badges += '<span class="badge bg-info text-dark me-1">Nota Crédito</span>';
-                    if (row.notas_aplicadas.includes('Débito')) badges += '<span class="badge bg-secondary me-1">Nota Débito</span>';
+                    if (row.notas_aplicadas.includes('Crédito')) badges += '<span class="badge bg-info text-dark me-1">Nota Crédito</span>'
+                    if (row.notas_aplicadas.includes('Débito')) badges += '<span class="badge bg-secondary me-1">Nota Débito</span>'
                 }
-                return badges;
+                return badges
             }
         },
         {
             data: null, title: 'Acciones', orderable: false,
             render: function (data, type, row) {
-                const safeData = encodeURIComponent(JSON.stringify(row));
+                const safeData = encodeURIComponent(JSON.stringify(row))
                 return `
                     <button class="btn btn-sm btn-secondary text-white btn-see-item me-1" data-alldata="${safeData}" title="Ver Detalles">
                         <i class="bi bi-eye"></i>
@@ -172,10 +173,10 @@ export const VerFacturas = () => {
                     <button class="btn btn-sm btn-primary text-white btn-print-item" data-alldata="${safeData}" title="Imprimir Factura">
                         <i class="bi bi-printer"></i>
                     </button>
-                `;
+                `
             }
         }
-    ], [appConfig]);
+    ], [appConfig])
 
     return <>
         <div className="bg-light p-3 rounded mb-4 border">
@@ -210,9 +211,9 @@ export const VerFacturas = () => {
                     key={`facturas-main-${appConfig.moneda}-${appConfig.formato_numero}-${startDate}-${endDate}-${reloadTable}`}
                     reloadKey={reloadTable}
                     ajaxData={(params) => {
-                        params.startDate = startDate;
-                        params.endDate = endDate;
-                        return window.api.getFacturasPaginadas(params);
+                        params.startDate = startDate
+                        params.endDate = endDate
+                        return window.api.getFacturasPaginadas(params)
                     }}
                     columns={columnasTabla}
                 />
