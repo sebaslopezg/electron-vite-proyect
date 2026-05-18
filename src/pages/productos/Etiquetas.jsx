@@ -4,9 +4,9 @@ import CustomDataTable from '../../components/DataTableComponent'
 import EtiquetaModal from './components/EtiquetaModal'
 
 export const Etiquetas = () => {
-    const [show, setShow] = useState(false);
-    const handleClose = () => setShow(false);
-    const handleShow = () => setShow(true);
+    const [show, setShow] = useState(false)
+    const handleClose = () => setShow(false)
+    const handleShow = () => setShow(true)
 
     const [dataInTable, setDataInTable] = useState([])
     const [categorias, setCategorias] = useState([])

@@ -21,10 +21,23 @@ export const Productos = () => {
   const [etiquetas, setEtiquetas] = useState([])
 
   const emptyForm = {
-    ref_name: '', sku: '', stock: 0, min_stock: 5, max_stock: 50,
-    categoria_id: 'general', subcategorias_ids: [], etiquetas: [], unidad_medida: 'Unidad', 
-    iva: 0, allow_negative: 0, descripcion: '', precio: 0, status: 1, tipo: 'producto',
-    allow_encargo: 1, encargo_solo_sin_stock: 1
+    ref_name: '', 
+    sku: '', 
+    stock: 0, 
+    min_stock: 5, 
+    max_stock: 50,
+    categoria_id: 'general', 
+    subcategorias_ids: [], 
+    etiquetas: [], 
+    unidad_medida: 'Unidad', 
+    iva: 0, 
+    allow_negative: 0, 
+    descripcion: '', 
+    precio: 0, 
+    status: 1, 
+    tipo: 'producto',
+    allow_encargo: 1, 
+    encargo_solo_sin_stock: 1
   }
 
   const [form, setForm] = useState({ ...emptyForm })
@@ -47,8 +60,8 @@ export const Productos = () => {
   }
 
   const renderCurrency = (val) => {
-      return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
-  };
+    return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+  }
 
   const loadSelectsData = useCallback(async () => {
     const [catsData, tagsData, subcatsData] = await Promise.all([
@@ -105,33 +118,40 @@ export const Productos = () => {
           }
 
           setForm({
-            ref_name: item.ref_name || '', sku: item.sku || '', stock: item.stock || 0,
-            min_stock: item.min_stock || 5, max_stock: item.max_stock || 50,
+            ref_name: item.ref_name || '', 
+            sku: item.sku || '', 
+            stock: item.stock || 0,
+            min_stock: item.min_stock || 5, 
+            max_stock: item.max_stock || 50,
             categoria_id: item.categoria_id || 'general', 
             subcategorias_ids: subcatIds,
             etiquetas: tagsArray,
-            unidad_medida: item.unidad_medida || 'Unidad', iva: item.iva || 0,
-            allow_negative: item.allow_negative || 0, descripcion: item.descripcion || '',
-            precio: item.precio || 0, status: item.status || 1, tipo: item.tipo || 'producto',
+            unidad_medida: item.unidad_medida || 'Unidad', 
+            iva: item.iva || 0,
+            allow_negative: item.allow_negative || 0, 
+            descripcion: item.descripcion || '',
+            precio: item.precio || 0, 
+            status: item.status || 1, 
+            tipo: item.tipo || 'producto',
             allow_encargo: item.allow_encargo !== undefined ? item.allow_encargo : 1,
             encargo_solo_sin_stock: item.encargo_solo_sin_stock !== undefined ? item.encargo_solo_sin_stock : 1
           })
           setEditingId(item.id)
-          handleShow();
-        } catch(err) { console.error("Error leyendo datos", err); }
+          handleShow()
+        } catch(err) { console.error("Error leyendo datos", err) }
       }
       
-      const delBtn = e.target.closest('.btn-delete');
-      if (delBtn) handleDelete(delBtn.dataset.id);
-    };
+      const delBtn = e.target.closest('.btn-delete')
+      if (delBtn) handleDelete(delBtn.dataset.id)
+    }
 
-    container.addEventListener('click', handleTableClick);
-    return () => container.removeEventListener('click', handleTableClick);
-  }, []);
+    container.addEventListener('click', handleTableClick)
+    return () => container.removeEventListener('click', handleTableClick)
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    let result;
+    let result
     if (editingId) {
       result = await window.api.updateProducto({ ...form, id: editingId })
     } else {
@@ -139,12 +159,12 @@ export const Productos = () => {
     }
 
     if (result && result.success) {
-        Swal.fire({ title: '¡Éxito!', text: 'Producto guardado correctamente', icon: 'success', timer: 1500 });
-        cleanForm()
-        handleClose()
-        setReloadTable(prev => prev + 1)
+      Swal.fire({ title: '¡Éxito!', text: 'Producto guardado correctamente', icon: 'success', timer: 1500 })
+      cleanForm()
+      handleClose()
+      setReloadTable(prev => prev + 1)
     } else {
-        Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error');
+      Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error')
     }
   }
 
@@ -165,11 +185,11 @@ export const Productos = () => {
   return <>
     <div className="mb-3">
         <button className='btn btn-primary' onClick={() => {
-            setEditingId(null)
-            cleanForm()
-            handleShow()
+          setEditingId(null)
+          cleanForm()
+          handleShow()
         }}>
-            <i className="bi bi-plus-circle me-2"></i>Nuevo Producto
+          <i className="bi bi-plus-circle me-2"></i>Nuevo Producto
         </button>
     </div>
 
@@ -184,8 +204,8 @@ export const Productos = () => {
             data: 'sku', 
             title: 'SKU', 
             render: (data, type, row) => {
-              const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-              return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+              const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
+              return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-'
             } 
           },
           { data: 'categoria_nombre', title: 'Categoría', render: (data) => data || 'General' },
@@ -201,7 +221,7 @@ export const Productos = () => {
             title: 'Acciones',
             orderable: false,
             render: function (data, type, row) {
-              const safeData = encodeURIComponent(JSON.stringify(row));
+              const safeData = encodeURIComponent(JSON.stringify(row))
               return `
                 <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}"><i class="bi bi-pencil"></i></button>
                 <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}"><i class="bi bi-trash3"></i></button>

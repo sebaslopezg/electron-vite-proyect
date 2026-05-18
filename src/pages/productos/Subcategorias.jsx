@@ -4,15 +4,14 @@ import CustomDataTable from '../../components/DataTableComponent'
 import SubcategoriaModal from './components/SubcategoriaModal'
 
 export const Subcategorias = () => {
-    const [show, setShow] = useState(false);
-    const handleClose = () => setShow(false);
-    const handleShow = () => setShow(true);
+    const [show, setShow] = useState(false)
+    const handleClose = () => setShow(false)
+    const handleShow = () => setShow(true)
 
     const [dataInTable, setDataInTable] = useState([])
     const [categorias, setCategorias] = useState([])
     const [reloadTable, setReloadTable] = useState(0)
 
-    // 1. Estado inicial preparado para múltiples categorías
     const emptyForm = { nombre: '', descripcion: '', sku_prefix: '', separador: '', categorias_ids: [] }
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
@@ -97,7 +96,6 @@ export const Subcategorias = () => {
                         descripcion: item.descripcion || '',
                         sku_prefix: item.sku_prefix || '', 
                         separador: item.separador || '',
-                        // 3. Convertir el texto de la DB en un arreglo para el Modal
                         categorias_ids: item.categorias_ids ? item.categorias_ids.split(',') : []
                     });
                     setEditingId(item.id)
@@ -115,7 +113,11 @@ export const Subcategorias = () => {
 
     return <>
         <div className="mb-3">
-            <button className='btn btn-primary' onClick={() => { setEditingId(null); cleanForm(); handleShow(); }}>
+            <button className='btn btn-primary' onClick={() => { 
+                    setEditingId(null)
+                    cleanForm()
+                    handleShow()
+                }}>
                 <i className="bi bi-plus-circle me-2"></i>Nueva Subcategoría
             </button>
         </div>
@@ -126,7 +128,6 @@ export const Subcategorias = () => {
                 data={dataInTable}
                 columns={[
                     { data: 'nombre', title: 'Subcategoría' },
-                    // 4. Renderizado visual de múltiples categorías como etiquetas
                     { 
                         data: 'categoria_nombre', 
                         title: 'Categorías Vinculadas', 
@@ -140,11 +141,11 @@ export const Subcategorias = () => {
                     {
                         data: null, title: 'Acciones', orderable: false,
                         render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row));
+                            const safeData = encodeURIComponent(JSON.stringify(row))
                             return `
                                 <button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>
                                 <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" title="Eliminar"><i class="bi bi-trash3"></i></button>
-                            `;
+                            `
                         }
                     }
                 ]}
@@ -152,8 +153,13 @@ export const Subcategorias = () => {
         </div>
 
         <SubcategoriaModal
-            show={show} handleClose={handleClose} handleSubmit={handleSubmit}
-            form={form} setForm={setForm} editingId={editingId} categorias={categorias}
+            show={show} 
+            handleClose={handleClose} 
+            handleSubmit={handleSubmit}
+            form={form} 
+            setForm={setForm} 
+            editingId={editingId} 
+            categorias={categorias}
         />
     </>
 }
