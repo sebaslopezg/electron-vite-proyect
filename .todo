@@ -2,7 +2,6 @@
 
  ## Modificaciones Prioritarias:
  
- - Mostrar comentarios en los detalles de las facturas
  - Crear logs en todos los movimientos del sistema y visualizarlos 
  - Mejorar modulo de pagos (mas sencillo)
  - Impuestos y Retenciones (Nivel Intermedio)

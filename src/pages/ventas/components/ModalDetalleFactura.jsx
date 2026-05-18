@@ -98,9 +98,18 @@ export const ModalDetalleFactura = ({
                     ]}
                 />
 
+                {facturaSeleccionada && facturaSeleccionada.observaciones && (
+                    <div className="mt-4">
+                        <h6 className="fw-bold text-secondary mb-2">Observaciones</h6>
+                        <div className="p-3 bg-light rounded border fst-italic text-muted">
+                            {facturaSeleccionada.observaciones}
+                        </div>
+                    </div>
+                )}
+
                 {facturaSeleccionada && (
                     <Row className="mt-4 justify-content-end">
-                        <Col md={5}>
+                        <Col md={6}>
                             <div className="p-2 rounded border border-secondary border-opacity-25">
                                 <table className="table table-sm table-borderless m-0 text-end">
                                     <tbody>
