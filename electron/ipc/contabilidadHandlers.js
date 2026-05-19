@@ -14,6 +14,24 @@ export const registerContabilidadHandlers = () => {
     }
   })
 
+  ipcMain.handle("search-terceros-conta", (event, search) => {
+    try {
+      if (!search || search.length < 2) return { success: true, data: [] }
+      const likeSearch = `%${search}%`
+      const query = `
+        SELECT id, numero_documento, tipo_persona, razon_social, nombres, apellidos
+        FROM terceros
+        WHERE (numero_documento LIKE ? OR razon_social LIKE ? OR nombres LIKE ? OR apellidos LIKE ?) AND estado = 1
+        LIMIT 40
+      `;
+      const terceros = db.prepare(query).all(likeSearch, likeSearch, likeSearch, likeSearch)
+      return { success: true, data: terceros }
+    } catch (error) {
+      logger.error('CONTABILIDAD', "Error buscando terceros en el comprobante", error)
+      return { success: false, error: error.message }
+    }
+  })
+
   ipcMain.handle("crear-cuenta", async (event, cuenta) => {
     try {
       const stmt = db.prepare(`
@@ -91,7 +109,7 @@ export const registerContabilidadHandlers = () => {
 
       const dataQuery = db.prepare(`
         SELECT c.*, 
-               (SELECT SUM(debito) FROM comprobantesDetalle WHERE comprobante_id = c.id) as total
+          (SELECT SUM(debito) FROM comprobantesDetalle WHERE comprobante_id = c.id) as total
         FROM comprobantes c
         WHERE ${whereClause} 
         ORDER BY c.fecha DESC, c.numero_comprobante DESC 
@@ -170,7 +188,14 @@ export const registerContabilidadHandlers = () => {
       const cabecera = db.prepare("SELECT * FROM comprobantes WHERE id = ?").get(id)
       if (!cabecera) return { success: false, error: "Comprobante no encontrado" }
       
-      const detalles = db.prepare("SELECT * FROM comprobantesDetalle WHERE comprobante_id = ?").all(id)
+      const detalles = db.prepare(`
+        SELECT cd.*, 
+               t.numero_documento, 
+               (CASE WHEN t.tipo_persona = 'juridica' THEN t.razon_social ELSE t.nombres || ' ' || t.apellidos END) as tercero_nombre
+        FROM comprobantesDetalle cd
+        LEFT JOIN terceros t ON cd.tercero_id = t.id
+        WHERE cd.comprobante_id = ?
+      `).all(id)
       return { success: true, data: { cabecera, detalles } }
     } catch (error) {
       logger.error('CONTABILIDAD', `Error obteniendo detalle de comprobante (ID: ${id})`, error)
@@ -233,7 +258,6 @@ export const registerContabilidadHandlers = () => {
 
 
   // REPORTES FINANCIEROS
-
   ipcMain.handle("get-balance-prueba", async (event, { fechaInicio, fechaFin }) => {
     try {
       const query = `
@@ -338,7 +362,8 @@ export const registerContabilidadHandlers = () => {
 
       const queryBG = `
         SELECT c.id, c.nombre, c.naturaleza, SUBSTR(c.id, 1, 1) as clase,
-               SUM(cd.debito) as total_debito, SUM(cd.credito) as total_credito
+          SUM(cd.debito) as total_debito, 
+          SUM(cd.credito) as total_credito
         FROM cuentasContables c
         INNER JOIN comprobantesDetalle cd ON c.id = cd.cuenta_id
         INNER JOIN comprobantes comp ON cd.comprobante_id = comp.id
@@ -376,9 +401,6 @@ export const registerContabilidadHandlers = () => {
       return { success: false, error: err.message } 
     }
   })
-
-
-  // CONFIGURACIÓN CONTABLE
 
   ipcMain.handle("get-config-contable", () => {
     try {

@@ -2,7 +2,6 @@
 
  ## Modificaciones Prioritarias:
  
- - Crear logs en todos los movimientos del sistema y visualizarlos 
  - Mejorar modulo de pagos (mas sencillo)
  - Impuestos y Retenciones (Nivel Intermedio)
 
@@ -23,3 +22,4 @@
  - Revisar swal en todas las interacciones con los forms
  - Organizar carpetas, todas deben comenzar o no en minuscula o mayuscula, no mezclar
  - Agregar una pestaña de configuracion donde yo pueda perzonalizar los filtros y crear plantillas (para facilitar la digitacion de informacion en los modulos)
+ - Separar pestaña de actualizaciones y hacerla un modulo a parte, integrar manejador de actualizaciones.

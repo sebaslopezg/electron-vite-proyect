@@ -3,7 +3,7 @@ import Swal from 'sweetalert2'
 import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
-import { Row, Col, Table } from 'react-bootstrap'
+import { Row, Col, Table, ListGroup } from 'react-bootstrap'
 
 export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => {
     const [cabecera, setCabecera] = useState({
@@ -13,9 +13,21 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
     })
 
     const [detalles, setDetalles] = useState([])
-    
     const [cuentas, setCuentas] = useState([])
-    const [terceros, setTerceros] = useState([])
+    
+    // Almacenamos el catálogo completo de terceros en memoria
+    const [tercerosTotales, setTercerosTotales] = useState([])
+
+    const rowInitialState = { 
+        id: Date.now(), 
+        cuenta_id: '', 
+        tercero_id: '', 
+        tercero_search: '', 
+        show_tercero_results: false, 
+        descripcion_linea: '', 
+        debito: '', 
+        credito: '' 
+    };
 
     useEffect(() => {
         if (show) {
@@ -30,10 +42,13 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
                         documento_referencia: editData.cabecera.documento_referencia || ''
                     })
                     
-                    const dts = editData.detalles.map(d => ({
+                    const dts = editData.detalles.map((d, index) => ({
                         ...d,
+                        id: Date.now() + index,
                         debito: d.debito > 0 ? d.debito : '',
-                        credito: d.credito > 0 ? d.credito : ''
+                        credito: d.credito > 0 ? d.credito : '',
+                        tercero_search: d.tercero_id && d.tercero_nombre ? `${d.numero_documento} - ${d.tercero_nombre}` : '',
+                        show_tercero_results: false
                     }));
                     setDetalles(dts)
                 } catch (error) {
@@ -41,8 +56,8 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
                 }
             } else {
                 setDetalles([
-                    { id: Date.now() + 1, cuenta_id: '', tercero_id: '', descripcion_linea: '', debito: '', credito: '' },
-                    { id: Date.now() + 2, cuenta_id: '', tercero_id: '', descripcion_linea: '', debito: '', credito: '' }
+                    { ...rowInitialState, id: Date.now() + 1 },
+                    { ...rowInitialState, id: Date.now() + 2 }
                 ])
                 setCabecera({ fecha: new Date().toISOString().split('T')[0], concepto: '', documento_referencia: '' })
             }
@@ -55,18 +70,43 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
             if (resCuentas.success) setCuentas(resCuentas.data)
 
             const resTerceros = await window.contaAPI.getTerceros()
-            if (resTerceros.success) setTerceros(resTerceros.data)
+            if (resTerceros.success) setTercerosTotales(resTerceros.data)
         }
     }
 
+    const handleBuscarTercero = (idFila, texto) => {
+        setDetalles(detalles.map(d => {
+            if (d.id === idFila) {
+                if (texto.trim() === '') return { ...d, tercero_search: texto, show_tercero_results: false, tercero_id: '' };
+                return { ...d, tercero_search: texto, show_tercero_results: true, tercero_id: '' };
+            }
+            return { ...d, show_tercero_results: false };
+        }));
+    };
+
+    const handleSeleccionarTercero = (idFila, t) => {
+        const nombreDisplay = t.tipo_persona === 'juridica' ? t.razon_social : `${t.nombres || ''} ${t.apellidos || ''}`;
+        setDetalles(detalles.map(d => {
+            if (d.id === idFila) {
+                return { 
+                    ...d, 
+                    tercero_id: t.id, 
+                    tercero_search: `${t.numero_documento} - ${nombreDisplay}`, 
+                    show_tercero_results: false 
+                };
+            }
+            return d;
+        }));
+    };
+
     const handleAddRow = () => {
-        setDetalles([...detalles, { id: Date.now(), cuenta_id: '', tercero_id: '', descripcion_linea: '', debito: '', credito: '' }])
+        setDetalles([...detalles, { ...rowInitialState, id: Date.now() }]);
     }
 
     const handleRemoveRow = (id) => {
         if (detalles.length <= 2) {
-            Swal.fire('Atención', 'Un comprobante debe tener al menos 2 líneas', 'warning');
-            return;
+            Swal.fire('Atención', 'Un comprobante debe tener al menos 2 líneas', 'warning')
+            return
         }
         setDetalles(detalles.filter(d => d.id !== id))
     }
@@ -107,13 +147,13 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
             const cuentaConfig = cuentas.find(c => c.id === linea.cuenta_id)
             if (cuentaConfig?.exige_tercero === 1 && !linea.tercero_id) {
                 Swal.fire('Tercero Faltante', 
-                    `La cuenta ${cuentaConfig.id} (${cuentaConfig.nombre}) exige un tercero. Por favor selecciónalo en la línea ${i + 1}.`, 
+                    `La cuenta ${cuentaConfig.id} (${cuentaConfig.nombre}) exige un tercero. Por favor búscalo y selecciónalo en la línea ${i + 1}.`, 
                     'warning')
                 return
             }
         }
 
-        let res;
+        let res
         if (editData) {
             res = await window.contaAPI.actualizarComprobante({ 
                 id: editData.cabecera.id, 
@@ -140,45 +180,68 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
     }
 
     return <>
-        <Modal show={show} onHide={handleClose} size="xl" centered scrollable>
+        <Modal show={show} onHide={handleClose} size="xl" centered scrollable backdrop="static">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5">
                     <i className="bi bi-journal-text me-2 text-primary"></i>
-                    Nuevo Comprobante Contable
+                    {editData ? 'Editar Comprobante Contable' : 'Nuevo Comprobante Contable'}
                 </Modal.Title>
             </Modal.Header>
             
             <Modal.Body className="bg-light pb-0">
                 <Form id="comprobanteForm" onSubmit={handleSubmit}>
                     
-                    <div className="card shadow-sm mb-3">
+                    <div className="card shadow-sm mb-3 border-0">
                         <div className="card-body py-3">
                             <Row>
                                 <Col md={3}>
                                     <Form.Group>
                                         <Form.Label className="fw-bold small mb-1">Fecha</Form.Label>
-                                        <Form.Control type="date" size="sm" value={cabecera.fecha} onChange={(e) => setCabecera({...cabecera, fecha: e.target.value})} required />
+                                        <Form.Control 
+                                            type="date" 
+                                            size="sm" 
+                                            value={cabecera.fecha} onChange={(e) => setCabecera({...cabecera, fecha: e.target.value})} required 
+                                        />
                                     </Form.Group>
                                 </Col>
                                 <Col md={3}>
                                     <Form.Group>
                                         <Form.Label className="fw-bold small mb-1">Doc. Referencia (Opcional)</Form.Label>
-                                        <Form.Control type="text" size="sm" placeholder="Ej: FAC-1002" value={cabecera.documento_referencia} onChange={(e) => setCabecera({...cabecera, documento_referencia: e.target.value})} />
+                                        <Form.Control 
+                                            type="text" 
+                                            size="sm" 
+                                            placeholder="Ej: FAC-1002" 
+                                            value={cabecera.documento_referencia} onChange={(e) => setCabecera({
+                                                ...cabecera, 
+                                                documento_referencia: e.target.value
+                                            })} 
+                                        />
                                     </Form.Group>
                                 </Col>
                                 <Col md={6}>
                                     <Form.Group>
                                         <Form.Label className="fw-bold small mb-1">Concepto General</Form.Label>
-                                        <Form.Control type="text" size="sm" placeholder="Ej: Pago de arriendo mayo" value={cabecera.concepto} onChange={(e) => setCabecera({...cabecera, concepto: e.target.value})} required />
+                                        <Form.Control 
+                                            type="text" 
+                                            size="sm" 
+                                            placeholder="Ej: Pago de arriendo mayo" 
+                                            value={cabecera.concepto} onChange={(e) => setCabecera({
+                                                ...cabecera, 
+                                                concepto: e.target.value
+                                            })} 
+                                            required 
+                                        />
                                     </Form.Group>
                                 </Col>
                             </Row>
                         </div>
                     </div>
 
-                    <div className="card shadow-sm">
-                        <div className="card-body p-0">
-                            <Table responsive hover size="sm" className="mb-0 align-middle">
+                    {/* El mb-5 ayuda a empujar el fondo del card para que la lista no pelee por espacio visual abajo */}
+                    <div className="card shadow-sm border-0 mb-5" style={{ overflow: 'visible' }}>
+                        <div className="card-body p-0" style={{ overflow: 'visible' }}>
+                            {/* ¡CLAVE!: Quitamos la propiedad "responsive" del Table */}
+                            <Table hover size="sm" className="mb-0 align-middle table-layout-fixed" style={{ overflow: 'visible' }}>
                                 <thead className="table-dark">
                                     <tr>
                                         <th width="5%" className="text-center">#</th>
@@ -187,50 +250,112 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
                                         <th width="20%">Detalle Línea (Opcional)</th>
                                         <th width="12%" className="text-end">Débito</th>
                                         <th width="12%" className="text-end">Crédito</th>
-                                        <th width="5%" className="text-center"><i className="bi bi-gear"></i></th>
+                                        <th width="3%" className="text-center"></th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody style={{ overflow: 'visible' }}>
                                     {detalles.map((row, index) => {
                                         const cuentaActual = cuentas.find(c => c.id === row.cuenta_id);
                                         const exigeTercero = cuentaActual?.exige_tercero === 1;
 
+                                        const queryLower = (row.tercero_search || '').toLowerCase();
+                                        const tercerosFiltrados = tercerosTotales.filter(t => {
+                                            const nombreCompleto = t.tipo_persona === 'juridica' ? t.razon_social : `${t.nombres || ''} ${t.apellidos || ''}`;
+                                            return (t.numero_documento && t.numero_documento.toLowerCase().includes(queryLower)) || 
+                                                   (nombreCompleto && nombreCompleto.toLowerCase().includes(queryLower));
+                                        }).slice(0, 10);
+
                                         return (
-                                            <tr key={row.id}>
+                                            <tr key={row.id} style={{ overflow: 'visible' }}>
                                                 <td className="text-center text-muted small">{index + 1}</td>
                                                 <td>
-                                                    <Form.Select size="sm" value={row.cuenta_id} onChange={(e) => handleChangeRow(row.id, 'cuenta_id', e.target.value)} required>
+                                                    <Form.Select 
+                                                        size="sm" 
+                                                        value={row.cuenta_id} onChange={(e) => handleChangeRow(
+                                                            row.id, 
+                                                            'cuenta_id', 
+                                                            e.target.value
+                                                        )} 
+                                                        required
+                                                    >
                                                         <option value="">Seleccione cuenta...</option>
                                                         {cuentas.map(c => (
                                                             <option key={c.id} value={c.id}>{c.id} - {c.nombre}</option>
                                                         ))}
                                                     </Form.Select>
                                                 </td>
+                                                <td className="position-relative" style={{ overflow: 'visible' }}>
+                                                    <Form.Control
+                                                        size="sm"
+                                                        type="text"
+                                                        placeholder="Escriba documento o nombre..."
+                                                        value={row.tercero_search || ''}
+                                                        onChange={(e) => handleBuscarTercero(row.id, e.target.value)}
+                                                        autoComplete="off"
+                                                        className={row.tercero_id ? "border-success bg-light text-success fw-bold" : (exigeTercero ? "border-warning" : "border-primary")}
+                                                    />
+                                                    {row.show_tercero_results && row.tercero_search && tercerosFiltrados.length > 0 && (
+                                                        <ListGroup className="position-absolute shadow border border-1 border-secondary" style={{ zIndex: 9999, maxHeight: '200px', overflowY: 'auto', top: '100%', left: 0, width: '100%' }}>
+                                                            {tercerosFiltrados.map(t => {
+                                                                const nombre = t.tipo_persona === 'juridica' ? t.razon_social : `${t.nombres || ''} ${t.apellidos || ''}`;
+                                                                return (
+                                                                    <ListGroup.Item 
+                                                                        key={t.id} 
+                                                                        action 
+                                                                        onClick={() => handleSeleccionarTercero(row.id, t)} 
+                                                                        className="py-1 px-2 small border-bottom bg-white"
+                                                                    >
+                                                                        <strong className="text-primary">{t.numero_documento}</strong><br/>
+                                                                        <span className="text-muted">{nombre}</span>
+                                                                    </ListGroup.Item>
+                                                                )
+                                                            })}
+                                                        </ListGroup>
+                                                    )}
+                                                    {row.show_tercero_results && row.tercero_search && tercerosFiltrados.length === 0 && (
+                                                        <ListGroup className="position-absolute shadow w-100" style={{ zIndex: 9999, top: '100%', left: 0 }}>
+                                                            <ListGroup.Item className="py-2 text-center text-muted small bg-white">No se encontraron resultados.</ListGroup.Item>
+                                                        </ListGroup>
+                                                    )}
+                                                </td>
                                                 <td>
-                                                    <Form.Select 
+                                                    <Form.Control 
                                                         size="sm" 
-                                                        value={row.tercero_id} 
-                                                        onChange={(e) => handleChangeRow(row.id, 'tercero_id', e.target.value)}
-                                                        required={exigeTercero}
-                                                        className={exigeTercero && !row.tercero_id ? 'border-warning' : ''}
-                                                    >
-                                                        <option value="">{exigeTercero ? 'Requerido...' : 'Opcional...'}</option>
-                                                        {terceros.map(t => (
-                                                            <option key={t.id} value={t.id}>{t.numero_documento} - {t.tipo_persona === 'juridica' ? t.razon_social : `${t.nombres} ${t.apellidos}`}</option>
-                                                        ))}
-                                                    </Form.Select>
+                                                        type="text" 
+                                                        placeholder="Concepto línea..." 
+                                                        value={row.descripcion_linea} 
+                                                        onChange={(e) => handleChangeRow(row.id, 'descripcion_linea', e.target.value)} 
+                                                    />
                                                 </td>
                                                 <td>
-                                                    <Form.Control size="sm" type="text" placeholder="Concepto línea..." value={row.descripcion_linea} onChange={(e) => handleChangeRow(row.id, 'descripcion_linea', e.target.value)} />
+                                                    <Form.Control 
+                                                        size="sm" 
+                                                        type="number" 
+                                                        min="0" 
+                                                        step="0.01" 
+                                                        className="text-end" 
+                                                        value={row.debito} 
+                                                        onChange={(e) => handleChangeRow(row.id, 'debito', e.target.value)} 
+                                                    />
                                                 </td>
                                                 <td>
-                                                    <Form.Control size="sm" type="number" min="0" step="0.01" className="text-end" value={row.debito} onChange={(e) => handleChangeRow(row.id, 'debito', e.target.value)} />
-                                                </td>
-                                                <td>
-                                                    <Form.Control size="sm" type="number" min="0" step="0.01" className="text-end" value={row.credito} onChange={(e) => handleChangeRow(row.id, 'credito', e.target.value)} />
+                                                    <Form.Control 
+                                                        size="sm" 
+                                                        type="number" 
+                                                        min="0" 
+                                                        step="0.01" 
+                                                        className="text-end" 
+                                                        value={row.credito} 
+                                                        onChange={(e) => handleChangeRow(row.id, 'credito', e.target.value)} 
+                                                    />
                                                 </td>
                                                 <td className="text-center">
-                                                    <button type="button" className="btn btn-link text-danger p-0" onClick={() => handleRemoveRow(row.id)} title="Eliminar línea">
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn btn-link text-danger p-0" 
+                                                        onClick={() => handleRemoveRow(row.id)} 
+                                                        title="Eliminar línea"
+                                                    >
                                                         <i className="bi bi-trash-fill"></i>
                                                     </button>
                                                 </td>
@@ -239,7 +364,7 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
                                     })}
                                 </tbody>
                             </Table>
-                            <div className="p-2 border-top bg-white">
+                            <div className="p-2 border-top bg-white rounded-bottom">
                                 <Button variant="outline-primary" size="sm" onClick={handleAddRow}>
                                     <i className="bi bi-plus-lg me-1"></i> Agregar Línea
                                 </Button>
@@ -249,7 +374,7 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
                 </Form>
             </Modal.Body>
             
-            <Modal.Footer className="d-flex justify-content-between bg-light">
+            <Modal.Footer className="d-flex justify-content-between bg-light border-top-0 pt-3 position-relative z-3">
                 <div className="d-flex gap-4">
                     <div>
                         <span className="text-muted small d-block">Total Débitos</span>
@@ -260,7 +385,7 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
                         <strong className={`fs-5 ${cuadra ? 'text-success' : 'text-danger'}`}>{formatMoneda(totalCredito)}</strong>
                     </div>
                     {!cuadra && totalDebito > 0 && (
-                        <div className="bg-warning text-dark px-3 py-1 rounded d-flex flex-column justify-content-center">
+                        <div className="bg-warning text-dark px-3 py-1 rounded d-flex flex-column justify-content-center shadow-sm">
                             <span className="small fw-bold mb-0">Diferencia</span>
                             <span className="fw-bold mb-0">{formatMoneda(diferencia)}</span>
                         </div>

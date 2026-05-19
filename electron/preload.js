@@ -169,6 +169,7 @@ contextBridge.exposeInMainWorld('contaAPI', {
     getComprasPaginadas: (params) => ipcRenderer.invoke('get-compras-paginadas', params),
     getCompraDetalle: (id) => ipcRenderer.invoke('get-compra-detalle', id),
     crearCompra: (data) => ipcRenderer.invoke('crear-compra', data),
+    searchTercerosConta: (query) => ipcRenderer.invoke("search-terceros-conta", query),
   }),
 
 contextBridge.exposeInMainWorld('updaterAPI', {
