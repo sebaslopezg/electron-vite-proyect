@@ -135,6 +135,12 @@ contextBridge.exposeInMainWorld("api", {
   addSubcategoria: (item) => ipcRenderer.invoke("add-subcategoria", item),
   updateSubcategoria: (item) => ipcRenderer.invoke("update-subcategoria", item),
   deleteSubcategoria: (id) => ipcRenderer.invoke("delete-subcategoria", id),
+
+  //usuarios
+  getUsuarios: () => ipcRenderer.invoke("get-usuarios"),
+  addUsuario: (data) => ipcRenderer.invoke("add-usuario", data),
+  updateUsuario: (data) => ipcRenderer.invoke("update-usuario", data),
+  deleteUsuario: (id) => ipcRenderer.invoke("delete-usuario", id),
 })
 
   //contabilidad

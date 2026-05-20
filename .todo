@@ -5,13 +5,20 @@
  - Mejorar modulo de pagos (mas sencillo)
  - Impuestos y Retenciones (Nivel Intermedio)
 
+
+ - Crear modulo de usuarios
+ - Crear modulo de roles y permisos
+
+ - Guardar configuracion de filtros editada en el momento, almacenar esto en localstorage o cokies.
+ - Personalizar filtros por defecto en tablas y demas para que cada que cargue, se cargue con esa configuracion
+
+ - Guardar en localstorage o cookies los estados de venta en caso de que se cierre el programa, hacer lo mismo con las modales y otros procesos largos
+
  - Revisar todos los cruds y asegurarse de tener soft delete en todos.
  - Conectar modulo de cartera con contabilidad
  - Crear modulo cobranzas
  - Crear modulo de servicios (sacar pestaña servicios de productos)
  - Opciones desplegables con cuadro de busqueda
- - Crear modulo de usuarios
- - Crear modulo de roles y permisos
  - Crear un manejador de modulos
 
  ## No prioritario
