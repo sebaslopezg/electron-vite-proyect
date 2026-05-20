@@ -42,6 +42,7 @@ export const registerInventarioHandler = () => {
             const searchValue = dtParams.search?.value || '';
 
             const filterCategory = dtParams.customCategory || '';
+            const filterSubcategory = dtParams.customSubcategory || ''; // <-- NUEVO FILTRO
             const filterTag = dtParams.customTag || '';
 
             const orderColIndex = dtParams.order?.[0]?.column || 0;
@@ -67,6 +68,12 @@ export const registerInventarioHandler = () => {
             if (filterCategory) {
                 baseQuery += " AND p.categoria_id = ?";
                 queryParams.push(filterCategory);
+            }
+
+            // --- LÓGICA DE FILTRADO POR SUBCATEGORÍA ---
+            if (filterSubcategory) {
+                baseQuery += " AND p.subcategorias_ids_json LIKE ?";
+                queryParams.push(`%${filterSubcategory}%`);
             }
 
             if (filterTag) {

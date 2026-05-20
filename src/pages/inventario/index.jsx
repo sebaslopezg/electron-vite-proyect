@@ -13,9 +13,12 @@ export const Inventario = () => {
     const [reloadTable, setReloadTable] = useState(0)
 
     const [categoriasList, setCategoriasList] = useState([])
+    const [subcategoriasTotales, setSubcategoriasTotales] = useState([])
+    const [subcategoriasFiltradas, setSubcategoriasFiltradas] = useState([])
     const [etiquetasList, setEtiquetasList] = useState([])
   
     const [filterCategory, setFilterCategory] = useState('')
+    const [filterSubcategory, setFilterSubcategory] = useState('')
     const [filterTag, setFilterTag] = useState('')
 
     const [form, setForm] = useState({ cantidad: '', type: '' })
@@ -58,12 +61,14 @@ export const Inventario = () => {
     const handleShow = () => setShow(true)
 
     const loadFilters = async () => {
-        const [cats, tags] = await Promise.all([
+        const [cats, tags, subs] = await Promise.all([
             window.api.getCategorias(),
-            window.api.getEtiquetas()
+            window.api.getEtiquetas(),
+            window.api.getSubcategorias()
         ])
         setCategoriasList(cats || [])
         setEtiquetasList(tags || [])
+        setSubcategoriasTotales(subs || [])
     }
 
     useEffect(() => { 
@@ -72,6 +77,20 @@ export const Inventario = () => {
         window.addEventListener('config-actualizada', loadConfig)
         return () => window.removeEventListener('config-actualizada', loadConfig)
     }, [])
+
+    useEffect(() => {
+        if (!filterCategory) {
+            setSubcategoriasFiltradas([])
+            setFilterSubcategory('')
+        } else {
+            const filtradas = subcategoriasTotales.filter(sub => {
+                const ids = sub.categorias_ids ? sub.categorias_ids.split(',') : []
+                return ids.includes(filterCategory)
+            })
+            setSubcategoriasFiltradas(filtradas)
+            setFilterSubcategory('')
+        }
+    }, [filterCategory, subcategoriasTotales])
 
     const handleIncrease = async (row) => {
         setSelectedProduct(row)
@@ -99,7 +118,12 @@ export const Inventario = () => {
 
     const handleSave = async () => {
         if (!selectedProduct) return Swal.fire({ icon: 'error', title: 'Error', text: 'No hay producto seleccionado' })
-        if (!form.cantidad || parseFloat(form.cantidad) <= 0) return Swal.fire({ icon: 'error', title: 'Error', text: 'La cantidad debe ser mayor a 0' })
+        if (!form.cantidad || parseFloat(form.cantidad) <= 0) return Swal.fire(
+            { 
+                icon: 'error', 
+                title: 'Error', 
+                text: 'La cantidad debe ser mayor a 0' 
+            })
 
         try {
             const result = await window.api.setInventario({
@@ -107,7 +131,7 @@ export const Inventario = () => {
                 cantidad: parseFloat(form.cantidad),
                 type: form.type,
                 usuario: 'current_user',
-                notas: '' 
+                notes: '' 
             })
 
             if (result.success) {
@@ -159,30 +183,47 @@ export const Inventario = () => {
             <div className="card-body pt-4">
                 
                 <div className="bg-light p-3 rounded mb-4 border">
-                    <Row className="align-items-end">
-                        <Col md={4}>
+                    <Row className="g-3 align-items-end">
+                        <Col md={3}>
                             <Form.Group>
-                                <Form.Label className="fw-bold"><small>Filtrar por Categoría:</small></Form.Label>
+                                <Form.Label className="fw-bold text-secondary"><small>Categoría:</small></Form.Label>
                                 <Form.Select size="sm" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
                                     <option value="">Todas las categorías</option>
                                     {categoriasList.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                                 </Form.Select>
                             </Form.Group>
                         </Col>
-                        <Col md={4}>
+
+                        <Col md={3}>
                             <Form.Group>
-                                <Form.Label className="fw-bold"><small>Filtrar por Etiqueta:</small></Form.Label>
+                                <Form.Label className="fw-bold text-secondary"><small>Subcategoría:</small></Form.Label>
+                                <Form.Select 
+                                    size="sm" 
+                                    value={filterSubcategory} 
+                                    onChange={(e) => setFilterSubcategory(e.target.value)}
+                                    disabled={!filterCategory}
+                                >
+                                    <option value="">{filterCategory ? 'Todas las subcategorías' : 'Selecciona categoría primero'}</option>
+                                    {subcategoriasFiltradas.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                                </Form.Select>
+                            </Form.Group>
+                        </Col>
+
+                        <Col md={3}>
+                            <Form.Group>
+                                <Form.Label className="fw-bold text-secondary"><small>Etiqueta:</small></Form.Label>
                                 <Form.Select size="sm" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
                                     <option value="">Todas las etiquetas</option>
                                     {etiquetasList.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
                                 </Form.Select>
                             </Form.Group>
                         </Col>
-                        <Col md={4}>
+                        
+                        <Col md={3} className="text-end">
                             <Button 
-                                variant="outline-secondary" size="sm"
-                                onClick={() => { setFilterCategory(''); setFilterTag(''); }}
-                                disabled={!filterCategory && !filterTag}
+                                variant="outline-danger" size="sm" className="w-100"
+                                onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterTag(''); }}
+                                disabled={!filterCategory && !filterSubcategory && !filterTag}
                             >
                                 <i className="bi bi-x-circle me-1"></i> Limpiar Filtros
                             </Button>
@@ -191,10 +232,12 @@ export const Inventario = () => {
                 </div>
 
                 <div ref={tableContainerRef} className="w-100 overflow-hidden">
+                    {/* Agregamos filterSubcategory a la KEY para forzar el refresco de la datatable */}
                     <CustomDataTable 
-                        key={`inv-${filterCategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
+                        key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
                         ajaxData={(params) => {
                             params.customCategory = filterCategory;
+                            params.customSubcategory = filterSubcategory; // <-- ENVIADO AL IPC
                             params.customTag = filterTag;
                             return window.api.getInventarioPaginados(params);
                         }}
@@ -302,13 +345,13 @@ export const Inventario = () => {
                             { data: 'stock_anterior', title: 'Antes' },
                             { data: 'stock_nuevo', title: 'Después' },
                             { data: 'usuario', title: 'Usuario' },
-                            { data: 'notas', title: 'Notas', render: (data) => data ? `<small class="text-muted">${data}</small>` : '<span class="text-muted">-</span>' }
+                            { data: 'notes', title: 'Notas', render: (data) => data ? `<small class="text-muted">${data}</small>` : '<span class="text-muted">-</span>' }
                         ]}
                     />
                 )}
             </Modal.Body>
             <Modal.Footer className="bg-light">
-                <Button variant="secondary" onClick={() => setShowHistory(false)}>Cerrar</Button>
+                <Button variant="outline-secondary" onClick={() => setShowHistory(false)}>Cerrar</Button>
             </Modal.Footer>
         </Modal>
     </>
