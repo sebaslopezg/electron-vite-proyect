@@ -149,13 +149,19 @@ export const Productos = () => {
     return () => container.removeEventListener('click', handleTableClick)
   }, [])
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, finalSkuArmado) => {
     e.preventDefault()
+    
+    const payload = { ...form }
+    if (finalSkuArmado) {
+        payload.sku = finalSkuArmado
+    }
+
     let result
     if (editingId) {
-      result = await window.api.updateProducto({ ...form, id: editingId })
+      result = await window.api.updateProducto({ ...payload, id: editingId })
     } else {
-      result = await window.api.addProducto(form)
+      result = await window.api.addProducto(payload)
     }
 
     if (result && result.success) {
@@ -203,9 +209,8 @@ export const Productos = () => {
           { 
             data: 'sku', 
             title: 'SKU', 
-            render: (data, type, row) => {
-              const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
-              return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-'
+            render: (data) => {
+              return data ? `<strong>${data.toUpperCase()}</strong>` : '-'
             } 
           },
           { data: 'categoria_nombre', title: 'Categoría', render: (data) => data || 'General' },

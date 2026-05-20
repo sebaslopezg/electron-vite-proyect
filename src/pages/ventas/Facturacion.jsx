@@ -201,8 +201,13 @@ const loadInitialData = async () => {
           data: 'sku', 
           title: 'SKU',
           render: (data, type, row) => {
-            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
-            return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-'
+            if (!data) return '-';
+            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
+            const skuVal = String(data).toUpperCase();
+            
+            // Lógica inteligente: Si el SKU ya empieza con el prefijo, no lo duplicamos
+            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+            return `<strong>${finalSku}</strong>`;
           }
         },
         { data: 'stock', title: 'Stock' },
@@ -627,8 +632,13 @@ const data = {
                 data: 'sku', 
                 title: 'SKU',
                 render: (data, type, row) => {
-                  const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
-                  return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-'
+                  if (!data) return '-';
+                  const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
+                  const skuVal = String(data).toUpperCase();
+                  
+                  // Lógica inteligente: Si el SKU ya empieza con el prefijo, no lo duplicamos
+                  const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+                  return `<strong>${finalSku}</strong>`;
                 }
               },
               {

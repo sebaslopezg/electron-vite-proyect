@@ -4,45 +4,74 @@ import Form from 'react-bootstrap/Form'
 import InputGroup from 'react-bootstrap/InputGroup'
 import { Row, Col } from 'react-bootstrap'
 
-export default function ProductModal({ show, handleClose, handleSubmit, form, setForm, editingId, categorias = [], subcategorias = [], etiquetas = [] }) {
+export default function ProductModal(
+    { 
+        show, 
+        handleClose, 
+        handleSubmit, 
+        form, 
+        setForm, 
+        editingId, 
+        categorias = [], 
+        subcategorias = [], 
+        etiquetas = [] 
+    }) {
     
     const getContrastText = (hexcolor) => {
-        if (!hexcolor) return '#000000';
-        const hex = hexcolor.replace('#', '');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-        return (yiq >= 128) ? '#000000' : '#ffffff';
+        if (!hexcolor) return '#000000'
+        const hex = hexcolor.replace('#', '')
+        const r = parseInt(hex.substr(0, 2), 16)
+        const g = parseInt(hex.substr(2, 2), 16)
+        const b = parseInt(hex.substr(4, 2), 16)
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+        return (yiq >= 128) ? '#000000' : '#ffffff'
     };
 
     const etiquetasFiltradas = etiquetas.filter(tag => {
         if (!tag.categorias_ids) return false;
-        const catIds = tag.categorias_ids.split(',');
-        return catIds.includes(form.categoria_id);
-    });
+        const catIds = tag.categorias_ids.split(',')
+        return catIds.includes(form.categoria_id)
+    })
 
-    const selectedSubIds = form.subcategorias_ids || [];
-    const selectedCategory = categorias.find(cat => cat.id === form.categoria_id);
+    const selectedSubIds = form.subcategorias_ids || []
+    const selectedCategory = categorias.find(cat => cat.id === form.categoria_id)
     
-    // --- LÓGICA DE CONCATENACIÓN ESTRICTA (IDÉNTICA AL BACKEND) ---
-    let combinedPrefix = selectedCategory?.sku_prefix || '';
-    let currentSeparator = selectedCategory?.separador || '';
+    let combinedPrefix = selectedCategory?.sku_prefix || ''
+    let currentSeparator = selectedCategory?.separador || ''
 
     selectedSubIds.forEach(id => {
-        const sub = subcategorias.find(s => s.id === id);
+        const sub = subcategorias.find(s => s.id === id)
         if (sub && sub.sku_prefix) {
             if (combinedPrefix) {
-                // Forzamos la inserción del separador anterior
-                combinedPrefix += (currentSeparator ? currentSeparator : '') + sub.sku_prefix;
+                combinedPrefix += (currentSeparator ? currentSeparator : '') + sub.sku_prefix
             } else {
-                combinedPrefix = sub.sku_prefix;
+                combinedPrefix = sub.sku_prefix
             }
-            // Actualizamos el separador para la siguiente vuelta
-            currentSeparator = sub.separador || '';
+            currentSeparator = sub.separador || ''
         }
-    });
-    // -------------------------------------------------------------
+    })
+
+    const prefixString = `${combinedPrefix}${currentSeparator}`
+
+    let displaySku = form.sku || ''
+    if (displaySku.toUpperCase().startsWith(prefixString.toUpperCase()) && prefixString !== '') {
+        displaySku = displaySku.substring(prefixString.length)
+    }
+
+    const handleLocalSubmit = (e) => {
+        e.preventDefault()
+        
+        let finalSku = form.sku || ''
+        
+        if (displaySku === '') {
+            finalSku = prefixString.toUpperCase()
+        } 
+        else if (!finalSku.toUpperCase().startsWith(prefixString.toUpperCase())) {
+            finalSku = `${prefixString}${displaySku}`.toUpperCase()
+        }
+        
+        handleSubmit(e, finalSku)
+    }
 
     const handleTagToggle = (tagId) => {
         setForm(prev => {
@@ -77,12 +106,16 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                 <Modal.Title>{editingId ? 'Editar Producto' : 'Crear Producto'}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <Form onSubmit={handleSubmit} id="productoForm">
+                <Form onSubmit={handleLocalSubmit} id="productoForm">
                     <Row className="mb-3">
                         <Col md={6}>
                             <Form.Group>
                                 <Form.Label>Tipo de producto</Form.Label>
-                                <Form.Select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
+                                <Form.Select value={form.tipo} onChange={(e) => setForm(
+                                    { 
+                                        ...form, 
+                                        tipo: e.target.value 
+                                    })}>
                                     <option value="producto">Producto</option>
                                     <option value="servicio">Servicio</option>
                                 </Form.Select>
@@ -93,7 +126,11 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                                 <Form.Label>Categoría Principal</Form.Label>
                                 <Form.Select 
                                     value={form.categoria_id} 
-                                    onChange={(e) => setForm({ ...form, categoria_id: e.target.value, subcategorias_ids: [] })}
+                                    onChange={(e) => setForm({ 
+                                        ...form, 
+                                        categoria_id: e.target.value, 
+                                        subcategorias_ids: [] 
+                                    })}
                                 >
                                     {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                                 </Form.Select>
@@ -146,14 +183,14 @@ export default function ProductModal({ show, handleClose, handleSubmit, form, se
                                         </InputGroup.Text>
                                     )}
                                     <Form.Control 
-                                        value={form.sku} 
+                                        value={displaySku} 
                                         onChange={(e) => setForm({ ...form, sku: e.target.value })} 
                                         style={{ textTransform: 'uppercase' }} 
                                         placeholder="Código correlativo..."
                                     />
                                 </InputGroup>
                                 <Form.Text className="text-muted">
-                                    El código resultante será: <strong>{combinedPrefix}{currentSeparator}{form.sku?.toUpperCase()}</strong>
+                                    El código resultante será: <strong>{prefixString}{displaySku?.toUpperCase()}</strong>
                                 </Form.Text>
                             </Form.Group>
                         </Col>
