@@ -293,7 +293,7 @@ export default function ProductModal(
                     <Row className="mb-3">
                         <Col md={6}>
                             <Form.Group>
-                                <Form.Label className="fw-bold text-primary">Código SKU Final <span className="text-danger">*</span></Form.Label>
+                                <Form.Label className="fw-bold text-primary">Código SKU Final</Form.Label>
                                 <InputGroup size="sm">
                                     {combinedPrefix && (
                                         <InputGroup.Text className="bg-primary text-white border-primary fw-bold px-2 py-1">
@@ -305,7 +305,6 @@ export default function ProductModal(
                                         onChange={(e) => setForm({ ...form, sku: e.target.value })} 
                                         style={{ textTransform: 'uppercase' }} 
                                         placeholder="Código correlativo..."
-                                        required
                                     />
                                 </InputGroup>
                                 <Form.Text className="text-muted" style={{ fontSize: '0.7rem' }}>
