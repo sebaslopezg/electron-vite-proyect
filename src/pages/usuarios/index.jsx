@@ -113,18 +113,19 @@ export const Usuarios = () => {
 
     return (
         <>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h4 className="mb-0 fw-bold text-primary"><i className="bi bi-people-fill me-2"></i>Usuarios del Sistema</h4>
-                    <p className="text-muted small mb-0">Administra quiénes tienen acceso al Punto de Venta.</p>
-                </div>
-                <Button variant="primary" onClick={handleNuevo}>
-                    <i className="bi bi-person-plus-fill me-2"></i>Nuevo Usuario
-                </Button>
+            <div className="pagetitle">
+                <h1><i className="bi bi-people-fill me-2"></i>Usuarios del Sistema</h1>
             </div>
 
             <div className="card shadow-sm border-0">
-                <div className="card-body">
+                <div className="card-body pt-4">
+
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <Button variant="primary" onClick={handleNuevo}>
+                            <i className="bi bi-person-plus-fill me-2"></i>Nuevo Usuario
+                        </Button>
+                    </div>
+
                     <DataTableComponent 
                         key={`users-table-${usuarios.length}`} 
                         data={usuarios} 
