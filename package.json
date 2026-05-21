@@ -1,7 +1,7 @@
 {
   "name": "caedro_app",
   "private": true,
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": "Sebastian Lopez <sebaslg96@gmail.com>",
   "description": "Caedro ERP System",
   "type": "module",
@@ -13,7 +13,7 @@
     "build:react": "vite build",
     "pack": "npm run build:react && electron-builder --dir",
     "dist": "npm run build:react && electron-builder",
-    "publish-app": "npm run build:react && electron-builder --publish always",
+    "publish-app": "npm run build:react && electron-builder -wl --publish always",
     "publish-linux": "npm run build:react && electron-builder --linux --publish always"
   },
   "dependencies": {
@@ -52,12 +52,6 @@
       }
     ],
     "asar": false,
-    "extraResources": [
-      {
-        "from": "electron/inventario.db",
-        "to": "inventario.db"
-      }
-    ],
     "directories": {
       "output": "release"
     },
