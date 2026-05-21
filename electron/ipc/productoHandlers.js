@@ -71,6 +71,7 @@ export const registerProductoHandlers = () => {
       else orderCol = `p.${orderCol}`
 
       const customCategory = dtParams.customCategory
+      const customSubcategory = dtParams.customSubcategory
       const customTag = dtParams.customTag
 
       let baseQuery = `
@@ -84,6 +85,11 @@ export const registerProductoHandlers = () => {
       if (customCategory) {
           baseQuery += " AND p.categoria_id = ?"
           queryParams.push(customCategory)
+      }
+
+      if (customSubcategory) {
+          baseQuery += " AND p.subcategorias_ids_json LIKE ?"
+          queryParams.push(`%${customSubcategory}%`)
       }
 
       if (customTag) {
@@ -203,7 +209,7 @@ export const registerProductoHandlers = () => {
       const data = stmt.all()
       return processProductPrefixes(data)
     } catch (error) {
-      logger.error('PRODUCTOS', "Error obteniendo el listado unificado (Productos + Servicios)", error)
+      logger.error('PRODUCTOS', "Error obteniendo el listado unificado (Productos + Services)", error)
       return []
     }
   })

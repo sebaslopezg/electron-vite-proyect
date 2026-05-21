@@ -1,7 +1,7 @@
 {
   "name": "caedro_app",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "author": "Sebastian Lopez <sebaslg96@gmail.com>",
   "description": "Caedro ERP System",
   "type": "module",
@@ -20,6 +20,7 @@
     "@fullcalendar/daygrid": "^6.1.20",
     "@fullcalendar/interaction": "^6.1.20",
     "@fullcalendar/react": "^6.1.20",
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.5.0",
     "bootstrap": "^5.3.8",
     "csv-parser": "^3.2.1",
