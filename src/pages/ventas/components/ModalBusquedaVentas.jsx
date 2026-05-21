@@ -54,7 +54,7 @@ export const ModalBusquedaVentas = ({
                 <Modal.Header closeButton className="bg-light">
                     <Modal.Title className="fs-5">{modalData.title}</Modal.Title>
                 </Modal.Header>
-                <Modal.Body style={{ overflowY: 'visible' }}>
+                <Modal.Body>
                     
                     {modalData.type === 'producto' && (
                         <>
