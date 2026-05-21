@@ -6,6 +6,7 @@ import Form from 'react-bootstrap/Form'
 import { Row, Col } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { formatCurrency } from '../../utils/currencies'
+import { BuscadorFiltros } from '../../components/BuscadorFiltros' // <-- Importación Global
 
 export const Inventario = () => {
     const [show, setShow] = useState(false)
@@ -179,33 +180,33 @@ export const Inventario = () => {
             <h1><i className="bi bi-clipboard-check me-2"></i>Inventario</h1>
         </div>
 
-        <div className="card">
-            <div className="card-body pt-4">
+        <div className="card" style={{ overflow: 'visible' }}>
+            <div className="card-body pt-4" style={{ overflow: 'visible' }}>
                 
-                <div className="bg-light p-3 rounded mb-4 border">
-                    <Row className="g-3 align-items-end">
+                <div className="bg-light p-3 rounded mb-4 border" style={{ overflow: 'visible' }}>
+                    <Row className="g-3 align-items-end" style={{ overflow: 'visible' }}>
                         <Col md={3}>
                             <Form.Group>
                                 <Form.Label className="fw-bold text-secondary"><small>Categoría:</small></Form.Label>
-                                <Form.Select size="sm" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-                                    <option value="">Todas las categorías</option>
-                                    {categoriasList.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                                </Form.Select>
+                                <BuscadorFiltros 
+                                    items={categoriasList}
+                                    value={filterCategory}
+                                    onChange={setFilterCategory}
+                                    placeholder="Todas las categorías..."
+                                />
                             </Form.Group>
                         </Col>
 
-                        <Col md={3}>
+                        <Col md={3} style={{ overflow: 'visible' }}>
                             <Form.Group>
                                 <Form.Label className="fw-bold text-secondary"><small>Subcategoría:</small></Form.Label>
-                                <Form.Select 
-                                    size="sm" 
-                                    value={filterSubcategory} 
-                                    onChange={(e) => setFilterSubcategory(e.target.value)}
+                                <BuscadorFiltros 
+                                    items={subcategoriasFiltradas}
+                                    value={filterSubcategory}
+                                    onChange={setFilterSubcategory}
+                                    placeholder={filterCategory ? "Todas las subcategorías..." : "Selecciona categoría primero"}
                                     disabled={!filterCategory}
-                                >
-                                    <option value="">{filterCategory ? 'Todas las subcategorías' : 'Selecciona categoría primero'}</option>
-                                    {subcategoriasFiltradas.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                                </Form.Select>
+                                />
                             </Form.Group>
                         </Col>
 
@@ -232,12 +233,11 @@ export const Inventario = () => {
                 </div>
 
                 <div ref={tableContainerRef} className="w-100 overflow-hidden">
-                    {/* Agregamos filterSubcategory a la KEY para forzar el refresco de la datatable */}
                     <CustomDataTable 
                         key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
                         ajaxData={(params) => {
                             params.customCategory = filterCategory;
-                            params.customSubcategory = filterSubcategory; // <-- ENVIADO AL IPC
+                            params.customSubcategory = filterSubcategory;
                             params.customTag = filterTag;
                             return window.api.getInventarioPaginados(params);
                         }}
@@ -314,12 +314,10 @@ export const Inventario = () => {
                 {historyProductId && (
                     <CustomDataTable 
                         key={`history-${historyProductId}-${appConfig.formato_numero}`}
-                        
                         ajaxData={(params) => {
                             params.productoId = historyProductId;
                             return window.api.getInventarioHistoryPaginados(params);
                         }}
-                        
                         columns={[
                             { 
                                 data: 'fecha', title: 'Fecha', 
