@@ -7,6 +7,18 @@ import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
 import { ModalTercero } from '../contabilidad/components/ModalTercero'
 import { ModalBusquedaVentas } from './components/ModalBusquedaVentas'
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const Facturacion = () => {
   const [productos, setProductos] = useState([])
   const [clientes, setClientes] = useState([])
@@ -54,13 +66,13 @@ export const Facturacion = () => {
       }
   };
 
-const loadMetodosDePago = async () => {
-  const metodos = await window.api.getMetodosPago()
-  setListaMetodosPago(metodos || [])
-  if (metodos && metodos.length > 0) setMetodoPago(metodos[0].nombre)
-}
+  const loadMetodosDePago = async () => {
+    const metodos = await window.api.getMetodosPago()
+    setListaMetodosPago(metodos || [])
+    if (metodos && metodos.length > 0) setMetodoPago(metodos[0].nombre)
+  }
 
-const loadInitialData = async () => {
+  const loadInitialData = async () => {
     const prods = await window.api.getAllProductos()
     setProductos(prods)
     const clis = await window.api.getClientes()
@@ -205,7 +217,6 @@ const loadInitialData = async () => {
             const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
             const skuVal = String(data).toUpperCase();
             
-            // Lógica inteligente: Si el SKU ya empieza con el prefijo, no lo duplicamos
             const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
             return `<strong>${finalSku}</strong>`;
           }
@@ -294,7 +305,7 @@ const loadInitialData = async () => {
         setCarrito(prev => prev.map(item => ({
           ...item, descuento: pct, tipoDescuento: 'porcentaje'
         })));
-        Swal.fire('Aplicado', `${pct}% de descuento aplicado a la carreta`, 'success')
+        Toast.fire({ icon: 'success', title: `Descuento masivo del ${pct}% aplicado` })
       }
     })
   }
@@ -312,6 +323,7 @@ const loadInitialData = async () => {
     }).then((result) => {
       if (result.isConfirmed) {
         cleanForm();
+        Toast.fire({ icon: 'info', title: 'Preventa limpia' })
       }
     })
   }
@@ -326,7 +338,11 @@ const loadInitialData = async () => {
       if (!forceEncargo && prod.tipo === "producto" && unitsInCartWithStock >= prod.stock) {
         const allowEncargo = prod.allow_encargo !== undefined ? prod.allow_encargo : 1;
         if (allowEncargo === 0) {
-          setTimeout(() => Swal.fire('Agotado', 'Stock físico agotado y este producto no permite ser encargado.', 'warning'), 0)
+          Toast.fire({ 
+            icon: 'warning', 
+            title: 'Agotado', 
+            text: 'Stock físico agotado y el producto no permite encargos.' 
+          })
           return prev
         }
         isEncargoVal = '1'
@@ -338,7 +354,7 @@ const loadInitialData = async () => {
         if (isEncargoVal === '0' && (existe.cantidad + 1) > prod.stock) {
           const allowEncargo = prod.allow_encargo !== undefined ? prod.allow_encargo : 1
           if (allowEncargo === 0) {
-              setTimeout(() => Swal.fire('Agotado', 'Alcanzaste el límite de stock y el producto no permite encargos.', 'warning'), 0)
+              Toast.fire({ icon: 'warning', title: 'Agotado', text: 'Alcanzaste el límite de stock y el producto no permite encargos.' })
               return prev
           }
           return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: '1' }]
@@ -359,13 +375,21 @@ const loadInitialData = async () => {
     if (carrito.length === 0) return
 
     if (!cliente) {
-      Swal.fire({ icon: 'warning', title: 'Falta el Cliente', text: 'Por favor seleccione o busque un cliente.' })
+      Toast.fire({ 
+        icon: 'warning', 
+        title: 'Falta el Cliente', 
+        text: 'Por favor seleccione o busque un cliente.' 
+      })
       return
     }
 
     if (recibidoNum < totalFinal) {
       if (tipoPago === 'contado') {
-        Swal.fire('Atención', 'El cliente no ha entregado el monto completo. Si es un abono, cambie el "Tipo de Pago" a Crédito.', 'warning')
+        Toast.fire({ 
+          icon: 'warning', 
+          title: 'Monto Incompleto', 
+          text: 'El cliente no ha entregado el monto completo. Si es un abono, cambie el Tipo de Pago a Crédito.' 
+        })
         return
       }
       if (tipoPago === 'credito') {
@@ -383,7 +407,7 @@ const loadInitialData = async () => {
       }
     }
 
-const data = {
+    const data = {
       maestro: {
         nombre_cliente: cliente?.nombre, 
         documento_cliente: cliente?.documento,
@@ -442,7 +466,7 @@ const data = {
           window.dispatchEvent(new CustomEvent('factura-creada'))
       })
     } else {
-      Swal.fire('Error', result.error, 'error')
+      Toast.fire({ icon: 'error', title: 'Error en la venta', text: result.error })
     }
   }
 
@@ -463,11 +487,7 @@ const data = {
       if (delta > 0 && isEncargo === '0' && newQty > item.stock && item.tipo === "producto") {
         const allowEncargo = item.allow_encargo !== undefined ? item.allow_encargo : 1
         if (allowEncargo === 0) {
-          setTimeout(() => Swal.fire(
-            'Agotado', 
-            'Has alcanzado el límite de stock y este producto no permite crear encargos adicionales.', 
-            'warning'
-          ), 0)
+          Toast.fire({ icon: 'warning', title: 'Agotado', text: 'Has alcanzado el límite de stock y este producto no permite encargos.' })
           return prev
         }
 
@@ -554,7 +574,6 @@ const data = {
   }, [productos, clientes, carrito])
 
   return <>
-
     <Row className="justify-content-between mb-3">
       <Col xs={4}>
         <InputGroup>
@@ -636,7 +655,6 @@ const data = {
                   const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
                   const skuVal = String(data).toUpperCase();
                   
-                  // Lógica inteligente: Si el SKU ya empieza con el prefijo, no lo duplicamos
                   const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
                   return `<strong>${finalSku}</strong>`;
                 }
@@ -899,10 +917,9 @@ const data = {
             if (newlyCreated) {
                 setCliente(newlyCreated)
                 setDocInput('')
-                Swal.fire('¡Listo!', 'Cliente asignado a la factura.', 'success')
+                Toast.fire({ icon: 'success', title: '¡Listo!', text: 'Cliente asignado a la factura.' })
             }
         }}
     />
-
   </>
 }

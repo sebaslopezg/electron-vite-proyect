@@ -2,8 +2,20 @@ import { useState, useEffect, useMemo } from 'react'
 import { Form, Row, Col, Button, Card } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
-import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
+import { formatCurrency } from '../../utils/currencies'
 import { ImpresorReporte } from './components/ImpresorReporte'
+
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
 
 export const Reportes = () => {
     const hoy = new Date().toISOString().split('T')[0]
@@ -40,16 +52,16 @@ export const Reportes = () => {
             setFacturas(res.data);
             setAlmacenConf(res.configuracion)
         } else {
-            Swal.fire('Error', res.error, 'error')
+            Toast.fire({ icon: 'error', title: res.error || 'No se pudo cargar el reporte' })
         }
         setLoading(false);
     }
 
     useEffect(() => {
         loadReporte();
-        const handleNuevaFactura = () => loadReporte();
-        window.addEventListener('factura-creada', handleNuevaFactura);
-        return () => window.removeEventListener('factura-creada', handleNuevaFactura);
+        const handleNovaFactura = () => loadReporte();
+        window.addEventListener('factura-creada', handleNovaFactura);
+        return () => window.removeEventListener('factura-creada', handleNovaFactura);
     }, [startDate, endDate]);
 
     const totales = useMemo(() => {
@@ -83,75 +95,74 @@ export const Reportes = () => {
     ];
 
     return <>
+        <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <Button variant="success" onClick={() => setShowPreview(true)} disabled={facturas.length === 0}>
+                <i className="bi bi-printer me-2"></i> Imprimir Reporte
+            </Button>
+        </div>
 
-            <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-                <Button variant="success" onClick={() => setShowPreview(true)} disabled={facturas.length === 0}>
-                    <i className="bi bi-printer me-2"></i> Imprimir Reporte
-                </Button>
-            </div>
+        <Row className="mb-4">
+            <Col md={3}>
+                <Form.Group>
+                    <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Fecha Inicial</Form.Label>
+                    <Form.Control type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                </Form.Group>
+            </Col>
+            <Col md={3}>
+                <Form.Group>
+                    <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Fecha Final</Form.Label>
+                    <Form.Control type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                </Form.Group>
+            </Col>
+        </Row>
 
-            <Row className="mb-4">
-                <Col md={3}>
-                    <Form.Group>
-                        <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Fecha Inicial</Form.Label>
-                        <Form.Control type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                    </Form.Group>
-                </Col>
-                <Col md={3}>
-                    <Form.Group>
-                        <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Fecha Final</Form.Label>
-                        <Form.Control type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                    </Form.Group>
-                </Col>
-            </Row>
+        <Row className="mb-4">
+            <Col md={4}>
+                <Card className="shadow-sm border-0 border-start border-primary border-4">
+                    <Card.Body>
+                        <p className="text-muted small mb-1 fw-bold text-uppercase">Ventas de Contado</p>
+                        <h3 className="m-0">{_formatCurrency(totales.contado)}</h3>
+                    </Card.Body>
+                </Card>
+            </Col>
+            <Col md={4}>
+                <Card className="shadow-sm border-0 border-start border-warning border-4">
+                    <Card.Body>
+                        <p className="text-muted small mb-1 fw-bold text-uppercase">Ventas a Crédito</p>
+                        <h3 className="m-0">{_formatCurrency(totales.credito)}</h3>
+                    </Card.Body>
+                </Card>
+            </Col>
+            <Col md={4}>
+                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10">
+                    <Card.Body>
+                        <p className="text-success small mb-1 fw-bold text-uppercase">Total Facturado</p>
+                        <h3 className="m-0 text-success fw-bold">{_formatCurrency(totales.total)}</h3>
+                    </Card.Body>
+                </Card>
+            </Col>
+        </Row>
 
-            <Row className="mb-4">
-                <Col md={4}>
-                    <Card className="shadow-sm border-0 border-start border-primary border-4">
-                        <Card.Body>
-                            <p className="text-muted small mb-1 fw-bold text-uppercase">Ventas de Contado</p>
-                            <h3 className="m-0">{_formatCurrency(totales.contado)}</h3>
-                        </Card.Body>
-                    </Card>
-                </Col>
-                <Col md={4}>
-                    <Card className="shadow-sm border-0 border-start border-warning border-4">
-                        <Card.Body>
-                            <p className="text-muted small mb-1 fw-bold text-uppercase">Ventas a Crédito</p>
-                            <h3 className="m-0">{_formatCurrency(totales.credito)}</h3>
-                        </Card.Body>
-                    </Card>
-                </Col>
-                <Col md={4}>
-                    <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10">
-                        <Card.Body>
-                            <p className="text-success small mb-1 fw-bold text-uppercase">Total Facturado</p>
-                            <h3 className="m-0 text-success fw-bold">{_formatCurrency(totales.total)}</h3>
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+        <h6 className="fw-bold text-secondary mb-3">Detalle de Facturas ({facturas.length})</h6>
+        <div className="w-100 overflow-hidden bg-white">
+            {loading ? (
+                <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
+            ) : (
+                <DataTableComponent 
+                    key={`reporte-${startDate}-${endDate}-${facturas.length}`}
+                    data={facturas}
+                    columns={columnas}
+                />
+            )}
+        </div>
 
-            <h6 className="fw-bold text-secondary mb-3">Detalle de Facturas ({facturas.length})</h6>
-            <div className="w-100 overflow-hidden bg-white">
-                {loading ? (
-                    <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
-                ) : (
-                    <DataTableComponent 
-                        key={`reporte-${startDate}-${endDate}-${facturas.length}`}
-                        data={facturas}
-                        columns={columnas}
-                    />
-                )}
-            </div>
-
-            <ImpresorReporte 
-                show={showPreview} 
-                onClose={() => setShowPreview(false)} 
-                facturas={facturas}
-                almacenConf={almacenConf}
-                fechaInicio={startDate}
-                fechaFin={endDate}
-            />
+        <ImpresorReporte 
+            show={showPreview} 
+            onClose={() => setShowPreview(false)} 
+            facturas={facturas}
+            almacenConf={almacenConf}
+            fechaInicio={startDate}
+            fechaFin={endDate}
+        />
     </>
 }

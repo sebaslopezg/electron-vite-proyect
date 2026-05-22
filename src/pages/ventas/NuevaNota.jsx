@@ -4,6 +4,18 @@ import DataTableComponent from '../../components/DataTableComponent'
 import { formatCurrency } from '../../utils/currencies'
 import { ModalSeleccionItemNota } from './components/ModalSeleccionItemNota'
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const NuevaNota = ({ onBack, onSuccess }) => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
@@ -38,8 +50,17 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
     const [showModal, setShowModal] = useState(false)
     const [itemForm, setItemForm] = useState({ id_producto: '', cantidad: 1 })
 
-    const motivosCredito = ["Devolución de parte de los bienes", "Anulación de factura electrónica", "Rebaja total", "Descuento parcial"]
-    const motivosDebito = ["Intereses", "Gastos por cobrar", "Cambio del valor"]
+    const motivosCredito = [
+        "Devolución de parte de los bienes", 
+        "Anulación de factura electrónica", 
+        "Rebaja total", 
+        "Descuento parcial"
+    ]
+    const motivosDebito = [
+        "Intereses", 
+        "Gastos por cobrar", 
+        "Cambio del valor"
+    ]
 
     const totales = items.reduce((acc, item) => {
         return {
@@ -56,14 +77,14 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
 
     const handleSearchFactura = async () => {
         if (!formData.numero_factura_origen) {
-            Swal.fire('Atención', 'Ingrese un número de factura', 'warning')
+            Toast.fire({ icon: 'warning', title: 'Ingrese un número de factura' })
             return
         }
 
         const numeroLimpio = formData.numero_factura_origen.replace(/\D/g, '')
 
         if (!numeroLimpio) {
-            Swal.fire('Atención', 'Asegúrese de incluir el número de la factura', 'warning')
+            Toast.fire({ icon: 'warning', title: 'Asegúrese de incluir el número de la factura' })
             return
         }
 
@@ -73,9 +94,9 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             setFacturaCargada(result.maestro)
             setProductosDisponibles(result.detalles)
             setItems([])
-            Swal.fire({ icon: 'success', title: 'Factura Encontrada', text: `Cliente: ${result.maestro.nombre_cliente}`, timer: 1500 })
+            Toast.fire({ icon: 'success', title: 'Factura Encontrada', text: `Cliente: ${result.maestro.nombre_cliente}` })
         } else {
-            Swal.fire('Error', result.message || 'Factura no encontrada', 'error')
+            Toast.fire({ icon: 'error', title: result.message || 'Factura no encontrada' })
             setFacturaCargada(null)
             setProductosDisponibles([])
         }
@@ -97,15 +118,15 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
         const cantAAgregar = parseFloat(itemForm.cantidad)
 
         if (cantAAgregar <= 0) {
-            Swal.fire('Error', 'La cantidad debe ser mayor a 0', 'error')
+            Toast.fire({ icon: 'error', title: 'La cantidad debe ser mayor a 0' })
             return
         }
         if (cantAAgregar > prodFactura.cantidad_producto) {
-            Swal.fire('Error', `La cantidad supera lo vendido (${prodFactura.cantidad_producto})`, 'error')
+            Toast.fire({ icon: 'error', title: `La cantidad supera lo vendido (${prodFactura.cantidad_producto})` })
             return
         }
         if (items.some(i => i.id_producto === prodFactura.id_producto)) {
-            Swal.fire('Atención', 'Este producto ya está en la nota', 'warning')
+            Toast.fire({ icon: 'warning', title: 'Este producto ya está en la nota' })
             return
         }
 
@@ -116,6 +137,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             sku_prefix: prodFactura.sku_prefix,
             separador: prodFactura.separador,
             nombre_producto: prodFactura.nombre_producto,
+            amount: cantAAgregar,
             cantidad: cantAAgregar,
             precio_unitario: prodFactura.precio_producto,
             iva_percent: (prodFactura.iva || 19) / 100,
@@ -152,7 +174,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault()
         if (items.length === 0) {
-            Swal.fire('Error', 'Debe agregar al menos un producto', 'error')
+            Toast.fire({ icon: 'error', title: 'Debe agregar al menos un producto' })
             return
         }
 
@@ -188,10 +210,10 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
 
         const result = await window.api.addNota(payload)
         if (result.success) {
-            Swal.fire('¡Éxito!', 'La nota ha sido registrada', 'success')
+            Toast.fire({ icon: 'success', title: 'La nota ha sido registrada con éxito' })
             onSuccess()
         } else {
-            Swal.fire('Error', result.error, 'error')
+            Toast.fire({ icon: 'error', title: result.error || 'No se pudo guardar la nota' })
         }
     }
 

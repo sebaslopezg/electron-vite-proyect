@@ -2,10 +2,21 @@ import { useState, useEffect, useRef } from 'react'
 import DataTableComponent from '../../components/DataTableComponent'
 import Swal from 'sweetalert2'
 import { NuevaNota } from './NuevaNota.jsx'
-import { Button, Row, Col } from 'react-bootstrap'
 import { ImpresorNota } from './components/ImpresorNota'
-import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
+import { formatCurrency } from '../../utils/currencies'
 import { ModalDetalleNota } from './components/ModalDetalleNota'
+
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
 
 export const Notas = () => {
     const [notasData, setNotasData] = useState([])
@@ -70,7 +81,7 @@ export const Notas = () => {
             setAlmacenConf(response.configuracion || null)
             setShowModal(true)
         } else {
-            Swal.fire('Error', 'No se pudieron cargar los detalles de la nota', 'error')
+            Toast.fire({ icon: 'error', title: 'No se pudieron cargar los detalles de la nota' })
         }
     }
 

@@ -3,24 +3,36 @@ import { Form, Button, Row, Col, Card } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { ModalMetodosPago } from './components/ModalMetodosPago'
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const Configuracion = ({ data, onReload }) => {
 
     const [form, setForm] = useState({
-        id:'', 
-        nombre_almacen:'', 
-        nit_almacen:'', 
-        logo_almacen:'', 
-        direccion_almacen:'', 
-        telefono_almacen:'', 
-        email_almacen: '', 
-        prefijo:'', 
-        separador: '', 
+        id:'',
+        nombre_almacen:'',
+        nit_almacen:'',
+        logo_almacen:'',
+        direccion_almacen:'',
+        telefono_almacen:'',
+        email_almacen: '',
+        prefijo:'',
+        separador: '',
         resolucionDian:'',
-        nombreFactura:'', 
-        footer_factura:'', 
-        consecutivo:'', 
-        consecutivo_nota: '',
-        consecutivo_nota_debito: '', 
+        nombreFactura:'',
+        footer_factura:'',
+        consecutivo:'',
+        consecutivo_nota:'',
+        consecutivo_nota_debito: '',
         imprimir_logo_pos: false
     })
 
@@ -57,11 +69,11 @@ export const Configuracion = ({ data, onReload }) => {
         e.preventDefault()
         try {
             await window.api.updateConfAlmacen(form)
-            Swal.fire({ title: "Éxito", text: "Configuración actualizada correctamente", icon: "success", timer: 1500 })
+            Toast.fire({ icon: 'success', title: 'Configuración actualizada correctamente' })
             if (onReload) onReload()
         } catch (error) {
             console.error(error);
-            Swal.fire({ title: "Error", text: "No se pudo actualizar la información", icon: "error" })
+            Toast.fire({ icon: 'error', title: 'No se pudo actualizar la información' })
         }
     }
 
@@ -69,7 +81,7 @@ export const Configuracion = ({ data, onReload }) => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 2 * 1024 * 1024) { 
-                Swal.fire('Error', 'La imagen es demasiado grande. Máximo 2MB.', 'error')
+                Toast.fire({ icon: 'error', title: 'La imagen es demasiado grande. Máximo 2MB.' })
                 return;
             }
             const reader = new FileReader()
@@ -97,17 +109,28 @@ export const Configuracion = ({ data, onReload }) => {
             setNuevoMetodo('')
             loadMetodos()
             window.dispatchEvent(new CustomEvent('metodos-pago-actualizados'))
+            Toast.fire({ icon: 'success', title: 'Método de pago añadido' })
         } else {
-            Swal.fire('Error', res.error, 'error')
+            Toast.fire({ icon: 'error', title: res.error || 'Error al guardar método de pago' })
         }
     }
 
     const handleDeleteMetodo = async (id) => {
-        const confirm = await Swal.fire({ title: '¿Eliminar método?', icon: 'warning', showCancelButton: true })
+        const confirm = await Swal.fire({ 
+            title: '¿Eliminar método de pago?', 
+            text: "Esta acción afectará los registros vinculados.",
+            icon: 'warning', 
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        })
         if(confirm.isConfirmed) {
             await window.api.deleteMetodoPago(id)
             loadMetodos();
             window.dispatchEvent(new CustomEvent('metodos-pago-actualizados'));
+            Toast.fire({ icon: 'success', title: 'Método de pago eliminado' })
         }
     }
 
@@ -120,7 +143,7 @@ export const Configuracion = ({ data, onReload }) => {
                 <i className="bi bi-credit-card me-2"></i>Administrar Métodos de Pago
             </Button>
         </div>
-                                
+                                        
         <Form onSubmit={handleSubmit}>
             
             <div className="bg-light p-3 rounded mb-4 border">
@@ -372,7 +395,7 @@ export const Configuracion = ({ data, onReload }) => {
 
             <div className="d-grid mt-3 border-top pt-4">
                 <Button variant="primary" size="lg" type="submit">
-                    <i className="bi bi-save me-2"></i>Guardar Configuración
+                    Guardar Configuración
                 </Button>
             </div>
         </Form>
@@ -386,5 +409,5 @@ export const Configuracion = ({ data, onReload }) => {
             handleAddMetodo={handleAddMetodo}
             handleDeleteMetodo={handleDeleteMetodo}
         />
-  </>
+    </>
 }

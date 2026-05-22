@@ -1,16 +1,20 @@
-import { useState } from 'react'
-import { useEffect } from 'react'
-
+import { useState, useEffect } from 'react'
 import { Facturacion } from './Facturacion.jsx'
 import { Configuracion } from './Configuracion.jsx'
 import { VerFacturas } from './VerFacturas.jsx'
 import { Notas } from './Notas.jsx'
 import { Reportes } from './Reportes.jsx'
+import Swal from 'sweetalert2'
 
-
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 4000,
+    timerProgressBar: true
+})
 
 export const Ventas = () => {
-
     const [almacenData, setAlmacenData] = useState([])
 
     const loadAlmacenConf = async () => {
@@ -18,11 +22,7 @@ export const Ventas = () => {
         if (data) {
             setAlmacenData(data[0])
         } else {
-            await Swal.fire({
-                title: "Error",
-                text: `Error al intentar cargar la configuracion del almacen`,
-                icon: "error"
-            })
+            Toast.fire({ icon: 'error', title: 'Error al intentar cargar la configuración del almacén' })
         }
     }
 
@@ -45,93 +45,109 @@ export const Ventas = () => {
 
                     <ul className="nav nav-tabs nav-tabs-bordered" id="borderedTab" role="tablist">
                         <li className="nav-item" role="presentation">
-                            <button
-                                className="nav-link active"
-                                id="facturacion-tab"
-                                data-bs-toggle="tab"
-                                data-bs-target="#facturacion"
-                                type="button"
-                                role="tab"
-                                aria-controls="home"
-                                aria-selected="false"
-                                tabindex="-1"
-                            >
-                                Facturacion
+                            <button 
+                                className="nav-link active" 
+                                id="facturacion-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#facturacion" 
+                                type="button" 
+                                role="tab" 
+                                aria-selected="false" 
+                                tabIndex="-1"
+                            >Facturacion
                             </button>
                         </li>
                         <li className="nav-item" role="presentation">
-                            <button
-                                className="nav-link"
-                                id="verFacturas-tab"
-                                data-bs-toggle="tab"
-                                data-bs-target="#verFacturas"
-                                type="button"
-                                role="tab"
-                                aria-controls="home"
-                                aria-selected="false"
-                                tabindex="-1"
-                            >
-                                Ver facturas
+                            <button 
+                                className="nav-link" 
+                                id="verFacturas-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#verFacturas" 
+                                type="button" 
+                                role="tab" 
+                                aria-selected="false" 
+                                tabIndex="-1"
+                            >Ver facturas
                             </button>
                         </li>
                         <li className="nav-item" role="presentation">
-                            <button
-                                className="nav-link"
-                                id="reportes-tab"
-                                data-bs-toggle="tab"
-                                data-bs-target="#reportes"
-                                type="button"
+                            <button 
+                                className="nav-link" 
+                                id="reportes-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#reportes" 
+                                type="button" 
                                 role="tab"
-                            >
-                                Reportes
+                            >Reportes
                             </button>
                         </li>
                         <li className="nav-item" role="presentation">
-                            <button
-                                className="nav-link"
-                                id="notas-tab"
-                                data-bs-toggle="tab"
-                                data-bs-target="#notas"
-                                type="button"
-                                role="tab"
-                                aria-controls="home"
-                                aria-selected="false"
-                                tabindex="-1"
-                            >
-                                Nota crédito/Nota débito
+                            <button 
+                                className="nav-link" 
+                                id="notas-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#notas" 
+                                type="button" 
+                                role="tab" 
+                                aria-selected="false" 
+                                tabIndex="-1"
+                            >Nota crédito/Nota débito
                             </button>
                         </li>
                         <li className="nav-item" role="presentation">
-                            <button
-                                className="nav-link"
-                                id="configurar-tab"
-                                data-bs-toggle="tab"
-                                data-bs-target="#config"
-                                type="button"
-                                role="tab"
-                                aria-controls="contact"
-                                aria-selected="false"
-                                tabindex="-1"
-                            >
-                                Configurar
+                            <button 
+                                className="nav-link" 
+                                id="configurar-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#config" 
+                                type="button" 
+                                role="tab" 
+                                aria-selected="false" 
+                                tabIndex="-1"
+                            >Configurar
                             </button>
                         </li>
                     </ul>
 
                     <div className="tab-content pt-2" id="borderedTabContent">
-                        <div className="tab-pane fade show active" id="facturacion" role="tabpanel" aria-labelledby="facturacion-tab">
+                        <div 
+                            className="tab-pane fade show active" 
+                            id="facturacion" 
+                            role="tabpanel" 
+                            aria-labelledby="facturacion-tab"
+                        >
                             <Facturacion />
                         </div>
-                        <div className="tab-pane fade" id="verFacturas" role="tabpanel" aria-labelledby="verFacturas-tab">
+                        <div 
+                            className="tab-pane fade" 
+                            id="verFacturas" 
+                            role="tabpanel" 
+                            aria-labelledby="verFacturas-tab"
+                        >
                             <VerFacturas />
                         </div>
-                        <div className="tab-pane fade" id="reportes" role="tabpanel" aria-labelledby="reportes-tab">
+                        <div 
+                            className="tab-pane fade" 
+                            id="reportes" 
+                            role="tabpanel" 
+                            aria-labelledby="reportes-tab"
+                        >
                             <Reportes />
                         </div>
-                        <div className="tab-pane fade" id="notas" role="tabpanel" aria-labelledby="notas-tab">
-                                <Notas />
+                        <div 
+                            className="tab-pane fade" 
+                            id="notas" 
+                            role="tabpanel" 
+                            aria-labelledby="notas-tab"
+                        >
+                            <Notas />
                         </div>
-                        <div className="tab-pane fade" id="config" role="tabpanel" aria-labelledby="configurar-tab">
+                        <div 
+                            className="tab-pane fade" 
+                            id="config" 
+                            role="tabpanel" 
+                            aria-labelledby="configurar-tab"
+                        >
                             <Configuracion data={almacenData} onReload={loadAlmacenConf} />
                         </div>
                     </div>

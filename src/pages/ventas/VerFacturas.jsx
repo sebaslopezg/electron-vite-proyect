@@ -149,9 +149,9 @@ export const VerFacturas = () => {
             render: function (data, type, row) {
                 let badges = ''
                 if (row.tipo_pago === 'credito') {
-                    if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge bg-danger me-1">Crédito (Sin Abonos)</span>'
-                    else if (row.saldo_pendiente > 0) badges += '<span class="badge bg-warning text-dark me-1">Crédito (Abonado)</span>'
-                    else badges += '<span class="badge bg-success me-1">Crédito (Pagado)</span>'
+                    if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge bg-danger me-1">Crédito</span>'
+                    else if (row.saldo_pendiente > 0) badges += '<span class="badge bg-warning text-dark me-1">Crédito</span>'
+                    else badges += '<span class="badge bg-success me-1">Crédito</span>'
                 } else {
                     badges += '<span class="badge bg-primary me-1">Contado</span>'
                 }

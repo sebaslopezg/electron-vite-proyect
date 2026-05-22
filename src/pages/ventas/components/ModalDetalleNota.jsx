@@ -40,7 +40,7 @@ export const ModalDetalleNota = ({
                             <Col md={6} className="text-end">
                                 <p className="mb-1">
                                     <strong>Aplica a Factura:</strong>{' '}
-                                    <span className="badge bg-primary fs-6">
+                                    <span className="badge bg-primary fs-7">
                                         {notaSeleccionada.prefijo_factura || ''}{notaSeleccionada.numero_factura || notaSeleccionada.numero_factura_origen}
                                     </span>
                                 </p>

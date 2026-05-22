@@ -5,13 +5,11 @@ import Form from 'react-bootstrap/Form'
 import InputGroup from 'react-bootstrap/InputGroup'
 import { Row, Col, ListGroup } from 'react-bootstrap'
 
-// --- COMPONENTE BUSCADOR REUTILIZABLE CON NAVEGACIÓN POR TECLADO ---
 const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
     const [query, setQuery] = useState('')
     const [showDropdown, setShowDropdown] = useState(false)
-    const [activeIndex, setActiveIndex] = useState(-1) // Rastrea la opción resaltada
+    const [activeIndex, setActiveIndex] = useState(-1)
 
-    // Sincroniza el texto visible con la opción real seleccionada
     useEffect(() => {
         const selectedItem = items.find(i => i.id === value)
         if (selectedItem) {
@@ -21,32 +19,28 @@ const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
         }
     }, [value, items])
 
-    // Filtra las opciones en tiempo real basándose en el texto escrito
     const filteredItems = items.filter(item => {
         const searchStr = query.toLowerCase()
         return item.nombre.toLowerCase().includes(searchStr) || 
                (item.sku_prefix && item.sku_prefix.toLowerCase().includes(searchStr))
     }).slice(0, 15)
 
-    // Resetea el índice resaltado cada vez que cambia la búsqueda
     useEffect(() => {
         setActiveIndex(-1)
     }, [query])
 
-    // Captura los eventos del teclado
     const handleKeyDown = (e) => {
         if (!showDropdown || filteredItems.length === 0) return
 
         if (e.key === 'ArrowDown') {
-            e.preventDefault() // Evita que el cursor se mueva al final del input
+            e.preventDefault()
             setActiveIndex(prev => (prev < filteredItems.length - 1 ? prev + 1 : prev))
         } 
         else if (e.key === 'ArrowUp') {
-            e.preventDefault() // Evita que el cursor se mueva al inicio del input
+            e.preventDefault()
             setActiveIndex(prev => (prev > 0 ? prev - 1 : -1))
         } 
         else if (e.key === 'Enter') {
-            // Si hay un elemento resaltado, seleccionarlo y evitar enviar el formulario padre
             if (activeIndex >= 0 && activeIndex < filteredItems.length) {
                 e.preventDefault()
                 const selected = filteredItems[activeIndex]
@@ -73,7 +67,7 @@ const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
                     setShowDropdown(true)
                     if (e.target.value === '') onChange('')
                 }}
-                onKeyDown={handleKeyDown} // <-- Escuchamos el teclado
+                onKeyDown={handleKeyDown}
                 onFocus={() => { if (!disabled && items.length > 0) setShowDropdown(true) }}
                 onBlur={() => {
                     setTimeout(() => {
@@ -97,7 +91,7 @@ const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
                         <ListGroup.Item 
                             key={item.id} 
                             action 
-                            active={index === activeIndex} // <-- Resaltado visual azul de Bootstrap
+                            active={index === activeIndex}
                             className="py-1 px-2 small border-bottom"
                             style={{ cursor: 'pointer' }}
                             onMouseDown={(e) => {
@@ -454,8 +448,8 @@ export default function ProductModal(
             </Modal.Body>
             <Modal.Footer className="bg-light">
                 <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
-                <Button variant="success" type="submit" form="productoForm">
-                    <i className="bi bi-save me-2"></i>Guardar Producto
+                <Button variant="primary" type="submit" form="productoForm">
+                   Guardar Producto
                 </Button>
             </Modal.Footer>
         </Modal>
