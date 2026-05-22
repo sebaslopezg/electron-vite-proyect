@@ -1,16 +1,22 @@
-import { 
-  useState, 
-  useEffect, 
-  useCallback, 
-  useRef 
-} from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import ProductModal from './components/ProductoModal'
 import { formatCurrency } from '../../utils/currencies'
 
-export const Productos = () => {
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
 
+export const Productos = () => {
   const [show, setShow] = useState(false)
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
@@ -35,7 +41,7 @@ export const Productos = () => {
     descripcion: '', 
     precio: 0, 
     status: 1, 
-    tipo: 'producto',
+    tipo: 'producto', 
     allow_encargo: 1, 
     encargo_solo_sin_stock: 1
   }
@@ -51,23 +57,16 @@ export const Productos = () => {
     if (confAppRaw) {
       try {
         const parsed = JSON.parse(confAppRaw.value)
-        setAppConfig({
-          moneda: parsed.moneda || 'COP',
-          formato_numero: parsed.formato_numero || 'es-CO'
-        })
+        setAppConfig({ moneda: parsed.moneda || 'COP', formato_numero: parsed.formato_numero || 'es-CO' })
       } catch(e) {}
     }
   }
 
-  const renderCurrency = (val) => {
-    return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
-  }
+  const renderCurrency = (val) => formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
 
   const loadSelectsData = useCallback(async () => {
     const [catsData, tagsData, subcatsData] = await Promise.all([
-      window.api.getCategorias(),
-      window.api.getEtiquetas(),
-      window.api.getSubcategorias()
+      window.api.getCategorias(), window.api.getEtiquetas(), window.api.getSubcategorias()
     ])
     setCategorias(catsData || [])
     setEtiquetas(tagsData || [])
@@ -107,14 +106,9 @@ export const Productos = () => {
           const item = JSON.parse(rawData)
           
           const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : []
-          
           let subcatIds = []
           if (item.subcategorias_ids_json) {
-            try {
-              subcatIds = JSON.parse(item.subcategorias_ids_json)
-            } catch (e) {
-              console.warn("Error parseando subcategorias", e)
-            }
+            try { subcatIds = JSON.parse(item.subcategorias_ids_json) } catch (e) {}
           }
 
           setForm({
@@ -125,11 +119,11 @@ export const Productos = () => {
             max_stock: item.max_stock || 50,
             categoria_id: item.categoria_id || 'general', 
             subcategorias_ids: subcatIds,
-            etiquetas: tagsArray,
+            etiquetas: tagsArray, 
             unidad_medida: item.unidad_medida || 'Unidad', 
-            iva: item.iva || 0,
+            iva: item.iva || 0, 
             allow_negative: item.allow_negative || 0, 
-            descripcion: item.descripcion || '',
+            descripcion: item.descripcion || '', 
             precio: item.precio || 0, 
             status: item.status || 1, 
             tipo: item.tipo || 'producto',
@@ -153,9 +147,7 @@ export const Productos = () => {
     e.preventDefault()
     
     const payload = { ...form }
-    if (finalSkuArmado) {
-        payload.sku = finalSkuArmado
-    }
+    if (finalSkuArmado) payload.sku = finalSkuArmado
 
     let result
     if (editingId) {
@@ -165,12 +157,12 @@ export const Productos = () => {
     }
 
     if (result && result.success) {
-      Swal.fire({ title: '¡Éxito!', text: 'Producto guardado correctamente', icon: 'success', timer: 1500 })
+      Toast.fire({ icon: 'success', title: 'Producto guardado correctamente' })
       cleanForm()
       handleClose()
       setReloadTable(prev => prev + 1)
     } else {
-      Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error')
+      Toast.fire({ icon: 'error', title: result?.error || 'No se pudo guardar el producto' })
     }
   }
 
@@ -183,8 +175,13 @@ export const Productos = () => {
     })
 
     if (result.isConfirmed) {
-      await window.api.deleteProducto(id)
-      setReloadTable(prev => prev + 1)
+      const res = await window.api.deleteProducto(id)
+      if (res.success) {
+          Toast.fire({ icon: 'success', title: 'Producto eliminado' })
+          setReloadTable(prev => prev + 1)
+      } else {
+          Toast.fire({ icon: 'error', title: res.error || 'Error al eliminar' })
+      }
     }
   }
 
@@ -207,24 +204,15 @@ export const Productos = () => {
         columns={[
           { data: 'ref_name', title: 'Nombre Referencia' },
           { 
-            data: 'sku', 
-            title: 'SKU', 
-            render: (data) => {
-              return data ? `<strong>${data.toUpperCase()}</strong>` : '-'
-            } 
+            data: 'sku', title: 'SKU', 
+            render: (data) => data ? `<strong>${data.toUpperCase()}</strong>` : '-' 
           },
           { data: 'categoria_nombre', title: 'Categoría', render: (data) => data || 'General' },
           { data: 'stock', title: 'Stock', render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` },
-          { 
-            data: 'precio', 
-            title: 'Precio', 
-            render: (data) => renderCurrency(data) 
-          },
+          { data: 'precio', title: 'Precio', render: (data) => renderCurrency(data) },
           { data: 'status', title: 'Estado', render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` },
           {
-            data: null,
-            title: 'Acciones',
-            orderable: false,
+            data: null, title: 'Acciones', orderable: false,
             render: function (data, type, row) {
               const safeData = encodeURIComponent(JSON.stringify(row))
               return `
@@ -237,16 +225,16 @@ export const Productos = () => {
       />
     </div>
 
-    <ProductModal
-      show={show}
-      handleClose={handleClose}
-      handleSubmit={handleSubmit}
-      form={form}
-      setForm={setForm}
-      editingId={editingId}
-      categorias={categorias}
-      subcategorias={subcategorias}
-      etiquetas={etiquetas}
+    <ProductModal 
+      show={show} 
+      handleClose={handleClose} 
+      handleSubmit={handleSubmit} 
+      form={form} 
+      setForm={setForm} 
+      editingId={editingId} 
+      categorias={categorias} 
+      subcategorias={subcategorias} 
+      etiquetas={etiquetas} 
     />
   </>
 }

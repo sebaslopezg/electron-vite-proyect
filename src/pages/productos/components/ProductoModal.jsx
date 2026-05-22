@@ -315,7 +315,7 @@ export default function ProductModal(
                         <Col md={6}>
                             <Form.Group>
                                 <Form.Label className="small fw-bold text-secondary mb-1">Nombre Comercial <span className="text-danger">*</span></Form.Label>
-                                <Form.Control size="sm" value={form.ref_name} onChange={(e) => setForm({ ...form, ref_name: e.target.value })} placeholder="Ej: Acetaminofén 500mg" required />
+                                <Form.Control size="sm" value={form.ref_name} onChange={(e) => setForm({ ...form, ref_name: e.target.value })} required />
                             </Form.Group>
                         </Col>
                     </Row>
@@ -384,8 +384,8 @@ export default function ProductModal(
                                             type="checkbox"
                                             id="encargo_solo_sin_stock"
                                             label="Requerir agotamiento previo de stock físico"
-                                            checked={form.encargo_solo_sin_stock === 1}
-                                            onChange={(e) => setForm({ ...form, encargo_solo_sin_stock: e.target.checked ? 1 : 0 })}
+                                            checked={form.encargo_solo_sin_stock === 0}
+                                            onChange={(e) => setForm({ ...form, encargo_solo_sin_stock: e.target.checked ? 0 : 1 })}
                                         />
                                     )}
                                 </Col>

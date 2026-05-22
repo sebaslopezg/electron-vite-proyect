@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import Dashboard from './components/layout/Dashboard'
 import Swal from 'sweetalert2'
+import { Toaster } from 'react-hot-toast'
 
 import 'bootstrap/dist/css/bootstrap.min.css'
 
@@ -42,7 +43,7 @@ function App() {
         icon: 'success',
         showCancelButton: true,
         confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
+        cancelButtonColor: 'rgb(108, 117, 125)',
         confirmButtonText: '<i class="bi bi-arrow-clockwise"></i> Reiniciar e Instalar',
         cancelButtonText: 'En otro momento'
       }).then((result) => {
@@ -60,6 +61,7 @@ function App() {
   return (
     <>
       <Dashboard />
+      <Toaster position="bottom-right" reverseOrder={false} />
     </>
   )
 }

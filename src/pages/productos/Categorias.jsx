@@ -3,6 +3,18 @@ import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import CategoriaModal from './components/CategoriaModal'
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const Categorias = () => {
     const [show, setShow] = useState(false);
     const handleClose = () => setShow(false);
@@ -11,13 +23,7 @@ export const Categorias = () => {
     const [dataInTable, setDataInTable] = useState([])
     const [reloadTable, setReloadTable] = useState(0)
 
-    const emptyForm = {
-        nombre: '',
-        descripcion: '',
-        sku_prefix: '',
-        separador: ''
-    }
-
+    const emptyForm = { nombre: '', descripcion: '', sku_prefix: '', separador: '' }
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
 
@@ -44,26 +50,19 @@ export const Categorias = () => {
         }
 
         if (result && result.success) {
-            Swal.fire({
-                title: '¡Éxito!',
-                text: 'Categoría guardada',
-                icon: 'success',
-                timer: 1500
-            });
+            Toast.fire({ icon: 'success', title: 'Categoría guardada correctamente' })
             cleanForm()
             handleClose()
             load()
-            
             window.dispatchEvent(new CustomEvent('categorias-actualizadas'));
-            
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar', 'error');
+            Toast.fire({ icon: 'error', title: result?.error || 'No se pudo guardar la categoría' })
         }
     }
 
     const handleDelete = async (id) => {
         if (id === 'general') {
-            return Swal.fire('Acción denegada', 'La categoría General no se puede eliminar.', 'info');
+            return Toast.fire({ icon: 'error', title: 'La categoría General no se puede eliminar.' })
         }
 
         const result = await Swal.fire({
@@ -78,10 +77,11 @@ export const Categorias = () => {
         if (result.isConfirmed) {
             const res = await window.api.deleteCategoria(id)
             if (res.success) {
+                Toast.fire({ icon: 'success', title: 'Categoría eliminada' })
                 load()
                 window.dispatchEvent(new CustomEvent('categorias-actualizadas'));
             } else {
-                Swal.fire('No se puede eliminar', res.error, 'error')
+                Toast.fire({ icon: 'error', title: res.error || 'No se puede eliminar la categoría' })
             }
         }
     }
@@ -171,13 +171,13 @@ export const Categorias = () => {
             />
         </div>
 
-        <CategoriaModal
-            show={show}
-            handleClose={handleClose}
-            handleSubmit={handleSubmit}
-            form={form}
-            setForm={setForm}
-            editingId={editingId}
+        <CategoriaModal 
+            show={show} 
+            handleClose={handleClose} 
+            handleSubmit={handleSubmit} 
+            form={form} 
+            setForm={setForm} 
+            editingId={editingId} 
         />
     </>
 }

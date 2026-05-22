@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Swal from 'sweetalert2'
+import toast from 'react-hot-toast'
 import CustomDataTable from '../../components/DataTableComponent'
 import EtiquetaModal from './components/EtiquetaModal'
 
@@ -12,13 +13,12 @@ export const Etiquetas = () => {
     const [categorias, setCategorias] = useState([])
     const [reloadTable, setReloadTable] = useState(0)
 
-    const emptyForm = {
-        nombre: '',
-        descripcion: '',
+    const emptyForm = { 
+        nombre: '', 
+        descripcion: '', 
         color: '#0d6efd', 
         categorias: ['general'] 
     }
-
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
 
@@ -52,15 +52,13 @@ export const Etiquetas = () => {
         }
 
         if (result && result.success) {
-            Swal.fire({ title: '¡Éxito!', text: 'Etiqueta guardada', icon: 'success', timer: 1500 });
+            toast.success('Etiqueta guardada correctamente')
             cleanForm()
             handleClose()
             loadData()
-            
-            window.dispatchEvent(new CustomEvent('etiquetas-actualizadas'));
-            
+            window.dispatchEvent(new CustomEvent('etiquetas-actualizadas'))
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar', 'error');
+            toast.error(result?.error || 'No se pudo guardar la etiqueta')
         }
     }
 
@@ -77,45 +75,48 @@ export const Etiquetas = () => {
         if (result.isConfirmed) {
             const res = await window.api.deleteEtiqueta(id)
             if (res.success) {
+                toast.success('Etiqueta eliminada')
                 loadData()
-                window.dispatchEvent(new CustomEvent('etiquetas-actualizadas'));
+                window.dispatchEvent(new CustomEvent('etiquetas-actualizadas'))
+            } else {
+                toast.error(res.error || 'Error al eliminar')
             }
         }
     }
 
-    const tableContainerRef = useRef(null);
+    const tableContainerRef = useRef(null)
 
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const editBtn = e.target.closest('.btn-edit');
+            const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
                 try {
-                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
-                    const item = JSON.parse(rawData);
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
                     
-                    const categoriasArray = item.categorias_ids ? item.categorias_ids.split(',') : ['general'];
+                    const categoriasArray = item.categorias_ids ? item.categorias_ids.split(',') : ['general']
 
                     setForm({
                         nombre: item.nombre || '',
                         descripcion: item.descripcion || '',
                         color: item.color || '#0d6efd',
                         categorias: categoriasArray
-                    });
-                    setEditingId(item.id);
-                    handleShow();
-                } catch(err) { console.error("Error leyendo datos", err); }
+                    })
+                    setEditingId(item.id)
+                    handleShow()
+                } catch(err) { console.error("Error leyendo datos", err) }
             }
             
-            const delBtn = e.target.closest('.btn-delete');
-            if (delBtn) handleDelete(delBtn.dataset.id);
-        };
+            const delBtn = e.target.closest('.btn-delete')
+            if (delBtn) handleDelete(delBtn.dataset.id)
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
     return <>
         <div className="mb-3">
@@ -137,21 +138,21 @@ export const Etiquetas = () => {
                         data: 'nombre', 
                         title: 'Etiqueta',
                         render: (data, type, row) => {
-                            let textColor = '#ffffff';
+                            let textColor = '#ffffff'
                             if (row.color) {
-                                const hex = row.color.replace('#', '');
-                                const r = parseInt(hex.substr(0, 2), 16);
-                                const g = parseInt(hex.substr(2, 2), 16);
-                                const b = parseInt(hex.substr(4, 2), 16);
-                                const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-                                textColor = (yiq >= 128) ? '#000000' : '#ffffff';
+                                const hex = row.color.replace('#', '')
+                                const r = parseInt(hex.substr(0, 2), 16)
+                                const g = parseInt(hex.substr(2, 2), 16)
+                                const b = parseInt(hex.substr(4, 2), 16)
+                                const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+                                textColor = (yiq >= 128) ? '#000000' : '#ffffff'
                             }
                             
                             return `
-                                <span class="badge" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px;">
+                                <span class="badge border" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px; border-color: rgba(0,0,0,0.1) !important;">
                                     <i class="bi bi-tag-fill me-1"></i> ${data}
                                 </span>
-                            `;
+                            `
                         }
                     },
                     { data: 'descripcion', title: 'Descripción' },
@@ -161,9 +162,7 @@ export const Etiquetas = () => {
                         render: (data) => data ? `<small class="text-muted">${data}</small>` : '-'
                     },
                     {
-                        data: null,
-                        title: 'Actions',
-                        orderable: false,
+                        data: null, title: 'Actions', orderable: false,
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
@@ -180,14 +179,14 @@ export const Etiquetas = () => {
             />
         </div>
 
-        <EtiquetaModal
-            show={show}
-            handleClose={handleClose}
-            handleSubmit={handleSubmit}
-            form={form}
-            setForm={setForm}
-            editingId={editingId}
-            categoriasDisponibles={categorias}
+        <EtiquetaModal 
+            show={show} 
+            handleClose={handleClose} 
+            handleSubmit={handleSubmit} 
+            form={form} 
+            setForm={setForm} 
+            editingId={editingId} 
+            categoriasDisponibles={categorias} 
         />
     </>
 }

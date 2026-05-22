@@ -3,6 +3,18 @@ import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import SubcategoriaModal from './components/SubcategoriaModal'
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const Subcategorias = () => {
     const [show, setShow] = useState(false)
     const handleClose = () => setShow(false)
@@ -12,7 +24,13 @@ export const Subcategorias = () => {
     const [categorias, setCategorias] = useState([])
     const [reloadTable, setReloadTable] = useState(0)
 
-    const emptyForm = { nombre: '', descripcion: '', sku_prefix: '', separador: '', categorias_ids: [] }
+    const emptyForm = { 
+        nombre: '', 
+        descripcion: '', 
+        sku_prefix: '', 
+        separador: '', 
+        categorias_ids: [] 
+    }
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
 
@@ -28,12 +46,8 @@ export const Subcategorias = () => {
 
     useEffect(() => { 
         load() 
-        
         window.addEventListener('categorias-actualizadas', load)
-        
-        return () => {
-            window.removeEventListener('categorias-actualizadas', load)
-        }
+        return () => window.removeEventListener('categorias-actualizadas', load)
     }, [])
 
     const handleSubmit = async (e) => {
@@ -49,13 +63,13 @@ export const Subcategorias = () => {
         }
 
         if (result && result.success) {
-            Swal.fire({ title: '¡Éxito!', text: 'Subcategoría guardada', icon: 'success', timer: 1500 })
+            Toast.fire({ icon: 'success', title: 'Subcategoría guardada correctamente' })
             cleanForm()
             handleClose()
             load()
             window.dispatchEvent(new CustomEvent('subcategorias-actualizadas'))
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar', 'error')
+            Toast.fire({ icon: 'error', title: result?.error || 'No se pudo guardar la subcategoría' })
         }
     }
 
@@ -72,10 +86,11 @@ export const Subcategorias = () => {
         if (result.isConfirmed) {
             const res = await window.api.deleteSubcategoria(id)
             if (res.success) {
+                Toast.fire({ icon: 'success', title: 'Subcategoría eliminada' })
                 load()
                 window.dispatchEvent(new CustomEvent('subcategorias-actualizadas'))
             } else {
-                Swal.fire('No se puede eliminar', res.error, 'error')
+                Toast.fire({ icon: 'error', title: res.error || 'No se pudo eliminar' })
             }
         }
     }
@@ -97,7 +112,7 @@ export const Subcategorias = () => {
                         sku_prefix: item.sku_prefix || '', 
                         separador: item.separador || '',
                         categorias_ids: item.categorias_ids ? item.categorias_ids.split(',') : []
-                    });
+                    })
                     setEditingId(item.id)
                     handleShow()
                 } catch(err) { console.error("Error", err) }
@@ -105,7 +120,7 @@ export const Subcategorias = () => {
             
             const delBtn = e.target.closest('.btn-delete')
             if (delBtn) handleDelete(delBtn.dataset.id)
-        };
+        }
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
@@ -128,10 +143,10 @@ export const Subcategorias = () => {
                 data={dataInTable}
                 columns={[
                     { data: 'nombre', title: 'Subcategoría' },
-                    { 
+                    {
                         data: 'categoria_nombre', 
                         title: 'Categorías Vinculadas', 
-                        render: (data) => data ? data.split(' • ').map(c => `<span class="badge bg-info text-dark me-1 mb-1">${c}</span>`).join('') : '<span class="text-muted small">Ninguna</span>' 
+                        render: (data) => data ? data.split(' • ').map(c => `<span class="badge bg-secondary text-light me-1 mb-1">${c}</span>`).join('') : '<span class="text-muted small">Ninguna</span>' 
                     },
                     { 
                         data: 'sku_prefix', title: 'Prefijo SKU',
