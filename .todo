@@ -8,6 +8,7 @@
 
  - Crear modulo de usuarios
  - Crear modulo de roles y permisos
+ - Crear modulo de notificaciones
 
  - Guardar configuracion de filtros editada en el momento, almacenar esto en localstorage o cokies.
  - Personalizar filtros por defecto en tablas y demas para que cada que cargue, se cargue con esa configuracion

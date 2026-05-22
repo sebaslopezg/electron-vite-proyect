@@ -9,12 +9,14 @@ import { Cartera } from '../pages/cartera/index'
 import { ContabilidadIndex } from '../pages/contabilidad'
 import { Compras } from '../pages/compras'
 import { Usuarios } from '../pages/usuarios'
+import { Roles } from '../pages/roles'
 
 export const MainRoutes = () => {
 
     return <>
         <Routes>
             <Route path="/usuarios" element={<Usuarios />} />
+            <Route path="/roles" element={<Roles />} />
             <Route path="/" element={<Ventas />} />
             <Route path="/ventas" element={<Ventas />} />
             <Route path="/compras" element={<Compras />} />

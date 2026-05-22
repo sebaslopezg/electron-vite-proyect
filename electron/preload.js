@@ -4,8 +4,17 @@ contextBridge.exposeInMainWorld("api", {
   ping: () => ipcRenderer.invoke("ping"),
   sendMessage: (channel, data) => ipcRenderer.send(channel, data),
   onMessage: (channel, callback) => {
-    ipcRenderer.on(channel, (_, msg) => callback(msg));
+    ipcRenderer.on(channel, (_, msg) => callback(msg))
   },
+  //login
+  checkLoginRequired: () => ipcRenderer.invoke("check-login-required"),
+  loginUser: (credentials) => ipcRenderer.invoke("login-user", credentials),
+
+  //roles
+  getRoles: () => ipcRenderer.invoke("get-roles"),
+  addRol: (data) => ipcRenderer.invoke("add-rol", data),
+  updateRol: (data) => ipcRenderer.invoke("update-rol", data),
+  deleteRol: (id) => ipcRenderer.invoke("delete-rol", id),
 
   //ventas
   getMaestro: () => ipcRenderer.invoke("get-maestro"),
@@ -67,7 +76,7 @@ contextBridge.exposeInMainWorld("api", {
 
   //logs
   getSystemLogs: (limit) => ipcRenderer.invoke("get-system-logs", limit),
-  clearSystemLogs: () => ipcRenderer .invoke("clear-system-logs"),
+  clearSystemLogs: () => ipcRenderer.invoke("clear-system-logs"),
 
   // Perfiles de Datos
   getPerfiles: () => ipcRenderer.invoke("get-perfiles"),
@@ -143,7 +152,7 @@ contextBridge.exposeInMainWorld("api", {
   deleteUsuario: (id) => ipcRenderer.invoke("delete-usuario", id),
 })
 
-  //contabilidad
+//contabilidad
 contextBridge.exposeInMainWorld('contaAPI', {
   getPuc: () => ipcRenderer.invoke('get-puc'),
   crearCuenta: (cuenta) => ipcRenderer.invoke('crear-cuenta', cuenta),

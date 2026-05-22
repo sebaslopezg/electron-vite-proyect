@@ -2,42 +2,61 @@ import { useState, useEffect } from 'react'
 import { Modal, Button, Form, Row, Col } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 
-export const ModalUsuario = ({ show, handleClose, editData, onSuccess }) => {
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
+export const ModalUsuario = ({ show, handleClose, editData, onSuccess, rolesDisponibles = [] }) => {
     const [formData, setFormData] = useState({
         nombre_completo: '',
         username: '',
         password: '',
-        rol: 'Vendedor' // Valor por defecto temporal hasta crear el módulo de roles
+        rol: ''
     })
-
-    // Lista temporal de roles (luego esto vendrá de la base de datos)
-    const rolesDisponibles = ['Administrador', 'Gerente', 'Cajero', 'Vendedor']
 
     useEffect(() => {
         if (show) {
+            const defaultRol = rolesDisponibles.length > 0 ? rolesDisponibles[0].nombre : 'Vendedor'
+
             if (editData) {
                 setFormData({
                     nombre_completo: editData.nombre_completo,
                     username: editData.username,
-                    password: '', // Siempre vacío por seguridad al editar
-                    rol: editData.rol
+                    password: '', 
+                    rol: editData.rol || defaultRol
                 })
             } else {
-                setFormData({ nombre_completo: '', username: '', password: '', rol: 'Vendedor' })
+                setFormData({ 
+                    nombre_completo: '', 
+                    username: '', 
+                    password: '', 
+                    rol: defaultRol 
+                })
             }
         }
-    }, [show, editData])
+    }, [show, editData, rolesDisponibles])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
 
         if (!formData.nombre_completo.trim() || !formData.username.trim()) {
-            return Swal.fire('Error', 'El nombre y el usuario son obligatorios.', 'error')
+            return Toast.fire({ icon: 'error', title: 'El nombre y el usuario son obligatorios.' })
         }
 
-        // Validación de contraseña solo requerida al crear
         if (!editData && (!formData.password || formData.password.length < 5)) {
-            return Swal.fire('Error', 'La contraseña es obligatoria y debe tener al menos 5 caracteres.', 'error')
+            return Toast.fire({ icon: 'warning', title: 'La contraseña es obligatoria y debe tener al menos 5 caracteres.' })
+        }
+
+        if (!formData.rol) {
+            return Toast.fire({ icon: 'error', title: 'Debe seleccionar un rol para el usuario.' })
         }
 
         let res;
@@ -48,26 +67,19 @@ export const ModalUsuario = ({ show, handleClose, editData, onSuccess }) => {
         }
 
         if (res.success) {
-            Swal.fire({
-                title: '¡Guardado!',
-                text: 'El usuario ha sido registrado correctamente.',
-                icon: 'success',
-                timer: 1500,
-                showConfirmButton: false
-            })
+            Toast.fire({ icon: 'success', title: 'Usuario guardado correctamente.' })
             onSuccess()
             handleClose()
         } else {
-            Swal.fire('Error', res.error, 'error')
+            Toast.fire({ icon: 'error', title: res.error || 'Error al guardar' })
         }
     }
 
     return (
-        <Modal show={show} onHide={handleClose} centered backdrop="static">
+        <Modal show={show} onHide={handleClose} centered>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5">
-                    <i className="bi bi-person-badge me-2 text-primary"></i>
-                    {editData ? 'Editar Usuario' : 'Nuevo Usuario'}
+                    {editData ? 'Editar Usuario' : 'Nuevo Usuario Global'}
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
@@ -76,7 +88,6 @@ export const ModalUsuario = ({ show, handleClose, editData, onSuccess }) => {
                         <Form.Label className="fw-bold small">Nombre Completo <span className="text-danger">*</span></Form.Label>
                         <Form.Control 
                             type="text" 
-                            placeholder="Ej: Juan Pérez" 
                             value={formData.nombre_completo} 
                             onChange={e => setFormData({...formData, nombre_completo: e.target.value})} 
                             required 
@@ -90,7 +101,6 @@ export const ModalUsuario = ({ show, handleClose, editData, onSuccess }) => {
                                 <Form.Label className="fw-bold small">Usuario de Acceso <span className="text-danger">*</span></Form.Label>
                                 <Form.Control 
                                     type="text" 
-                                    placeholder="Ej: juanp" 
                                     value={formData.username} 
                                     onChange={e => setFormData({...formData, username: e.target.value.toLowerCase().replace(/\s/g, '')})} 
                                     required 
@@ -103,7 +113,6 @@ export const ModalUsuario = ({ show, handleClose, editData, onSuccess }) => {
                                 <Form.Label className="fw-bold small">Contraseña {editData && <span className="text-muted fw-normal">(Opcional)</span>}</Form.Label>
                                 <Form.Control 
                                     type="password" 
-                                    placeholder={editData ? "Escribe para cambiar" : "Mínimo 5 caracteres"} 
                                     value={formData.password} 
                                     onChange={e => setFormData({...formData, password: e.target.value})} 
                                     required={!editData}
@@ -113,25 +122,24 @@ export const ModalUsuario = ({ show, handleClose, editData, onSuccess }) => {
                     </Row>
 
                     <Form.Group className="mb-2 border-top pt-3">
-                        <Form.Label className="fw-bold small text-primary">Rol / Nivel de Acceso</Form.Label>
+                        <Form.Label className="fw-bold small text-primary">Rol Global Asignado</Form.Label>
                         <Form.Select 
                             value={formData.rol} 
                             onChange={e => setFormData({...formData, rol: e.target.value})}
+                            required
                         >
+                            {rolesDisponibles.length === 0 && <option value="">Sin roles disponibles...</option>}
                             {rolesDisponibles.map(rol => (
-                                <option key={rol} value={rol}>{rol}</option>
+                                <option key={rol.id} value={rol.nombre}>{rol.nombre}</option>
                             ))}
                         </Form.Select>
-                        <Form.Text className="text-muted" style={{ fontSize: '0.75rem' }}>
-                            Próximamente asociaremos este rol a los permisos específicos en el módulo de Roles.
-                        </Form.Text>
                     </Form.Group>
                 </Form>
             </Modal.Body>
             <Modal.Footer className="bg-light">
                 <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
                 <Button variant="primary" type="submit" form="formUsuario">
-                    <i className="bi bi-save me-2"></i> Guardar Usuario
+                    Guardar Usuario
                 </Button>
             </Modal.Footer>
         </Modal>
