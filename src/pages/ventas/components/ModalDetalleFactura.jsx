@@ -79,8 +79,13 @@ export const ModalDetalleFactura = ({
                           data: null, title: 'SKU',
                           render: (data, type, row) => {
                             if (!row.sku) return '<span class="text-muted" title="Producto eliminado o importado">Generico</span>'; 
-                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                            return `<strong>${prefix}${row.sku.toUpperCase()}</strong>`;
+                            
+                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
+                            const skuVal = String(row.sku).toUpperCase();
+                            
+                            // Lógica de control: si el SKU ya inicia con el prefijo armado, lo dejamos intacto
+                            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+                            return `<strong>${finalSku}</strong>`;
                           }
                         },
                         { data: 'nombre_producto', title: 'Producto' },
@@ -131,7 +136,7 @@ export const ModalDetalleFactura = ({
                         </h6>
                         <div className="table-responsive shadow-sm rounded border">
                             <table className="table table-sm table-hover m-0 text-center align-middle">
-                                <thead className="table-light">
+                                <thead className="table-dark">
                                     <tr>
                                         <th className="py-2">N° Nota</th>
                                         <th>Tipo</th>

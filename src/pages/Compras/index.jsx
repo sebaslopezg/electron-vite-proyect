@@ -49,18 +49,21 @@ export const Compras = () => {
 
     return (
         <div>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h4 className="mb-0 text-primary"><i className="bi bi-cart4 me-2"></i>Facturas de Compras y Gastos</h4>
-                    <p className="text-muted small mb-0">Gestiona las compras de mercancía y los gastos operativos del negocio.</p>
-                </div>
-                <button className="btn btn-primary shadow-sm" onClick={() => setShowModal(true)}>
-                    <i className="bi bi-plus-circle me-2"></i>Registrar Compra
-                </button>
+
+            <div className="pagetitle">
+                <h1><i className="bi bi-cart4 me-2"></i>Compras y Gastos</h1>
             </div>
 
             <div className="card shadow-sm border-0">
-                <div ref={tableContainerRef} className="card-body w-100 overflow-hidden">
+
+                <div ref={tableContainerRef} className="card-body pt-4 w-100 overflow-hidden">
+                    
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <button className="btn btn-primary shadow-sm" onClick={() => setShowModal(true)}>
+                            <i className="bi bi-plus-circle me-2"></i>Registrar Compra
+                        </button>
+                    </div>
+
                     <CustomDataTable 
                         key={`compras-${reloadTable}`} 
                         ajaxData={(params) => window.comprasAPI.getComprasPaginadas(params)}

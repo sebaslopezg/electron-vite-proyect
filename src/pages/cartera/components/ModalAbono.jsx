@@ -16,7 +16,7 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => 
             setAbonoForm({
                 valor: factura.saldo_pendiente, 
                 metodo_pago: 'Efectivo',
-                observaciones: 'Abono a deuda'
+                observaciones: ''
             })
         }
     }, [factura])
@@ -66,7 +66,7 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => 
 
     return (
         <Modal show={show} onHide={onClose} centered>
-            <Modal.Header closeButton className="bg-success text-white">
+            <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
                     <i className="bi bi-cash-coin me-2"></i>Registrar Abono
                 </Modal.Title>
@@ -118,7 +118,6 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => 
                                     name="observaciones" 
                                     value={abonoForm.observaciones} 
                                     onChange={handleChange} 
-                                    placeholder="Ej. Transferencia Bancolombia #1234"
                                 />
                             </Form.Group>
                         </Col>
@@ -127,7 +126,7 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => 
                 <Modal.Footer>
                     <Button variant="outline-secondary" onClick={onClose}>Cancelar</Button>
                     <Button variant="success" type="submit" className="fw-bold px-4">
-                        Guardar Pago
+                        Abonar
                     </Button>
                 </Modal.Footer>
             </Form>
