@@ -3,6 +3,13 @@ import { v4 as uuidv4 } from "uuid"
 import { appDb } from "../database/index.js" 
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession
+    if (!user) return false
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
+}
+
 export const registerRolesHandlers = () => {
     
     appDb.exec(`
@@ -15,18 +22,21 @@ export const registerRolesHandlers = () => {
             status INTEGER DEFAULT 1,
             date_created TEXT
         );
-    `);
+    `)
 
-    const checkAdminRol = appDb.prepare("SELECT COUNT(*) as count FROM roles").get();
+    const checkAdminRol = appDb.prepare("SELECT COUNT(*) as count FROM roles").get()
     if (checkAdminRol.count === 0) {
         appDb.prepare(`
             INSERT INTO roles (id, nombre, descripcion, permisos_json, is_system, status, date_created) 
             VALUES (?, ?, ?, ?, 1, 1, datetime('now'))
-        `).run(uuidv4(), 'Administrador', 'Acceso total absoluto al sistema', '["ALL"]');
-        logger.info('SISTEMA', 'Rol "Administrador" creado por defecto.');
+        `).run(uuidv4(), 'Administrador', 'Acceso total absoluto al sistema', '["ALL"]')
+        logger.info('SISTEMA', 'Rol "Administrador" creado por defecto.')
     }
 
     ipcMain.handle("get-roles", () => {
+        if (!checkPermission("roles_gestionar")) {
+            return { success: false, error: "No autorizado para consultar la lista de roles de seguridad." }
+        }
         try {
             const stmt = appDb.prepare("SELECT * FROM roles WHERE status = 1 ORDER BY is_system DESC, nombre ASC")
             return { success: true, data: stmt.all() }
@@ -37,6 +47,9 @@ export const registerRolesHandlers = () => {
     })
 
     ipcMain.handle("add-rol", async (_, rolData) => {
+        if (!checkPermission("roles_gestionar")) {
+            return { success: false, error: "No autorizado para crear nuevos perfiles de permisos." }
+        }
         try {
             const id = uuidv4()
             const permisosStr = JSON.stringify(rolData.permisos || [])
@@ -59,6 +72,9 @@ export const registerRolesHandlers = () => {
     })
 
     ipcMain.handle("update-rol", async (_, rolData) => {
+        if (!checkPermission("roles_gestionar")) {
+            return { success: false, error: "No autorizado para modificar políticas de acceso del sistema." }
+        }
         try {
             const rolActual = appDb.prepare("SELECT is_system FROM roles WHERE id = ?").get(rolData.id)
             if (rolActual && rolActual.is_system === 1) {
@@ -83,6 +99,9 @@ export const registerRolesHandlers = () => {
     })
 
     ipcMain.handle("delete-rol", async (_, id) => {
+        if (!checkPermission("roles_gestionar")) {
+            return { success: false, error: "No autorizado para remover esquemas de seguridad corporativos." }
+        }
         try {
             const rolActual = appDb.prepare("SELECT nombre, is_system FROM roles WHERE id = ?").get(id)
             if (rolActual && rolActual.is_system === 1) {

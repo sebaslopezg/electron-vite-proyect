@@ -12,7 +12,7 @@ const Toast = Swal.mixin({
     timerProgressBar: true
 })
 
-export const Usuarios = () => {
+export const Usuarios = ({ currentUser }) => {
     const [usuarios, setUsuarios] = useState([])
     const [roles, setRoles] = useState([])
     const [showModal, setShowModal] = useState(false)
@@ -43,7 +43,16 @@ export const Usuarios = () => {
             }
             if (target.classList.contains('btn-delete')) {
                 Swal.fire({ title: '¿Eliminar?', icon: 'warning', showCancelButton: true }).then(r => {
-                    if(r.isConfirmed) window.api.deleteUsuario(target.dataset.id).then(loadData)
+                    if(r.isConfirmed) {
+                        window.api.deleteUsuario(target.dataset.id).then((res) => {
+                            if (res && !res.success) {
+                                Toast.fire({ icon: 'error', title: res.error || 'No se pudo eliminar' })
+                            } else {
+                                Toast.fire({ icon: 'success', title: 'Usuario eliminado correctamente' })
+                                loadData()
+                            }
+                        })
+                    }
                 })
             }
         }

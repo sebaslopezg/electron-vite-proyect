@@ -4,6 +4,14 @@ import bcrypt from "bcryptjs"
 import { appDb } from "../database/index.js" 
 import { logger } from "../utils/logger.js"
 
+// Función auxiliar para validar los permisos globales en el Backend
+const checkPermission = (permission) => {
+    const user = global.currentUserSession;
+    if (!user) return false;
+    if (user.permisos?.includes("ALL")) return true; // SuperAdmin pasa directo
+    return user.permisos?.includes(permission);
+}
+
 export const registerUsuariosHandlers = () => {
     
     appDb.exec(`
@@ -19,70 +27,103 @@ export const registerUsuariosHandlers = () => {
         );
     `);
 
-    const checkAdmin = appDb.prepare("SELECT COUNT(*) as count FROM usuarios").get();
+    const checkAdmin = appDb.prepare("SELECT COUNT(*) as count FROM usuarios").get()
     if (checkAdmin.count === 0) {
-        const hash = bcrypt.hashSync('admin123', 10);
+        const hash = bcrypt.hashSync('admin123', 10)
         appDb.prepare(`
             INSERT INTO usuarios (id, nombre_completo, username, password_hash, rol, status, date_created) 
             VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
-        `).run(uuidv4(), 'Administrador Principal', 'admin', hash, 'Administrador');
-        logger.info('SISTEMA', 'Usuario "admin" (clave: admin123) creado por defecto.');
+        `).run(uuidv4(), 'Administrador Principal', 'admin', hash, 'Administrador')
+        logger.info('SISTEMA', 'Usuario "admin" (clave: admin123) creado por defecto.')
     }
 
     ipcMain.handle("check-login-required", () => {
         try {
-            const activeUsers = appDb.prepare("SELECT * FROM usuarios WHERE status = 1").all();
+            const activeUsers = appDb.prepare("SELECT * FROM usuarios WHERE status = 1").all()
             
             if (activeUsers.length > 1) {
-                return { success: true, required: true };
+                return { success: true, required: true }
             }
             
             if (activeUsers.length === 1) {
-                const singleUser = activeUsers[0];
+                const singleUser = activeUsers[0]
                 if (singleUser.username === 'admin') {
-                    const isDefaultPassword = bcrypt.compareSync('admin123', singleUser.password_hash);
+                    const isDefaultPassword = bcrypt.compareSync('admin123', singleUser.password_hash)
                     if (isDefaultPassword) {
+                        
+                        const roleRow = appDb.prepare("SELECT permisos_json FROM roles WHERE nombre = ?").get(singleUser.rol)
+                        let permisos = ["ALL"]
+                        try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
+
+                        const userSession = { 
+                            id: singleUser.id, 
+                            nombre_completo: singleUser.nombre_completo, 
+                            username: singleUser.username, 
+                            rol: singleUser.rol,
+                            permisos: permisos 
+                        }
+
+                        global.currentUserSession = userSession
+
                         return { 
                             success: true, 
                             required: false, 
-                            user: { id: singleUser.id, nombre_completo: singleUser.nombre_completo, username: singleUser.username, rol: singleUser.rol } 
-                        };
+                            user: userSession
+                        }
                     }
                 }
-                return { success: true, required: true };
+                return { success: true, required: true }
             }
             
-            return { success: true, required: false };
+            return { success: true, required: false }
         } catch (error) {
-            logger.error('USUARIOS', "Error al verificar requerimiento de login", error);
-            return { success: false, error: error.message };
+            logger.error('USUARIOS', "Error al verificar requerimiento de login", error)
+            return { success: false, error: error.message }
         }
-    });
+    })
 
     ipcMain.handle("login-user", async (_, { username, password }) => {
         try {
-            const user = appDb.prepare("SELECT * FROM usuarios WHERE username = ? AND status = 1").get(username.toLowerCase().trim());
+            const user = appDb.prepare("SELECT * FROM usuarios WHERE username = ? AND status = 1").get(username.toLowerCase().trim())
             if (!user) {
-                return { success: false, error: "Usuario o contraseña incorrectos." };
+                return { success: false, error: "Usuario o contraseña incorrectos." }
             }
 
-            const match = bcrypt.compareSync(password, user.password_hash);
+            const match = bcrypt.compareSync(password, user.password_hash)
             if (!match) {
-                return { success: false, error: "Usuario o contraseña incorrectos." };
+                return { success: false, error: "Usuario o contraseña incorrectos." }
             }
 
-            logger.info('SISTEMA', `Inicio de sesión exitoso: @${user.username} [${user.rol}]`);
+            const roleRow = appDb.prepare("SELECT permisos_json FROM roles WHERE nombre = ?").get(user.rol)
+            let permisos = []
+            try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
+
+            const userSession = { 
+                id: user.id, 
+                nombre_completo: user.nombre_completo, 
+                username: user.username, 
+                rol: user.rol,
+                permisos: permisos 
+            }
+
+            global.currentUserSession = userSession
+
+            logger.info('SISTEMA', `Inicio de sesión exitoso: @${user.username} [${user.rol}]`)
             return {
                 success: true,
-                user: { id: user.id, nombre_completo: user.nombre_completo, username: user.username, rol: user.rol }
-            };
+                user: userSession
+            }
         } catch (error) {
-            logger.error('USUARIOS', "Error crítico en proceso de login", error);
+            logger.error('USUARIOS', "Error crítico en proceso de login", error)
             return { success: false, error: error.message };
         }
-    });
+    })
 
+    // --- BLINDAJE DE SEGURIDAD OPERATIVA ---
     ipcMain.handle("get-usuarios", () => {
+        if (!checkPermission("usuarios_gestionar")) {
+            return { success: false, error: "No autorizado para ver el personal del sistema." }
+        }
         try {
             const stmt = appDb.prepare("SELECT id, nombre_completo, username, rol, status, date_created FROM usuarios WHERE status = 1 ORDER BY nombre_completo ASC")
             return { success: true, data: stmt.all() }
@@ -93,6 +134,9 @@ export const registerUsuariosHandlers = () => {
     })
 
     ipcMain.handle("add-usuario", async (_, user) => {
+        if (!checkPermission("usuarios_gestionar")) {
+            return { success: false, error: "No autorizado para registrar nuevas cuentas de usuario." }
+        }
         try {
             const id = uuidv4()
             const now = new Date().toISOString()
@@ -104,11 +148,11 @@ export const registerUsuariosHandlers = () => {
             `)
             stmt.run(id, user.nombre_completo, user.username, hash, user.rol, now, now)
             
-            logger.success('USUARIOS', `Nuevo usuario creado: ${user.nombre_completo}`, `Usuario: ${user.username} | Rol: ${user.rol}`);
+            logger.success('USUARIOS', `Nuevo usuario creado: ${user.nombre_completo}`, `Usuario: ${user.username} | Rol: ${user.rol}`)
             return { success: true, id }
         } catch (error) {
             if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                logger.warning('USUARIOS', `Intento de crear usuario duplicado: ${user.username}`);
+                logger.warning('USUARIOS', `Intento de crear usuario duplicado: ${user.username}`)
                 return { success: false, error: "El nombre de usuario (username) ya está en uso." }
             }
             logger.error('USUARIOS', `Error creando el usuario: ${user.username}`, error)
@@ -117,6 +161,9 @@ export const registerUsuariosHandlers = () => {
     })
 
     ipcMain.handle("update-usuario", async (_, user) => {
+        if (!checkPermission("usuarios_gestionar")) {
+            return { success: false, error: "No autorizado para modificar datos de accesos o credenciales." }
+        }
         try {
             const now = new Date().toISOString()
             
@@ -136,7 +183,7 @@ export const registerUsuariosHandlers = () => {
                     WHERE id = ?
                 `)
                 stmt.run(user.nombre_completo, user.username, user.rol, now, user.id)
-                logger.success('USUARIOS', `Usuario actualizado (Sin cambiar clave): ${user.username}`);
+                logger.success('USUARIOS', `Usuario actualizado (Sin cambiar clave): ${user.username}`)
             }
 
             return { success: true }
@@ -150,19 +197,22 @@ export const registerUsuariosHandlers = () => {
     })
 
     ipcMain.handle("delete-usuario", async (_, id) => {
+        if (!checkPermission("usuarios_gestionar")) {
+            return { success: false, error: "No autorizado para revocar accesos del sistema." }
+        }
         try {
             const check = appDb.prepare("SELECT COUNT(*) as count FROM usuarios WHERE status = 1 AND rol = 'Administrador'").get()
             const userToDel = appDb.prepare("SELECT rol, username FROM usuarios WHERE id = ?").get(id)
             
             if (userToDel && userToDel.rol === 'Administrador' && check.count <= 1) {
-                logger.warning('USUARIOS', "Intento denegado de eliminar al último Administrador del sistema.");
+                logger.warning('USUARIOS', "Intento denegado de eliminar al último Administrador del sistema.")
                 return { success: false, error: "No puedes eliminar al último Administrador del sistema." }
             }
 
             const stmt = appDb.prepare("UPDATE usuarios SET status = 0, date_modify = datetime('now') WHERE id = ?")
             stmt.run(id)
             
-            logger.warning('USUARIOS', `Usuario enviado a la papelera (Username: ${userToDel?.username})`);
+            logger.warning('USUARIOS', `Usuario enviado a la papelera (Username: ${userToDel?.username})`)
             return { success: true }
         } catch (error) {
             logger.error('USUARIOS', `Error al intentar eliminar el usuario (ID: ${id})`, error)

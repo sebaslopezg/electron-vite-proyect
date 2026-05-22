@@ -14,8 +14,9 @@ const Toast = Swal.mixin({
     timerProgressBar: true
 })
 
-export const Ventas = () => {
+export const Ventas = ({ currentUser }) => {
     const [almacenData, setAlmacenData] = useState([])
+    const [activeTab, setActiveTab] = useState('')
 
     const loadAlmacenConf = async () => {
         const data = await window.api.getAllConfAlmacen()
@@ -26,13 +27,42 @@ export const Ventas = () => {
         }
     }
 
+    const hasPermission = (permissionKey) => {
+        if (!currentUser) return false
+        if (currentUser.permisos?.includes('ALL')) return true
+        return currentUser.permisos?.includes(permissionKey)
+    }
+
+    const tabsDisponibles = [
+        { id: 'facturacion', label: 'Facturación', permission: 'ventas_crear', component: <Facturacion /> },
+        { id: 'verFacturas', label: 'Ver Facturas', permission: 'ventas_historial', component: <VerFacturas /> },
+        { id: 'reportes', label: 'Reportes', permission: 'reportes_ver', component: <Reportes /> },
+        { id: 'notas', label: 'Nota Crédito/Débito', permission: 'notas_gestionar', component: <Notas /> },
+        { id: 'config', label: 'Configurar', permission: 'ventas_configurar', component: <Configuracion data={almacenData} onReload={loadAlmacenConf} /> }
+    ].filter(tab => hasPermission(tab.permission))
+
     useEffect(() => {
         loadAlmacenConf()
-    }, [])
+        if (tabsDisponibles.length > 0) {
+            setActiveTab(tabsDisponibles[0].id)
+        }
+    }, [currentUser])
 
     if (!almacenData) {
-        return <div>Cargando configuración...</div>
+        return <div className="p-3 text-muted small">Cargando datos contables...</div>
     }
+
+    if (tabsDisponibles.length === 0) {
+        return (
+            <div className="alert alert-warning m-3 text-center shadow-sm">
+                <i className="bi bi-lock-fill fs-2 d-block mb-2"></i>
+                <h6 className="fw-bold">Sin Accesos Permitidos</h6>
+                <p className="small m-0 text-muted">Tu rol no cuenta con permisos asignados para sub-módulos de facturación.</p>
+            </div>
+        )
+    }
+
+    const currentTabObj = tabsDisponibles.find(t => t.id === activeTab)
 
     return <>
         <div className="pagetitle">
@@ -43,113 +73,23 @@ export const Ventas = () => {
             <div className="card">
                 <div className="card-body pt-3">
 
-                    <ul className="nav nav-tabs nav-tabs-bordered" id="borderedTab" role="tablist">
-                        <li className="nav-item" role="presentation">
-                            <button 
-                                className="nav-link active" 
-                                id="facturacion-tab" 
-                                data-bs-toggle="tab" 
-                                data-bs-target="#facturacion" 
-                                type="button" 
-                                role="tab" 
-                                aria-selected="false" 
-                                tabIndex="-1"
-                            >Facturacion
-                            </button>
-                        </li>
-                        <li className="nav-item" role="presentation">
-                            <button 
-                                className="nav-link" 
-                                id="verFacturas-tab" 
-                                data-bs-toggle="tab" 
-                                data-bs-target="#verFacturas" 
-                                type="button" 
-                                role="tab" 
-                                aria-selected="false" 
-                                tabIndex="-1"
-                            >Ver facturas
-                            </button>
-                        </li>
-                        <li className="nav-item" role="presentation">
-                            <button 
-                                className="nav-link" 
-                                id="reportes-tab" 
-                                data-bs-toggle="tab" 
-                                data-bs-target="#reportes" 
-                                type="button" 
-                                role="tab"
-                            >Reportes
-                            </button>
-                        </li>
-                        <li className="nav-item" role="presentation">
-                            <button 
-                                className="nav-link" 
-                                id="notas-tab" 
-                                data-bs-toggle="tab" 
-                                data-bs-target="#notas" 
-                                type="button" 
-                                role="tab" 
-                                aria-selected="false" 
-                                tabIndex="-1"
-                            >Nota crédito/Nota débito
-                            </button>
-                        </li>
-                        <li className="nav-item" role="presentation">
-                            <button 
-                                className="nav-link" 
-                                id="configurar-tab" 
-                                data-bs-toggle="tab" 
-                                data-bs-target="#config" 
-                                type="button" 
-                                role="tab" 
-                                aria-selected="false" 
-                                tabIndex="-1"
-                            >Configurar
-                            </button>
-                        </li>
+                    <ul className="nav nav-tabs nav-tabs-bordered" role="tablist">
+                        {tabsDisponibles.map(tab => (
+                            <li className="nav-item" role="presentation" key={tab.id}>
+                                <button 
+                                    className={`nav-link ${activeTab === tab.id ? 'active' : ''}`}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    type="button" 
+                                    role="tab"
+                                >
+                                    {tab.label}
+                                </button>
+                            </li>
+                        ))}
                     </ul>
 
-                    <div className="tab-content pt-2" id="borderedTabContent">
-                        <div 
-                            className="tab-pane fade show active" 
-                            id="facturacion" 
-                            role="tabpanel" 
-                            aria-labelledby="facturacion-tab"
-                        >
-                            <Facturacion />
-                        </div>
-                        <div 
-                            className="tab-pane fade" 
-                            id="verFacturas" 
-                            role="tabpanel" 
-                            aria-labelledby="verFacturas-tab"
-                        >
-                            <VerFacturas />
-                        </div>
-                        <div 
-                            className="tab-pane fade" 
-                            id="reportes" 
-                            role="tabpanel" 
-                            aria-labelledby="reportes-tab"
-                        >
-                            <Reportes />
-                        </div>
-                        <div 
-                            className="tab-pane fade" 
-                            id="notas" 
-                            role="tabpanel" 
-                            aria-labelledby="notas-tab"
-                        >
-                            <Notas />
-                        </div>
-                        <div 
-                            className="tab-pane fade" 
-                            id="config" 
-                            role="tabpanel" 
-                            aria-labelledby="configurar-tab"
-                        >
-                            <Configuracion data={almacenData} onReload={loadAlmacenConf} />
-                        </div>
+                    <div className="tab-content pt-4 animate__animated animate__fadeIn">
+                        {currentTabObj ? currentTabObj.component : <div className="text-muted small">Cargando módulo...</div>}
                     </div>
 
                 </div>

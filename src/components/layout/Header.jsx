@@ -1,57 +1,52 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
 import defaultLogo from './../../assets/favicon.png'
 
 export const Header = () => {
-    const [searchBarShow, setSearchBarShow] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchBarShow, setSearchBarShow] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
     
-    // NUEVO: Estados del nombre y logo
-    const [appName, setAppName] = useState('Caedro');
-    const [appLogo, setAppLogo] = useState(defaultLogo);
+    const [appName, setAppName] = useState('Caedro')
+    const [appLogo, setAppLogo] = useState(defaultLogo)
 
     const loadConfig = async () => {
         try {
-            const data = await window.api.getConfiguracion();
-            const appConf = data.find(r => r.key === 'confApp');
+            const data = await window.api.getConfiguracion()
+            const appConf = data.find(r => r.key === 'confApp')
             if (appConf && appConf.value) {
-                const parsed = JSON.parse(appConf.value);
-                if (parsed.nombre) setAppName(parsed.nombre);
-                if (parsed.logo) setAppLogo(parsed.logo);
+                const parsed = JSON.parse(appConf.value)
+                if (parsed.nombre) setAppName(parsed.nombre)
+                if (parsed.logo) setAppLogo(parsed.logo)
                 
-                // Actualizar documento principal por si recargan la página
-                document.title = parsed.nombre || 'Caedro';
-                if (window.api.updateWindow) window.api.updateWindow({ nombre: parsed.nombre, logo: parsed.logo });
+                document.title = parsed.nombre || 'Caedro'
+                if (window.api.updateWindow) window.api.updateWindow({ nombre: parsed.nombre, logo: parsed.logo })
             }
         } catch (error) {
-            console.error("Error cargando configuración en Header:", error);
+            console.error("Error cargando configuración en Header:", error)
         }
     };
 
     useEffect(() => {
-        // Cargar al inicio
-        loadConfig();
+        loadConfig()
         
-        // Escuchar cambios guardados en la página de Configuración
-        const handleUpdate = () => loadConfig();
-        window.addEventListener('config-actualizada', handleUpdate);
+        const handleUpdate = () => loadConfig()
+        window.addEventListener('config-actualizada', handleUpdate)
         
-        return () => window.removeEventListener('config-actualizada', handleUpdate);
-    }, []);
+        return () => window.removeEventListener('config-actualizada', handleUpdate)
+    }, [])
 
     const handleSidebarToggle = () => {
-        document.body.classList.toggle('toggle-sidebar');
+        document.body.classList.toggle('toggle-sidebar')
     };
 
     const handleSearchBarToggle = (e) => {
-        e.preventDefault();
-        setSearchBarShow(!searchBarShow);
-    };
+        e.preventDefault()
+        setSearchBarShow(!searchBarShow)
+    }
 
-    return (
+    return <>
         <header id="header" className="header fixed-top d-flex align-items-center">
             <div className="d-flex align-items-center justify-content-between">
                 <a href="index.html" className="logo d-flex align-items-center">
-                    {/* AQUI SE MUESTRA EL LOGO Y NOMBRE DINÁMICO */}
                     <img src={appLogo} alt="Logo" style={{ maxHeight: '40px', objectFit: 'contain' }} />
                     <span className="d-none d-lg-block ms-2">{appName}</span>
                 </a>
@@ -241,88 +236,81 @@ export const Header = () => {
 
             </nav>
         </header>
-    );
-};
+    </>
+}
 
-// Custom hook for dashboard functionality
 export const useDashboardEffects = () => {
-    const [showBackToTop, setShowBackToTop] = useState(false);
+    const [showBackToTop, setShowBackToTop] = useState(false)
 
-    // Scroll handlers
     useEffect(() => {
         const handleScroll = () => {
-            const scrollY = window.scrollY;
+            const scrollY = window.scrollY
             
-            // Header scrolled class
-            const header = document.getElementById('header');
+            const header = document.getElementById('header')
             if (header) {
                 if (scrollY > 100) {
-                    header.classList.add('header-scrolled');
+                    header.classList.add('header-scrolled')
                 } else {
-                    header.classList.remove('header-scrolled');
+                    header.classList.remove('header-scrolled')
                 }
             }
 
-            // Back to top button
-            setShowBackToTop(scrollY > 100);
+            setShowBackToTop(scrollY > 100)
 
-            // Navbar links active state
-            const navbarlinks = document.querySelectorAll('#navbar .scrollto');
-            const position = scrollY + 200;
+            const navbarlinks = document.querySelectorAll('#navbar .scrollto')
+            const position = scrollY + 200
             
             navbarlinks.forEach(navbarlink => {
-                if (!navbarlink.hash) return;
-                const section = document.querySelector(navbarlink.hash);
-                if (!section) return;
+                if (!navbarlink.hash) return
+                const section = document.querySelector(navbarlink.hash)
+                if (!section) return
                 
                 if (position >= section.offsetTop && position <= (section.offsetTop + section.offsetHeight)) {
-                    navbarlink.classList.add('active');
+                    navbarlink.classList.add('active')
                 } else {
-                    navbarlink.classList.remove('active');
+                    navbarlink.classList.remove('active')
                 }
-            });
-        };
+            })
+        }
 
-        window.addEventListener('scroll', handleScroll);
-        handleScroll();
+        window.addEventListener('scroll', handleScroll)
+        handleScroll()
 
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+        return () => window.removeEventListener('scroll', handleScroll)
+    }, [])
 
-    // Initialize Bootstrap tooltips
     useEffect(() => {
-        if (!window.bootstrap) return;
+        if (!window.bootstrap) return
 
         const tooltipTriggerList = [].slice.call(
             document.querySelectorAll('[data-bs-toggle="tooltip"]')
         );
         
         const tooltipList = tooltipTriggerList.map(tooltipTriggerEl => {
-            return new window.bootstrap.Tooltip(tooltipTriggerEl);
-        });
+            return new window.bootstrap.Tooltip(tooltipTriggerEl)
+        })
 
         return () => {
-            tooltipList.forEach(tooltip => tooltip.dispose());
-        };
-    }, []);
+            tooltipList.forEach(tooltip => tooltip.dispose())
+        }
+    }, [])
 
-    // Initialize Quill editors
     useEffect(() => {
-        if (!window.Quill) return;
+        if (!window.Quill) return
 
-        const editors = [];
+        const editors = []
 
-        const defaultEditor = document.querySelector('.quill-editor-default');
+        const defaultEditor = document.querySelector('.quill-editor-default')
         if (defaultEditor && !defaultEditor.classList.contains('ql-container')) {
-            editors.push(new window.Quill(defaultEditor, { theme: 'snow' }));
+            editors.push(new window.Quill(defaultEditor, { theme: 'snow' }))
         }
 
-        const bubbleEditor = document.querySelector('.quill-editor-bubble');
+        const bubbleEditor = document.querySelector('.quill-editor-bubble')
         if (bubbleEditor && !bubbleEditor.classList.contains('ql-container')) {
-            editors.push(new window.Quill(bubbleEditor, { theme: 'bubble' }));
+            editors.push(new window.Quill(bubbleEditor, { theme: 'bubble' }))
         }
 
-        const fullEditor = document.querySelector('.quill-editor-full');
+        const fullEditor = document.querySelector('.quill-editor-full')
         if (fullEditor && !fullEditor.classList.contains('ql-container')) {
             editors.push(new window.Quill(fullEditor, {
                 modules: {
@@ -338,15 +326,14 @@ export const useDashboardEffects = () => {
                     ]
                 },
                 theme: "snow"
-            }));
+            }))
         }
-    }, []);
+    }, [])
 
-    // Initialize TinyMCE
     useEffect(() => {
         if (!window.tinymce) return;
 
-        const useDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const useDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
 
         window.tinymce.init({
             selector: 'textarea.tinymce-editor',
@@ -359,16 +346,15 @@ export const useDashboardEffects = () => {
         });
 
         return () => {
-            window.tinymce.remove();
-        };
-    }, []);
+            window.tinymce.remove()
+        }
+    }, [])
 
-    // Initialize DataTables
     useEffect(() => {
-        if (!window.simpleDatatables) return;
+        if (!window.simpleDatatables) return
 
-        const datatables = document.querySelectorAll('.datatable');
-        const instances = [];
+        const datatables = document.querySelectorAll('.datatable')
+        const instances = []
 
         datatables.forEach(datatable => {
             if (!datatable.classList.contains('dataTable-wrapper')) {
@@ -379,104 +365,98 @@ export const useDashboardEffects = () => {
                         { select: 3, sortSequence: ["desc"] },
                         { select: 4, cellClass: "green", headerClass: "red" }
                     ]
-                });
-                instances.push(instance);
+                })
+                instances.push(instance)
             }
-        });
+        })
 
         return () => {
             instances.forEach(instance => {
                 if (instance && instance.destroy) {
                     instance.destroy();
                 }
-            });
-        };
-    }, []);
+            })
+        }
+    }, [])
 
-    // Initialize ECharts resize observer
     useEffect(() => {
-        if (!window.echarts) return;
+        if (!window.echarts) return
 
-        const mainContainer = document.getElementById('main');
-        if (!mainContainer) return;
+        const mainContainer = document.getElementById('main')
+        if (!mainContainer) return
 
         const resizeObserver = new ResizeObserver(() => {
-            const echartElements = document.querySelectorAll('.echart');
+            const echartElements = document.querySelectorAll('.echart')
             echartElements.forEach(element => {
-                const instance = window.echarts.getInstanceByDom(element);
+                const instance = window.echarts.getInstanceByDom(element)
                 if (instance) {
-                    instance.resize();
+                    instance.resize()
                 }
-            });
-        });
+            })
+        })
 
         const timer = setTimeout(() => {
-            resizeObserver.observe(mainContainer);
-        }, 200);
+            resizeObserver.observe(mainContainer)
+        }, 200)
 
         return () => {
-            clearTimeout(timer);
-            resizeObserver.disconnect();
-        };
-    }, []);
+            clearTimeout(timer)
+            resizeObserver.disconnect()
+        }
+    }, [])
 
-    // Bootstrap form validation
     useEffect(() => {
-        const forms = document.querySelectorAll('.needs-validation');
+        const forms = document.querySelectorAll('.needs-validation')
 
         const handleSubmit = (event) => {
-            const form = event.target;
+            const form = event.target
             if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
+                event.preventDefault()
+                event.stopPropagation()
             }
-            form.classList.add('was-validated');
-        };
+            form.classList.add('was-validated')
+        }
 
         forms.forEach(form => {
-            form.addEventListener('submit', handleSubmit);
-        });
+            form.addEventListener('submit', handleSubmit)
+        })
 
         return () => {
             forms.forEach(form => {
-                form.removeEventListener('submit', handleSubmit);
-            });
-        };
-    }, []);
+                form.removeEventListener('submit', handleSubmit)
+            })
+        }
+    }, [])
 
-    return { showBackToTop };
-};
+    return { showBackToTop }
+}
 
-// Main App Component
 export default function App() {
-    const { showBackToTop } = useDashboardEffects();
+    const { showBackToTop } = useDashboardEffects()
 
     const scrollToTop = () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
 
-    return (
-        <>
-            <Header />
+    return <>
+        <Header />
 
-            <aside id="sidebar" className="sidebar">
-                {/* Your sidebar content */}
-            </aside>
+        <aside id="sidebar" className="sidebar">
+        </aside>
 
-            <main id="main" className="main">
-                {/* Your dashboard content goes here */}
-            </main>
+        <main id="main" className="main">
+        </main>
 
-            <a
-                href="#"
-                className={`back-to-top d-flex align-items-center justify-content-center ${showBackToTop ? 'active' : ''}`}
-                onClick={(e) => {
-                    e.preventDefault();
-                    scrollToTop();
-                }}
-            >
-                <i className="bi bi-arrow-up-short"></i>
-            </a>
-        </>
-    );
+        <a
+            href="#"
+            className={`back-to-top d-flex align-items-center justify-content-center ${showBackToTop ? 'active' : ''}`}
+            onClick={(e) => {
+                e.preventDefault()
+                scrollToTop()
+            }}
+        >
+            <i className="bi bi-arrow-up-short"></i>
+        </a>
+    </>
+    
 }

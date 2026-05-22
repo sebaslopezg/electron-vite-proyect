@@ -3,6 +3,13 @@ import db from "../database/index.js"
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession;
+    if (!user) return false;
+    if (user.permisos?.includes("ALL")) return true;
+    return user.permisos?.includes(permission);
+}
+
 export const registerAlmacenConfigHandlers = () => {
 
     ipcMain.handle("getAll-almacenConf", () => {
@@ -15,32 +22,13 @@ export const registerAlmacenConfigHandlers = () => {
         }
     })
 
-    ipcMain.handle("getOne-almacenConf", (_, id) =>{
-        try {
-            const stmt = db.prepare("SELECT * FROM almacen_conf WHERE id = @id AND status > 0")
-            const info = stmt.run({id:id})
-            return { success: true, changes: info.changes }
-        } catch (error) {
-            logger.error('CONFIGURACION', `Error al intentar obtener la configuración (ID: ${id})`, error)
-            return { success: false, error: error.message }
-        }
-    })
-
-    ipcMain.handle("update-consecutivoFactura" ,(_, item) =>{
-        try {
-            const stmt = db.prepare(`UPDATE almacen_conf SET consecutivo = @consecutivo WHERE id = @id`)
-            const info = stmt.run({...item})
-            return { success: true, changes: info.changes }
-        } catch (error) {
-            logger.error('CONFIGURACION', "Error al actualizar el consecutivo de factura", error)
-            return { success: false, error: error.message }
-        }
-    })
-
     ipcMain.handle("update-almacenConf", (_, item) => {
+        if (!checkPermission("ventas_configurar")) {
+            return { success: false, error: "No autorizado para modificar los datos fiscales y resoluciones del almacén." };
+        }
         try {
             const now = new Date().toISOString()
-            const user = 'system'
+            const user = global.currentUserSession?.username || 'system'
 
             const stmt = db.prepare(`
                 UPDATE almacen_conf SET 
@@ -72,7 +60,7 @@ export const registerAlmacenConfigHandlers = () => {
                 modify_by: user
             })
             
-            logger.success('CONFIGURACION', 'La configuración del almacén fue actualizada correctamente', `Usuario: ${user}`);
+            logger.success('CONFIGURACION', 'La configuración del almacén fue actualizada correctamente');
             return { success: true, changes: info.changes }
         } catch (error) {
             logger.error('CONFIGURACION', "Error al actualizar la configuración principal del almacén", error)
@@ -90,6 +78,9 @@ export const registerAlmacenConfigHandlers = () => {
     });
 
     ipcMain.handle("add-metodo-pago", (_, nombre) => {
+        if (!checkPermission("ventas_configurar")) {
+            return { success: false, error: "No autorizado." };
+        }
         try {
             const id = uuidv4()
             db.prepare("INSERT INTO metodos_pago (id, nombre) VALUES (?, ?)").run(id, nombre)
@@ -97,32 +88,32 @@ export const registerAlmacenConfigHandlers = () => {
             return { success: true, id, nombre }
         } catch (error) {
             if (error.message.includes('UNIQUE')) {
-                logger.warning('METODOS_PAGO', `Intento de duplicar método de pago: ${nombre}`);
                 return { success: false, error: 'Este método ya existe.' }
             }
-            logger.error('METODOS_PAGO', `Error al agregar método de pago: ${nombre}`, error)
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("update-metodo-pago-cuenta", (_, { id, cuenta_id }) => {
+        if (!checkPermission("ventas_configurar")) {
+            return { success: false, error: "No autorizado." };
+        }
         try {
             db.prepare("UPDATE metodos_pago SET cuenta_id = ? WHERE id = ?").run(cuenta_id, id)
-            logger.info('METODOS_PAGO', `Cuenta contable vinculada al método de pago (ID: ${id})`);
             return { success: true }
         } catch (error) {
-            logger.error('METODOS_PAGO', `Error actualizando cuenta del método de pago (ID: ${id})`, error)
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("delete-metodo-pago", (_, id) => {
+        if (!checkPermission("ventas_configurar")) {
+            return { success: false, error: "No autorizado." };
+        }
         try {
             db.prepare("DELETE FROM metodos_pago WHERE id = ?").run(id)
-            logger.warning('METODOS_PAGO', `Método de pago eliminado de la base de datos (ID: ${id})`);
             return { success: true }
         } catch (error) {
-            logger.error('METODOS_PAGO', `Error al intentar eliminar método de pago (ID: ${id})`, error)
             return { success: false, error: error.message }
         }
     })

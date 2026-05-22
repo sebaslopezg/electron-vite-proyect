@@ -8,7 +8,7 @@ const Toast = Swal.mixin({
     toast: true, position: 'bottom-end', showConfirmButton: false, timer: 3000, timerProgressBar: true
 })
 
-export const Roles = () => {
+export const Roles = ({ currentUser }) => {
     const [roles, setRoles] = useState([])
     const [showModal, setShowModal] = useState(false)
     const [editData, setEditData] = useState(null)
@@ -17,7 +17,11 @@ export const Roles = () => {
     const loadRoles = async () => {
         if (window.api && window.api.getRoles) {
             const res = await window.api.getRoles()
-            if (res.success) setRoles(res.data)
+            if (res.success) {
+                setRoles(res.data)
+            } else {
+                Toast.fire({ icon: 'error', title: res.error || 'Error al obtener los roles' })
+            }
         }
     }
 
@@ -36,10 +40,10 @@ export const Roles = () => {
         if (confirm.isConfirmed) {
             const res = await window.api.deleteRol(id)
             if (res.success) {
-                Toast.fire({ icon: 'success', title: 'Rol eliminado.' })
+                Toast.fire({ icon: 'success', title: 'Rol eliminado con éxito.' })
                 loadRoles()
             } else {
-                Toast.fire({ icon: 'warning', title: res.error })
+                Toast.fire({ icon: 'warning', title: res.error || 'No se pudo eliminar el rol' })
             }
         }
     }

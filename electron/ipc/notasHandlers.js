@@ -3,9 +3,17 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession;
+    if (!user) return false;
+    if (user.permisos?.includes("ALL")) return true;
+    return user.permisos?.includes(permission);
+}
+
 export const registerNotasHandlers = () => {
 
   ipcMain.handle("get-notas", () => {
+    if (!checkPermission("notas_gestionar")) return [];
     try {
       const stmt = db.prepare(`
         SELECT 
@@ -23,12 +31,14 @@ export const registerNotasHandlers = () => {
     }
   })
 
-
   ipcMain.handle("add-nota", (_, data) => {
+    if (!checkPermission("notas_gestionar")) {
+        return { success: false, error: "No autorizado para emitir notas de crédito o débito contables." };
+    }
     const createNotaTransaction = db.transaction((notaData) => {
       const now = new Date().toISOString()
       const notaId = uuidv4()
-      const currentUser = notaData.usuario || 'system'
+      const currentUser = global.currentUserSession?.username || 'system'
 
       const config = db.prepare('SELECT id, consecutivo_nota, consecutivo_nota_debito FROM almacen_conf LIMIT 1').get()
       if (!config) throw new Error("No se encontró configuración del almacén")
@@ -44,46 +54,14 @@ export const registerNotasHandlers = () => {
 
       const insertNota = db.prepare(`
         INSERT INTO nota (
-          id, 
-          tipo_nota, 
-          prefijo, 
-          numero_nota, 
-          id_factura_origen, 
-          numero_factura_origen, 
-          documento_cliente, 
-          nombre_cliente, 
-          motivo_dian, 
-          observaciones, 
-          total_base, 
-          total_iva, 
-          total_final, 
-          moneda,
-          formato_numero,
-          status, 
-          date_created, 
-          date_modify, 
-          modify_by
+          id, tipo_nota, prefijo, numero_nota, id_factura_origen, numero_factura_origen, 
+          documento_cliente, nombre_cliente, motivo_dian, observaciones, total_base, 
+          total_iva, total_final, moneda, formato_numero, status, date_created, date_modify, modify_by
         ) 
         VALUES (
-          @id, 
-          @tipo_nota, 
-          @prefijo, 
-          @numero_nota, 
-          @id_factura_origen, 
-          @numero_factura_origen, 
-          @documento_cliente, 
-          @nombre_cliente, 
-          @motivo_dian, 
-          @observaciones, 
-          @total_base, 
-          @total_iva, 
-          @total_final, 
-          @moneda,
-          @formato_numero,
-          1, 
-          @now, 
-          @now, 
-          @usuario
+          @id, @tipo_nota, @prefijo, @numero_nota, @id_factura_origen, @numero_factura_origen, 
+          @documento_cliente, @nombre_cliente, @motivo_dian, @observaciones, @total_base, 
+          @total_iva, @total_final, @moneda, @formato_numero, 1, @now, @now, @usuario
         )
       `)
 
@@ -132,7 +110,7 @@ export const registerNotasHandlers = () => {
           stock_anterior, stock_nuevo, fecha, usuario, notas
         ) VALUES (
           @id, @producto_id, @tipo_movimiento, @modulo_movimiento, @cantidad, 
-          @stock_anterior, @stock_nuevo, @fecha, @usuario, @notas
+          @stock_anterior, @stock_nuevo, @fecha, @usuario, @notes
         )
       `)
 
@@ -151,12 +129,9 @@ export const registerNotasHandlers = () => {
 
         if (notaData.afecta_inventario) {
           const currentProduct = getStock.get(item.id_producto)
-          
           if (currentProduct) {
             const stockAnterior = currentProduct.stock
-            const stockNuevo = notaData.tipo_nota === 'Crédito' 
-              ? stockAnterior + item.cantidad 
-              : stockAnterior - item.cantidad
+            const stockNuevo = notaData.tipo_nota === 'Crédito' ? stockAnterior + item.cantidad : stockAnterior - item.cantidad
 
             updateStock.run({ stock: stockNuevo, now: now, id: item.id_producto })
 
@@ -170,18 +145,11 @@ export const registerNotasHandlers = () => {
               stock_nuevo: stockNuevo,
               fecha: now,
               usuario: currentUser,
-              notas: `Asociado a Nota ${prefijoCalculado}-${nuevoNumeroNota}` 
+              notes: `Asociado a Nota ${prefijoCalculado}-${nuevoNumeroNota}` 
             })
           }
         }
       }
-
-      logger.success(
-        'NOTAS', 
-        `Nota ${notaData.tipo_nota} N° ${prefijoCalculado}-${nuevoNumeroNota} creada con éxito`, 
-        `Aplicada a la Factura Origen N° ${notaData.numero_factura_origen} | Total de la nota: ${notaData.total_final}`
-      )
-
       return notaId
     })
 
@@ -189,26 +157,19 @@ export const registerNotasHandlers = () => {
       const newNotaId = createNotaTransaction(data)
       return { success: true, id: newNotaId }
     } catch (error) {
-      logger.error('NOTAS', "Error crítico en la transacción al intentar generar una Nota (Crédito/Débito)", error)
+      logger.error('NOTAS', "Error crítico al intentar generar una Nota", error)
       return { success: false, error: error.message }
     }
   })
 
-
   ipcMain.handle("search-factura", (_, numero_factura) => {
+    if (!checkPermission("notas_gestionar")) return { success: false, message: "No autorizado" };
     try {
       const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ? AND status > 0').get(numero_factura)
-      
-      if (!maestro) {
-        logger.warning('NOTAS', `Intento de buscar factura inexistente (N°: ${numero_factura})`)
-        return { success: false, message: 'Factura no encontrada' }
-      }
+      if (!maestro) return { success: false, message: 'Factura no encontrada' }
 
       const detalles = db.prepare(`
-          SELECT df.*, 
-            p.sku, 
-            c.sku_prefix, 
-            c.separador
+          SELECT df.*, p.sku, c.sku_prefix, c.separador
           FROM ventasDetalle df
           LEFT JOIN producto p ON df.id_producto = p.id
           LEFT JOIN categoria c ON p.categoria_id = c.id
@@ -217,33 +178,23 @@ export const registerNotasHandlers = () => {
       
       return { success: true, maestro, detalles }
     } catch (error) {
-      logger.error('NOTAS', `Error al intentar buscar la factura N° ${numero_factura} en la base de datos`, error)
       return { success: false, error: error.message }
     }
   })
 
   ipcMain.handle("get-nota-detalle", (_, notaId) => {
+    if (!checkPermission("notas_gestionar")) return { success: false, error: "No autorizado" };
     try {
       const stmt = db.prepare(`
-          SELECT ni.*, 
-            p.sku, 
-            c.sku_prefix, 
-            c.separador
+          SELECT ni.*, p.sku, c.sku_prefix, c.separador
           FROM nota_item ni
           LEFT JOIN producto p ON ni.id_producto = p.id
           LEFT JOIN categoria c ON p.categoria_id = c.id
           WHERE ni.id_nota = ?
       `);
-      
-      const detalles = stmt.all(notaId)
-      const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`)
-      const configuracion = confStmt.get()
-
-      return { success: true, data: detalles, configuracion: configuracion }
+      return { success: true, data: stmt.all(notaId), configuracion: db.prepare(`SELECT * FROM almacen_conf LIMIT 1`).get() }
     } catch (error) {
-      logger.error('NOTAS', `Error al obtener los detalles de la nota (ID: ${notaId})`, error)
       return { success: false, error: error.message }
     }
   })
-
 }

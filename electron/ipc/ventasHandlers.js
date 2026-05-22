@@ -3,9 +3,20 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
+// Función auxiliar para validar permisos en el proceso principal
+const checkPermission = (permission) => {
+    const user = global.currentUserSession;
+    if (!user) return false;
+    if (user.permisos?.includes("ALL")) return true; // SuperAdmin pasa directo
+    return user.permisos?.includes(permission);
+}
+
 export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-maestro", () => {
+        if (!checkPermission("ventas_historial")) {
+            return { success: false, error: "No autorizado para ver el historial de facturas." };
+        }
         try {
             const stmt = db.prepare(`
                 SELECT 
@@ -26,6 +37,9 @@ export const registerVentasHandlers = () => {
     })
 
     ipcMain.handle("get-maestro-paginados", (_, dtParams) => {
+        if (!checkPermission("ventas_historial")) {
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" };
+        }
         try {
             const limit = parseInt(dtParams.length, 10) || 10
             const offset = parseInt(dtParams.start, 10) || 0
@@ -91,6 +105,9 @@ export const registerVentasHandlers = () => {
     })
 
     ipcMain.handle("get-detalle", (_, facturaId) => {
+        if (!checkPermission("ventas_historial")) {
+            return { success: false, error: "No autorizado para consultar detalles de facturación." };
+        }
         try {
             const stmt = db.prepare(`
                 SELECT df.*, 
@@ -157,7 +174,7 @@ export const registerVentasHandlers = () => {
                 imprimir_logo_pos: currentConf.imprimir_logo_pos
             }
 
-            return { success: true, data: detalles, notas: notas, configuracion: configuracionSnapshot }
+            return { success: true, data: detalles, notes: notas, configuracion: configuracionSnapshot }
         } catch (error) {
             logger.error('VENTAS', `Error obteniendo los detalles de la factura (ID: ${facturaId})`, error)
             return { success: false, error: error.message }
@@ -165,6 +182,9 @@ export const registerVentasHandlers = () => {
     })
 
     ipcMain.handle("get-reporte-ventas", (_, { startDate, endDate }) => {
+        if (!checkPermission("reportes_ver")) {
+            return { success: false, error: "No autorizado para consultar reportes financieros de ventas." };
+        }
         try {
             let baseQuery = `FROM ventasMaestro WHERE status > 0`;
             let queryParams = [];
@@ -198,6 +218,9 @@ export const registerVentasHandlers = () => {
     });
 
     ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
+        if (!checkPermission("ventas_crear")) {
+            return { success: false, error: "No autorizado para registrar operaciones de venta de mostrador." };
+        }
         const transaction = db.transaction((maestroData, detallesData) => {
             const now = new Date().toISOString()
             const maestroId = uuidv4()
@@ -210,11 +233,35 @@ export const registerVentasHandlers = () => {
 
             const insertMaestro = db.prepare(`
                 INSERT INTO ventasMaestro (
-                    id, numero_factura, prefijo, separador, resolucion_dian, titulo_documento,
-                    nombre_almacen, nit_almacen, direccion_almacen, telefono_almacen, email_almacen,
-                    footer, nombre_cliente, documento_cliente, subtotal, descuento, iva, total_factura, 
-                    total_recibido, saldo_pendiente, total_recibido_original, saldo_pendiente_original,
-                    tipo_pago, metodo_pago, moneda, formato_numero, date_created, status, observaciones
+                    id,
+                    numero_factura,
+                    prefijo,
+                    separador,
+                    resolucion_dian,
+                    titulo_documento,
+                    nombre_almacen,
+                    nit_almacen,
+                    direccion_almacen,
+                    telefono_almacen,
+                    email_almacen,
+                    footer,
+                    nombre_cliente,
+                    documento_cliente,
+                    subtotal,
+                    descuento,
+                    iva,
+                    total_factura,
+                    total_recibido,
+                    saldo_pendiente,
+                    total_recibido_original,
+                    saldo_pendiente_original,
+                    tipo_pago,
+                    metodo_pago,
+                    moneda,
+                    formato_numero,
+                    date_created,
+                    status,
+                    observaciones
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?
                 )
@@ -293,7 +340,7 @@ export const registerVentasHandlers = () => {
                         insertEncargo.run(uuidv4(), maestroId, item.id, estadoId, maestroData.nombre_cliente, maestroData.documento_cliente, nuevoNumeroFactura, item.cantidad, newNum, now)
                     } catch (err) {
                         if (err.message.includes('FOREIGN KEY')) {
-                            throw new Error("Fallo en Sistema de Encargos. Es posible que hayas eliminado los Estados de Encargo (Pendiente, Completado, etc.).")
+                            throw new Error("Fallo en Sistema de Encargos. Los estados de configuración base están corruptos.")
                         }
                         throw err
                     }
@@ -304,7 +351,6 @@ export const registerVentasHandlers = () => {
                 const configContable = db.prepare('SELECT * FROM configuracionContable WHERE id = 1').get()
                 
                 if (configContable && configContable.cuenta_caja && configContable.cuenta_ingresos) {
-                    
                     const tercero = db.prepare('SELECT id FROM terceros WHERE numero_documento = ?').get(maestroData.documento_cliente)
                     const terceroId = tercero ? tercero.id : null
 
@@ -342,20 +388,11 @@ export const registerVentasHandlers = () => {
                     
                     if (valorPagado > 0) {
                         const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(maestroData.metodo_pago)
-                        
                         const cuentaDestinoEfectivo = (metodoInfo && metodoInfo.cuenta_id) 
                             ? metodoInfo.cuenta_id 
                             : configContable.cuenta_caja
 
-                        insertDetalleContable.run(
-                            uuidv4(), 
-                            comprobanteId, 
-                            cuentaDestinoEfectivo, 
-                            terceroId, 
-                            `Ingreso por ${maestroData.metodo_pago}`, 
-                            valorPagado, 
-                            0
-                        )
+                        insertDetalleContable.run(uuidv4(), comprobanteId, cuentaDestinoEfectivo, terceroId, `Ingreso por ${maestroData.metodo_pago}`, valorPagado, 0)
                     }
 
                     if (maestroData.saldo_pendiente > 0 && configContable.cuenta_cartera) {
@@ -363,9 +400,6 @@ export const registerVentasHandlers = () => {
                     }
                 }
             } catch (err) {
-                if (err.message.includes('FOREIGN KEY')) {
-                    throw new Error("ERROR CONTABLE: Al intentar registrar la factura se descubrió que una Cuenta Contable que tenías configurada ya no existe. Por favor, ve a Contabilidad -> Configurar, y vuelve a enlazar las Cuentas de Ingresos/Caja/etc.")
-                }
                 throw err
             }
 
@@ -379,13 +413,7 @@ export const registerVentasHandlers = () => {
 
         try {
             const result = transaction(maestro, detalles);
-            
-            logger.success(
-                'VENTAS', 
-                `Venta procesada exitosamente: Factura N° ${result.prefijo}${result.numero_factura}`, 
-                `Cliente: ${maestro.nombre_cliente} | Total: ${maestro.total} | Pago: ${maestro.tipo_pago} (${maestro.metodo_pago})`
-            );
-            
+            logger.success('VENTAS', `Venta procesada exitosamente: Factura N° ${result.prefijo}${result.numero_factura}`);
             return result;
         } catch (error) {
             logger.error('VENTAS', "Error crítico al intentar registrar una nueva venta", error)
