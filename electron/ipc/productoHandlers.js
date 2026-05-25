@@ -3,6 +3,13 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession;
+    if (!user) return false;
+    if (user.permisos?.includes("ALL")) return true;
+    return user.permisos?.includes(permission);
+}
+
 export const registerProductoHandlers = () => {
 
   const processProductPrefixes = (data) => {
@@ -34,6 +41,7 @@ export const registerProductoHandlers = () => {
   }
 
   ipcMain.handle("get-productos", () => {
+    if (!checkPermission("productos_ver")) return [];
     try {
       const stmt = db.prepare(`
         SELECT p.*,
@@ -44,7 +52,7 @@ export const registerProductoHandlers = () => {
         FROM producto p
         LEFT JOIN categoria c ON p.categoria_id = c.id
         LEFT JOIN producto_etiqueta pe ON p.id = pe.producto_id
-        WHERE p.status > 0 AND p.tipo = 'producto'
+        WHERE p.status > 0 p.tipo = 'producto'
         GROUP BY p.id
       `)
       const data = stmt.all();
@@ -56,6 +64,9 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("get-productos-paginados", (_, dtParams) => {
+    if (!checkPermission("productos_ver")) {
+        return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" };
+    }
     try {
       const limit = parseInt(dtParams.length, 10) || 10
       const offset = parseInt(dtParams.start, 10) || 0
@@ -135,6 +146,9 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("get-servicios-paginados", (_, dtParams) => {
+    if (!checkPermission("productos_ver")) {
+        return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" };
+    }
     try {
       const limit = parseInt(dtParams.length, 10) || 10
       const offset = parseInt(dtParams.start, 10) || 0
@@ -189,6 +203,7 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("get-servicios", () => {
+    if (!checkPermission("productos_ver")) return [];
     try {
       const stmt = db.prepare(`SELECT * FROM producto WHERE status > 0 AND tipo = 'servicio'`)
       return stmt.all()
@@ -199,6 +214,7 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("get-allProductos", () => {
+    if (!checkPermission("productos_ver") && !checkPermission("ventas_crear")) return [];
     try {
       const stmt = db.prepare(`
         SELECT p.*, c.sku_prefix as cat_prefix, c.separador as cat_separador
@@ -215,6 +231,9 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("add-producto", (_, item) => {
+    if (!checkPermission("productos_gestionar")) {
+        return { success: false, error: "No tienes los permisos requeridos para registrar nuevos ítems en el catálogo." };
+    }
     const transaction = db.transaction((data) => {
       const id = uuidv4()
       const now = new Date().toISOString()
@@ -261,7 +280,7 @@ export const registerProductoHandlers = () => {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           uuidv4(), id, 'ingreso', 'creacion_producto', 
-          data.stock, 0, data.stock, now, 'system', 'Stock inicial al crear producto'
+          data.stock, 0, data.stock, now, global.currentUserSession?.username || 'system', 'Stock inicial al crear producto'
         )
       }
 
@@ -270,7 +289,7 @@ export const registerProductoHandlers = () => {
 
     try {
       const id = transaction(item)
-      logger.success('PRODUCTOS', `Nuevo ${item.tipo || 'producto'} creado: ${item.ref_name}`, `SKU: ${item.sku} | ID: ${id}`)
+      logger.success('PRODUCTOS', `Nuevo ${item.tipo || 'producto'} creado: ${item.ref_name}`)
       return { success: true, id }
     } catch (error) {
       logger.error('PRODUCTOS', `Error al intentar crear el producto: ${item.ref_name}`, error)
@@ -279,6 +298,9 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("update-producto", (_, item) => {
+    if (!checkPermission("productos_gestionar")) {
+        return { success: false, error: "No tienes los permisos requeridos para actualizar registros de este catálogo." };
+    }
     const transaction = db.transaction((data) => {
       const now = new Date().toISOString()
       const status = data.status > 0 && data.status <= 2 ? data.status : 1
@@ -316,7 +338,7 @@ export const registerProductoHandlers = () => {
 
     try {
       transaction(item)
-      logger.success('PRODUCTOS', `Producto actualizado: ${item.ref_name}`, `ID: ${item.id}`)
+      logger.success('PRODUCTOS', `Producto actualizado: ${item.ref_name}`)
       return { success: true }
     } catch (error) {
       logger.error('PRODUCTOS', `Error al intentar actualizar el producto (ID: ${item.id})`, error)
@@ -325,15 +347,16 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("delete-producto", (_, item) => {
+    if (!checkPermission("productos_gestionar")) {
+        return { success: false, error: "No tienes los privilegios requeridos para eliminar registros del inventario." };
+    }
     try {
       const now = new Date().toISOString()
+      const user = global.currentUserSession?.username || 'system'
       const info = db.prepare(`
         UPDATE producto SET status = 0, date_modify = ?, modify_by = ? WHERE id = ?
-      `).run(now, 'No user', item)
+      `).run(now, user, item)
 
-      if (info.changes > 0) {
-        logger.warning('PRODUCTOS', `Producto enviado a la papelera (Soft delete)`, `ID: ${item}`)
-      }
       return { success: true, changes: info.changes }
     } catch (error) {
       logger.error('PRODUCTOS', `Error al intentar eliminar el producto (ID: ${item})`, error)

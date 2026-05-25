@@ -4,12 +4,11 @@ import bcrypt from "bcryptjs"
 import { appDb } from "../database/index.js" 
 import { logger } from "../utils/logger.js"
 
-// Función auxiliar para validar los permisos globales en el Backend
 const checkPermission = (permission) => {
-    const user = global.currentUserSession;
-    if (!user) return false;
-    if (user.permisos?.includes("ALL")) return true; // SuperAdmin pasa directo
-    return user.permisos?.includes(permission);
+    const user = global.currentUserSession
+    if (!user) return false
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
 }
 
 export const registerUsuariosHandlers = () => {
@@ -119,7 +118,6 @@ export const registerUsuariosHandlers = () => {
         }
     })
 
-    // --- BLINDAJE DE SEGURIDAD OPERATIVA ---
     ipcMain.handle("get-usuarios", () => {
         if (!checkPermission("usuarios_gestionar")) {
             return { success: false, error: "No autorizado para ver el personal del sistema." }

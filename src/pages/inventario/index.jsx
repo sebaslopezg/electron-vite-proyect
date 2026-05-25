@@ -6,9 +6,9 @@ import Form from 'react-bootstrap/Form'
 import { Row, Col } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { formatCurrency } from '../../utils/currencies'
-import { BuscadorFiltros } from '../../components/BuscadorFiltros' // <-- Importación Global
+import { BuscadorFiltros } from '../../components/BuscadorFiltros'
 
-export const Inventario = () => {
+export const Inventario = ({ currentUser }) => {
     const [show, setShow] = useState(false)
     const [selectedProduct, setSelectedProduct] = useState(null)
     const [reloadTable, setReloadTable] = useState(0)
@@ -34,6 +34,12 @@ export const Inventario = () => {
     const [historyTitle, setHistoryTitle] = useState('')
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+
+    const hasPermission = (permissionKey) => {
+        if (!currentUser) return false
+        if (currentUser.permisos?.includes('ALL')) return true
+        return currentUser.permisos?.includes(permissionKey)
+    }
 
     const loadConfig = async () => {
         const configData = await window.api.getConfiguracion()
@@ -131,8 +137,8 @@ export const Inventario = () => {
                 id: selectedProduct.id,
                 cantidad: parseFloat(form.cantidad),
                 type: form.type,
-                usuario: 'current_user',
-                notes: '' 
+                usuario: currentUser?.username || 'system',
+                notes: 'Ajuste manual desde módulo de inventario' 
             })
 
             if (result.success) {
@@ -162,7 +168,7 @@ export const Inventario = () => {
         if (!container) return
         const handleTableClick = (e) => {
             const btn = e.target.closest('button[data-alldata]')
-            if (!btn) return
+            if (!btn || !container.contains(btn)) return
             try {
                 const rawData = decodeURIComponent(btn.dataset.alldata)
                 const item = JSON.parse(rawData)
@@ -173,7 +179,7 @@ export const Inventario = () => {
         }
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [subcategoriasFiltradas, etiquetasList])
 
     return <>
         <div className="pagetitle">
@@ -267,9 +273,14 @@ export const Inventario = () => {
                                 data: null, title: 'Acciones', orderable: false,
                                 render: function (data, type, row) {
                                     const safeData = encodeURIComponent(JSON.stringify(row));
+                                    
+                                    const canAdjust = hasPermission('inventario_ajustar');
+                                    
                                     return `
+                                        ${canAdjust ? `
                                         <button class="btn btn-sm btn-success me-2 mb-1 btn-increase" data-alldata="${safeData}" title="Aumentar"><i class="bi bi-plus-lg"></i></button>
                                         <button class="btn btn-sm btn-warning me-2 mb-1 btn-decrease" data-alldata="${safeData}" title="Disminuir"><i class="bi bi-dash"></i></button>
+                                        ` : ''}
                                         <button class="btn btn-sm btn-info text-white mb-1 btn-history" data-alldata="${safeData}" title="Historial"><i class="bi bi-clock-history"></i></button>
                                     `;
                                 }
@@ -334,7 +345,7 @@ export const Inventario = () => {
                                 render: (data) => {
                                     const val = data ? data.toLowerCase() : '';
                                     let badgeClass = 'secondary';
-                                    if (val === 'ingreso' || val === 'entrada') badgeClass = 'success';
+                                    if (val === 'ingreso' || val === 'entrada' || val === 'creacion_producto') badgeClass = 'success';
                                     if (val === 'egreso' || val === 'salida') badgeClass = 'danger';
                                     return `<span class="badge bg-${badgeClass}">${(data||'').toUpperCase()}</span>`;
                                 }
@@ -342,7 +353,7 @@ export const Inventario = () => {
                             { data: 'cantidad', title: 'Cant.' },
                             { data: 'stock_anterior', title: 'Antes' },
                             { data: 'stock_nuevo', title: 'Después' },
-                            { data: 'usuario', title: 'Usuario' },
+                            { data: 'usuario', title: 'Usuario', render: (d) => `<span class="fw-bold text-dark">@${d || 'system'}</span>` },
                             { data: 'notes', title: 'Notas', render: (data) => data ? `<small class="text-muted">${data}</small>` : '<span class="text-muted">-</span>' }
                         ]}
                     />

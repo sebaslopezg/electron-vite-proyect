@@ -4,7 +4,7 @@ import CustomDataTable from '../../components/DataTableComponent'
 import { ModalCompra } from './components/ModalCompra'
 import { ModalVerCompra } from './components/ModalVerCompra'
 
-export const Compras = () => {
+export const Compras = ({ currentUser }) => {
     const [showModal, setShowModal] = useState(false);
     const [showViewModal, setShowViewModal] = useState(false)
     const [compraSeleccionada, setCompraSeleccionada] = useState(null)
@@ -33,15 +33,15 @@ export const Compras = () => {
         if (!container) return;
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('button[data-id]');
-            if (!btn) return;
+            const btn = e.target.closest('button[data-id]')
+            if (!btn || !container.contains(btn)) return
             
-            const id = btn.dataset.id;
+            const id = btn.dataset.id
             
             if (btn.classList.contains('btn-view')) {
-                handleVerDetalles(id);
+                handleVerDetalles(id)
             }
-        };
+        }
 
         container.addEventListener('click', handleTableClick);
         return () => container.removeEventListener('click', handleTableClick);
@@ -49,13 +49,11 @@ export const Compras = () => {
 
     return (
         <div>
-
             <div className="pagetitle">
                 <h1><i className="bi bi-cart4 me-2"></i>Compras y Gastos</h1>
             </div>
 
             <div className="card shadow-sm border-0">
-
                 <div ref={tableContainerRef} className="card-body pt-4 w-100 overflow-hidden">
                     
                     <div className="d-flex justify-content-between align-items-center mb-3">

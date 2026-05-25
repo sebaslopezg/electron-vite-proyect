@@ -3,9 +3,17 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession;
+    if (!user) return false;
+    if (user.permisos?.includes("ALL")) return true;
+    return user.permisos?.includes(permission);
+}
+
 export const registerSubcategoriaHandlers = () => {
 
     ipcMain.handle("get-subcategorias", () => {
+        if (!checkPermission("productos_ver") && !checkPermission("categorias_gestionar")) return [];
         try {
             const stmt = db.prepare(`
                 SELECT s.*, 
@@ -26,9 +34,11 @@ export const registerSubcategoriaHandlers = () => {
     })
 
     ipcMain.handle("add-subcategoria", (_, item) => {
+        if (!checkPermission("categorias_gestionar")) {
+            return { success: false, error: "No autorizado para registrar taxonomías." };
+        }
         const transaction = db.transaction((data) => {
             const id = uuidv4()
-            
             const legacyCategoriaId = data.categorias_ids && data.categorias_ids.length > 0 ? data.categorias_ids[0] : 'general'
 
             db.prepare(`
@@ -56,8 +66,10 @@ export const registerSubcategoriaHandlers = () => {
     })
 
     ipcMain.handle("update-subcategoria", (_, item) => {
+        if (!checkPermission("categorias_gestionar")) {
+            return { success: false, error: "No autorizado para modificar taxonomías." };
+        }
         const transaction = db.transaction((data) => {
-            
             const legacyCategoriaId = data.categorias_ids && data.categorias_ids.length > 0 ? data.categorias_ids[0] : 'general'
 
             db.prepare(`
@@ -80,27 +92,25 @@ export const registerSubcategoriaHandlers = () => {
 
         try {
             transaction(item);
-            logger.success('SUBCATEGORIAS', `Subcategoría actualizada: ${item.nombre} (ID: ${item.id})`)
             return { success: true }
         } catch (error) {
-            logger.error('SUBCATEGORIAS', `Error al intentar actualizar la subcategoría (ID: ${item.id})`, error)
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("delete-subcategoria", (_, id) => {
+        if (!checkPermission("categorias_gestionar")) {
+            return { success: false, error: "No autorizado para eliminar taxonomías." };
+        }
         try {
             const check = db.prepare("SELECT COUNT(*) as count FROM producto WHERE subcategorias_ids_json LIKE '%' || ? || '%' AND status = 1").get(id)
             if (check.count > 0) {
-                logger.warning('SUBCATEGORIAS', `Intento de eliminar subcategoría en uso (ID: ${id}). Usada en ${check.count} productos activos.`)
                 return { success: false, error: "No se puede eliminar una subcategoría que está siendo usada por productos activos." }
             }
 
             db.prepare("UPDATE subcategoria SET status = 0 WHERE id = ?").run(id)
-            logger.warning('SUBCATEGORIAS', `Subcategoría enviada a la papelera (Soft delete) (ID: ${id})`);
             return { success: true }
         } catch (error) {
-            logger.error('SUBCATEGORIAS', `Error crítico al intentar eliminar la subcategoría (ID: ${id})`, error)
             return { success: false, error: error.message }
         }
     })
