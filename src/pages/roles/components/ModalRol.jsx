@@ -15,7 +15,6 @@ const ESQUEMA_SEGURIDAD = [
     { id: 'mod_productos', nombre: 'Productos y Servicios', icono: 'bi-box-seam', path: '/productos', submodulos: [{ id: 'productos_ver', label: 'Ver catálogo maestro de productos y servicios base' }, { id: 'productos_gestionar', label: 'Crear, actualizar o eliminar registros del catálogo' }, { id: 'categorias_gestionar', label: 'Administrar taxonomías (Categorías, Subcategorías y Etiquetas)' }] },
     { id: 'mod_inventario', nombre: 'Inventario (Kárdex)', icono: 'bi-clipboard-check', path: '/inventario', submodulos: [{ id: 'inventario_ver', label: 'Visualizar existencias y existencias mínimas de stock' }, { id: 'inventario_ajustar', label: 'Realizar ajustes manuales directos sobre el stock (+ / -)' }] },
     { id: 'mod_compras', nombre: 'Compras y Gastos', icono: 'bi-cart4', path: '/compras', submodulos: [{ id: 'compras_ver', label: 'Consultar el histórico y detalles de compras a proveedores' }, { id: 'compras_crear', label: 'Registrar nuevas facturas de compras o gastos contables' }] },
-    
     { 
         id: 'mod_clientes', 
         nombre: 'Clientes y Terceros', 
@@ -149,7 +148,10 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
         setModulosActivos(prev => ({ ...prev, [moduloId]: !estaActivo }))
 
         if (estaActivo) {
-            const idsALimpiar = []
+            const idsALimpiar = [moduloId]
+            // Si apaga contabilidad, nos aseguramos de purgar la llave flotante manualmente en la UI
+            if (moduloId === 'mod_contabilidad') idsALimpiar.push('contabilidad_ver')
+
             submodulos.forEach(sub => {
                 idsALimpiar.push(sub.id)
                 if (sub.permisos_hijos) sub.permisos_hijos.forEach(h => idsALimpiar.push(h.id))
@@ -200,7 +202,25 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
         e.preventDefault()
         if (!nombre.trim()) return Toast.fire({ icon: 'error', title: 'Falta el nombre del rol.' })
 
-        const permisosFinales = [...permisosSeleccionados, `START_PATH:${defaultRoute}`]
+        // --- MOTOR DE LIMPIEZA PROPERA Y DEPURACIÓN DE LLAVES MAESTRAS ---
+        // 1. Barremos cualquier residuo viejo de la clave 'contabilidad_ver'
+        let permisosLimpios = permisosSeleccionados.filter(p => p !== 'contabilidad_ver')
+
+        // 2. Evaluamos si quedó al menos una casilla de contabilidad seleccionada a la derecha
+        const listaContabilidadCheckboxes = [
+            'puc_ver', 'puc_crear', 'puc_editar', 'puc_eliminar',
+            'terceros_ver', 'terceros_crear', 'terceros_editar', 'terceros_eliminar',
+            'comprobantes_ver', 'comprobantes_crear', 'comprobantes_editar',
+            'contabilidad_reportes_ver', 'contabilidad_config_ver'
+        ]
+        const tieneContabilidadActiva = permisosLimpios.some(p => listaContabilidadCheckboxes.includes(p))
+
+        // 3. Si tiene casillas activas, inyectamos la llave contenedora; si el switch está OFF, el zombi muere aquí
+        if (tieneContabilidadActiva) {
+            permisosLimpios.push('contabilidad_ver')
+        }
+
+        const permisosFinales = [...permisosLimpios, `START_PATH:${defaultRoute}`]
 
         const payload = {
             nombre: nombre,
@@ -362,9 +382,9 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                 </Form>
             </Modal.Body>
             <Modal.Footer className="bg-light border-top">
-                <Button variant="outline-secondary" onClick={handleClose}>Cancelar</Button>
+                <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
                 {!isSystemRole && (
-                    <Button variant="primary" type="submit" form="formMatrizSeguridad" className="fw-bold px-4">
+                    <Button variant="primary" type="submit" form="formMatrizSeguridad" className="px-4">
                         Guardar
                     </Button>
                 )}

@@ -28,7 +28,6 @@ export const MainRoutes = ({ currentUser }) => {
             return tokenConfigurado.split(':')[1]
         }
 
-        // CORREGIDO: Llaves de auto-redirección independizadas
         const mapaSeguridadRutas = [
             { path: '/ventas', perm: 'ventas_crear' },
             { path: '/productos', perm: 'productos_ver' },
