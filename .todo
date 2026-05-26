@@ -6,8 +6,6 @@
  - Impuestos y Retenciones (Nivel Intermedio)
 
 
- - Crear modulo de usuarios
- - Crear modulo de roles y permisos
  - Crear modulo de notificaciones
 
  - Guardar configuracion de filtros editada en el momento, almacenar esto en localstorage o cokies.
@@ -20,7 +18,6 @@
  - Crear modulo cobranzas
  - Crear modulo de servicios (sacar pestaña servicios de productos)
  - Opciones desplegables con cuadro de busqueda
- - Crear un manejador de modulos
 
  ## No prioritario
  - permitir cambiar de posicion las opciones de metodo de pago en el menu desplegable
@@ -31,3 +28,4 @@
  - Organizar carpetas, todas deben comenzar o no en minuscula o mayuscula, no mezclar
  - Agregar una pestaña de configuracion donde yo pueda perzonalizar los filtros y crear plantillas (para facilitar la digitacion de informacion en los modulos)
  - Separar pestaña de actualizaciones y hacerla un modulo a parte, integrar manejador de actualizaciones.
+ - Crear un manejador de modulos
