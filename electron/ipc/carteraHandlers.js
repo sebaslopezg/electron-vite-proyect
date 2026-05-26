@@ -3,6 +3,13 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession
+    if (!user) return false
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
+}
+
 export const registerCarteraHandlers = () => {
     db.exec(`
         CREATE TABLE IF NOT EXISTS abonos_ventas (
@@ -17,6 +24,7 @@ export const registerCarteraHandlers = () => {
     `);
 
     ipcMain.handle("get-cartera", () => {
+        if (!checkPermission("cartera_ver")) return [];
         try {
             const stmt = db.prepare(`
                 SELECT * FROM ventasMaestro 
@@ -31,6 +39,9 @@ export const registerCarteraHandlers = () => {
     })
 
     ipcMain.handle("get-cartera-paginada", (_, dtParams) => {
+        if (!checkPermission("cartera_ver")) {
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] };
+        }
         try {
             const limit = parseInt(dtParams.length, 10) || 10
             const offset = parseInt(dtParams.start, 10) || 0
@@ -65,10 +76,15 @@ export const registerCarteraHandlers = () => {
     })
 
     ipcMain.handle("add-abono", (_, data) => {
+        if (!checkPermission("cartera_abonar")) {
+            return { success: false, error: "No cuentas con privilegios de rol para alterar saldos de cartera." };
+        }
+        
         const transaction = db.transaction((abono) => {
             const now = new Date().toISOString();
             const abonoId = uuidv4();
-            const usuarioActivo = 'Admin'
+            
+            const usuarioActivo = global.currentUserSession?.username || 'system';
 
             const facturaInfo = db.prepare("SELECT numero_factura, nombre_cliente, saldo_pendiente FROM ventasMaestro WHERE id = ?").get(abono.maestro_id)
 
@@ -89,8 +105,8 @@ export const registerCarteraHandlers = () => {
             if (facturaInfo) {
                 logger.success(
                     'CARTERA', 
-                    `Abono de $${abono.valor} registrado con éxito`, 
-                    `Abono a la factura N° ${facturaInfo.numero_factura} del cliente ${facturaInfo.nombre_cliente}. Saldo anterior: $${facturaInfo.saldo_pendiente}.`
+                    `Abono de $${abono.valor} registrado por @${usuarioActivo}`, 
+                    `Factura N° ${facturaInfo.numero_factura}. Cliente: ${facturaInfo.nombre_cliente}.`
                 )
             }
 
@@ -107,6 +123,7 @@ export const registerCarteraHandlers = () => {
     })
 
     ipcMain.handle("get-abonos", () => {
+        if (!checkPermission("cartera_historial_ver")) return { success: false, data: [], error: "No autorizado" };
         try {
             const stmt = db.prepare(`
                 SELECT a.*, 
@@ -120,8 +137,7 @@ export const registerCarteraHandlers = () => {
                 ORDER BY a.date_created DESC
             `)
             const abonos = stmt.all();
-            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`)
-            const configuracion = confStmt.get()
+            const configuracion = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`).get()
 
             return { success: true, data: abonos, configuracion: configuracion }
         } catch (error) {
@@ -131,6 +147,9 @@ export const registerCarteraHandlers = () => {
     })
 
     ipcMain.handle("get-abonos-paginados", (_, dtParams) => {
+        if (!checkPermission("cartera_historial_ver")) {
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] };
+        }
         try {
             const limit = parseInt(dtParams.length, 10) || 10
             const offset = parseInt(dtParams.start, 10) || 0

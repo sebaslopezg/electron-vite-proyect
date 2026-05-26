@@ -237,10 +237,8 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
                         </div>
                     </div>
 
-                    {/* El mb-5 ayuda a empujar el fondo del card para que la lista no pelee por espacio visual abajo */}
                     <div className="card shadow-sm border-0 mb-5" style={{ overflow: 'visible' }}>
                         <div className="card-body p-0" style={{ overflow: 'visible' }}>
-                            {/* ¡CLAVE!: Quitamos la propiedad "responsive" del Table */}
                             <Table hover size="sm" className="mb-0 align-middle table-layout-fixed" style={{ overflow: 'visible' }}>
                                 <thead className="table-dark">
                                     <tr>

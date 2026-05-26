@@ -11,6 +11,13 @@ export const Compras = ({ currentUser }) => {
     const [reloadTable, setReloadTable] = useState(0);
     const tableContainerRef = useRef(null);
 
+    // Validador de permisos interno para la interfaz de compras
+    const hasPermission = (permissionKey) => {
+        if (!currentUser) return false
+        if (currentUser.permisos?.includes('ALL')) return true
+        return currentUser.permisos?.includes(permissionKey)
+    }
+
     const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(val || 0)
 
     const handleVerDetalles = async (id) => {
@@ -56,11 +63,14 @@ export const Compras = ({ currentUser }) => {
             <div className="card shadow-sm border-0">
                 <div ref={tableContainerRef} className="card-body pt-4 w-100 overflow-hidden">
                     
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                        <button className="btn btn-primary shadow-sm" onClick={() => setShowModal(true)}>
-                            <i className="bi bi-plus-circle me-2"></i>Registrar Compra
-                        </button>
-                    </div>
+                    {/* CORREGIDO: El botón ahora se oculta si no tiene el permiso 'compras_crear' */}
+                    {hasPermission('compras_crear') && (
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <button className="btn btn-primary shadow-sm" onClick={() => setShowModal(true)}>
+                                <i className="bi bi-plus-circle me-2"></i>Registrar Compra
+                            </button>
+                        </div>
+                    )}
 
                     <CustomDataTable 
                         key={`compras-${reloadTable}`} 

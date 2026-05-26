@@ -12,8 +12,9 @@ const checkPermission = (permission) => {
 
 export const registerComprasHandlers = () => {
 
+    // CORREGIDO: Ahora exige el permiso específico de lectura de compras
     ipcMain.handle("get-compras-paginadas", (_, dtParams) => {
-        if (!checkPermission("reportes_ver")) {
+        if (!checkPermission("compras_ver")) {
             return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" };
         }
         try {
@@ -57,9 +58,10 @@ export const registerComprasHandlers = () => {
         }
     })
 
+    // CORREGIDO: Ahora exige el permiso específico de lectura de compras
     ipcMain.handle("get-compra-detalle", (_, compraId) => {
-        if (!checkPermission("reportes_ver")) {
-            return { success: false, error: "No tienes autorización para auditar compras." };
+        if (!checkPermission("compras_ver")) {
+            return { success: false, error: "No tienes autorización para auditar los registros de compras." };
         }
         try {
             const maestro = db.prepare('SELECT * FROM comprasMaestro WHERE id = ?').get(compraId);
@@ -89,9 +91,10 @@ export const registerComprasHandlers = () => {
         }
     });
 
+    // CORREGIDO: Ahora exige de forma estricta la llave de escritura 'compras_crear'
     ipcMain.handle("crear-compra", (_, { maestro, detalles }) => {
-        if (!checkPermission("reportes_ver")) {
-            return { success: false, error: "No tienes autorización para registrar facturas de egresos." };
+        if (!checkPermission("compras_crear")) {
+            return { success: false, error: "No tienes la autorización requerida para asentar nuevas facturas de compras." };
         }
         
         const transaction = db.transaction(() => {
@@ -101,70 +104,25 @@ export const registerComprasHandlers = () => {
 
             db.prepare(`
                 INSERT INTO comprasMaestro (
-                    id, 
-                    proveedor_id, 
-                    documento_proveedor, 
-                    nombre_proveedor, 
-                    numero_factura, 
-                    fecha_factura, 
-                    fecha_vencimiento, 
-                    concepto, subtotal, 
-                    descuento, 
-                    iva, 
-                    total_factura, 
-                    total_pagado, 
-                    saldo_pendiente, 
-                    estado, 
-                    date_created, 
-                    modify_by
+                    id, proveedor_id, documento_proveedor, nombre_proveedor, numero_factura, fecha_factura, fecha_vencimiento, 
+                    concepto, subtotal, descuento, iva, total_factura, total_pagado, saldo_pendiente, estado, date_created, modify_by
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
-                maestroId, 
-                maestro.proveedor_id, 
-                maestro.documento_proveedor, 
-                maestro.nombre_proveedor, 
-                maestro.numero_factura, 
-                maestro.fecha_factura, 
-                maestro.fecha_vencimiento, 
-                maestro.concepto, 
-                maestro.subtotal, 
-                maestro.descuento, 
-                maestro.iva, 
-                maestro.total_factura, 
-                maestro.total_pagado, 
-                maestro.saldo_pendiente, 
-                maestro.estado, 
-                now,
-                currentUser // Auditoría real
+                maestroId, maestro.proveedor_id, maestro.documento_proveedor, maestro.nombre_proveedor, maestro.numero_factura, 
+                maestro.fecha_factura, maestro.fecha_vencimiento, maestro.concepto, maestro.subtotal, maestro.descuento, 
+                maestro.iva, maestro.total_factura, maestro.total_pagado, maestro.saldo_pendiente, maestro.estado, now, currentUser
             )
 
             const insertDetalle = db.prepare(`
                 INSERT INTO comprasDetalle (
-                    id, 
-                    compra_id, 
-                    cuenta_puc_id, 
-                    producto_id, 
-                    descripcion, 
-                    cantidad, 
-                    precio_unitario, 
-                    iva_percent, 
-                    subtotal, 
-                    total
+                    id, compra_id, cuenta_puc_id, producto_id, descripcion, cantidad, precio_unitario, iva_percent, subtotal, total
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
 
             for (const item of detalles) {
                 insertDetalle.run(
-                    uuidv4(), 
-                    maestroId, 
-                    item.cuenta_puc_id || null, 
-                    item.producto_id || null, 
-                    item.descripcion, 
-                    item.cantidad, 
-                    item.precio_unitario, 
-                    item.iva_percent, 
-                    item.subtotal, 
-                    item.total
+                    uuidv4(), maestroId, item.cuenta_puc_id || null, item.producto_id || null, item.descripcion, 
+                    item.cantidad, item.precio_unitario, item.iva_percent, item.subtotal, item.total
                 )
 
                 if (item.producto_id) {
@@ -176,29 +134,9 @@ export const registerComprasHandlers = () => {
                         db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.producto_id)
 
                         db.prepare(`
-                            INSERT INTO inventario (
-                                id, 
-                                producto_id, 
-                                tipo_movimiento, 
-                                modulo_movimiento, 
-                                cantidad, 
-                                stock_anterior, 
-                                stock_nuevo, 
-                                fecha,
-                                usuario
-                            )
+                            INSERT INTO inventario (id, producto_id, tipo_movimiento, modulo_movimiento, cantidad, stock_anterior, stock_nuevo, fecha, usuario)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `).run(
-                            uuidv4(), 
-                            item.producto_id, 
-                            'ENTRADA', 
-                            'COMPRA', 
-                            item.cantidad, 
-                            stockAnterior, 
-                            stockNuevo, 
-                            now,
-                            currentUser
-                        )
+                        `).run(uuidv4(), item.producto_id, 'ENTRADA', 'COMPRA', item.cantidad, stockAnterior, stockNuevo, now, currentUser)
                     }
                 }
             }
@@ -240,16 +178,12 @@ export const registerComprasHandlers = () => {
                     }
                 }
             } catch (err) {
-                if (err.message.includes('FOREIGN KEY')) {
-                    throw new Error("ERROR CONTABLE: Al intentar registrar la compra se descubrió que una Cuenta Contable configurada ya no existe.")
-                }
                 throw err
             }
 
             logger.success('COMPRAS', `Compra registrada exitosamente: Factura N° ${maestro.numero_factura}`)
             return { success: true, maestroId }
-        }
-        )
+        })
 
         try {
             return transaction()

@@ -3,19 +3,18 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
-// Función auxiliar para validar permisos en el proceso principal
 const checkPermission = (permission) => {
-    const user = global.currentUserSession;
-    if (!user) return false;
-    if (user.permisos?.includes("ALL")) return true; // SuperAdmin pasa directo
-    return user.permisos?.includes(permission);
+    const user = global.currentUserSession
+    if (!user) return false
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
 }
 
 export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-maestro", () => {
         if (!checkPermission("ventas_historial")) {
-            return { success: false, error: "No autorizado para ver el historial de facturas." };
+            return { success: false, error: "No autorizado para ver el historial de facturas." }
         }
         try {
             const stmt = db.prepare(`

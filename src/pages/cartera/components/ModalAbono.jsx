@@ -4,7 +4,7 @@ import { Button, Row, Col, Form } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { formatCurrency } from '../../../utils/currencies'
 
-export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => {
+export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, currentUser }) => {
     const [abonoForm, setAbonoForm] = useState({
         valor: '',
         metodo_pago: 'Efectivo',
@@ -27,8 +27,13 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => 
 
     const handleSubmitAbono = async (e) => {
         e.preventDefault()
-        const valorAbono = parseFloat(abonoForm.valor)
 
+        // Doble escudo protector en interfaz
+        if (currentUser && !currentUser.permisos?.includes('ALL') && !currentUser.permisos?.includes('cartera_abonar')) {
+            return Swal.fire('Operación Cancelada', 'No posees privilegios de caja para asentar recaudos.', 'error')
+        }
+
+        const valorAbono = parseFloat(abonoForm.valor)
         if (valorAbono <= 0) return Swal.fire('Error', 'El valor a abonar debe ser mayor a 0', 'error')
         if (valorAbono > factura.saldo_pendiente) {
             return Swal.fire('Error', `El abono no puede superar la deuda actual`, 'error')
@@ -37,10 +42,7 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => 
         const confirm = await Swal.fire({
             title: '¿Confirmar Abono?',
             text: `Se registrará un pago de ${formatCurrency(valorAbono, appConfig.formato_numero, appConfig.moneda)} a la factura ${factura.prefijo || ''}${factura.numero_factura}`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Sí, registrar pago',
-            cancelButtonText: 'Cancelar'
+            icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, registrar pago', cancelButtonText: 'Cancelar'
         })
 
         if (confirm.isConfirmed) {
@@ -87,16 +89,9 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => 
                             <Form.Group>
                                 <Form.Label className="fw-bold">Monto a Recibir</Form.Label>
                                 <Form.Control 
-                                    type="number" 
-                                    size="lg"
-                                    className="text-end fw-bold text-success fs-4 bg-light"
-                                    name="valor" 
-                                    min="1"
-                                    max={factura.saldo_pendiente}
-                                    step="0.01"
-                                    value={abonoForm.valor} 
-                                    onChange={handleChange}
-                                    required 
+                                    type="number" size="lg" className="text-end fw-bold text-success fs-4 bg-light"
+                                    name="valor" min="0.01" max={factura.saldo_pendiente} step="0.01"
+                                    value={abonoForm.valor} onChange={handleChange} required 
                                 />
                             </Form.Group>
                         </Col>
@@ -113,21 +108,14 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig }) => 
                         <Col md={12}>
                             <Form.Group>
                                 <Form.Label className="fw-bold">Observaciones</Form.Label>
-                                <Form.Control 
-                                    type="text" 
-                                    name="observaciones" 
-                                    value={abonoForm.observaciones} 
-                                    onChange={handleChange} 
-                                />
+                                <Form.Control type="text" name="observaciones" value={abonoForm.observaciones} onChange={handleChange} />
                             </Form.Group>
                         </Col>
                     </Row>
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="outline-secondary" onClick={onClose}>Cancelar</Button>
-                    <Button variant="success" type="submit" className="fw-bold px-4">
-                        Abonar
-                    </Button>
+                    <Button variant="success" type="submit" className="fw-bold px-4">Abonar</Button>
                 </Modal.Footer>
             </Form>
         </Modal>

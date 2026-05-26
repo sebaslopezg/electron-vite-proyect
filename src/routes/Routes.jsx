@@ -28,18 +28,19 @@ export const MainRoutes = ({ currentUser }) => {
             return tokenConfigurado.split(':')[1]
         }
 
+        // CORREGIDO: Llaves de auto-redirección independizadas
         const mapaSeguridadRutas = [
             { path: '/ventas', perm: 'ventas_crear' },
             { path: '/productos', perm: 'productos_ver' },
             { path: '/inventario', perm: 'inventario_ver' },
-            { path: '/encargos', perm: 'ventas_crear' },
+            { path: '/encargos', perm: 'encargos_ver' },
             { path: '/clientes', perm: 'clientes_ver' },
             { path: '/cartera', perm: 'cartera_ver' },
             { path: '/compras', perm: 'compras_ver' },
             { path: '/contabilidad', perm: 'contabilidad_ver' },
             { path: '/usuarios', perm: 'usuarios_gestionar' },
             { path: '/roles', perm: 'roles_gestionar' },
-            { path: '/configuracion', perm: 'ventas_configurar' }
+            { path: '/configuracion', perm: 'configuracion_sistema' }
         ]
 
         const primeraRutaValida = mapaSeguridadRutas.find(m => hasPermission(m.perm))
@@ -59,7 +60,7 @@ export const MainRoutes = ({ currentUser }) => {
         return children
     }
 
-    return (
+    return <>
         <Routes>
             <Route path="/" element={<Navigate to={getLandingRoute()} replace />} />
             
@@ -76,37 +77,37 @@ export const MainRoutes = ({ currentUser }) => {
             } />
 
             <Route path="/inventario" element={
-                <ProtectedRoute permission="inventario_ajustar">
+                <ProtectedRoute permission="inventario_ver">
                     <Inventario currentUser={currentUser} />
                 </ProtectedRoute>
             } />
 
             <Route path="/encargos" element={
-                <ProtectedRoute permission="ventas_crear">
+                <ProtectedRoute permission="encargos_ver">
                     <IndexEncargos currentUser={currentUser} />
                 </ProtectedRoute>
             } />
 
             <Route path="/clientes" element={
-                <ProtectedRoute permission="ventas_crear">
+                <ProtectedRoute permission="clientes_ver">
                     <Clientes currentUser={currentUser} />
                 </ProtectedRoute>
             } />
 
             <Route path="/cartera" element={
-                <ProtectedRoute permission="reportes_ver">
+                <ProtectedRoute permission="cartera_ver">
                     <Cartera currentUser={currentUser} />
                 </ProtectedRoute>
             } />
 
             <Route path="/compras" element={
-                <ProtectedRoute permission="reportes_ver">
+                <ProtectedRoute permission="compras_ver">
                     <Compras currentUser={currentUser} />
                 </ProtectedRoute>
             } />
 
             <Route path="/contabilidad" element={
-                <ProtectedRoute permission="reportes_ver">
+                <ProtectedRoute permission="contabilidad_ver">
                     <ContabilidadIndex currentUser={currentUser} />
                 </ProtectedRoute>
             } />
@@ -124,10 +125,10 @@ export const MainRoutes = ({ currentUser }) => {
             } />
 
             <Route path="/configuracion" element={
-                <ProtectedRoute permission="ventas_configurar">
+                <ProtectedRoute permission="configuracion_sistema">
                     <Configuracion currentUser={currentUser} />
                 </ProtectedRoute>
             } />
         </Routes>
-    )
+    </>
 }

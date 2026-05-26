@@ -3,15 +3,16 @@ import DataTableComponent from "../../components/DataTableComponent"
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
 import { ModalDetalleFactura } from "./components/ModalDetalleFactura"
+import Swal from 'sweetalert2'
 
-export const VerFacturas = () => {
+export const VerFacturas = ({ currentUser }) => {
 
     const [reloadTable, setReloadTable] = useState(0);
 
     const [show, setShow] = useState(false)
     const [detalleData, setDetalleData] = useState([])
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
-    const [notasFactura, setNotasFactura] = useState([])
+    const [notesFactura, setNotasFactura] = useState([]) 
     
     const [startDate, setStartDate] = useState('')
     const [endDate, setEndDate] = useState('')
@@ -22,6 +23,12 @@ export const VerFacturas = () => {
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+
+    const hasPermission = (permissionKey) => {
+        if (!currentUser) return false
+        if (currentUser.permisos?.includes('ALL')) return true
+        return currentUser.permisos?.includes(permissionKey)
+    }
 
     const loadConfig = async () => {
         const configData = await window.api.getConfiguracion()
@@ -82,7 +89,7 @@ export const VerFacturas = () => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [currentUser]) // Escucha cambios de usuario para los listeners dinámicos
 
     const verDetalle = async (factura) => {
         setFacturaSeleccionada(factura)
@@ -90,19 +97,24 @@ export const VerFacturas = () => {
         const response = await window.api.getDetalle(factura.id)
         if (response.success) {
             setDetalleData(response.data)
-            setNotasFactura(response.notas || []) 
+            setNotasFactura(response.notes || []) 
             setAlmacenConf(response.configuracion || null)
             handleShow()
         }
     }
 
     const imprimirDirecto = async (factura) => {
+        // Interceptación de seguridad frontend
+        if (!hasPermission('ventas_imprimir')) {
+            return Swal.fire('Acceso Denegado', 'Tu rol no cuenta con permisos para re-imprimir comprobantes.', 'error')
+        }
+
         setFacturaSeleccionada(factura)
 
         const response = await window.api.getDetalle(factura.id)
         if (response.success) {
             setDetalleData(response.data)
-            setNotasFactura(response.notas || []) 
+            setNotasFactura(response.notes || []) 
             setAlmacenConf(response.configuracion || null)
             
             setAbiertoDesdeDetalles(false)
@@ -111,6 +123,9 @@ export const VerFacturas = () => {
     }
 
     const handlePrepararImpresion = () => {
+        if (!hasPermission('ventas_imprimir')) {
+            return Swal.fire('Acceso Denegado', 'Tu rol no cuenta con permisos para re-imprimir comprobantes.', 'error')
+        }
         setShow(false)
         setAbiertoDesdeDetalles(true)
         setShowPreview(true)
@@ -166,17 +181,23 @@ export const VerFacturas = () => {
             data: null, title: 'Acciones', orderable: false,
             render: function (data, type, row) {
                 const safeData = encodeURIComponent(JSON.stringify(row))
+                
+                // Consultamos si el usuario tiene el permiso de re-imprimir activo
+                const canPrint = hasPermission('ventas_imprimir')
+
                 return `
                     <button class="btn btn-sm btn-secondary text-white btn-see-item me-1" data-alldata="${safeData}" title="Ver Detalles">
                         <i class="bi bi-eye"></i>
                     </button>
+                    ${canPrint ? `
                     <button class="btn btn-sm btn-primary text-white btn-print-item" data-alldata="${safeData}" title="Imprimir Factura">
                         <i class="bi bi-printer"></i>
                     </button>
+                    ` : ''}
                 `
             }
         }
-    ], [appConfig])
+    ], [appConfig, currentUser?.permisos]) // Forzamos el re-renderizado de columnas si cambian los permisos
 
     return <>
         <div className="bg-light p-3 rounded mb-4 border">
@@ -225,7 +246,7 @@ export const VerFacturas = () => {
             handleClose={handleClose}
             facturaSeleccionada={facturaSeleccionada}
             detalleData={detalleData}
-            notasFactura={notasFactura}
+            notasFactura={notesFactura}
             handlePrepararImpresion={handlePrepararImpresion}
             appConfig={appConfig}
         />

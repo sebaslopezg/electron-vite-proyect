@@ -3,10 +3,16 @@ import DataTableComponent from '../../../components/DataTableComponent'
 import { ImpresorAbono } from './ImpresorAbono'
 import { formatCurrency } from '../../../utils/currencies'
 
-export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig }) => {
+export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentUser }) => {
     const tableAbonosRef = useRef(null);    
     const [showPreview, setShowPreview] = useState(false);
     const [abonoSeleccionado, setAbonoSeleccionado] = useState(null);
+
+    const hasPermission = (permissionKey) => {
+        if (!currentUser) return false
+        if (currentUser.permisos?.includes('ALL')) return true
+        return currentUser.permisos?.includes(permissionKey)
+    }
 
     useEffect(() => {
         const container = tableAbonosRef.current;
@@ -14,7 +20,7 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig }) => {
 
         const handleTableClick = (e) => {
             const btn = e.target.closest('.btn-print-abono');
-            if (!btn) return;
+            if (!btn || !container.contains(btn)) return;
             try {
                 const item = JSON.parse(decodeURIComponent(btn.dataset.alldata));
                 setAbonoSeleccionado(item);
@@ -24,14 +30,13 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig }) => {
 
         container.addEventListener('click', handleTableClick);
         return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+    }, [currentUser]);
 
     return (
         <div className="animation-fade-in">
-
             <div ref={tableAbonosRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
-                    key={`historial-${appConfig.moneda}-${appConfig.formato_numero}`}
+                    key={`historial-${appConfig.moneda}-${appConfig.formato_numero}-${currentUser?.permisos?.length}`}
                     reloadKey={reloadKey}
                     ajaxData={(params) => window.api.getAbonosPaginados(params)}
                     columns={[
@@ -54,14 +59,16 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig }) => {
                         },
                         { data: 'usuario', title: 'Cajero' },
                         {
-                            data: null, title: 'Recibo', orderable: false,
+                            data: null, title: 'Recibo', orderable: false, className: 'text-center',
                             render: function (data, type, row) {
                                 const safeData = encodeURIComponent(JSON.stringify(row));
-                                return `
+                                const canPrint = hasPermission('cartera_abono_imprimir');
+
+                                return canPrint ? `
                                     <button class="btn btn-sm btn-outline-dark btn-print-abono" data-alldata="${safeData}" title="Imprimir Recibo">
                                         <i class="bi bi-printer"></i>
                                     </button>
-                                `;
+                                ` : '<i class="bi bi-lock-fill text-muted" title="Sin permiso de impresión"></i>';
                             }
                         }
                     ]}

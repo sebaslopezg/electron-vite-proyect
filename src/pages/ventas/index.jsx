@@ -35,7 +35,7 @@ export const Ventas = ({ currentUser }) => {
 
     const tabsDisponibles = [
         { id: 'facturacion', label: 'Facturación', permission: 'ventas_crear', component: <Facturacion /> },
-        { id: 'verFacturas', label: 'Ver Facturas', permission: 'ventas_historial', component: <VerFacturas /> },
+        { id: 'verFacturas', label: 'Ver Facturas', permission: 'ventas_historial', component: <VerFacturas currentUser={currentUser} /> },
         { id: 'reportes', label: 'Reportes', permission: 'reportes_ver', component: <Reportes /> },
         { id: 'notas', label: 'Nota Crédito/Débito', permission: 'notas_gestionar', component: <Notas /> },
         { id: 'config', label: 'Configurar', permission: 'ventas_configurar', component: <Configuracion data={almacenData} onReload={loadAlmacenConf} /> }
