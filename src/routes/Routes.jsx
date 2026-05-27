@@ -10,6 +10,7 @@ import { ContabilidadIndex } from '../pages/contabilidad'
 import { Compras } from '../pages/compras'
 import { Usuarios } from '../pages/usuarios'
 import { Roles } from '../pages/roles'
+import { Perfil } from '../pages/perfil/index'
 
 export const MainRoutes = ({ currentUser }) => {
 
@@ -127,6 +128,9 @@ export const MainRoutes = ({ currentUser }) => {
                 <ProtectedRoute permission="configuracion_sistema">
                     <Configuracion currentUser={currentUser} />
                 </ProtectedRoute>
+            } />
+            <Route path="/perfil" element={
+                <Perfil currentUser={currentUser} />
             } />
         </Routes>
     </>

@@ -24,7 +24,11 @@ export const registerUsuariosHandlers = () => {
             date_created TEXT,
             date_modify TEXT
         );
-    `);
+    `)
+
+    try {
+        appDb.exec("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT;");
+    } catch (e) {}
 
     const checkAdmin = appDb.prepare("SELECT COUNT(*) as count FROM usuarios").get()
     if (checkAdmin.count === 0) {
@@ -50,7 +54,14 @@ export const registerUsuariosHandlers = () => {
                         let permisos = ["ALL"]
                         try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
 
-                        const userSession = { id: singleUser.id, nombre_completo: singleUser.nombre_completo, username: singleUser.username, rol: singleUser.rol, permisos: permisos }
+                        const userSession = { 
+                            id: singleUser.id, 
+                            nombre_completo: singleUser.nombre_completo, 
+                            username: singleUser.username, 
+                            rol: singleUser.rol, 
+                            permisos: permisos,
+                            foto_perfil: singleUser.foto_perfil 
+                        }
                         global.currentUserSession = userSession
                         return { success: true, required: false, user: userSession }
                     }
@@ -75,7 +86,14 @@ export const registerUsuariosHandlers = () => {
             let permisos = []
             try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
 
-            const userSession = { id: user.id, nombre_completo: user.nombre_completo, username: user.username, rol: user.rol, permisos: permisos }
+            const userSession = { 
+                id: user.id, 
+                nombre_completo: user.nombre_completo, 
+                username: user.username, 
+                rol: user.rol, 
+                permisos: permisos,
+                foto_perfil: user.foto_perfil
+            }
             global.currentUserSession = userSession
 
             logger.info('SISTEMA', `Inicio de sesión exitoso: @${user.username} [${user.rol}]`)
@@ -83,68 +101,77 @@ export const registerUsuariosHandlers = () => {
         } catch (error) { return { success: false, error: error.message }; }
     })
 
-    ipcMain.handle("get-usuarios", () => {
-        if (!checkPermission("usuarios_ver")) {
-            return { success: false, error: "No autorizado para consultar la nómina del personal." }
+    ipcMain.handle("update-mi-perfil", async (_, data) => {
+        const session = global.currentUserSession
+        if (!session) return { success: false, error: "Sesión inválida." }
+        
+        if (session.id !== data.id) {
+            logger.warning('SISTEMA', `Intento de violación de acceso: @${session.username} intentó modificar otro perfil.`);
+            return { success: false, error: "No tienes permiso para modificar este perfil." }
         }
-        try {
-            const stmt = appDb.prepare("SELECT id, nombre_completo, username, rol, status, date_created FROM usuarios WHERE status = 1 ORDER BY nombre_completo ASC")
-            return { success: true, data: stmt.all() }
-        } catch (error) { return { success: false, error: error.message } }
-    })
 
-    ipcMain.handle("add-usuario", async (_, user) => {
-        if (!checkPermission("usuarios_crear")) {
-            return { success: false, error: "No autorizado para registrar nuevas cuentas de personal." }
-        }
         try {
-            const id = uuidv4()
             const now = new Date().toISOString()
-            const hash = bcrypt.hashSync(user.password, 10)
+            if (data.password && data.password.trim() !== '') {
+                const hash = bcrypt.hashSync(data.password, 10)
+                appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, password_hash = ?, foto_perfil = ?, date_modify = ? WHERE id = ?`)
+                     .run(data.nombre_completo, hash, data.foto_perfil, now, data.id)
+                logger.success('SISTEMA', `El usuario @${session.username} actualizó su perfil personal y cambió su contraseña.`)
+            } else {
+                appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, foto_perfil = ?, date_modify = ? WHERE id = ?`)
+                     .run(data.nombre_completo, data.foto_perfil, now, data.id)
+                logger.info('SISTEMA', `El usuario @${session.username} actualizó sus datos personales.`)
+            }
 
-            const stmt = appDb.prepare(`INSERT INTO usuarios (id, nombre_completo, username, password_hash, rol, status, date_created, date_modify) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`)
-            stmt.run(id, user.nombre_completo, user.username, hash, user.rol, now, now)
-            return { success: true, id }
+            global.currentUserSession.nombre_completo = data.nombre_completo;
+            global.currentUserSession.foto_perfil = data.foto_perfil;
+
+            return { success: true, user: global.currentUserSession }
         } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return { success: false, error: "El nombre de usuario ya está en uso." }
+            logger.error('USUARIOS', "Error actualizando perfil personal", error)
             return { success: false, error: error.message }
         }
     })
 
+    ipcMain.handle("get-usuarios", () => {
+        if (!checkPermission("usuarios_ver")) return { success: false, error: "No autorizado." }
+        try { return { success: true, data: appDb.prepare("SELECT id, nombre_completo, username, rol, status, date_created FROM usuarios WHERE status = 1 ORDER BY nombre_completo ASC").all() } } catch (e) { return { success: false, error: e.message } }
+    })
+
+    ipcMain.handle("add-usuario", async (_, user) => {
+        if (!checkPermission("usuarios_crear")) return { success: false, error: "No autorizado." }
+        try {
+            const id = uuidv4(); const now = new Date().toISOString(); const hash = bcrypt.hashSync(user.password, 10)
+            appDb.prepare(`INSERT INTO usuarios (id, nombre_completo, username, password_hash, rol, status, date_created, date_modify) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`).run(id, user.nombre_completo, user.username, hash, user.rol, now, now)
+            logger.success('USUARIOS', `Nuevo usuario creado: ${user.nombre_completo}`, `Usuario: ${user.username} | Rol: ${user.rol}`)
+            return { success: true, id }
+        } catch (error) { return { success: false, error: error.message } }
+    })
+
     ipcMain.handle("update-usuario", async (_, user) => {
-        if (!checkPermission("usuarios_editar")) {
-            return { success: false, error: "No autorizado para modificar datos o restablecer contraseñas." }
-        }
+        if (!checkPermission("usuarios_editar")) return { success: false, error: "No autorizado." }
         try {
             const now = new Date().toISOString()
             if (user.password && user.password.trim() !== '') {
                 const hash = bcrypt.hashSync(user.password, 10)
-                const stmt = appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, username = ?, password_hash = ?, rol = ?, date_modify = ? WHERE id = ?`)
-                stmt.run(user.nombre_completo, user.username, hash, user.rol, now, user.id)
+                appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, username = ?, password_hash = ?, rol = ?, date_modify = ? WHERE id = ?`).run(user.nombre_completo, user.username, hash, user.rol, now, user.id)
+                logger.success('USUARIOS', `Usuario actualizado por admin (Clave modificada): ${user.username}`);
             } else {
-                const stmt = appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, username = ?, rol = ?, date_modify = ? WHERE id = ?`)
-                stmt.run(user.nombre_completo, user.username, user.rol, now, user.id)
+                appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, username = ?, rol = ?, date_modify = ? WHERE id = ?`).run(user.nombre_completo, user.username, user.rol, now, user.id)
+                logger.info('USUARIOS', `Usuario actualizado por admin: ${user.username}`)
             }
             return { success: true }
-        } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return { success: false, error: "El username ya está en uso por otra persona." }
-            return { success: false, error: error.message }
-        }
+        } catch (error) { return { success: false, error: error.message } }
     })
 
     ipcMain.handle("delete-usuario", async (_, id) => {
-        if (!checkPermission("usuarios_eliminar")) {
-            return { success: false, error: "No autorizado para dar de baja cuentas corporativas." }
-        }
+        if (!checkPermission("usuarios_eliminar")) return { success: false, error: "No autorizado." }
         try {
             const check = appDb.prepare("SELECT COUNT(*) as count FROM usuarios WHERE status = 1 AND rol = 'Administrador'").get()
             const userToDel = appDb.prepare("SELECT rol, username FROM usuarios WHERE id = ?").get(id)
-            
-            if (userToDel && userToDel.rol === 'Administrador' && check.count <= 1) {
-                return { success: false, error: "No puedes eliminar al último Administrador del sistema." }
-            }
-
+            if (userToDel && userToDel.rol === 'Administrador' && check.count <= 1) return { success: false, error: "No puedes eliminar al último Administrador del sistema." }
             appDb.prepare("UPDATE usuarios SET status = 0, date_modify = datetime('now') WHERE id = ?").run(id)
+            logger.warning('USUARIOS', `Usuario enviado a la papelera (Username: ${userToDel?.username})`)
             return { success: true }
         } catch (error) { return { success: false, error: error.message } }
     })
