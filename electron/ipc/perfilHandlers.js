@@ -6,7 +6,12 @@ import path from 'path'
 import Database from 'better-sqlite3'
 import { logger } from "../utils/logger.js"
 
-// Función auxiliar para formatear los bytes a KB/MB
+const checkPermission = (permission) => {
+    const user = global.currentUserSession
+    if (!user) return false
+    return user.permisos?.includes("ALL") || user.permisos?.includes(permission)
+}
+
 const formatBytes = (bytes, decimals = 2) => {
     if (!+bytes) return '0 Bytes'
     const k = 1024
@@ -19,15 +24,17 @@ const formatBytes = (bytes, decimals = 2) => {
 export const registerPerfilHandlers = () => {
 
     ipcMain.handle("get-perfiles", () => {
-        try {
-            return appDb.prepare("SELECT * FROM perfiles ORDER BY date_created ASC").all()
-        } catch (error) {
+        if (!checkPermission("manejo_datos")) return []
+        try { 
+            return appDb.prepare("SELECT * FROM perfiles ORDER BY date_created ASC").all() 
+        } catch (e) { 
             logger.error('PERFILES', "Error al intentar obtener la lista de perfiles (Bases de datos)", error)
-            return []
+            return [] 
         }
     })
 
     ipcMain.handle("add-perfil", (_, data) => {
+        if (!checkPermission("datos_perfiles_crear")) return { success: false, error: "No autorizado." }
         try {
             const id = uuidv4()
             const safeName = data.nombre.toLowerCase().replace(/[^a-z0-9]/g, '_')
@@ -47,6 +54,7 @@ export const registerPerfilHandlers = () => {
     })
 
     ipcMain.handle("switch-perfil", (_, id) => {
+        if (!checkPermission("datos_perfiles_cambiar")) return { success: false, error: "No autorizado." }
         try {
             const transaction = appDb.transaction(() => {
                 appDb.prepare("UPDATE perfiles SET is_active = 0").run()
@@ -66,6 +74,7 @@ export const registerPerfilHandlers = () => {
     })
 
     ipcMain.handle("delete-perfil", (_, id) => {
+        if (!checkPermission("datos_perfiles_eliminar")) return { success: false, error: "No autorizado." }
         try {
             const perfil = appDb.prepare("SELECT * FROM perfiles WHERE id = ?").get(id)
             if (!perfil) return { success: false, error: "Perfil no encontrado" }
@@ -93,6 +102,7 @@ export const registerPerfilHandlers = () => {
     })
 
     ipcMain.handle("get-perfil-stats", (_, filename) => {
+        if (!checkPermission("datos_info_ver")) return { success: false, error: "No autorizado." }
         try {
             const dbPath = path.join(app.getPath("userData"), "app2", filename)
             
@@ -129,6 +139,7 @@ export const registerPerfilHandlers = () => {
     })
 
     ipcMain.handle("get-perfil-table-data", (_, { filename, tableName }) => {
+        if (!checkPermission("datos_tablas_ver")) return { success: false, error: "No autorizado." }
         try {
             const dbPath = path.join(app.getPath("userData"), "app2", filename)
             
@@ -153,6 +164,9 @@ export const registerPerfilHandlers = () => {
     })
 
     ipcMain.handle("clear-perfil-table-data", (_, { filename, tableName }) => {
+        if (!checkPermission("datos_tablas_vaciar")) return { 
+            success: false, error: "Esta es una acción altamente destructiva. Contacte al administrador principal." 
+        }
         try {
             const dbPath = path.join(app.getPath("userData"), "app2", filename)
             

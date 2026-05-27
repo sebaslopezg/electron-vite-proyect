@@ -38,7 +38,7 @@ export const MainRoutes = ({ currentUser }) => {
             { path: '/compras', perm: 'compras_ver' },
             { path: '/contabilidad', perm: 'contabilidad_ver' },
             { path: '/usuarios', perm: 'usuarios_gestionar' },
-            { path: '/roles', perm: 'roles_gestionar' },
+            { path: '/roles', perm: 'roles_ver' },
             { path: '/configuracion', perm: 'configuracion_sistema' }
         ]
 
@@ -112,13 +112,13 @@ export const MainRoutes = ({ currentUser }) => {
             } />
 
             <Route path="/usuarios" element={
-                <ProtectedRoute permission="usuarios_gestionar">
+                <ProtectedRoute permission="usuarios_ver">
                     <Usuarios currentUser={currentUser} />
                 </ProtectedRoute>
             } />
 
             <Route path="/roles" element={
-                <ProtectedRoute permission="roles_gestionar">
+                <ProtectedRoute permission="roles_ver">
                     <Roles currentUser={currentUser} />
                 </ProtectedRoute>
             } />

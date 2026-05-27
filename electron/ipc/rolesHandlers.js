@@ -34,7 +34,7 @@ export const registerRolesHandlers = () => {
     }
 
     ipcMain.handle("get-roles", () => {
-        if (!checkPermission("roles_gestionar")) {
+        if (!checkPermission("roles_ver")) {
             return { success: false, error: "No autorizado para consultar la lista de roles de seguridad." }
         }
         try {
@@ -47,78 +47,57 @@ export const registerRolesHandlers = () => {
     })
 
     ipcMain.handle("add-rol", async (_, rolData) => {
-        if (!checkPermission("roles_gestionar")) {
-            return { success: false, error: "No autorizado para crear nuevos perfiles de permisos." }
+        if (!checkPermission("roles_crear")) {
+            return { success: false, error: "No autorizado para estructurar nuevos perfiles de privilegios." }
         }
         try {
             const id = uuidv4()
             const permisosStr = JSON.stringify(rolData.permisos || [])
 
-            const stmt = appDb.prepare(`
-                INSERT INTO roles (id, nombre, descripcion, permisos_json, is_system, status, date_created) 
-                VALUES (?, ?, ?, ?, 0, 1, datetime('now'))
-            `)
+            const stmt = appDb.prepare(`INSERT INTO roles (id, nombre, descripcion, permisos_json, is_system, status, date_created) VALUES (?, ?, ?, ?, 0, 1, datetime('now'))`)
             stmt.run(id, rolData.nombre.trim(), rolData.descripcion, permisosStr)
             
             logger.success('ROLES', `Nuevo rol creado: ${rolData.nombre}`);
             return { success: true, id }
         } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                return { success: false, error: "Ya existe un rol con ese nombre." }
-            }
-            logger.error('ROLES', `Error creando rol: ${rolData.nombre}`, error)
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return { success: false, error: "Ya existe un rol con ese nombre." }
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("update-rol", async (_, rolData) => {
-        if (!checkPermission("roles_gestionar")) {
-            return { success: false, error: "No autorizado para modificar políticas de acceso del sistema." }
+        if (!checkPermission("roles_editar")) {
+            return { success: false, error: "No autorizado para reconfigurar matrices de seguridad existentes." }
         }
         try {
             const rolActual = appDb.prepare("SELECT is_system FROM roles WHERE id = ?").get(rolData.id)
-            if (rolActual && rolActual.is_system === 1) {
-                return { success: false, error: "El rol del sistema no puede ser modificado." }
-            }
+            if (rolActual && rolActual.is_system === 1) return { success: false, error: "El rol del sistema no puede ser modificado." }
 
             const permisosStr = JSON.stringify(rolData.permisos || [])
-            const stmt = appDb.prepare(`
-                UPDATE roles SET nombre = ?, descripcion = ?, permisos_json = ? WHERE id = ?
-            `)
+            const stmt = appDb.prepare(`UPDATE roles SET nombre = ?, descripcion = ?, permisos_json = ? WHERE id = ?`)
             stmt.run(rolData.nombre.trim(), rolData.descripcion, permisosStr, rolData.id)
             
             logger.success('ROLES', `Rol actualizado: ${rolData.nombre}`);
             return { success: true }
         } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                return { success: false, error: "Ya existe un rol con ese nombre." }
-            }
-            logger.error('ROLES', `Error actualizando rol (ID: ${rolData.id})`, error)
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return { success: false, error: "Ya existe un rol con ese nombre." }
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("delete-rol", async (_, id) => {
-        if (!checkPermission("roles_gestionar")) {
-            return { success: false, error: "No autorizado para remover esquemas de seguridad corporativos." }
+        if (!checkPermission("roles_eliminar")) {
+            return { success: false, error: "No autorizado para purgar esquemas de seguridad corporativos." }
         }
         try {
             const rolActual = appDb.prepare("SELECT nombre, is_system FROM roles WHERE id = ?").get(id)
-            if (rolActual && rolActual.is_system === 1) {
-                return { success: false, error: "No se puede eliminar un rol nativo del sistema." }
-            }
+            if (rolActual && rolActual.is_system === 1) return { success: false, error: "No se puede eliminar un rol nativo del sistema." }
 
             const usersWithRole = appDb.prepare("SELECT COUNT(*) as count FROM usuarios WHERE rol = ? AND status = 1").get(rolActual.nombre)
-            if (usersWithRole.count > 0) {
-                return { success: false, error: `No puedes eliminar este rol porque hay ${usersWithRole.count} usuario(s) usándolo.` }
-            }
+            if (usersWithRole.count > 0) return { success: false, error: `No puedes eliminar este rol porque hay ${usersWithRole.count} usuario(s) usándolo.` }
 
             appDb.prepare("UPDATE roles SET status = 0 WHERE id = ?").run(id)
-            logger.warning('ROLES', `Rol eliminado: ${rolActual.nombre}`);
             return { success: true }
-        } catch (error) {
-            logger.error('ROLES', `Error eliminando rol (ID: ${id})`, error)
-            return { success: false, error: error.message }
-        }
+        } catch (error) { return { success: false, error: error.message } }
     })
 }

@@ -6,7 +6,6 @@ import { ModalPreviewJson } from './components/ModalPreviewJson'
 import { ModalConfigurarJoin } from './components/ModalConfigurarJoin'
 import { Modal } from 'react-bootstrap'
 
-// DICCIONARIO DE DATOS
 const CAEDRO_DICTIONARY = {
     terceros: {
         tipo_documento: [
@@ -34,7 +33,9 @@ const CAEDRO_DICTIONARY = {
     }
 };
 
-export const Importar = () => {
+export const Importar = ({ currentUser }) => {
+
+    const hasPermission = () => currentUser?.permisos?.includes('ALL') || currentUser?.permisos?.includes('importar_datos')
     const [step, setStep] = useState(1)
     const [fileType, setFileType] = useState(null)
     const [filePath, setFilePath] = useState(null)
@@ -163,6 +164,8 @@ export const Importar = () => {
 
     const executeUniversalImport = async (type) => {
 
+        if (!hasPermission()) return Swal.fire('Bloqueado', 'No posees la credencial para importar datos', 'error')
+            
         if (Object.keys(mapping).length === 0 && Object.keys(fieldJoins).length === 0 && Object.keys(defaultValues).length === 0) {
             return Swal.fire('Atención', 'Debe mapear o fijar al menos un campo.', 'warning')
         }

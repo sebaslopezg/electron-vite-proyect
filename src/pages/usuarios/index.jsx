@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
 import { ModalUsuario } from './components/ModalUsuario'
@@ -18,6 +18,12 @@ export const Usuarios = ({ currentUser }) => {
     const [showModal, setShowModal] = useState(false)
     const [editData, setEditData] = useState(null)
     const tableContainerRef = useRef(null)
+
+    const hasPermission = (permissionKey) => {
+        if (!currentUser) return false
+        if (currentUser.permisos?.includes('ALL')) return true
+        return currentUser.permisos?.includes(permissionKey)
+    }
 
     const loadData = async () => {
         const [resUsers, resRoles] = await Promise.all([
@@ -42,7 +48,7 @@ export const Usuarios = ({ currentUser }) => {
                 setShowModal(true)
             }
             if (target.classList.contains('btn-delete')) {
-                Swal.fire({ title: '¿Eliminar?', icon: 'warning', showCancelButton: true }).then(r => {
+                Swal.fire({ title: '¿Eliminar Usuario?', text: 'Esta acción deshabilitará el acceso de esta cuenta.', icon: 'warning', showCancelButton: true }).then(r => {
                     if(r.isConfirmed) {
                         window.api.deleteUsuario(target.dataset.id).then((res) => {
                             if (res && !res.success) {
@@ -58,54 +64,52 @@ export const Usuarios = ({ currentUser }) => {
         }
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [currentUser])
+
+    const columnasTabla = useMemo(() => [
+        { data: 'nombre_completo', title: 'Nombre' },
+        { data: 'username', title: 'Usuario', render: (d) => `<span class="text-primary fw-bold">@${d}</span>` },
+        { data: 'rol', title: 'Rol', render: (d) => `<span class="badge bg-secondary">${d}</span>` },
+        { 
+            data: null, 
+            title: 'Acciones', 
+            orderable: false,
+            render: (d, t, r) => {
+                const safeData = encodeURIComponent(JSON.stringify(r))
+                const canEdit = hasPermission('usuarios_editar')
+                const canDelete = hasPermission('usuarios_eliminar')
+
+                return `
+                    ${canEdit ? `<button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>` : ''}
+                    ${canDelete ? `<button class="btn btn-sm btn-danger btn-delete" data-id="${r.id}" title="Eliminar"><i class="bi bi-trash"></i></button>` : ''}
+                `
+            } 
+        }
+    ], [currentUser?.permisos])
 
     return <>
         <div className="pagetitle">
             <h1><i className="bi bi-people me-2"></i>Usuarios</h1>
         </div>
 
-        <div className="card">
+        <div className="card shadow-sm border-0">
             <div className="card-body pt-4">
-
                 <div ref={tableContainerRef}>
 
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                        <Button variant="primary" onClick={() => { setEditData(null); setShowModal(true) }}>
-                            <i className="bi bi-person-plus-fill me-2"></i>Nuevo Usuario
-                        </Button>
-                    </div>
+                    {hasPermission('usuarios_crear') && (
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <Button variant="primary" onClick={() => { setEditData(null); setShowModal(true) }}>
+                                <i className="bi bi-person-plus-fill me-2"></i>Nuevo Usuario
+                            </Button>
+                        </div>
+                    )}
 
                     <DataTableComponent 
+                        key={`users-table-${currentUser?.permisos?.length}`}
                         data={usuarios} 
-                        columns={[
-                            { 
-                                data: 'nombre_completo', 
-                                title: 'Nombre' 
-                            },
-                            { 
-                                data: 'username', 
-                                title: 'Usuario', 
-                                render: (d) => `<span class="text-primary fw-bold">@${d}</span>` 
-                            },
-                            { 
-                                data: 'rol', 
-                                title: 'Rol', render: (d) => `<span class="badge bg-secondary">${d}</span>` 
-                            },
-                            { 
-                                data: null, 
-                                title: 'Acciones', 
-                                render: (d, t, r) => `
-                                    <button class="btn btn-sm btn-outline-secondary me-2 btn-edit" data-alldata="${encodeURIComponent(JSON.stringify(r))}">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${r.id}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                ` 
-                            }
-                        ]} 
+                        columns={columnasTabla} 
                     />
+                    
                     <ModalUsuario 
                         show={showModal} 
                         handleClose={() => setShowModal(false)} 

@@ -1,6 +1,6 @@
 export const menuItems = [
-    { path: '/usuarios', label: 'Usuarios', icon: 'bi bi-people', permission: 'usuarios_gestionar' },
-    { path: '/roles', label: 'Roles', icon: 'bi bi-shield-lock', permission: 'roles_gestionar' },
+    { path: '/usuarios', label: 'Usuarios', icon: 'bi bi-people', permission: 'usuarios_ver' },
+    { path: '/roles', label: 'Roles', icon: 'bi-shield-lock', permission: 'roles_ver' },    
     { path: '/ventas', label: 'Ventas', icon: 'bi-receipt-cutoff', permission: 'ventas_crear' },
     { path: '/compras', label: 'Compras', icon: 'bi bi-cart4', permission: 'compras_ver' },
     { path: '/clientes', label: 'Clientes', icon: 'bi-people', permission: 'clientes_ver' },

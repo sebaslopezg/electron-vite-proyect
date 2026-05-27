@@ -2,32 +2,25 @@ import { ipcMain, BrowserWindow, nativeImage } from "electron"
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+  const user = global.currentUserSession
+  if (!user) return false
+  return user.permisos?.includes("ALL") || user.permisos?.includes(permission)
+}
+
 export const registerConfigurarHandlers = () => {
 
   ipcMain.handle("get-configuracion", () => {
-    try {
-      const stmt = db.prepare(`SELECT * FROM configurar`)
-      return stmt.all()
-    } catch (error) {
-      logger.error('CONFIGURACION_SISTEMA', "Error al intentar obtener los ajustes generales del sistema", error)
-      return []
-    }
+    if (!checkPermission("configuracion_general")) return []
+    try { return db.prepare(`SELECT * FROM configurar`).all() } catch (error) { return [] }
   })
 
   ipcMain.handle("update-configuracion", (_, item) => {
+    if (!checkPermission("configuracion_general")) return { success: false, error: "No autorizado." }
     try {
-      const now = new Date().toISOString()
-      const stmt = db.prepare(`
-        UPDATE configurar SET value=@value, date_modify=@date_modify WHERE key=@key
-      `)
-      const info = stmt.run({ value: item.value, date_modify: now, key: item.key })
-      
-      logger.success('CONFIGURACION_SISTEMA', `Ajuste del sistema actualizado con éxito`, `Clave: ${item.key}`)
-      return { success: true, changes: info.changes }
-    } catch (error) {
-      logger.error('CONFIGURACION_SISTEMA', `Error al actualizar el ajuste del sistema (Clave: ${item.key})`, error)
-      return { success: false, error: error.message }
-    }
+      db.prepare(`UPDATE configurar SET value=@value, date_modify=@date_modify WHERE key=@key`).run({ value: item.value, date_modify: new Date().toISOString(), key: item.key })
+      return { success: true }
+    } catch (error) { return { success: false, error: error.message } }
   })
 
   ipcMain.on("update-window", (_, data) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
 import { ModalRol } from './components/ModalRol'
@@ -13,6 +13,12 @@ export const Roles = ({ currentUser }) => {
     const [showModal, setShowModal] = useState(false)
     const [editData, setEditData] = useState(null)
     const tableContainerRef = useRef(null)
+
+    const hasPermission = (permissionKey) => {
+        if (!currentUser) return false
+        if (currentUser.permisos?.includes('ALL')) return true
+        return currentUser.permisos?.includes(permissionKey)
+    }
 
     const loadRoles = async () => {
         if (window.api && window.api.getRoles) {
@@ -59,58 +65,65 @@ export const Roles = ({ currentUser }) => {
         }
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [currentUser])
+
+    const columnasTabla = useMemo(() => [
+        { 
+            data: 'nombre', 
+            title: 'Rol', 
+            render: (d, t, r) => `<strong>${d}</strong> ${r.is_system ? '<span class="badge bg-primary ms-1">Sistema</span>':''}` 
+        },
+        { 
+            data: 'descripcion', 
+            title: 'Descripción', 
+            render: (d) => d || '-' 
+        },
+        { 
+            data: 'permisos_json', 
+            title: 'Permisos', 
+            render: (d, t, r) => r.is_system ? '<span class="badge bg-success">Acceso Total</span>' : `<span class="badge bg-secondary">${JSON.parse(d).length}</span>` 
+        },
+        {
+            data: null, 
+            title: 'Acciones', 
+            orderable: false, 
+            className: 'text-end pe-4',
+            render: function (data, type, row) {
+                const safeData = encodeURIComponent(JSON.stringify(row))
+                const canEdit = hasPermission('roles_editar')
+                const canDelete = hasPermission('roles_eliminar')
+
+                return `
+                    ${canEdit ? `<button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi ${row.is_system ? 'bi-eye' : 'bi-pencil'}"></i></button>` : ''}
+                    ${canDelete ? `<button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" ${row.is_system ? 'disabled' : ''} title="Eliminar"><i class="bi bi-trash"></i></button>` : ''}
+                `
+            }
+        }
+    ], [currentUser?.permisos])
 
     return <>
         <div className="pagetitle">
             <h1><i className="bi bi-shield-lock me-2"></i>Roles</h1>
         </div>
 
-        <div className="card">
+        <div className="card shadow-sm border-0">
             <div className="card-body pt-4">
-
                 <div ref={tableContainerRef}>
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                        <Button variant="primary" onClick={handleNuevo}>
-                            <i className="bi bi-shield-plus me-2"></i>Nuevo Rol
-                        </Button>
-                    </div>
+                    
+                    {hasPermission('roles_crear') && (
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <Button variant="primary" onClick={handleNuevo}>
+                                <i className="bi bi-shield-plus me-2"></i>Nuevo Rol
+                            </Button>
+                        </div>
+                    )}
+
                     <DataTableComponent 
-                        key={`roles-table-${roles.length}`} 
+                        key={`roles-table-${currentUser?.permisos?.length}`} 
                         data={roles} 
-                        columns={[
-                            { 
-                                data: 'nombre', 
-                                title: 'Rol', 
-                                render: (d, t, r) => `
-                                    <strong>${d}</strong> ${r.is_system ? '<span class="badge bg-primary ms-1">Sistema</span>':''}
-                                ` 
-                            },
-                            { 
-                                data: 'descripcion', 
-                                title: 'Descripción', 
-                                render: (d) => d || '-' 
-                            },
-                            { 
-                                data: 'permisos_json', 
-                                title: 'Permisos', 
-                                render: (d, t, r) => r.is_system ? '<span class="badge bg-success">Acceso Total</span>' : `<span class="badge bg-secondary">${JSON.parse(d).length}</span>` },
-                            { 
-                                data: null, 
-                                title: 'Acciones', 
-                                orderable: false, 
-                                className: 'text-end',
-                                render: (d, t, r) => `
-                                    <button class="btn btn-sm btn-outline-secondary me-2 btn-edit" data-alldata="${encodeURIComponent(JSON.stringify(r))}">
-                                        <i class="bi ${r.is_system ? 'bi-eye' : 'bi-pencil'}"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${r.id}" ${r.is_system ? 'disabled' : ''}>
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                `
-                            }
-                        ]} 
+                        columns={columnasTabla} 
                     />
+                    
                     <ModalRol 
                         show={showModal} 
                         handleClose={() => setShowModal(false)} 

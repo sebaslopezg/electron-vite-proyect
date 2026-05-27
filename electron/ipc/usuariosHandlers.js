@@ -39,44 +39,26 @@ export const registerUsuariosHandlers = () => {
     ipcMain.handle("check-login-required", () => {
         try {
             const activeUsers = appDb.prepare("SELECT * FROM usuarios WHERE status = 1").all()
-            
-            if (activeUsers.length > 1) {
-                return { success: true, required: true }
-            }
+            if (activeUsers.length > 1) return { success: true, required: true }
             
             if (activeUsers.length === 1) {
                 const singleUser = activeUsers[0]
                 if (singleUser.username === 'admin') {
                     const isDefaultPassword = bcrypt.compareSync('admin123', singleUser.password_hash)
                     if (isDefaultPassword) {
-                        
                         const roleRow = appDb.prepare("SELECT permisos_json FROM roles WHERE nombre = ?").get(singleUser.rol)
                         let permisos = ["ALL"]
                         try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
 
-                        const userSession = { 
-                            id: singleUser.id, 
-                            nombre_completo: singleUser.nombre_completo, 
-                            username: singleUser.username, 
-                            rol: singleUser.rol,
-                            permisos: permisos 
-                        }
-
+                        const userSession = { id: singleUser.id, nombre_completo: singleUser.nombre_completo, username: singleUser.username, rol: singleUser.rol, permisos: permisos }
                         global.currentUserSession = userSession
-
-                        return { 
-                            success: true, 
-                            required: false, 
-                            user: userSession
-                        }
+                        return { success: true, required: false, user: userSession }
                     }
                 }
                 return { success: true, required: true }
             }
-            
             return { success: true, required: false }
         } catch (error) {
-            logger.error('USUARIOS', "Error al verificar requerimiento de login", error)
             return { success: false, error: error.message }
         }
     })
@@ -84,137 +66,86 @@ export const registerUsuariosHandlers = () => {
     ipcMain.handle("login-user", async (_, { username, password }) => {
         try {
             const user = appDb.prepare("SELECT * FROM usuarios WHERE username = ? AND status = 1").get(username.toLowerCase().trim())
-            if (!user) {
-                return { success: false, error: "Usuario o contraseña incorrectos." }
-            }
+            if (!user) return { success: false, error: "Usuario o contraseña incorrectos." }
 
             const match = bcrypt.compareSync(password, user.password_hash)
-            if (!match) {
-                return { success: false, error: "Usuario o contraseña incorrectos." }
-            }
+            if (!match) return { success: false, error: "Usuario o contraseña incorrectos." }
 
             const roleRow = appDb.prepare("SELECT permisos_json FROM roles WHERE nombre = ?").get(user.rol)
             let permisos = []
             try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
 
-            const userSession = { 
-                id: user.id, 
-                nombre_completo: user.nombre_completo, 
-                username: user.username, 
-                rol: user.rol,
-                permisos: permisos 
-            }
-
+            const userSession = { id: user.id, nombre_completo: user.nombre_completo, username: user.username, rol: user.rol, permisos: permisos }
             global.currentUserSession = userSession
 
             logger.info('SISTEMA', `Inicio de sesión exitoso: @${user.username} [${user.rol}]`)
-            return {
-                success: true,
-                user: userSession
-            }
-        } catch (error) {
-            logger.error('USUARIOS', "Error crítico en proceso de login", error)
-            return { success: false, error: error.message };
-        }
+            return { success: true, user: userSession }
+        } catch (error) { return { success: false, error: error.message }; }
     })
 
     ipcMain.handle("get-usuarios", () => {
-        if (!checkPermission("usuarios_gestionar")) {
-            return { success: false, error: "No autorizado para ver el personal del sistema." }
+        if (!checkPermission("usuarios_ver")) {
+            return { success: false, error: "No autorizado para consultar la nómina del personal." }
         }
         try {
             const stmt = appDb.prepare("SELECT id, nombre_completo, username, rol, status, date_created FROM usuarios WHERE status = 1 ORDER BY nombre_completo ASC")
             return { success: true, data: stmt.all() }
-        } catch (error) {
-            logger.error('USUARIOS', "Error al obtener la lista de usuarios globales", error)
-            return { success: false, error: error.message }
-        }
+        } catch (error) { return { success: false, error: error.message } }
     })
 
     ipcMain.handle("add-usuario", async (_, user) => {
-        if (!checkPermission("usuarios_gestionar")) {
-            return { success: false, error: "No autorizado para registrar nuevas cuentas de usuario." }
+        if (!checkPermission("usuarios_crear")) {
+            return { success: false, error: "No autorizado para registrar nuevas cuentas de personal." }
         }
         try {
             const id = uuidv4()
             const now = new Date().toISOString()
             const hash = bcrypt.hashSync(user.password, 10)
 
-            const stmt = appDb.prepare(`
-                INSERT INTO usuarios (id, nombre_completo, username, password_hash, rol, status, date_created, date_modify) 
-                VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-            `)
+            const stmt = appDb.prepare(`INSERT INTO usuarios (id, nombre_completo, username, password_hash, rol, status, date_created, date_modify) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`)
             stmt.run(id, user.nombre_completo, user.username, hash, user.rol, now, now)
-            
-            logger.success('USUARIOS', `Nuevo usuario creado: ${user.nombre_completo}`, `Usuario: ${user.username} | Rol: ${user.rol}`)
             return { success: true, id }
         } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                logger.warning('USUARIOS', `Intento de crear usuario duplicado: ${user.username}`)
-                return { success: false, error: "El nombre de usuario (username) ya está en uso." }
-            }
-            logger.error('USUARIOS', `Error creando el usuario: ${user.username}`, error)
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return { success: false, error: "El nombre de usuario ya está en uso." }
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("update-usuario", async (_, user) => {
-        if (!checkPermission("usuarios_gestionar")) {
-            return { success: false, error: "No autorizado para modificar datos de accesos o credenciales." }
+        if (!checkPermission("usuarios_editar")) {
+            return { success: false, error: "No autorizado para modificar datos o restablecer contraseñas." }
         }
         try {
             const now = new Date().toISOString()
-            
             if (user.password && user.password.trim() !== '') {
                 const hash = bcrypt.hashSync(user.password, 10)
-                const stmt = appDb.prepare(`
-                    UPDATE usuarios SET 
-                    nombre_completo = ?, username = ?, password_hash = ?, rol = ?, date_modify = ?
-                    WHERE id = ?
-                `)
+                const stmt = appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, username = ?, password_hash = ?, rol = ?, date_modify = ? WHERE id = ?`)
                 stmt.run(user.nombre_completo, user.username, hash, user.rol, now, user.id)
-                logger.success('USUARIOS', `Usuario actualizado (Clave modificada): ${user.username}`);
             } else {
-                const stmt = appDb.prepare(`
-                    UPDATE usuarios SET 
-                    nombre_completo = ?, username = ?, rol = ?, date_modify = ?
-                    WHERE id = ?
-                `)
+                const stmt = appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, username = ?, rol = ?, date_modify = ? WHERE id = ?`)
                 stmt.run(user.nombre_completo, user.username, user.rol, now, user.id)
-                logger.success('USUARIOS', `Usuario actualizado (Sin cambiar clave): ${user.username}`)
             }
-
             return { success: true }
         } catch (error) {
-            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-                return { success: false, error: "El nombre de usuario (username) ya está en uso por otra persona." }
-            }
-            logger.error('USUARIOS', `Error al actualizar el usuario (ID: ${user.id})`, error)
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return { success: false, error: "El username ya está en uso por otra persona." }
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("delete-usuario", async (_, id) => {
-        if (!checkPermission("usuarios_gestionar")) {
-            return { success: false, error: "No autorizado para revocar accesos del sistema." }
+        if (!checkPermission("usuarios_eliminar")) {
+            return { success: false, error: "No autorizado para dar de baja cuentas corporativas." }
         }
         try {
             const check = appDb.prepare("SELECT COUNT(*) as count FROM usuarios WHERE status = 1 AND rol = 'Administrador'").get()
             const userToDel = appDb.prepare("SELECT rol, username FROM usuarios WHERE id = ?").get(id)
             
             if (userToDel && userToDel.rol === 'Administrador' && check.count <= 1) {
-                logger.warning('USUARIOS', "Intento denegado de eliminar al último Administrador del sistema.")
                 return { success: false, error: "No puedes eliminar al último Administrador del sistema." }
             }
 
-            const stmt = appDb.prepare("UPDATE usuarios SET status = 0, date_modify = datetime('now') WHERE id = ?")
-            stmt.run(id)
-            
-            logger.warning('USUARIOS', `Usuario enviado a la papelera (Username: ${userToDel?.username})`)
+            appDb.prepare("UPDATE usuarios SET status = 0, date_modify = datetime('now') WHERE id = ?").run(id)
             return { success: true }
-        } catch (error) {
-            logger.error('USUARIOS', `Error al intentar eliminar el usuario (ID: ${id})`, error)
-            return { success: false, error: error.message }
-        }
+        } catch (error) { return { success: false, error: error.message } }
     })
 }

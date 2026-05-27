@@ -4,8 +4,15 @@ import path from 'path'
 import { appDb } from '../database/index.js'
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession
+    if (!user) return false
+    return user.permisos?.includes("ALL") || user.permisos?.includes(permission)
+}
+
 export const registerExportHandlers = () => {
     ipcMain.handle('export-db', async () => {
+        if (!checkPermission("exportar_datos")) return { success: false, message: "No posees privilegios para extraer copias de seguridad." }
         try {
             const activeProfile = appDb.prepare("SELECT filename, nombre FROM perfiles WHERE is_active = 1").get()
             

@@ -15,89 +15,37 @@ const ESQUEMA_SEGURIDAD = [
     { id: 'mod_productos', nombre: 'Productos y Servicios', icono: 'bi-box-seam', path: '/productos', submodulos: [{ id: 'productos_ver', label: 'Ver catálogo maestro de productos y servicios base' }, { id: 'productos_gestionar', label: 'Crear, actualizar o eliminar registros del catálogo' }, { id: 'categorias_gestionar', label: 'Administrar taxonomías (Categorías, Subcategorías y Etiquetas)' }] },
     { id: 'mod_inventario', nombre: 'Inventario (Kárdex)', icono: 'bi-clipboard-check', path: '/inventario', submodulos: [{ id: 'inventario_ver', label: 'Visualizar existencias y existencias mínimas de stock' }, { id: 'inventario_ajustar', label: 'Realizar ajustes manuales directos sobre el stock (+ / -)' }] },
     { id: 'mod_compras', nombre: 'Compras y Gastos', icono: 'bi-cart4', path: '/compras', submodulos: [{ id: 'compras_ver', label: 'Consultar el histórico y detalles de compras a proveedores' }, { id: 'compras_crear', label: 'Registrar nuevas facturas de compras o gastos contables' }] },
-    { 
-        id: 'mod_clientes', 
-        nombre: 'Clientes y Terceros', 
-        icono: 'bi-people', 
-        path: '/clientes', 
-        submodulos: [
-            { id: 'clientes_ver', label: 'Visualizar el directorio de clientes generales' },
-            { id: 'clientes_crear', label: 'Registrar nuevos clientes de mostrador o empresas' },
-            { id: 'clientes_editar', label: 'Modificar perfiles de clientes y datos demográficos' },
-            { id: 'clientes_eliminar', label: 'Remover o desactivar clientes del sistema' }
-        ] 
-    },
-    { 
-        id: 'mod_cartera', 
-        nombre: 'Cartera y Cobranzas', 
-        icono: 'bi-wallet2', 
-        path: '/cartera', 
-        submodulos: [
-            { id: 'cartera_ver', label: 'Consultar reportes de cuentas por cobrar y deudas activas' },
-            { 
-                id: 'cartera_abonos_ver', 
-                label: 'Acceso a ventana de Abonos Directos',
-                permisos_hijos: [
-                    { id: 'cartera_abonar', label: 'Permitir abonar (Registrar recaudos sobre saldos pendientes)' }
-                ]
-            },
-            {
-                id: 'cartera_historial_ver',
-                label: 'Visualizar historial cronológico de abonos recibidos',
-                permisos_hijos: [
-                    { id: 'cartera_abono_imprimir', label: 'Permitir imprimir comprobantes de pago (POS / A4)' }
-                ]
-            }
-        ] 
-    },
+    { id: 'mod_clientes', nombre: 'Clientes y Terceros', icono: 'bi-people', path: '/clientes', submodulos: [{ id: 'clientes_ver', label: 'Visualizar el directorio de clientes generales' }, { id: 'clientes_crear', label: 'Registrar nuevos clientes de mostrador o empresas' }, { id: 'clientes_editar', label: 'Modificar perfiles de clientes y datos demográficos' }, { id: 'clientes_eliminar', label: 'Remover o desactivar clientes del sistema' }] },
+    { id: 'mod_cartera', nombre: 'Cartera y Cobranzas', icono: 'bi-wallet2', path: '/cartera', submodulos: [{ id: 'cartera_ver', label: 'Consultar reportes de cuentas por cobrar y deudas activas' }, { id: 'cartera_abonos_ver', label: 'Acceso a ventana de Abonos Directos', permisos_hijos: [{ id: 'cartera_abonar', label: 'Permitir abonar (Registrar recaudos sobre saldos pendientes)' }] }, { id: 'cartera_historial_ver', label: 'Visualizar historial cronológico de abonos recibidos', permisos_hijos: [{ id: 'cartera_abono_imprimir', label: 'Permitir imprimir comprobantes de pago (POS / A4)' }] }] },
     { id: 'mod_encargos', nombre: 'Encargos y Apartados', icono: 'bi-calendar-event', path: '/encargos', submodulos: [{ id: 'encargos_ver', label: 'Consultar estados y agenda de pedidos pendientes' }, { id: 'encargos_gestionar', label: 'Actualizar flujos, despachar o anular encargos' }] },
+    { id: 'mod_contabilidad', nombre: 'Contabilidad Integral (NIIF)', icono: 'bi-calculator-fill', path: '/contabilidad', submodulos: [{ id: 'puc_ver', label: 'Plan Único de Cuentas (Visualizar árbol PUC)', permisos_hijos: [{ id: 'puc_crear', label: 'Crear nuevas cuentas contables auxiliares' }, { id: 'puc_editar', label: 'Modificar nombres o parámetros de cuentas existentes' }, { id: 'puc_eliminar', label: 'Eliminar cuentas contables (Sin movimientos activos)' }] }, { id: 'terceros_ver', label: 'Directorio de Terceros (Ver Clientes/Proveedores globales)', permisos_hijos: [{ id: 'terceros_crear', label: 'Registrar nuevos terceros en el sistema' }, { id: 'terceros_editar', label: 'Modificar información fiscal o datos de terceros' }, { id: 'terceros_eliminar', label: 'Eliminar definitivamente terceros del directorio' }] }, { id: 'comprobantes_ver', label: 'Comprobantes (Habilita ver listado y detalles de asientos contables)', permisos_hijos: [{ id: 'comprobantes_crear', label: 'Crear asiento contable manual' }, { id: 'comprobantes_editar', label: 'Modificar/Corregir asientos contables existentes' }] }, { id: 'contabilidad_reportes_ver', label: 'Reportes Financieros NIIF (Balance General, PyG y Balance de Prueba)' }, { id: 'contabilidad_config_ver', label: 'Configuración Contable (Visualizar módulo de enlaces automáticos)', permisos_hijos: [{ id: 'config_cuentas_ventas', label: 'Asignar cuentas automáticas de ventas' }, { id: 'config_cuentas_compras', label: 'Asignar cuentas automáticas de compras y gastos' }, { id: 'config_metodos_pago', label: 'Asignar o mapear cuentas por métodos de pago' }] }] },
+    { id: 'mod_usuarios', nombre: 'Usuarios del Sistema', icono: 'bi-person-badge', path: '/usuarios', submodulos: [{ id: 'usuarios_crear', label: 'Crear usuarios (Dar de alta nuevas cuentas de acceso)' }, { id: 'usuarios_editar', label: 'Modificar usuarios (Editar perfiles o restablecer claves)' }, { id: 'usuarios_eliminar', label: 'Eliminar usuarios (Dar de baja cuentas de empleados)' }] },
+    { id: 'mod_roles', nombre: 'Roles y Privilegios', icono: 'bi-shield-lock', path: '/roles', submodulos: [{ id: 'roles_crear', label: 'Crear roles (Estructurar perfiles y nuevas matrices)' }, { id: 'roles_editar', label: 'Modificar roles (Actualizar políticas de acceso de perfiles)' }, { id: 'roles_eliminar', label: 'Eliminar roles (Remover perfiles sin usuarios asignados)' }] },
+    
     { 
-        id: 'mod_contabilidad', 
-        nombre: 'Contabilidad Integral (NIIF)', 
-        icono: 'bi-calculator-fill', 
-        path: '/contabilidad', 
+        id: 'mod_configuracion', 
+        nombre: 'Configuración Global', 
+        icono: 'bi-gear', 
+        path: '/configuracion', 
         submodulos: [
+            { id: 'configuracion_general', label: 'Configuración general (Datos de la app, logos y formatos)' },
+            { id: 'ver_logs', label: 'Ver logs (Auditoría y registro de eventos del sistema)' },
             { 
-                id: 'puc_ver', 
-                label: 'Plan Único de Cuentas (Visualizar árbol PUC)',
+                id: 'manejo_datos', 
+                label: 'Manejo de datos (Gestión de perfiles de bases de datos)',
                 permisos_hijos: [
-                    { id: 'puc_crear', label: 'Crear nuevas cuentas contables auxiliares' },
-                    { id: 'puc_editar', label: 'Modificar nombres o parámetros de cuentas existentes' },
-                    { id: 'puc_eliminar', label: 'Eliminar cuentas contables (Sin movimientos activos)' }
+                    { id: 'datos_perfiles_crear', label: 'Crear perfiles de datos' },
+                    { id: 'datos_perfiles_cambiar', label: 'Cambiar de perfil' },
+                    { id: 'datos_perfiles_eliminar', label: 'Eliminar perfiles' },
+                    { id: 'datos_info_ver', label: 'Ver información de datos' },
+                    { id: 'datos_tablas_ver', label: 'Ver contenido de tablas de datos' },
+                    { id: 'datos_tablas_vaciar', label: '⚠️ Vaciar tablas de datos (Destructivo)' }
                 ]
             },
-            { 
-                id: 'terceros_ver', 
-                label: 'Directorio de Terceros (Ver Clientes/Proveedores globales)',
-                permisos_hijos: [
-                    { id: 'terceros_crear', label: 'Registrar nuevos terceros en el sistema' },
-                    { id: 'terceros_editar', label: 'Modificar información fiscal o datos de terceros' },
-                    { id: 'terceros_eliminar', label: 'Eliminar definitivamente terceros del directorio' }
-                ]
-            },
-            { 
-                id: 'comprobantes_ver', 
-                label: 'Comprobantes (Habilita ver listado y detalles de asientos contables)',
-                permisos_hijos: [
-                    { id: 'comprobantes_crear', label: 'Crear asiento contable manual' },
-                    { id: 'comprobantes_editar', label: 'Modificar/Corregir asientos contables existentes' }
-                ]
-            },
-            { id: 'contabilidad_reportes_ver', label: 'Reportes Financieros NIIF (Balance General, PyG y Balance de Prueba)' },
-            { 
-                id: 'contabilidad_config_ver', 
-                label: 'Configuración Contable (Visualizar módulo de enlaces automáticos)',
-                permisos_hijos: [
-                    { id: 'config_cuentas_ventas', label: 'Asignar cuentas automáticas de ventas' },
-                    { id: 'config_cuentas_compras', label: 'Asignar cuentas automáticas de compras y gastos' },
-                    { id: 'config_metodos_pago', label: 'Asignar o mapear cuentas por métodos de pago' }
-                ]
-            }
+            { id: 'importar_datos', label: 'Importar datos (CSV / SQL / Relacional)' },
+            { id: 'exportar_datos', label: 'Exportar datos (Respaldos de seguridad)' }
         ] 
-    },
-    { id: 'mod_usuarios', nombre: 'Usuarios del Sistema', icono: 'bi-person-badge', path: '/usuarios', submodulos: [{ id: 'usuarios_gestionar', label: 'Administrar credenciales de empleados y accesos globales' }] },
-    { id: 'mod_roles', nombre: 'Roles y Privilegios', icono: 'bi-shield-lock', path: '/roles', submodulos: [{ id: 'roles_gestionar', label: 'Administrar y modificar matrices de seguridad del personal' }] },
-    { id: 'mod_configuracion', nombre: 'Configuración Global', icono: 'bi-gear', path: '/configuracion', submodulos: [{ id: 'configuracion_sistema', label: 'Alterar configuraciones generales, rutas de base de datos y perfiles' }] }
+    }
 ]
 
 export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
@@ -127,9 +75,14 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
 
                 const dectectModulos = {}
                 ESQUEMA_SEGURIDAD.forEach(mod => {
-                    const tienePermisosActivos = mod.submodulos.some(sub => 
+                    let tienePermisosActivos = mod.submodulos.some(sub => 
                         filteredPermisos.includes(sub.id) || (sub.permisos_hijos?.some(hijo => filteredPermisos.includes(hijo.id)))
                     )
+                    if (mod.id === 'mod_contabilidad' && filteredPermisos.includes('contabilidad_ver')) tienePermisosActivos = true
+                    if (mod.id === 'mod_usuarios' && filteredPermisos.includes('usuarios_ver')) tienePermisosActivos = true
+                    if (mod.id === 'mod_roles' && filteredPermisos.includes('roles_ver')) tienePermisosActivos = true
+                    if (mod.id === 'mod_configuracion' && filteredPermisos.includes('configuracion_sistema')) tienePermisosActivos = true
+
                     if (tienePermisosActivos) dectectModulos[mod.id] = true
                 })
                 setModulosActivos(dectectModulos)
@@ -149,8 +102,10 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
 
         if (estaActivo) {
             const idsALimpiar = [moduloId]
-            // Si apaga contabilidad, nos aseguramos de purgar la llave flotante manualmente en la UI
             if (moduloId === 'mod_contabilidad') idsALimpiar.push('contabilidad_ver')
+            if (moduloId === 'mod_usuarios') idsALimpiar.push('usuarios_ver')
+            if (moduloId === 'mod_roles') idsALimpiar.push('roles_ver')
+            if (moduloId === 'mod_configuracion') idsALimpiar.push('configuracion_sistema')
 
             submodulos.forEach(sub => {
                 idsALimpiar.push(sub.id)
@@ -202,31 +157,24 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
         e.preventDefault()
         if (!nombre.trim()) return Toast.fire({ icon: 'error', title: 'Falta el nombre del rol.' })
 
-        // --- MOTOR DE LIMPIEZA PROPERA Y DEPURACIÓN DE LLAVES MAESTRAS ---
-        // 1. Barremos cualquier residuo viejo de la clave 'contabilidad_ver'
-        let permisosLimpios = permisosSeleccionados.filter(p => p !== 'contabilidad_ver')
+        let permisosLimpios = permisosSeleccionados.filter(p => p !== 'contabilidad_ver' && p !== 'usuarios_ver' && p !== 'roles_ver' && p !== 'configuracion_sistema')
 
-        // 2. Evaluamos si quedó al menos una casilla de contabilidad seleccionada a la derecha
-        const listaContabilidadCheckboxes = [
-            'puc_ver', 'puc_crear', 'puc_editar', 'puc_eliminar',
-            'terceros_ver', 'terceros_crear', 'terceros_editar', 'terceros_eliminar',
-            'comprobantes_ver', 'comprobantes_crear', 'comprobantes_editar',
-            'contabilidad_reportes_ver', 'contabilidad_config_ver'
-        ]
-        const tieneContabilidadActiva = permisosLimpios.some(p => listaContabilidadCheckboxes.includes(p))
+        const listaContabilidadCheckboxes = ['puc_ver', 'puc_crear', 'puc_editar', 'puc_eliminar', 'terceros_ver', 'terceros_crear', 'terceros_editar', 'terceros_eliminar', 'comprobantes_ver', 'comprobantes_crear', 'comprobantes_editar', 'contabilidad_reportes_ver', 'contabilidad_config_ver']
+        if (permisosLimpios.some(p => listaContabilidadCheckboxes.includes(p)) || modulosActivos['mod_contabilidad']) permisosLimpios.push('contabilidad_ver')
 
-        // 3. Si tiene casillas activas, inyectamos la llave contenedora; si el switch está OFF, el zombi muere aquí
-        if (tieneContabilidadActiva) {
-            permisosLimpios.push('contabilidad_ver')
-        }
+        const listaUsuariosCheckboxes = ['usuarios_crear', 'usuarios_editar', 'usuarios_eliminar']
+        if (permisosLimpios.some(p => listaUsuariosCheckboxes.includes(p)) || modulosActivos['mod_usuarios']) permisosLimpios.push('usuarios_ver')
+
+        const listaRolesCheckboxes = ['roles_crear', 'roles_editar', 'roles_eliminar']
+        if (permisosLimpios.some(p => listaRolesCheckboxes.includes(p)) || modulosActivos['mod_roles']) permisosLimpios.push('roles_ver')
+
+        const listaConfigCheckboxes = ['configuracion_general', 'ver_logs', 'manejo_datos', 'datos_perfiles_crear', 'datos_perfiles_cambiar', 'datos_perfiles_eliminar', 'datos_info_ver', 'datos_tablas_ver', 'datos_tablas_vaciar', 'importar_datos', 'exportar_datos']
+        if (permisosLimpios.some(p => listaConfigCheckboxes.includes(p)) || modulosActivos['mod_configuracion']) permisosLimpios.push('configuracion_sistema')
+
 
         const permisosFinales = [...permisosLimpios, `START_PATH:${defaultRoute}`]
 
-        const payload = {
-            nombre: nombre,
-            descripcion: descripcion,
-            permisos: permisosFinales
-        }
+        const payload = { nombre: nombre, descripcion: descripcion, permisos: permisosFinales }
 
         let res = editData ? await window.api.updateRol({ ...payload, id: editData.id }) : await window.api.addRol(payload)
 
@@ -361,7 +309,11 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                                                                         {sub.permisos_hijos.map(hijo => (
                                                                             <Form.Check 
                                                                                 key={hijo.id} type="checkbox" id={`hijo-${hijo.id}`}
-                                                                                label={<span className="small text-secondary fst-italic"><i className="bi bi-arrow-return-right me-1"></i> {hijo.label}</span>}
+                                                                                label={
+                                                                                    <span className={`small text-secondary fst-italic ${hijo.id === 'datos_tablas_vaciar' ? 'text-danger fw-bold' : ''}`}>
+                                                                                        <i className="bi bi-arrow-return-right me-1"></i> {hijo.label}
+                                                                                    </span>
+                                                                                }
                                                                                 checked={permisosSeleccionados.includes(hijo.id) || isSystemRole} disabled={isSystemRole}
                                                                                 onChange={() => handleTogglePermiso(hijo.id, sub.id)}
                                                                             />
