@@ -16,12 +16,48 @@ export const ConfiguracionIndex = ({ currentUser }) => {
     }
 
     const tabsDisponibles = [
-        { id: 'general', label: 'General', icon: '', perm: 'configuracion_general', component: <General currentUser={currentUser} /> },
-        { id: 'datos', label: 'Manejo de Datos', icon: 'bi-database-fill-gear', perm: 'manejo_datos', component: <Datos currentUser={currentUser} /> },
-        { id: 'importar', label: 'Importar Datos', icon: 'bi-cloud-upload', perm: 'importar_datos', component: <Importar currentUser={currentUser} /> },
-        { id: 'exportar', label: 'Exportar Datos', icon: 'bi-cloud-download', perm: 'exportar_datos', component: <Exportar currentUser={currentUser} /> },
-        { id: 'logs', label: 'Logs', icon: 'bi-journal-text', perm: 'ver_logs', component: <Logs currentUser={currentUser} /> },
-        { id: 'actualizaciones', label: 'Actualizaciones', icon: 'bi-arrow-repeat', perm: 'configuracion_sistema', component: <Actualizaciones currentUser={currentUser} /> }
+        { 
+            id: 'general', 
+            label: 'General', 
+            icon: '', 
+            perm: 'configuracion_general', 
+            component: <General currentUser={currentUser} /> 
+        },
+        { 
+            id: 'actualizaciones', 
+            label: 'Actualizaciones', 
+            icon: 'bi-arrow-repeat', 
+            perm: 'configuracion_sistema', 
+            component: <Actualizaciones currentUser={currentUser} /> 
+        },
+        { 
+            id: 'logs', 
+            label: 'Logs', 
+            icon: 'bi-journal-text', 
+            perm: 'ver_logs', 
+            component: <Logs currentUser={currentUser} /> 
+        },
+        { 
+            id: 'datos', 
+            label: 'Manejo de Datos', 
+            icon: 'bi-database-fill-gear', 
+            perm: 'manejo_datos', 
+            component: <Datos currentUser={currentUser} /> 
+        },
+        { 
+            id: 'importar', 
+            label: 'Importar Datos', 
+            icon: 'bi-cloud-upload', 
+            perm: 'importar_datos', 
+            component: <Importar currentUser={currentUser} /> 
+        },
+        { 
+            id: 'exportar', 
+            label: 'Exportar Datos', 
+            icon: 'bi-cloud-download', 
+            perm: 'exportar_datos', 
+            component: <Exportar currentUser={currentUser} /> 
+        },
     ].filter(tab => hasPermission(tab.perm))
 
     useEffect(() => {
@@ -40,33 +76,31 @@ export const ConfiguracionIndex = ({ currentUser }) => {
 
     const currentTabObj = tabsDisponibles.find(t => t.id === activeTab)
 
-    return (
-        <>
-            <div className="pagetitle">
-                <h1><i className="bi bi-gear me-2"></i>Configuración del Sistema</h1>
-            </div>
+    return <>
+        <div className="pagetitle">
+            <h1><i className="bi bi-gear me-2"></i>Configuración del Sistema</h1>
+        </div>
 
-            <div className="card shadow-sm border-0">
-                <div className="card-body">
-                    <ul className="nav nav-tabs nav-tabs-bordered mt-3" role="tablist">
-                        {tabsDisponibles.map(tab => (
-                            <li className="nav-item" role="presentation" key={tab.id}>
-                                <button 
-                                    className={`nav-link ${activeTab === tab.id ? 'active' : 'text-secondary'}`} 
-                                    onClick={() => setActiveTab(tab.id)}
-                                    type="button" role="tab"
-                                >
-                                    {tab.icon && <i className={`${tab.icon} me-1`}></i>} {tab.label}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+        <div className="card shadow-sm border-0">
+            <div className="card-body">
+                <ul className="nav nav-tabs nav-tabs-bordered mt-3" role="tablist">
+                    {tabsDisponibles.map(tab => (
+                        <li className="nav-item" role="presentation" key={tab.id}>
+                            <button 
+                                className={`nav-link ${activeTab === tab.id ? 'active' : 'text-secondary'}`} 
+                                onClick={() => setActiveTab(tab.id)}
+                                type="button" role="tab"
+                            >
+                                {tab.icon && <i className={`${tab.icon} me-1`}></i>} {tab.label}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
 
-                    <div className="tab-content pt-4 animate__animated animate__fadeIn">
-                        {currentTabObj ? currentTabObj.component : null}
-                    </div>
+                <div className="tab-content pt-4 animate__animated animate__fadeIn">
+                    {currentTabObj ? currentTabObj.component : null}
                 </div>
             </div>
-        </>
-    );
+        </div>
+    </>
 }
