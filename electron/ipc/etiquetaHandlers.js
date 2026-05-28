@@ -17,8 +17,8 @@ export const registerEtiquetaHandlers = () => {
         try {
             const stmt = db.prepare(`
                 SELECT e.*, 
-                       GROUP_CONCAT(c.nombre, ', ') as categorias_nombres,
-                       GROUP_CONCAT(c.id, ',') as categorias_ids
+                    GROUP_CONCAT(c.nombre, ', ') as categorias_nombres,
+                    GROUP_CONCAT(c.id, ',') as categorias_ids
                 FROM etiqueta e
                 LEFT JOIN etiqueta_categoria ec ON e.id = ec.etiqueta_id
                 LEFT JOIN categoria c ON ec.categoria_id = c.id
@@ -41,8 +41,8 @@ export const registerEtiquetaHandlers = () => {
             db.prepare(`INSERT INTO etiqueta (id, nombre, descripcion, color, status) VALUES (@id, @nombre, @descripcion, @color, 1)`).run({ ...data, id })
 
             const insertRelacion = db.prepare(`INSERT INTO etiqueta_categoria (etiqueta_id, categoria_id) VALUES (?, ?)`)
-            const categorias = data.categorias && data.categorias.length > 0 ? data.categorias : ['general']
-            for (const catId of categorias) {
+            const categories = data.categorias && data.categorias.length > 0 ? data.categorias : ['general']
+            for (const catId of categories) {
                 insertRelacion.run(id, catId)
             }
             return id
@@ -50,8 +50,10 @@ export const registerEtiquetaHandlers = () => {
 
         try {
             const id = transaction(item)
+            logger.success('ETIQUETAS', `Nueva etiqueta creada: ${item.nombre} (ID: ${id})`)
             return { success: true, id }
         } catch (error) {
+            logger.error('ETIQUETAS', `Error al intentar agregar la etiqueta: ${item?.nombre}`, error)
             return { success: false, error: error.message }
         }
     })
@@ -65,29 +67,34 @@ export const registerEtiquetaHandlers = () => {
             db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(data.id)
 
             const insertRelacion = db.prepare(`INSERT INTO etiqueta_categoria (etiqueta_id, categoria_id) VALUES (?, ?)`)
-            const categorias = data.categorias && data.categorias.length > 0 ? data.categorias : ['general']
-            for (const catId of categorias) {
+            const categories = data.categorias && data.categorias.length > 0 ? data.categorias : ['general']
+            for (const catId of categories) {
                 insertRelacion.run(data.id, catId)
             }
         });
 
         try {
             transaction(item)
+            logger.success('ETIQUETAS', `Etiqueta modificada correctamente: ${item.nombre} (ID: ${item.id})`)
             return { success: true }
         } catch (error) {
+            logger.error('ETIQUETAS', `Error al actualizar la etiqueta ID: ${item?.id}`, error)
             return { success: false, error: error.message }
         }
     })
 
     ipcMain.handle("delete-etiqueta", (_, id) => {
         if (!checkPermission("categorias_gestionar")) {
-            return { success: false, error: "No autorizado." };
+            return { success: false, error: "No autorizado." }
         }
         try {
             const stmt = db.prepare("UPDATE etiqueta SET status = 0 WHERE id = ?")
             const info = stmt.run(id)
+            
+            logger.success('ETIQUETAS', `Etiqueta con ID ${id} fue desactivada lógicamente (Soft Delete)`)
             return { success: true, changes: info.changes }
         } catch (error) {
+            logger.error('ETIQUETAS', `Error al aplicar Soft Delete a la etiqueta ID: ${id}`, error)
             return { success: false, error: error.message }
         }
     })

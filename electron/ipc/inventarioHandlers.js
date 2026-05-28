@@ -4,10 +4,10 @@ import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
 const checkPermission = (permission) => {
-    const user = global.currentUserSession;
+    const user = global.currentUserSession
     if (!user) return false;
-    if (user.permisos?.includes("ALL")) return true;
-    return user.permisos?.includes(permission);
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
 }
 
 export const registerInventarioHandler = () => {
@@ -108,8 +108,8 @@ export const registerInventarioHandler = () => {
                 data: data
             };
         } catch (error) {
-            logger.error('INVENTARIO', "Error en paginación y filtros del inventario", error);
-            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+            logger.error('INVENTARIO', "Error en paginación y filtros del inventario", error)
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
     })
 
@@ -121,7 +121,7 @@ export const registerInventarioHandler = () => {
         const transaction = db.transaction((item) => {
             const id = uuidv4()
             const now = new Date().toISOString()
-            const currentUser = global.currentUserSession?.username || 'system' // Trazabilidad real de auditoría
+            const currentUser = global.currentUserSession?.username || 'system'
 
             const getStock = db.prepare(`SELECT stock, ref_name FROM producto WHERE id = ?`)
             const currentProduct = getStock.get(item.id)

@@ -91,9 +91,11 @@ export const registerSubcategoriaHandlers = () => {
         })
 
         try {
-            transaction(item);
+            transaction(item)
+            logger.success('SUBCATEGORIAS', `Subcategoría modificada correctamente: ${item.nombre} (ID: ${item.id})`)
             return { success: true }
         } catch (error) {
+            logger.error('SUBCATEGORIAS', `Error al actualizar la subcategoría ID: ${item?.id}`, error)
             return { success: false, error: error.message }
         }
     })
@@ -109,8 +111,11 @@ export const registerSubcategoriaHandlers = () => {
             }
 
             db.prepare("UPDATE subcategoria SET status = 0 WHERE id = ?").run(id)
+            
+            logger.success('SUBCATEGORIAS', `Subcategoría con ID ${id} desactivada del sistema lógicamente (Soft Delete)`)
             return { success: true }
         } catch (error) {
+            logger.error('SUBCATEGORIAS', `Error al aplicar Soft Delete a la subcategoría ID: ${id}`, error)
             return { success: false, error: error.message }
         }
     })

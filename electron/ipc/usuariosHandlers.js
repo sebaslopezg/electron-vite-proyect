@@ -27,7 +27,7 @@ export const registerUsuariosHandlers = () => {
     `)
 
     try {
-        appDb.exec("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT;");
+        appDb.exec("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT;")
     } catch (e) {}
 
     const checkAdmin = appDb.prepare("SELECT COUNT(*) as count FROM usuarios").get()

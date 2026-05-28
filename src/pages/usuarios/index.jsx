@@ -99,7 +99,7 @@ export const Usuarios = ({ currentUser }) => {
                     {hasPermission('usuarios_crear') && (
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <Button variant="primary" onClick={() => { setEditData(null); setShowModal(true) }}>
-                                <i className="bi bi-person-plus-fill me-2"></i>Nuevo Usuario
+                                <i className="bi bi-plus-circle me-2"></i>Nuevo Usuario
                             </Button>
                         </div>
                     )}

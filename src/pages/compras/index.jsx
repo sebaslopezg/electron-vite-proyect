@@ -72,7 +72,7 @@ export const Compras = ({ currentUser }) => {
                     )}
 
                     <CustomDataTable 
-                        tableId="dt-compras-maestro" // <-- CORREGIDO: ID único para el almacenamiento de estado en caché permanente
+                        tableId="dt-compras-maestro"
                         key={`compras-${reloadTable}`} 
                         ajaxData={(params) => window.comprasAPI.getComprasPaginadas(params)}
                         columns={[

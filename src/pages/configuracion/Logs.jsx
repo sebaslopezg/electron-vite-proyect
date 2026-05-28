@@ -143,10 +143,10 @@ export const Logs = () => {
                 <p className="text-muted small m-0">Registro de movimientos de auditoría, transacciones e incidencias operacionales.</p>
             </div>
             <div>
-                <Button variant="outline-primary" size="sm" className="me-2 fw-bold" onClick={() => setReloadKey(prev => prev + 1)}>
+                <Button variant="outline-primary" size="sm" className="me-2" onClick={() => setReloadKey(prev => prev + 1)}>
                     <i className="bi bi-arrow-clockwise me-1"></i> Refrescar
                 </Button>
-                <Button variant="outline-danger" size="sm" className="fw-bold" onClick={handleClearLogs}>
+                <Button variant="outline-danger" size="sm" onClick={handleClearLogs}>
                     <i className="bi bi-trash3 me-1"></i> Vaciar Historial
                 </Button>
             </div>
@@ -191,7 +191,7 @@ export const Logs = () => {
                 </Col>
                 <Col md={2}>
                     <Button 
-                        variant="secondary" size="sm"
+                        variant="outline-danger" size="sm"
                         onClick={() => { setStartDate(''); setEndDate(''); setLogType(''); setLogModule(''); }}
                         disabled={!startDate && !endDate && !logType && !logModule}
                     >

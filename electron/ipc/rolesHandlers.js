@@ -48,7 +48,7 @@ export const registerRolesHandlers = () => {
 
     ipcMain.handle("add-rol", async (_, rolData) => {
         if (!checkPermission("roles_crear")) {
-            return { success: false, error: "No autorizado para estructurar nuevos perfiles de privilegios." }
+            return { success: false, error: "No autorizado para ajustar nuevos perfiles de privilegios." }
         }
         try {
             const id = uuidv4()
@@ -60,6 +60,7 @@ export const registerRolesHandlers = () => {
             logger.success('ROLES', `Nuevo rol creado: ${rolData.nombre}`);
             return { success: true, id }
         } catch (error) {
+            logger.error('ROLES', `Error al intentar registrar el rol: ${rolData?.nombre}`, error)
             if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return { success: false, error: "Ya existe un rol con ese nombre." }
             return { success: false, error: error.message }
         }
@@ -80,6 +81,7 @@ export const registerRolesHandlers = () => {
             logger.success('ROLES', `Rol actualizado: ${rolData.nombre}`);
             return { success: true }
         } catch (error) {
+            logger.error('ROLES', `Error al actualizar la configuración del rol ID: ${rolData?.id}`, error)
             if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') return { success: false, error: "Ya existe un rol con ese nombre." }
             return { success: false, error: error.message }
         }
@@ -97,7 +99,12 @@ export const registerRolesHandlers = () => {
             if (usersWithRole.count > 0) return { success: false, error: `No puedes eliminar este rol porque hay ${usersWithRole.count} usuario(s) usándolo.` }
 
             appDb.prepare("UPDATE roles SET status = 0 WHERE id = ?").run(id)
+            
+            logger.success('ROLES', `El rol "${rolActual.nombre}" (ID: ${id}) fue dado de baja lógicamente (Soft Delete)`)
             return { success: true }
-        } catch (error) { return { success: false, error: error.message } }
+        } catch (error) { 
+            logger.error('ROLES', `Error al aplicar Soft Delete al rol ID: ${id}`, error)
+            return { success: false, error: error.message } 
+        }
     })
 }

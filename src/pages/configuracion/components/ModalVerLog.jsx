@@ -4,10 +4,9 @@ export const ModalVerLog = ({ show, onHide, log }) => {
     if (!log) return null;
 
     return (
-        <Modal show={show} onHide={onHide} centered size="lg" backdrop="static">
+        <Modal show={show} onHide={onHide} centered size="lg">
             <Modal.Header closeButton className="bg-light border-bottom">
-                <Modal.Title className="h6 fw-bold text-dark m-0">
-                    <i className="bi bi-search me-2 text-primary"></i>
+                <Modal.Title className="h6 text-dark m-0">
                     Detalle del log
                 </Modal.Title>
             </Modal.Header>
@@ -35,7 +34,7 @@ export const ModalVerLog = ({ show, onHide, log }) => {
                     </Col>
                     <Col md={12}>
                         <span className="text-muted small d-block mb-1 fw-bold">
-                            <i className="bi bi-code-slash me-1"></i>Metadatos
+                            Metadatos
                         </span>
                         <pre 
                             className="bg-dark text-info p-3 rounded font-monospace border border-secondary border-opacity-50 style-scroll" 
@@ -47,7 +46,7 @@ export const ModalVerLog = ({ show, onHide, log }) => {
                 </Row>
             </Modal.Body>
             <Modal.Footer className="bg-light border-top p-2">
-                <Button variant="secondary" size="sm" onClick={onHide}>
+                <Button variant="secondary" onClick={onHide}>
                     Cerrar
                 </Button>
             </Modal.Footer>

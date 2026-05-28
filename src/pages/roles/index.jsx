@@ -113,7 +113,7 @@ export const Roles = ({ currentUser }) => {
                     {hasPermission('roles_crear') && (
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <Button variant="primary" onClick={handleNuevo}>
-                                <i className="bi bi-shield-plus me-2"></i>Nuevo Rol
+                                <i className="bi bi-plus-circle me-2"></i>Nuevo Rol
                             </Button>
                         </div>
                     )}
