@@ -18,14 +18,14 @@ export const ModalDetalleFactura = ({
     };
 
     const getBadgeClassPago = (factura) => {
-        if (!factura) return 'bg-primary';
+        if (!factura) return 'bg-primary'
         if (factura.tipo_pago === 'credito') {
-            if (!factura.total_recibido || factura.total_recibido === 0) return 'bg-danger';
-            if (factura.saldo_pendiente > 0) return 'bg-warning text-dark';
-            return 'bg-success';
+            if (!factura.total_recibido || factura.total_recibido === 0) return 'bg-danger'
+            if (factura.saldo_pendiente > 0) return 'bg-warning text-dark'
+            return 'bg-success'
         }
-        return 'bg-primary';
-    };
+        return 'bg-primary'
+    }
 
     return (
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>

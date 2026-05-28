@@ -12,6 +12,11 @@ const checkPermission = (permission) => {
 
 export const registerAlmacenConfigHandlers = () => {
 
+    try {
+        db.exec("ALTER TABLE metodos_pago ADD COLUMN status INTEGER DEFAULT 1;");
+        logger.info('SISTEMA', 'Migración exitosa: Columna "status" inyectada en la tabla metodos_pago.');
+    } catch (error) {}
+
     ipcMain.handle("getAll-almacenConf", () => {
         try {
             const stmt = db.prepare("SELECT * FROM almacen_conf WHERE status > 0")

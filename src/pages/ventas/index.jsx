@@ -5,6 +5,7 @@ import { VerFacturas } from './VerFacturas.jsx'
 import { Notas } from './Notas.jsx'
 import { Reportes } from './Reportes.jsx'
 import Swal from 'sweetalert2'
+import { ventasService } from '../../services/ventasService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -19,8 +20,8 @@ export const Ventas = ({ currentUser }) => {
     const [activeTab, setActiveTab] = useState('')
 
     const loadAlmacenConf = async () => {
-        const data = await window.api.getAllConfAlmacen()
-        if (data) {
+        const data = await ventasService.getAllConfAlmacen()
+        if (data && data.length > 0) {
             setAlmacenData(data[0])
         } else {
             Toast.fire({ icon: 'error', title: 'Error al intentar cargar la configuración del almacén' })
@@ -48,7 +49,7 @@ export const Ventas = ({ currentUser }) => {
         }
     }, [currentUser])
 
-    if (!almacenData) {
+    if (!almacenData || almacenData.length === 0) {
         return <div className="p-3 text-muted small">Cargando datos contables...</div>
     }
 

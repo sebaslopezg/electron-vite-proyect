@@ -3,6 +3,7 @@ import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
 import { formatCurrency } from '../../utils/currencies'
 import { ModalSeleccionItemNota } from './components/ModalSeleccionItemNota'
+import { ventasService } from '../../services/ventasService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -20,7 +21,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion()
+        const configData = await ventasService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
@@ -88,7 +89,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             return
         }
 
-        const result = await window.api.searchFactura(numeroLimpio)
+        const result = await ventasService.searchFactura(numeroLimpio)
         
         if (result.success) {
             setFacturaCargada(result.maestro)
@@ -208,7 +209,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             }))
         }
 
-        const result = await window.api.addNota(payload)
+        const result = await ventasService.addNota(payload)
         if (result.success) {
             Toast.fire({ icon: 'success', title: 'La nota ha sido registrada con éxito' })
             onSuccess()

@@ -4,6 +4,7 @@ import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
 import { formatCurrency } from '../../utils/currencies'
 import { ImpresorReporte } from './components/ImpresorReporte'
+import { ventasService } from '../../services/ventasService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -31,7 +32,7 @@ export const Reportes = () => {
 
     useEffect(() => {
         const loadConfig = async () => {
-            const configData = await window.api.getConfiguracion()
+            const configData = await ventasService.getConfiguracion()
             const confAppRaw = configData.find(c => c.key === 'confApp')
             if (confAppRaw) {
                 try {
@@ -47,7 +48,7 @@ export const Reportes = () => {
 
     const loadReporte = async () => {
         setLoading(true)
-        const res = await window.api.getReporteVentas({ startDate, endDate })
+        const res = await ventasService.getReporteVentas({ startDate, endDate })
         if (res.success) {
             setFacturas(res.data);
             setAlmacenConf(res.configuracion)

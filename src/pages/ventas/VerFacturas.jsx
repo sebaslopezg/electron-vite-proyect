@@ -4,6 +4,7 @@ import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
 import { ModalDetalleFactura } from "./components/ModalDetalleFactura"
 import Swal from 'sweetalert2'
+import { ventasService } from '../../services/ventasService'
 
 export const VerFacturas = ({ currentUser }) => {
 
@@ -31,7 +32,7 @@ export const VerFacturas = ({ currentUser }) => {
     }
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion()
+        const configData = await ventasService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
@@ -89,12 +90,12 @@ export const VerFacturas = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [currentUser]) // Escucha cambios de usuario para los listeners dinámicos
+    }, [currentUser])
 
     const verDetalle = async (factura) => {
         setFacturaSeleccionada(factura)
 
-        const response = await window.api.getDetalle(factura.id)
+        const response = await ventasService.getDetalleFactura(factura.id)
         if (response.success) {
             setDetalleData(response.data)
             setNotasFactura(response.notes || []) 
@@ -104,14 +105,13 @@ export const VerFacturas = ({ currentUser }) => {
     }
 
     const imprimirDirecto = async (factura) => {
-        // Interceptación de seguridad frontend
         if (!hasPermission('ventas_imprimir')) {
             return Swal.fire('Acceso Denegado', 'Tu rol no cuenta con permisos para re-imprimir comprobantes.', 'error')
         }
 
         setFacturaSeleccionada(factura)
 
-        const response = await window.api.getDetalle(factura.id)
+        const response = await ventasService.getDetalleFactura(factura.id)
         if (response.success) {
             setDetalleData(response.data)
             setNotasFactura(response.notes || []) 
@@ -181,8 +181,6 @@ export const VerFacturas = ({ currentUser }) => {
             data: null, title: 'Acciones', orderable: false,
             render: function (data, type, row) {
                 const safeData = encodeURIComponent(JSON.stringify(row))
-                
-                // Consultamos si el usuario tiene el permiso de re-imprimir activo
                 const canPrint = hasPermission('ventas_imprimir')
 
                 return `
@@ -197,7 +195,7 @@ export const VerFacturas = ({ currentUser }) => {
                 `
             }
         }
-    ], [appConfig, currentUser?.permisos]) // Forzamos el re-renderizado de columnas si cambian los permisos
+    ], [appConfig, currentUser?.permisos])
 
     return <>
         <div className="bg-light p-3 rounded mb-4 border">
@@ -235,7 +233,7 @@ export const VerFacturas = ({ currentUser }) => {
                     ajaxData={(params) => {
                         params.startDate = startDate
                         params.endDate = endDate
-                        return window.api.getFacturasPaginadas(params)
+                        return ventasService.getFacturasPaginadas(params)
                     }}
                     columns={columnasTabla}
                 />

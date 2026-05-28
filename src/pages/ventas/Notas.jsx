@@ -5,6 +5,7 @@ import { NuevaNota } from './NuevaNota.jsx'
 import { ImpresorNota } from './components/ImpresorNota'
 import { formatCurrency } from '../../utils/currencies'
 import { ModalDetalleNota } from './components/ModalDetalleNota'
+import { ventasService } from '../../services/ventasService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -33,7 +34,7 @@ export const Notas = () => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion()
+        const configData = await ventasService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
@@ -52,7 +53,7 @@ export const Notas = () => {
 
     const loadNotas = async () => {
         try {
-            const data = await window.api.getNotas() 
+            const data = await ventasService.getNotas() 
             setNotasData(data || [])
         } catch (error) {
             console.error("Error cargando notas:", error)
@@ -75,7 +76,7 @@ export const Notas = () => {
     const handleViewDetails = async (row) => {
         setNotaSeleccionada(row)
         
-        const response = await window.api.getNotaDetalle(row.id)
+        const response = await ventasService.getNotaDetalle(row.id)
         if (response.success) {
             setDetalleData(response.data)
             setAlmacenConf(response.configuracion || null)
@@ -88,7 +89,7 @@ export const Notas = () => {
     const imprimirDirecto = async (row) => {
         setNotaSeleccionada(row)
         
-        const response = await window.api.getNotaDetalle(row.id)
+        const response = await ventasService.getNotaDetalle(row.id)
         if (response.success) {
             setDetalleData(response.data)
             setAlmacenConf(response.configuracion || null)
@@ -213,10 +214,10 @@ export const Notas = () => {
                                 const safeData = encodeURIComponent(JSON.stringify(row))
                                 return `
                                     <button class="btn btn-sm btn-secondary text-white me-1 btn-view" data-alldata="${safeData}" title="Ver Detalles">
-                                        <i class="bi bi-eye"></i>
+                                        <i className="bi bi-eye"></i>
                                     </button>
                                     <button class="btn btn-sm btn-primary text-white btn-print" data-alldata="${safeData}" title="Imprimir">
-                                        <i class="bi bi-printer"></i>
+                                        <i className="bi bi-printer"></i>
                                     </button>
                                 `
                             }

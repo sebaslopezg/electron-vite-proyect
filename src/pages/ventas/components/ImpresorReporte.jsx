@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
-import { BaseImpresor } from '../../../components/BaseImpresor';
-import { formatCurrency } from '../../../utils/currencies';
+import { useState, useEffect, useMemo } from 'react'
+import Row from 'react-bootstrap/Row'
+import Col from 'react-bootstrap/Col'
+import { BaseImpresor } from '../../../components/BaseImpresor'
+import { formatCurrency } from '../../../utils/currencies'
+import { ventasService } from '../../../services/ventasService'
 
 export const ImpresorReporte = ({ show, onClose, facturas = [], almacenConf, fechaInicio, fechaFin }) => {
     
@@ -10,7 +11,7 @@ export const ImpresorReporte = ({ show, onClose, facturas = [], almacenConf, fec
 
     useEffect(() => {
         const loadConfig = async () => {
-            const configData = await window.api.getConfiguracion();
+            const configData = await ventasService.getConfiguracion();
             const confAppRaw = configData.find(c => c.key === 'confApp');
             if (confAppRaw) {
                 try {
@@ -38,7 +39,6 @@ export const ImpresorReporte = ({ show, onClose, facturas = [], almacenConf, fec
             if (f.tipo_pago === 'contado') acc.contado += f.total_factura;
             if (f.tipo_pago === 'credito') acc.credito += f.total_factura;
 
-            // Agrupar por métodos de pago
             const metodo = f.metodo_pago || 'Otros';
             acc.metodos[metodo] = (acc.metodos[metodo] || 0) + f.total_factura;
 

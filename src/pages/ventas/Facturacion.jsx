@@ -6,6 +6,7 @@ import { ImpresorFactura } from './components/ImpresorFactura'
 import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
 import { ModalTercero } from '../contabilidad/components/ModalTercero'
 import { ModalBusquedaVentas } from './components/ModalBusquedaVentas'
+import { ventasService } from '../../services/ventasService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -53,7 +54,7 @@ export const Facturacion = () => {
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
   const loadConfig = async () => {
-      const configData = await window.api.getConfiguracion()
+      const configData = await ventasService.getConfiguracion()
       const confAppRaw = configData.find(c => c.key === 'confApp')
       if (confAppRaw) {
           try {
@@ -67,18 +68,18 @@ export const Facturacion = () => {
   };
 
   const loadMetodosDePago = async () => {
-    const metodos = await window.api.getMetodosPago()
+    const metodos = await ventasService.getMetodosPago()
     setListaMetodosPago(metodos || [])
     if (metodos && metodos.length > 0) setMetodoPago(metodos[0].nombre)
   }
 
   const loadInitialData = async () => {
-    const prods = await window.api.getAllProductos()
+    const prods = await ventasService.getAllProductos()
     setProductos(prods)
-    const clis = await window.api.getClientes()
+    const clis = await ventasService.getClientes()
     setClientes(clis)
-    const cats = await window.api.getCategorias()
-    const tags = await window.api.getEtiquetas()
+    const cats = await ventasService.getCategorias()
+    const tags = await ventasService.getEtiquetas()
     setCategoriasList(cats || [])
     setEtiquetasList(tags || [])
     
@@ -146,7 +147,7 @@ export const Facturacion = () => {
     
     let currentProducts = productos
     if (currentProducts.length === 0) {
-      currentProducts = await window.api.getAllProductos()
+      currentProducts = await ventasService.getAllProductos()
       setProductos(currentProducts)
     }
 
@@ -174,7 +175,7 @@ export const Facturacion = () => {
 
     let currentClients = clientes
     if (currentClients.length === 0) {
-      currentClients = await window.api.getClientes()
+      currentClients = await ventasService.getClientes()
       setClientes(currentClients)
     }
 
@@ -305,7 +306,7 @@ export const Facturacion = () => {
         setCarrito(prev => prev.map(item => ({
           ...item, descuento: pct, tipoDescuento: 'porcentaje'
         })));
-        Toast.fire({ icon: 'success', title: `Descuento masivo del ${pct}% aplicado` })
+        Toast.fire({ icon: 'success', title: `Descuento masivo del ${pct}% applied` })
       }
     })
   }
@@ -425,10 +426,10 @@ export const Facturacion = () => {
       detalles: carrito
     }
 
-    const result = await window.api.createVenta(data)
+    const result = await ventasService.createVenta(data)
 
     if (result.success) {
-      const printData = await window.api.getDetalle(result.maestroId)
+      const printData = await ventasService.getDetalleFactura(result.maestroId)
       const facturaGenerada = {
           id: result.maestroId, 
           numero_factura: result.numero_factura, 
@@ -913,7 +914,7 @@ export const Facturacion = () => {
         initialDocument={docInput.trim()}
         onSuccess={async () => {
             setShowTerceroModal(false)
-            const updatedClients = await window.api.getClientes()
+            const updatedClients = await ventasService.getClientes()
             setClientes(updatedClients)
             
             const newlyCreated = updatedClients.find(c => c.documento === docInput.trim())

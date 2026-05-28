@@ -3,6 +3,7 @@ import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import DataTableComponent from '../../../components/DataTableComponent'
 import { BuscadorFiltros } from '../../../components/BuscadorFiltros'
+import { ventasService } from '../../../services/ventasService'
 
 export const ModalBusquedaVentas = ({
     show,
@@ -22,8 +23,8 @@ export const ModalBusquedaVentas = ({
     const [filterSubcategory, setFilterSubcategory] = useState('')
 
     useEffect(() => {
-        if (show && modalData.type === 'producto' && window.api?.getSubcategorias) {
-            window.api.getSubcategorias().then(subs => {
+        if (show && modalData.type === 'producto') {
+            ventasService.getSubcategorias().then(subs => {
                 setSubcategoriasTotales(subs || [])
             })
         }
@@ -114,7 +115,7 @@ export const ModalBusquedaVentas = ({
                                         params.customCategory = filterCategory;
                                         params.customSubcategory = filterSubcategory;
                                         params.customTag = filterTag;
-                                        return window.api.getProductosPaginados(params)
+                                        return ventasService.getProductosPaginados(params);
                                     }}
                                     columns={modalData.columns}
                                 />

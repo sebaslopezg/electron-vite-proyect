@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Form, Button, Row, Col, Card } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { ModalMetodosPago } from './components/ModalMetodosPago'
+import { ventasService } from '../../services/ventasService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -68,7 +69,7 @@ export const Configuracion = ({ data, onReload }) => {
     const handleSubmit = async (e) => {
         e.preventDefault()
         try {
-            await window.api.updateConfAlmacen(form)
+            await ventasService.updateConfiguracion(form)
             Toast.fire({ icon: 'success', title: 'Configuración actualizada correctamente' })
             if (onReload) onReload()
         } catch (error) {
@@ -91,7 +92,7 @@ export const Configuracion = ({ data, onReload }) => {
     };
 
     const loadMetodos = async () => {
-        const res = await window.api.getMetodosPago()
+        const res = await ventasService.getMetodosPago()
         setMetodosList(res || [])
     }
 
@@ -104,7 +105,7 @@ export const Configuracion = ({ data, onReload }) => {
         e.preventDefault()
         if(!nuevoMetodo.trim()) return
         
-        const res = await window.api.addMetodoPago(nuevoMetodo.trim())
+        const res = await ventasService.addMetodoPago(nuevoMetodo.trim())
         if(res.success) {
             setNuevoMetodo('')
             loadMetodos()
@@ -127,7 +128,7 @@ export const Configuracion = ({ data, onReload }) => {
             cancelButtonText: 'Cancelar'
         })
         if(confirm.isConfirmed) {
-            await window.api.deleteMetodoPago(id)
+            await ventasService.deleteMetodoPago(id)
             loadMetodos();
             window.dispatchEvent(new CustomEvent('metodos-pago-actualizados'));
             Toast.fire({ icon: 'success', title: 'Método de pago eliminado' })
@@ -143,7 +144,7 @@ export const Configuracion = ({ data, onReload }) => {
                 <i className="bi bi-credit-card me-2"></i>Administrar Métodos de Pago
             </Button>
         </div>
-                                        
+                                                
         <Form onSubmit={handleSubmit}>
             
             <div className="bg-light p-3 rounded mb-4 border">

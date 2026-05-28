@@ -1,39 +1,40 @@
-import { useState, useEffect } from 'react';
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
-import { BaseImpresor } from '../../../components/BaseImpresor';
-import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies';
+import { useState, useEffect } from 'react'
+import Row from 'react-bootstrap/Row'
+import Col from 'react-bootstrap/Col'
+import { BaseImpresor } from '../../../components/BaseImpresor'
+import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies'
+import { ventasService } from '../../../services/ventasService'
 
 export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf, textoVolver }) => {
     
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     useEffect(() => {
         const loadConfig = async () => {
-            const configData = await window.api.getConfiguracion();
-            const confAppRaw = configData.find(c => c.key === 'confApp');
+            const configData = await ventasService.getConfiguracion()
+            const confAppRaw = configData.find(c => c.key === 'confApp')
             if (confAppRaw) {
                 try {
-                    const parsed = JSON.parse(confAppRaw.value);
+                    const parsed = JSON.parse(confAppRaw.value)
                     setAppConfig({
                         moneda: parsed.moneda || 'COP',
                         formato_numero: parsed.formato_numero || 'es-CO'
-                    });
+                    })
                 } catch(e) {}
             }
-        };
-        if (show) loadConfig();
-    }, [show]);
+        }
+        if (show) loadConfig()
+    }, [show])
 
-    if (!factura || !almacenConf) return null;
+    if (!factura || !almacenConf) return null
 
     const renderCurrency = (val) => {
-        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
-    };
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+    }
 
-    const numFactura = `${factura.prefijo || ''}${almacenConf.separador || ''}${factura.numero_factura}`;
-    const totalRecibidoReal = factura.total_recibido_original ?? factura.total_recibido;
-    const saldoPendienteReal = factura.saldo_pendiente_original ?? factura.saldo_pendiente;
+    const numFactura = `${factura.prefijo || ''}${almacenConf.separador || ''}${factura.numero_factura}`
+    const totalRecibidoReal = factura.total_recibido_original ?? factura.total_recibido
+    const saldoPendienteReal = factura.saldo_pendiente_original ?? factura.saldo_pendiente
 
     const PosTemplate = () => (
         <div className="formato-pos text-black">
@@ -192,7 +193,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 <p className="fw-bold fs-6">{almacenConf.footer_factura}</p>
             </div>
         </div>
-    );
+    )
 
     return (
         <BaseImpresor 
@@ -203,5 +204,5 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
             renderPos={PosTemplate}
             renderA4={A4Template}
         />
-    );
-};
+    )
+}

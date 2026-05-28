@@ -10,7 +10,6 @@
 
  - Guardar en localstorage o cookies los estados de venta en caso de que se cierre el programa, hacer lo mismo con las modales y otros procesos largos
 
- - Revisar todos los cruds y asegurarse de tener soft delete en todos.
  - Conectar modulo de cartera con contabilidad
  - Crear modulo cobranzas
  - Crear modulo de servicios (sacar pestaña servicios de productos)
@@ -22,6 +21,6 @@
  - integrar todos los try catch de las tablas en los campos normales para limpiar todos los archivos de tablas.
  - Revisar swal en todas las interacciones con los forms
  - Organizar carpetas, todas deben comenzar o no en minuscula o mayuscula, no mezclar
- - Agregar una pestaña de configuracion donde yo pueda perzonalizar los filtros y crear plantillas (para facilitar la digitacion de informacion en los modulos)
+ - Agregar una pestaña de configuracion donde yo pueda perzonalizar los filtros y crear plantillas (para facilitar  la digitacion de informacion en los modulos)
  - Separar pestaña de actualizaciones y hacerla un modulo a parte, integrar manejador de actualizaciones.
  - Crear un manejador de modulos

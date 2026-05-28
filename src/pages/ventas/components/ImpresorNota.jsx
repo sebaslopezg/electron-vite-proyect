@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
-import { BaseImpresor } from '../../../components/BaseImpresor';
-import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies';
+import { useState, useEffect } from 'react'
+import Row from 'react-bootstrap/Row'
+import Col from 'react-bootstrap/Col'
+import { BaseImpresor } from '../../../components/BaseImpresor'
+import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies'
+import { ventasService } from '../../../services/ventasService'
 
 export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, textoVolver }) => {
     
@@ -10,7 +11,7 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
 
     useEffect(() => {
         const loadConfig = async () => {
-            const configData = await window.api.getConfiguracion();
+            const configData = await ventasService.getConfiguracion();
             const confAppRaw = configData.find(c => c.key === 'confApp');
             if (confAppRaw) {
                 try {
@@ -177,7 +178,7 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
                             <tr><td><strong>Subtotal:</strong></td><td>{renderCurrency(nota.total_base)}</td></tr>
                             <tr><td><strong>IVA:</strong></td><td>{renderCurrency(nota.total_iva)}</td></tr>
                             <tr className="border-top border-dark border-2">
-                                <td className="fs-5"><strong>Total:</strong></td>
+                                <td><strong>Total:</strong></td>
                                 <td className={`fs-5 fw-bold ${nota.tipo_nota === 'Crédito' ? 'text-danger' : 'text-primary'}`}>
                                     {nota.tipo_nota === 'Crédito' ? '-' : '+'}{renderCurrency(nota.total_final).replace(getCurrencySymbol(appConfig.moneda), '')}
                                 </td>
