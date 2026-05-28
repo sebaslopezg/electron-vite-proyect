@@ -240,6 +240,7 @@ export const Inventario = ({ currentUser }) => {
 
                 <div ref={tableContainerRef} className="w-100 overflow-hidden">
                     <CustomDataTable 
+                        tableId="dt-inventario-maestro"
                         key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
                         ajaxData={(params) => {
                             params.customCategory = filterCategory;

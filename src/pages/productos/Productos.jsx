@@ -198,6 +198,7 @@ export const Productos = () => {
 
     <div ref={tableContainerRef} className="w-100">
       <CustomDataTable
+        tableId="dt-productos-catalogo"
         key={`productos-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
         reloadKey={reloadTable}
         ajaxData={(params) => window.api.getProductosPaginados(params)}

@@ -36,6 +36,7 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
         <div className="animation-fade-in">
             <div ref={tableAbonosRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
+                    tableId="dt-cartera-historial-abonos"
                     key={`historial-${appConfig.moneda}-${appConfig.formato_numero}-${currentUser?.permisos?.length}`}
                     reloadKey={reloadKey}
                     ajaxData={(params) => window.api.getAbonosPaginados(params)}

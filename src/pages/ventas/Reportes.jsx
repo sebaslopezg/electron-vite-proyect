@@ -149,6 +149,7 @@ export const Reportes = () => {
                 <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
             ) : (
                 <DataTableComponent 
+                    tableId="dt-reportes-ventas"
                     key={`reporte-${startDate}-${endDate}-${facturas.length}`}
                     data={facturas}
                     columns={columnas}

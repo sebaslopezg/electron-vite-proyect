@@ -149,6 +149,7 @@ export const Estados = () => {
 
         <div ref={tableContainerRef} className="w-100 overflow-hidden">
             <CustomDataTable
+                tableId="dt-encargos-estados"
                 reloadKey={reloadTable}
                 data={dataInTable}
                 columns={[

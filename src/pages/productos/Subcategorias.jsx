@@ -139,6 +139,7 @@ export const Subcategorias = () => {
 
         <div ref={tableContainerRef} className="w-100 overflow-hidden">
             <CustomDataTable
+                tableId="dt-productos-subcategorias"
                 reloadKey={reloadTable}
                 data={dataInTable}
                 columns={[

@@ -14,8 +14,8 @@ const Toast = Swal.mixin({
     timer: 3000,
     timerProgressBar: true,
     didOpen: (toast) => {
-        toast.addEventListener('mouseenter', Swal.stopTimer)
-        toast.addEventListener('mouseleave', Swal.resumeTimer)
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
     }
 })
 
@@ -641,8 +641,10 @@ export const Facturacion = () => {
           </Button>
         </div>
 
+
         <div className="w-100 pe-2" style={{ minWidth: 0 }}>
           <DataTableComponent
+            tableId="dt-facturacion-carrito"
             key={`cart-table-${appConfig.moneda}-${appConfig.formato_numero}`} 
             data={carrito}
             columns={[
@@ -744,12 +746,13 @@ export const Facturacion = () => {
             ]}
           />
         </div>
+
       </Col>
 
       <Col lg={4} xl={3}>
-        <div className="card shadow-sm sticky-top" style={{ top: '20px' }}>
-          <div className="card-body">
-            <h5 className="card-title mb-3">Resumen de Venta</h5>
+        <div className="card shadow-sm" style={{ position: 'sticky', top: '85px', zIndex: 10 }}>
+            <div className="card-body">
+              <h5 className="card-title mb-3">Resumen de Venta</h5>
 
             <div className="d-flex justify-content-between mb-2">
               <span>Subtotal:</span>

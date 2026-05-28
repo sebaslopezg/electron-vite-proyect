@@ -119,6 +119,7 @@ export const Roles = ({ currentUser }) => {
                     )}
 
                     <DataTableComponent 
+                        tableId="dt-roles-maestro"
                         key={`roles-table-${currentUser?.permisos?.length}`} 
                         data={roles} 
                         columns={columnasTabla} 

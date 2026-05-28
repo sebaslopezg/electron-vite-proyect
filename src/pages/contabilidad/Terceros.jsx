@@ -65,6 +65,7 @@ export const Terceros = ({ currentUser }) => {
 
             <div ref={tableContainerRef} className="w-100 overflow-hidden">
                 <CustomDataTable 
+                    tableId="dt-contabilidad-terceros"
                     key={`terceros-${reloadTable}-${currentUser?.permisos?.length}`} 
                     ajaxData={(params) => window.contaAPI.getTercerosPaginados(params)}
                     columns={[
@@ -94,7 +95,7 @@ export const Terceros = ({ currentUser }) => {
 
                                 return `
                                     ${canEdit ? `<button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>` : ''}
-                                    ${canDelete ? `<button class="btn btn-sm btn-danger btn-delete" data-alldata="${safeData}" title="Eliminar"><i class="bi bi-trash"></i></button>` : ''}
+                                    ${canDelete ? `<button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" title="Eliminar"><i class="bi bi-trash"></i></button>` : ''}
                                 `
                             }
                         }

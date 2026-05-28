@@ -63,7 +63,6 @@ export const Compras = ({ currentUser }) => {
             <div className="card shadow-sm border-0">
                 <div ref={tableContainerRef} className="card-body pt-4 w-100 overflow-hidden">
                     
-                    {/* CORREGIDO: El botón ahora se oculta si no tiene el permiso 'compras_crear' */}
                     {hasPermission('compras_crear') && (
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <button className="btn btn-primary shadow-sm" onClick={() => setShowModal(true)}>
@@ -73,6 +72,7 @@ export const Compras = ({ currentUser }) => {
                     )}
 
                     <CustomDataTable 
+                        tableId="dt-compras-maestro" // <-- CORREGIDO: ID único para el almacenamiento de estado en caché permanente
                         key={`compras-${reloadTable}`} 
                         ajaxData={(params) => window.comprasAPI.getComprasPaginadas(params)}
                         columns={[

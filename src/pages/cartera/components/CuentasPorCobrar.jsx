@@ -32,6 +32,7 @@ export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, appConfig, current
         <div className="animation-fade-in">
             <div ref={tableCobrarRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
+                    tableId="dt-cartera-cuentas-por-cobrar"
                     key={`cobrar-${appConfig.moneda}-${appConfig.formato_numero}-${currentUser?.permisos?.length}`}
                     reloadKey={reloadKey}
                     ajaxData={(params) => window.api.getCarteraPaginada(params)}

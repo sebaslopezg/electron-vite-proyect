@@ -160,6 +160,7 @@ export const Notas = () => {
 
             <div ref={tableContainerRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
+                    tableId="dt-gestion-notas-maestro"
                     key={`notas-main-${appConfig.moneda}-${appConfig.formato_numero}`}
                     data={notasData}
                     columns={[
@@ -169,7 +170,7 @@ export const Notas = () => {
                             render: (data, type, row) => `<strong>${row.prefijo || ''}-${row.numero_nota}</strong>`
                         },
                         { 
-                            data: 'tipo_nota', 
+                            data: 'type_nota', 
                             title: 'Tipo',
                             render: (data) => {
                                 const badgeColor = data === 'Crédito' ? 'warning text-dark' : 'secondary'

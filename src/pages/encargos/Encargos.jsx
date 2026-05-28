@@ -120,6 +120,7 @@ export const Encargos = () => {
     return (<>
         <div ref={tableContainerRef} className="w-100">
             <DataTableComponent
+                tableId="dt-encargos-maestro"
                 data={dataInTable}
                 columns={[
                     { data: 'encargo_numero', title: 'N° encargo' },
@@ -169,12 +170,8 @@ export const Encargos = () => {
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
-                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-info me-2 btn-info" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
-                                    <i class="bi bi-eye"></i>
-                                </button>
+                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-info me-2 btn-info" data-id="${row.id}" data-alldata="${safeData}" title="Ver Detalles"><i class="bi bi-eye"></i></button>
                             `;
                         }
                     }

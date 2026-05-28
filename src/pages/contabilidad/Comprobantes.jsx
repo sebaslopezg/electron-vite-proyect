@@ -64,6 +64,7 @@ export const Comprobantes = ({ currentUser }) => {
 
             <div ref={tableContainerRef} className="w-100 overflow-hidden">
                 <CustomDataTable 
+                    tableId="dt-comprobantes-contables"
                     key={`comprobantes-${reloadTable}-${currentUser?.permisos?.length}`} 
                     ajaxData={(params) => window.contaAPI.getComprobantesPaginados(params)}
                     columns={[

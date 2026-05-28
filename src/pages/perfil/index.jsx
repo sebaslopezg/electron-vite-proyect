@@ -81,13 +81,6 @@ export const Perfil = ({ currentUser }) => {
         <>
             <div className="pagetitle">
                 <h1>Mi Perfil</h1>
-                <nav>
-                    <ol className="breadcrumb">
-                        <li className="breadcrumb-item">Inicio</li>
-                        <li className="breadcrumb-item">Usuarios</li>
-                        <li className="breadcrumb-item active">Perfil</li>
-                    </ol>
-                </nav>
             </div>
 
             <section className="section profile">
@@ -105,14 +98,14 @@ export const Perfil = ({ currentUser }) => {
                                     {formData.foto_perfil ? (
                                         <img src={formData.foto_perfil} alt="Perfil" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     ) : (
-                                        <span className="text-primary fw-bold" style={{ fontSize: '3rem' }}>
+                                        <span className="text-primary" style={{ fontSize: '3rem' }}>
                                             {formData.nombre_completo ? formData.nombre_completo.charAt(0).toUpperCase() : 'U'}
                                         </span>
                                     )}
                                 </div>
                                 <input type="file" accept="image/*" className="d-none" ref={fileInputRef} onChange={handleImageChange}/>
                                 
-                                <h2 className="fs-5 fw-bold text-center">{formData.nombre_completo}</h2>
+                                <h2 className="fs-5 text-center">{formData.nombre_completo}</h2>
                                 <h3 className="text-muted fs-6 mb-1">{formData.rol}</h3>
                                 <span className="badge bg-light text-primary border border-primary mt-2 px-3 py-2 fs-6">@{formData.username}</span>
                             </div>
@@ -124,10 +117,10 @@ export const Perfil = ({ currentUser }) => {
                             <div className="card-body pt-3">
                                 <ul className="nav nav-tabs nav-tabs-bordered">
                                     <li className="nav-item">
-                                        <button className="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#profile-edit">Editar Perfil</button>
+                                        <button className="nav-link active" data-bs-toggle="tab" data-bs-target="#profile-edit">Editar Perfil</button>
                                     </li>
                                     <li className="nav-item">
-                                        <button className="nav-link fw-bold text-danger" data-bs-toggle="tab" data-bs-target="#profile-change-password"><i className="bi bi-shield-lock me-1"></i>Cambiar Contraseña</button>
+                                        <button className="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#profile-change-password"><i className="bi bi-shield-lock me-1"></i>Cambiar Contraseña</button>
                                     </li>
                                 </ul>
 
@@ -135,7 +128,7 @@ export const Perfil = ({ currentUser }) => {
                                     <div className="tab-pane fade show active profile-edit" id="profile-edit">
                                         <form onSubmit={handleUpdateProfile}>
                                             <div className="row mb-3">
-                                                <label className="col-md-4 col-lg-3 col-form-label fw-bold text-secondary">Nombre Completo</label>
+                                                <label className="col-md-4 col-lg-3 col-form-label text-secondary">Nombre Completo</label>
                                                 <div className="col-md-8 col-lg-9">
                                                     <input 
                                                         name="fullName" type="text" className="form-control" id="fullName" 
@@ -147,7 +140,7 @@ export const Perfil = ({ currentUser }) => {
                                             </div>
 
                                             <div className="row mb-3">
-                                                <label className="col-md-4 col-lg-3 col-form-label fw-bold text-secondary">Usuario de Acceso</label>
+                                                <label className="col-md-4 col-lg-3 col-form-label text-secondary">Usuario de Acceso</label>
                                                 <div className="col-md-8 col-lg-9">
                                                     <input 
                                                         name="username" type="text" className="form-control bg-light text-muted" 
@@ -159,14 +152,14 @@ export const Perfil = ({ currentUser }) => {
                                             </div>
 
                                             <div className="row mb-3">
-                                                <label className="col-md-4 col-lg-3 col-form-label fw-bold text-secondary">Rol Actual</label>
+                                                <label className="col-md-4 col-lg-3 col-form-label text-secondary">Rol Actual</label>
                                                 <div className="col-md-8 col-lg-9">
                                                     <input type="text" className="form-control bg-light text-muted" value={formData.rol} disabled />
                                                 </div>
                                             </div>
 
                                             <div className="text-end mt-4 border-top pt-3">
-                                                <button type="submit" className="btn btn-primary px-4 fw-bold"><i className="bi bi-save me-2"></i>Guardar Cambios</button>
+                                                <button type="submit" className="btn btn-primary px-4">Guardar Cambios</button>
                                             </div>
                                         </form>
                                     </div>
@@ -174,7 +167,7 @@ export const Perfil = ({ currentUser }) => {
                                     <div className="tab-pane fade pt-3" id="profile-change-password">
                                         <form onSubmit={handleChangePassword}>
                                             <div className="row mb-3">
-                                                <label className="col-md-4 col-lg-4 col-form-label fw-bold">Nueva Contraseña</label>
+                                                <label className="col-md-4 col-lg-4 col-form-label">Nueva Contraseña</label>
                                                 <div className="col-md-8 col-lg-8">
                                                     <input 
                                                         name="newpassword" type="password" className="form-control" 
@@ -186,7 +179,7 @@ export const Perfil = ({ currentUser }) => {
                                             </div>
 
                                             <div className="row mb-3">
-                                                <label className="col-md-4 col-lg-4 col-form-label fw-bold">Confirmar Contraseña</label>
+                                                <label className="col-md-4 col-lg-4 col-form-label">Confirmar Contraseña</label>
                                                 <div className="col-md-8 col-lg-8">
                                                     <input 
                                                         name="renewpassword" type="password" className="form-control" 
@@ -198,7 +191,7 @@ export const Perfil = ({ currentUser }) => {
                                             </div>
 
                                             <div className="text-end mt-4 border-top pt-3">
-                                                <button type="submit" className="btn btn-danger fw-bold px-4"><i className="bi bi-key me-2"></i>Actualizar Contraseña</button>
+                                                <button type="submit" className="btn btn-danger px-4"><i className="bi bi-key me-2"></i>Actualizar Contraseña</button>
                                             </div>
                                         </form>
                                     </div>

@@ -32,8 +32,9 @@ const spanishLanguage = {
  * @param {Number} reloadKey - Variable de estado para forzar el reinicio de la tabla (Opcional)
  * @param {Function} ajaxData - Promesa que llama al backend (Activa el Server-Side Processing)
  * @param {Array} data - Arreglo de datos (Activa el Client-Side Processing)
+ * @param {String} tableId - ID único HTML para persistencia de configuración en Caché
  */
-const CustomDataTable = ({ columns, reloadKey = 0, ajaxData, data }) => {
+const CustomDataTable = ({ columns, reloadKey = 0, ajaxData, data, tableId }) => {
 
   const isServerSide = !!ajaxData;
 
@@ -44,6 +45,7 @@ const CustomDataTable = ({ columns, reloadKey = 0, ajaxData, data }) => {
     autoWidth: false, 
     serverSide: isServerSide,
     processing: isServerSide,
+    stateSave: true, 
   };
 
   if (isServerSide) {
@@ -60,6 +62,7 @@ const CustomDataTable = ({ columns, reloadKey = 0, ajaxData, data }) => {
   return (
     <div className="position-relative">
       <DataTable
+        id={tableId}
         key={reloadKey}
         className="table table-striped table-hover table-bordered w-100 align-middle"
         data={!isServerSide ? data : null} 

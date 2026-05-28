@@ -229,6 +229,7 @@ export const VerFacturas = ({ currentUser }) => {
         <div ref={tableContainerRef}>
             <div className="card-body p-3 w-100 overflow-hidden">
                 <DataTableComponent
+                    tableId="dt-ver-facturas-maestro"
                     key={`facturas-main-${appConfig.moneda}-${appConfig.formato_numero}-${startDate}-${endDate}-${reloadTable}`}
                     reloadKey={reloadTable}
                     ajaxData={(params) => {

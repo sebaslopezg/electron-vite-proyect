@@ -82,6 +82,7 @@ export const Clientes = ({ currentUser }) => {
 
                     <div ref={tableContainerRef} className="w-100 overflow-hidden">
                         <CustomDataTable 
+                            tableId="dt-clientes-maestro"
                             key={`clientes-${reloadTable}-${currentUser?.permisos?.length}`} 
                             ajaxData={(params) => window.contaAPI.getTercerosPaginados({ ...params, soloClientes: true })}
                             columns={[

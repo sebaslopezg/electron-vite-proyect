@@ -31,7 +31,6 @@ export const ModalDetalleFactura = ({
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
-                    <i className="bi bi-receipt me-2 text-primary"></i>
                     Detalles de la Factura {facturaSeleccionada ? `${facturaSeleccionada.prefijo || ''}${facturaSeleccionada.separador || ''}${facturaSeleccionada.numero_factura}` : ''}                
                 </Modal.Title>
             </Modal.Header>
@@ -83,7 +82,6 @@ export const ModalDetalleFactura = ({
                             const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
                             const skuVal = String(row.sku).toUpperCase();
                             
-                            // Lógica de control: si el SKU ya inicia con el prefijo armado, lo dejamos intacto
                             const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
                             return `<strong>${finalSku}</strong>`;
                           }
@@ -173,7 +171,7 @@ export const ModalDetalleFactura = ({
                 )}
             </Modal.Body>
             <Modal.Footer className="bg-light">
-                <Button variant="outline-secondary" onClick={handleClose}>Cerrar</Button>
+                <Button variant="secondary" onClick={handleClose}>Cerrar</Button>
             </Modal.Footer>
         </Modal>
     )

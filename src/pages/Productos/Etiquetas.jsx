@@ -131,6 +131,7 @@ export const Etiquetas = () => {
 
         <div ref={tableContainerRef} className="w-100 overflow-hidden">
             <CustomDataTable
+                tableId="dt-productos-etiquetas"
                 reloadKey={reloadTable}
                 data={dataInTable}
                 columns={[
