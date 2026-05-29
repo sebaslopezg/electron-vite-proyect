@@ -5,7 +5,6 @@ import { Row, Col } from 'react-bootstrap'
 
 export default function CategoriaModal({ show, handleClose, handleSubmit, form, setForm, editingId }) {
     
-    // Evitar editar la categoría "General"
     const isGeneral = editingId === 'general';
 
     return (

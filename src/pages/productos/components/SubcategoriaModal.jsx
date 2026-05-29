@@ -6,28 +6,27 @@ import { Row, Col } from 'react-bootstrap'
 
 export default function SubcategoriaModal({ show, handleClose, handleSubmit, form, setForm, editingId, categorias = [] }) {
     
-    const selectedCatIds = form.categorias_ids || [];
+    const selectedCatIds = form.categorias_ids || []
 
     const addCategoriaRow = () => {
-        setForm({ ...form, categorias_ids: [...selectedCatIds, ''] });
+        setForm({ ...form, categorias_ids: [...selectedCatIds, ''] })
     }
 
     const removeCategoriaRow = (index) => {
-        const newIds = [...selectedCatIds];
+        const newIds = [...selectedCatIds]
         newIds.splice(index, 1);
-        setForm({ ...form, categorias_ids: newIds });
+        setForm({ ...form, categorias_ids: newIds })
     }
 
     const updateCategoriaId = (index, value) => {
         const newIds = [...selectedCatIds];
         newIds[index] = value;
-        setForm({ ...form, categorias_ids: newIds });
+        setForm({ ...form, categorias_ids: newIds })
     }
 
-    // Validamos que haya al menos una categoría y que ninguna esté en blanco
-    const isFormValid = selectedCatIds.length > 0 && !selectedCatIds.includes('');
+    const isFormValid = selectedCatIds.length > 0 && !selectedCatIds.includes('')
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton>
                 <Modal.Title>{editingId ? 'Editar Subcategoría' : 'Nueva Subcategoría'}</Modal.Title>
@@ -39,7 +38,6 @@ export default function SubcategoriaModal({ show, handleClose, handleSubmit, for
                         <Form.Control required type="text" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
                     </Form.Group>
 
-                    {/* CAJA DINÁMICA DE CATEGORÍAS */}
                     <div className="bg-light p-3 border rounded mb-3">
                         <div className="d-flex justify-content-between align-items-center mb-2">
                             <Form.Label className="fw-bold m-0 text-primary">Categorías Vinculadas <span className="text-danger">*</span></Form.Label>
@@ -70,7 +68,6 @@ export default function SubcategoriaModal({ show, handleClose, handleSubmit, for
                                                 <option 
                                                     key={c.id} 
                                                     value={c.id}
-                                                    // Deshabilitamos la opción si ya fue elegida en otra fila
                                                     disabled={selectedCatIds.includes(c.id) && c.id !== catId}
                                                 >
                                                     {c.nombre}
@@ -112,9 +109,8 @@ export default function SubcategoriaModal({ show, handleClose, handleSubmit, for
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
-                {/* El botón se habilita solo si hay categorías y ninguna está en "Seleccione..." */}
                 <Button variant="primary" type="submit" form="subcategoriaForm" disabled={!isFormValid}>Guardar</Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

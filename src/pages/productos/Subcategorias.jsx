@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import SubcategoriaModal from './components/SubcategoriaModal'
+import { productosService } from '../../services/productosService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -35,8 +36,8 @@ export const Subcategorias = () => {
     const [editingId, setEditingId] = useState(null)
 
     const load = async () => {
-        const data = await window.api.getSubcategorias()
-        const cats = await window.api.getCategorias()
+        const data = await productosService.getSubcategorias()
+        const cats = await productosService.getCategorias()
         setDataInTable(data)
         setCategorias(cats.filter(c => c.id !== 'general'))
         setReloadTable(prev => prev + 1)
@@ -57,9 +58,9 @@ export const Subcategorias = () => {
         const payload = { ...form, sku_prefix: (form.sku_prefix || '').toUpperCase() }
 
         if (editingId) {
-            result = await window.api.updateSubcategoria({ ...payload, id: editingId })
+            result = await productosService.updateSubcategoria({ ...payload, id: editingId })
         } else {
-            result = await window.api.addSubcategoria(payload)
+            result = await productosService.addSubcategoria(payload)
         }
 
         if (result && result.success) {
@@ -84,7 +85,7 @@ export const Subcategorias = () => {
         })
 
         if (result.isConfirmed) {
-            const res = await window.api.deleteSubcategoria(id)
+            const res = await productosService.deleteSubcategoria(id)
             if (res.success) {
                 Toast.fire({ icon: 'success', title: 'Subcategoría eliminada' })
                 load()
@@ -159,8 +160,12 @@ export const Subcategorias = () => {
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row))
                             return `
-                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" title="Eliminar"><i class="bi bi-trash3"></i></button>
+                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" title="Eliminar">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
                             `
                         }
                     }

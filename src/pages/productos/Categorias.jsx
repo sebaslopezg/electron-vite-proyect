@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import CategoriaModal from './components/CategoriaModal'
+import { productosService } from '../../services/productosService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -28,7 +29,7 @@ export const Categorias = () => {
     const [editingId, setEditingId] = useState(null)
 
     const load = async () => {
-        const data = await window.api.getCategorias()
+        const data = await productosService.getCategorias()
         setDataInTable(data)
         setReloadTable(prev => prev + 1)
     };
@@ -44,9 +45,9 @@ export const Categorias = () => {
         const payload = { ...form, sku_prefix: form.sku_prefix.toUpperCase() }
 
         if (editingId) {
-            result = await window.api.updateCategoria({ ...payload, id: editingId })
+            result = await productosService.updateCategoria({ ...payload, id: editingId })
         } else {
-            result = await window.api.addCategoria(payload)
+            result = await productosService.addCategoria(payload)
         }
 
         if (result && result.success) {
@@ -75,7 +76,7 @@ export const Categorias = () => {
         })
 
         if (result.isConfirmed) {
-            const res = await window.api.deleteCategoria(id)
+            const res = await productosService.deleteCategoria(id)
             if (res.success) {
                 Toast.fire({ icon: 'success', title: 'Categoría eliminada' })
                 load()
@@ -86,37 +87,37 @@ export const Categorias = () => {
         }
     }
 
-    const tableContainerRef = useRef(null);
+    const tableContainerRef = useRef(null)
 
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const editBtn = e.target.closest('.btn-edit');
+            const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
                 try {
-                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
-                    const item = JSON.parse(rawData);
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
                     
                     setForm({
                         nombre: item.nombre || '',
                         descripcion: item.descripcion || '',
                         sku_prefix: item.sku_prefix || '',
                         separador: item.separador || ''
-                    });
-                    setEditingId(item.id);
-                    handleShow();
-                } catch(err) { console.error("Error leyendo datos", err); }
+                    })
+                    setEditingId(item.id)
+                    handleShow()
+                } catch(err) { console.error("Error leyendo datos", err) }
             }
             
-            const delBtn = e.target.closest('.btn-delete');
-            if (delBtn) handleDelete(delBtn.dataset.id);
-        };
+            const delBtn = e.target.closest('.btn-delete')
+            if (delBtn) handleDelete(delBtn.dataset.id)
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
     return <>
         <div className="mb-3">

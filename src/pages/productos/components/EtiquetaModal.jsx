@@ -13,12 +13,10 @@ export default function EtiquetaModal({
         categoriasDisponibles 
     }) {
     
-    // Manejar la selección múltiple de categorías
     const handleCategoryToggle = (catId) => {
         setForm(prev => {
             const currentCats = prev.categorias || [];
             if (currentCats.includes(catId)) {
-                // Si la categoría es 'general' y es la única, no permitimos desmarcarla
                 if (catId === 'general' && currentCats.length === 1) return prev;
                 return { ...prev, categorias: currentCats.filter(id => id !== catId) };
             } else {

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
-import ProductModal from './components/ProductoModal'
+import ProductModal from './components/ProductModal'
 import { formatCurrency } from '../../utils/currencies'
+import { productosService } from '../../services/productosService'
 
 export const Servicios = () => {
     const [show, setShow] = useState(false);
@@ -34,7 +35,7 @@ export const Servicios = () => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion()
+        const configData = await productosService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
@@ -54,8 +55,8 @@ export const Servicios = () => {
     useEffect(() => {
         const loadExtras = async () => {
             const [cats, tags] = await Promise.all([
-                window.api.getCategorias(),
-                window.api.getEtiquetas()
+                productosService.getCategorias(),
+                productosService.getEtiquetas()
             ]);
             setCategorias(cats || []);
             setEtiquetas(tags || []);
@@ -73,9 +74,9 @@ export const Servicios = () => {
         e.preventDefault()
         let result;
         if (editingId) {
-            result = await window.api.updateProducto({ ...form, id: editingId })
+            result = await productosService.updateProducto({ ...form, id: editingId })
         } else {
-            result = await window.api.addProducto(form)
+            result = await productosService.addProducto(form)
         }
 
         if (result && result.success) {
@@ -101,7 +102,7 @@ export const Servicios = () => {
         })
 
         if (result.isConfirmed) {
-            await window.api.deleteProducto(id)
+            await productosService.deleteProducto(id)
             setReloadTable(prev => prev + 1)
         }
     }
@@ -110,26 +111,33 @@ export const Servicios = () => {
 
     useEffect(() => {
         const container = tableContainerRef.current;
-        if (!container) return;
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const editBtn = e.target.closest('.btn-edit');
+            const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
                 try {
-                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
-                    const item = JSON.parse(rawData);
-                    const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : [];
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
+                    const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : []
                     
                     setForm({
-                        ref_name: item.ref_name || '', sku: item.sku || '', stock: item.stock || 0,
-                        unidad_medida: item.unidad_medida || 'Unidad', iva: item.iva || 0,
-                        allow_negative: item.allow_negative || 0, descripcion: item.descripcion || '',
-                        precio: item.precio || 0, status: item.status || 1, tipo: item.tipo || 'servicio',
-                        categoria_id: item.categoria_id || 'general', etiquetas: tagsArray
-                    });
+                        ref_name: item.ref_name || '', 
+                        sku: item.sku || '', 
+                        stock: item.stock || 0,
+                        unidad_medida: item.unidad_medida || 'Unidad', 
+                        iva: item.iva || 0,
+                        allow_negative: item.allow_negative || 0, 
+                        descripcion: item.descripcion || '',
+                        precio: item.precio || 0, 
+                        status: item.status || 1, 
+                        tipo: item.tipo || 'servicio',
+                        categoria_id: item.categoria_id || 'general', 
+                        etiquetas: tagsArray
+                    })
                     setEditingId(item.id);
                     handleShow();
-                } catch(err) { console.error("Error leyendo datos", err); }
+                } catch(err) { console.error("Error leyendo datos", err) }
             }
             
             const delBtn = e.target.closest('.btn-delete');
@@ -156,7 +164,7 @@ export const Servicios = () => {
                 tableId="dt-servicios-catalogo"
                 key={`servicios-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
                 reloadKey={reloadTable}
-                ajaxData={(params) => window.api.getServiciosPaginados(params)}
+                ajaxData={(params) => productosService.getServiciosPaginados(params)}
                 columns={[
                     { data: 'ref_name', title: 'Nombre Referencia' },
                     { 
@@ -167,14 +175,26 @@ export const Servicios = () => {
                             return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
                         } 
                     },
-                    { data: 'status', title: 'Estado', render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` },
+                    { 
+                        data: 'status', 
+                        title: 'Estado', 
+                        render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` 
+                    },
                     { 
                         data: 'precio', 
                         title: 'Precio', 
                         render: (data) => renderCurrency(data) 
                     },
-                    { data: 'date_created', title: 'Fecha Creación', render: (data) => new Date(data).toLocaleDateString(appConfig.formato_numero) },
-                    { data: 'date_modify', title: 'Fecha Modificación', render: (data) => new Date(data).toLocaleDateString(appConfig.formato_numero) },
+                    { 
+                        data: 'date_created', 
+                        title: 'Fecha Creación', 
+                        render: (data) => new Date(data).toLocaleDateString(appConfig.formato_numero) 
+                    },
+                    { 
+                        data: 'date_modify', 
+                        title: 'Fecha Modificación', 
+                        render: (data) => new Date(data).toLocaleDateString(appConfig.formato_numero) 
+                    },
                     {
                         data: null,
                         title: 'Acciones',
@@ -188,7 +208,7 @@ export const Servicios = () => {
                             <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}">
                             <i class="bi bi-trash3"></i>
                             </button>
-                            `;
+                            `
                         }
                     }
                 ]}

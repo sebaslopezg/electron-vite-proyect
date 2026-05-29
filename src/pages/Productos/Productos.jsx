@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
-import ProductModal from './components/ProductoModal'
+import ProductModal from './components/ProductModal'
 import { formatCurrency } from '../../utils/currencies'
+import { productosService } from '../../services/productosService'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -52,7 +53,7 @@ export const Productos = () => {
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
   const loadConfig = async () => {
-    const configData = await window.api.getConfiguracion()
+    const configData = await productosService.getConfiguracion()
     const confAppRaw = configData.find(c => c.key === 'confApp')
     if (confAppRaw) {
       try {
@@ -66,7 +67,9 @@ export const Productos = () => {
 
   const loadSelectsData = useCallback(async () => {
     const [catsData, tagsData, subcatsData] = await Promise.all([
-      window.api.getCategorias(), window.api.getEtiquetas(), window.api.getSubcategorias()
+      productosService.getCategorias(), 
+      productosService.getEtiquetas(), 
+      productosService.getSubcategorias()
     ])
     setCategorias(catsData || [])
     setEtiquetas(tagsData || [])
@@ -151,9 +154,9 @@ export const Productos = () => {
 
     let result
     if (editingId) {
-      result = await window.api.updateProducto({ ...payload, id: editingId })
+      result = await productosService.updateProducto({ ...payload, id: editingId })
     } else {
-      result = await window.api.addProducto(payload)
+      result = await productosService.addProducto(payload)
     }
 
     if (result && result.success) {
@@ -175,7 +178,7 @@ export const Productos = () => {
     })
 
     if (result.isConfirmed) {
-      const res = await window.api.deleteProducto(id)
+      const res = await productosService.deleteProducto(id)
       if (res.success) {
           Toast.fire({ icon: 'success', title: 'Producto eliminado' })
           setReloadTable(prev => prev + 1)
@@ -201,25 +204,48 @@ export const Productos = () => {
         tableId="dt-productos-catalogo"
         key={`productos-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
         reloadKey={reloadTable}
-        ajaxData={(params) => window.api.getProductosPaginados(params)}
+        ajaxData={(params) => productosService.getProductosPaginados(params)}
         columns={[
-          { data: 'ref_name', title: 'Nombre Referencia' },
+          {
+            data: 'ref_name',
+            title: 'Nombre Referencia'
+          },
           { 
             data: 'sku', title: 'SKU', 
             render: (data) => data ? `<strong>${data.toUpperCase()}</strong>` : '-' 
           },
-          { data: 'categoria_nombre', title: 'Categoría', render: (data) => data || 'General' },
-          { data: 'stock', title: 'Stock', render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` },
-          { data: 'precio', title: 'Precio', render: (data) => renderCurrency(data) },
-          { data: 'status', title: 'Estado', render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` },
+          { 
+            data: 'categoria_nombre', 
+            title: 'Categoría', 
+            render: (data) => data || 'General' 
+          },
+          { 
+            data: 'stock', 
+            title: 'Stock', 
+            render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` 
+          },
+          { 
+            data: 'precio', 
+            title: 'Precio', 
+            render: (data) => renderCurrency(data) 
+          },
+          { 
+            data: 'status', 
+            title: 'Estado', 
+            render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` 
+          },
           {
             data: null, title: 'Acciones', orderable: false,
             render: function (data, type, row) {
               const safeData = encodeURIComponent(JSON.stringify(row))
               return `
-                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}"><i class="bi bi-trash3"></i></button>
-              `;
+                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              `
             }
           }
         ]}

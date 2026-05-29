@@ -3,6 +3,7 @@ import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
 import CustomDataTable from '../../components/DataTableComponent'
 import EtiquetaModal from './components/EtiquetaModal'
+import { productosService } from '../../services/productosService'
 
 export const Etiquetas = () => {
     const [show, setShow] = useState(false)
@@ -24,31 +25,31 @@ export const Etiquetas = () => {
 
     const loadData = useCallback(async () => {
         const [tagsData, catsData] = await Promise.all([
-            window.api.getEtiquetas(),
-            window.api.getCategorias()
+            productosService.getEtiquetas(),
+            productosService.getCategorias()
         ]);
         setDataInTable(tagsData || [])
         setCategorias(catsData || [])
         setReloadTable(prev => prev + 1)
-    }, []);
+    }, [])
 
     const cleanForm = () => setForm({ ...emptyForm })
 
     useEffect(() => { loadData() }, [loadData])
     useEffect(() => {
-        const handleCategoriasActualizadas = () => loadData();
-        window.addEventListener('categorias-actualizadas', handleCategoriasActualizadas);
-        return () => window.removeEventListener('categorias-actualizadas', handleCategoriasActualizadas);
+        const handleCategoriasActualizadas = () => loadData()
+        window.addEventListener('categorias-actualizadas', handleCategoriasActualizadas)
+        return () => window.removeEventListener('categorias-actualizadas', handleCategoriasActualizadas)
     }, [loadData])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         
-        let result;
+        let result
         if (editingId) {
-            result = await window.api.updateEtiqueta({ ...form, id: editingId })
+            result = await productosService.updateEtiqueta({ ...form, id: editingId })
         } else {
-            result = await window.api.addEtiqueta(form)
+            result = await productosService.addEtiqueta(form)
         }
 
         if (result && result.success) {
@@ -73,7 +74,7 @@ export const Etiquetas = () => {
         })
 
         if (result.isConfirmed) {
-            const res = await window.api.deleteEtiqueta(id)
+            const res = await productosService.deleteEtiqueta(id)
             if (res.success) {
                 toast.success('Etiqueta eliminada')
                 loadData()
@@ -165,7 +166,7 @@ export const Etiquetas = () => {
                     {
                         data: null, title: 'Actions', orderable: false,
                         render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row));
+                            const safeData = encodeURIComponent(JSON.stringify(row))
                             return `
                                 <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
                                     <i class="bi bi-pencil"></i>
@@ -173,7 +174,7 @@ export const Etiquetas = () => {
                                 <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" title="Eliminar">
                                     <i class="bi bi-trash3"></i>
                                 </button>
-                            `;
+                            `
                         }
                     }
                 ]}
