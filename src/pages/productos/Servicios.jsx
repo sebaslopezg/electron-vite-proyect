@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
-import ProductModal from './components/ProductModal'
+import ProductModal from './components/ProductoModal'
 import { formatCurrency } from '../../utils/currencies'
 import { productosService } from '../../services/productosService'
 
