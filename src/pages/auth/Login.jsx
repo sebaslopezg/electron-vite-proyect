@@ -25,10 +25,16 @@ export const Login = ({ onLoginSuccess }) => {
         if (!username.trim() || !password.trim()) return
 
         setLoading(true)
-        const res = await window.api.loginUser({ username, password })
+        const res = await window.api.loginUser({ username, password, rememberMe })
         setLoading(false)
 
         if (res.success) {
+            if (res.token) {
+                localStorage.setItem('auth_token', res.token)
+            } else {
+                localStorage.removeItem('auth_token')
+            }
+
             Toast.fire({ icon: 'success', title: `¡Bienvenido, ${res.user.nombre_completo}!` })
             onLoginSuccess(res.user)
         } else {

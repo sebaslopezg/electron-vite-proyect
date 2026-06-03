@@ -26,9 +26,8 @@ export const registerUsuariosHandlers = () => {
         );
     `)
 
-    try {
-        appDb.exec("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT;")
-    } catch (e) {}
+    try { appDb.exec("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT;") } catch (e) {}
+    try { appDb.exec("ALTER TABLE usuarios ADD COLUMN remember_token TEXT;") } catch (e) {}
 
     const checkAdmin = appDb.prepare("SELECT COUNT(*) as count FROM usuarios").get()
     if (checkAdmin.count === 0) {
@@ -40,8 +39,29 @@ export const registerUsuariosHandlers = () => {
         logger.info('SISTEMA', 'Usuario "admin" (clave: admin123) creado por defecto.')
     }
 
-    ipcMain.handle("check-login-required", () => {
+    ipcMain.handle("check-login-required", (_, token) => {
         try {
+            if (token) {
+                const userByToken = appDb.prepare("SELECT * FROM usuarios WHERE remember_token = ? AND status = 1").get(token)
+                if (userByToken) {
+                    const roleRow = appDb.prepare("SELECT permisos_json FROM roles WHERE nombre = ?").get(userByToken.rol)
+                    let permisos = ["ALL"]
+                    try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
+
+                    const userSession = { 
+                        id: userByToken.id, 
+                        nombre_completo: userByToken.nombre_completo, 
+                        username: userByToken.username, 
+                        rol: userByToken.rol, 
+                        permisos: permisos,
+                        foto_perfil: userByToken.foto_perfil 
+                    }
+                    global.currentUserSession = userSession
+                    logger.info('SISTEMA', `Auto-login exitoso mediante token persistente para: @${userByToken.username}`)
+                    return { success: true, required: false, user: userSession }
+                }
+            }
+
             const activeUsers = appDb.prepare("SELECT * FROM usuarios WHERE status = 1").all()
             if (activeUsers.length > 1) return { success: true, required: true }
             
@@ -74,7 +94,7 @@ export const registerUsuariosHandlers = () => {
         }
     })
 
-    ipcMain.handle("login-user", async (_, { username, password }) => {
+    ipcMain.handle("login-user", async (_, { username, password, rememberMe }) => {
         try {
             const user = appDb.prepare("SELECT * FROM usuarios WHERE username = ? AND status = 1").get(username.toLowerCase().trim())
             if (!user) return { success: false, error: "Usuario o contraseña incorrectos." }
@@ -96,9 +116,30 @@ export const registerUsuariosHandlers = () => {
             }
             global.currentUserSession = userSession
 
+            let generatedToken = null
+            if (rememberMe) {
+                generatedToken = uuidv4()
+                appDb.prepare("UPDATE usuarios SET remember_token = ? WHERE id = ?").run(generatedToken, user.id)
+            } else {
+                appDb.prepare("UPDATE usuarios SET remember_token = NULL WHERE id = ?").run(user.id)
+            }
+
             logger.info('SISTEMA', `Inicio de sesión exitoso: @${user.username} [${user.rol}]`)
-            return { success: true, user: userSession }
-        } catch (error) { return { success: false, error: error.message }; }
+            return { success: true, user: userSession, token: generatedToken }
+        } catch (error) { return { success: false, error: error.message } }
+    })
+
+    ipcMain.handle("logout-user", () => {
+        try {
+            if (global.currentUserSession) {
+                appDb.prepare("UPDATE usuarios SET remember_token = NULL WHERE id = ?").run(global.currentUserSession.id);
+                logger.info('SISTEMA', `Sesión cerrada para: @${global.currentUserSession.username}`)
+                global.currentUserSession = null;
+            }
+            return { success: true }
+        } catch(e) {
+            return { success: false, error: e.message }
+        }
     })
 
     ipcMain.handle("update-mi-perfil", async (_, data) => {

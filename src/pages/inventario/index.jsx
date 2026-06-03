@@ -19,9 +19,15 @@ export const Inventario = ({ currentUser }) => {
     const [subcategoriasFiltradas, setSubcategoriasFiltradas] = useState([])
     const [etiquetasList, setEtiquetasList] = useState([])
   
-    const [filterCategory, setFilterCategory] = useState('')
-    const [filterSubcategory, setFilterSubcategory] = useState('')
-    const [filterTag, setFilterTag] = useState('')
+    const [filterCategory, setFilterCategory] = useState(() => localStorage.getItem('inv_filtro_categoria') || '')
+    const [filterSubcategory, setFilterSubcategory] = useState(() => localStorage.getItem('inv_filtro_subcategoria') || '')
+    const [filterTag, setFilterTag] = useState(() => localStorage.getItem('inv_filtro_etiqueta') || '')
+
+    useEffect(() => {
+        localStorage.setItem('inv_filtro_categoria', filterCategory)
+        localStorage.setItem('inv_filtro_subcategoria', filterSubcategory)
+        localStorage.setItem('inv_filtro_etiqueta', filterTag)
+    }, [filterCategory, filterSubcategory, filterTag])
 
     const [form, setForm] = useState({ cantidad: '', type: '' })
     const [modalInfo, setModalInfo] = useState({ 
@@ -89,14 +95,22 @@ export const Inventario = ({ currentUser }) => {
     useEffect(() => {
         if (!filterCategory) {
             setSubcategoriasFiltradas([])
-            setFilterSubcategory('')
+            if (subcategoriasTotales.length > 0 && filterSubcategory) {
+                setFilterSubcategory('')
+            }
         } else {
             const filtradas = subcategoriasTotales.filter(sub => {
                 const ids = sub.categorias_ids ? sub.categorias_ids.split(',') : []
                 return ids.includes(filterCategory)
             })
             setSubcategoriasFiltradas(filtradas)
-            setFilterSubcategory('')
+            
+            if (subcategoriasTotales.length > 0 && filterSubcategory) {
+                const esValida = filtradas.some(s => s.id === filterSubcategory)
+                if (!esValida) {
+                    setFilterSubcategory('')
+                }
+            }
         }
     }, [filterCategory, subcategoriasTotales])
 

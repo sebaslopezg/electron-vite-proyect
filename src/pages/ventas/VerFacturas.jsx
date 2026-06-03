@@ -15,8 +15,13 @@ export const VerFacturas = ({ currentUser }) => {
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
     const [notesFactura, setNotasFactura] = useState([]) 
     
-    const [startDate, setStartDate] = useState('')
-    const [endDate, setEndDate] = useState('')
+    const [startDate, setStartDate] = useState(() => localStorage.getItem('ventas_filtro_inicio') || '')
+    const [endDate, setEndDate] = useState(() => localStorage.getItem('ventas_filtro_fin') || '')
+
+    useEffect(() => {
+        localStorage.setItem('ventas_filtro_inicio', startDate)
+        localStorage.setItem('ventas_filtro_fin', endDate)
+    }, [startDate, endDate])
 
     const [almacenConf, setAlmacenConf] = useState(null)
     
@@ -202,14 +207,14 @@ export const VerFacturas = ({ currentUser }) => {
             <Row className="align-items-end">
                 <Col md={3}>
                     <Form.Group>
-                        <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Desde:</small></Form.Label>
-                        <Form.Control type="date" size="sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                        <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Desde Fecha/Hora:</small></Form.Label>
+                        <Form.Control type="datetime-local" size="sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
                     </Form.Group>
                 </Col>
                 <Col md={3}>
                     <Form.Group>
-                        <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Hasta:</small></Form.Label>
-                        <Form.Control type="date" size="sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                        <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Hasta Fecha/Hora:</small></Form.Label>
+                        <Form.Control type="datetime-local" size="sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </Form.Group>
                 </Col>
                 <Col md={3}>

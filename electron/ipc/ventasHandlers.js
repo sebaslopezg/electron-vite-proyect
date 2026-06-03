@@ -232,35 +232,12 @@ export const registerVentasHandlers = () => {
 
             const insertMaestro = db.prepare(`
                 INSERT INTO ventasMaestro (
-                    id,
-                    numero_factura,
-                    prefijo,
-                    separador,
-                    resolucion_dian,
-                    titulo_documento,
-                    nombre_almacen,
-                    nit_almacen,
-                    direccion_almacen,
-                    telefono_almacen,
-                    email_almacen,
-                    footer,
-                    nombre_cliente,
-                    documento_cliente,
-                    subtotal,
-                    descuento,
-                    iva,
-                    total_factura,
-                    total_recibido,
-                    saldo_pendiente,
-                    total_recibido_original,
-                    saldo_pendiente_original,
-                    tipo_pago,
-                    metodo_pago,
-                    moneda,
-                    formato_numero,
-                    date_created,
-                    status,
-                    observaciones
+                    id, numero_factura, prefijo, separador, resolucion_dian, titulo_documento,
+                    nombre_almacen, nit_almacen, direccion_almacen, telefono_almacen,
+                    email_almacen, footer, nombre_cliente, documento_cliente, subtotal,
+                    descuento, iva, total_factura, total_recibido, saldo_pendiente,
+                    total_recibido_original, saldo_pendiente_original, tipo_pago,
+                    metodo_pago, moneda, formato_numero, date_created, status, observaciones
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?
                 )
@@ -333,7 +310,9 @@ export const registerVentasHandlers = () => {
                                 factura_numero, producto_cantidad, encargo_numero, date_created, status
                             ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
                         )
-                        let estadoIdObj = db.prepare("SELECT id FROM estadoEncargo WHERE nombre = 'Pendiente'").get();
+                        
+                        // CORRECCIÓN: Se cambió 'nombre' por 'titulo' y se añadió COLLATE NOCASE 
+                        let estadoIdObj = db.prepare("SELECT id FROM estadoEncargo WHERE titulo COLLATE NOCASE = 'Pendiente'").get();
                         let estadoId = estadoIdObj ? estadoIdObj.id : 'pendiente';
 
                         insertEncargo.run(uuidv4(), maestroId, item.id, estadoId, maestroData.nombre_cliente, maestroData.documento_cliente, nuevoNumeroFactura, item.cantidad, newNum, now)

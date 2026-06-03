@@ -10,6 +10,12 @@ const checkPermission = (permission) => {
     return user.permisos?.includes(permission);
 }
 
+const parseBooleanToInt = (val) => {
+    if (val === undefined || val === null) return null;
+    if (val === true || val === 1 || String(val).toLowerCase() === 'true' || String(val) === '1') return 1;
+    return 0;
+}
+
 export const registerProductoHandlers = () => {
 
   const processProductPrefixes = (data) => {
@@ -52,7 +58,7 @@ export const registerProductoHandlers = () => {
         FROM producto p
         LEFT JOIN categoria c ON p.categoria_id = c.id
         LEFT JOIN producto_etiqueta pe ON p.id = pe.producto_id
-        WHERE p.status > 0 p.tipo = 'producto'
+        WHERE p.status > 0 AND p.tipo = 'producto'
         GROUP BY p.id
       `)
       const data = stmt.all();
@@ -261,8 +267,8 @@ export const registerProductoHandlers = () => {
         max_stock: data.max_stock || 100,
         categoria_id: data.categoria_id || 'general',
         subcategorias_ids_json: JSON.stringify(data.subcategorias_ids || []),
-        allow_encargo: data.allow_encargo !== undefined ? data.allow_encargo : 1,
-        encargo_solo_sin_stock: data.encargo_solo_sin_stock !== undefined ? data.encargo_solo_sin_stock : 1
+        allow_encargo: parseBooleanToInt(data.allow_encargo) !== null ? parseBooleanToInt(data.allow_encargo) : 1,
+        encargo_solo_sin_stock: parseBooleanToInt(data.encargo_solo_sin_stock) !== null ? parseBooleanToInt(data.encargo_solo_sin_stock) : 1
       })
 
       if (data.etiquetas && data.etiquetas.length > 0) {
@@ -323,8 +329,8 @@ export const registerProductoHandlers = () => {
         max_stock: data.max_stock || 100,
         categoria_id: data.categoria_id || 'general',
         subcategorias_ids_json: JSON.stringify(data.subcategorias_ids || []),
-        allow_encargo: data.allow_encargo !== undefined ? data.allow_encargo : 1,
-        encargo_solo_sin_stock: data.encargo_solo_sin_stock !== undefined ? data.encargo_solo_sin_stock : 1
+        allow_encargo: parseBooleanToInt(data.allow_encargo) !== null ? parseBooleanToInt(data.allow_encargo) : 1,
+        encargo_solo_sin_stock: parseBooleanToInt(data.encargo_solo_sin_stock) !== null ? parseBooleanToInt(data.encargo_solo_sin_stock) : 1
       })
 
       db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(data.id)

@@ -214,10 +214,10 @@ export const Notas = () => {
                                 const safeData = encodeURIComponent(JSON.stringify(row))
                                 return `
                                     <button class="btn btn-sm btn-secondary text-white me-1 btn-view" data-alldata="${safeData}" title="Ver Detalles">
-                                        <i className="bi bi-eye"></i>
+                                        <i class="bi bi-eye"></i>
                                     </button>
                                     <button class="btn btn-sm btn-primary text-white btn-print" data-alldata="${safeData}" title="Imprimir">
-                                        <i className="bi bi-printer"></i>
+                                        <i class="bi bi-printer"></i>
                                     </button>
                                 `
                             }

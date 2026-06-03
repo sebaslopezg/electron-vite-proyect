@@ -6,31 +6,33 @@ contextBridge.exposeInMainWorld("api", {
   onMessage: (channel, callback) => {
     ipcRenderer.on(channel, (_, msg) => callback(msg))
   },
-  //login
-  checkLoginRequired: () => ipcRenderer.invoke("check-login-required"),
+  
+  // login & persistencia
+  checkLoginRequired: (token) => ipcRenderer.invoke("check-login-required", token),
   loginUser: (credentials) => ipcRenderer.invoke("login-user", credentials),
+  logoutUser: () => ipcRenderer.invoke("logout-user"),
 
-  //roles
+  // roles
   getRoles: () => ipcRenderer.invoke("get-roles"),
   addRol: (data) => ipcRenderer.invoke("add-rol", data),
   updateRol: (data) => ipcRenderer.invoke("update-rol", data),
   deleteRol: (id) => ipcRenderer.invoke("delete-rol", id),
 
-  //ventas
+  // ventas
   getMaestro: () => ipcRenderer.invoke("get-maestro"),
   getDetalle: (id) => ipcRenderer.invoke("get-detalle", id),
   createVenta: (data) => ipcRenderer.invoke("create-venta", data),
   getFacturasPaginadas: (params) => ipcRenderer.invoke('get-maestro-paginados', params),
   getReporteVentas: (data) => ipcRenderer.invoke("get-reporte-ventas", data),
 
-  //inventario
+  // inventario
   getInventario: () => ipcRenderer.invoke("get-inventario"),
   getInventarioPaginados: (params) => ipcRenderer.invoke("get-inventario-paginados", params),
   setInventario: (item) => ipcRenderer.invoke("set-inventario", item),
   getInventarioHistory: (productoId) => ipcRenderer.invoke("get-inventario-history", productoId),
   getInventarioHistoryPaginados: (params) => ipcRenderer.invoke("get-inventario-history-paginados", params),
 
-  //productos
+  // productos
   getProductos: () => ipcRenderer.invoke("get-productos"),
   getProductosPaginados: (params) => ipcRenderer.invoke("get-productos-paginados", params),
   getServicios: () => ipcRenderer.invoke("get-servicios"),
@@ -40,32 +42,32 @@ contextBridge.exposeInMainWorld("api", {
   updateProducto: (item) => ipcRenderer.invoke("update-producto", item),
   deleteProducto: (item) => ipcRenderer.invoke("delete-producto", item),
 
-  //encargos
+  // encargos
   getEncargos: () => ipcRenderer.invoke("get-encargos"),
   addEncargo: (item) => ipcRenderer.invoke("add-encargo", item),
   updateEncargo: (item) => ipcRenderer.invoke("update-encargo", item),
   deleteEncargo: (item) => ipcRenderer.invoke("delete-encargo", item),
 
-  //estados encargos
+  // estados encargos
   getEstados: () => ipcRenderer.invoke("get-estados"),
   addEstado: (item) => ipcRenderer.invoke("add-estado", item),
   updateEstado: (item) => ipcRenderer.invoke("update-estado", item),
   deleteEstado: (item) => ipcRenderer.invoke("delete-estado", item),
 
-  //clientes
+  // clientes
   getClientes: () => ipcRenderer.invoke("get-clientes"),
   getClientesPaginados: (params) => ipcRenderer.invoke("get-clientes-paginados", params),
   addCliente: (item) => ipcRenderer.invoke("add-cliente", item),
   updateCliente: (item) => ipcRenderer.invoke("update-cliente", item),
   deleteCliente: (item) => ipcRenderer.invoke("delete-cliente", item),
 
-  //bitacoras
+  // bitacoras
   getBitacoras: () => ipcRenderer.invoke("get-bitacoras"),
   addBitacora: (item) => ipcRenderer.invoke("add-bitacora", item),
   updateBitacora: (item) => ipcRenderer.invoke("update-bitacora", item),
   deleteBitacora: (item) => ipcRenderer.invoke("delete-bitacora", item),
 
-  //configuraciones
+  // configuraciones
   getConfiguracion: () => ipcRenderer.invoke("get-configuracion"),
   updateConfiguracion: (item) => ipcRenderer.invoke("update-configuracion", item),
   updateWindow: (data) => ipcRenderer.send("update-window", data),
@@ -74,7 +76,7 @@ contextBridge.exposeInMainWorld("api", {
   executeImportQuery: (data) => ipcRenderer.invoke('execute-import-query', data),
   executeImportJson: (data) => ipcRenderer.invoke('execute-import-json', data),
 
-  //logs
+  // logs
   getSystemLogs: (limit) => ipcRenderer.invoke("get-system-logs", limit),
   clearSystemLogs: () => ipcRenderer.invoke("clear-system-logs"),
 
@@ -87,7 +89,7 @@ contextBridge.exposeInMainWorld("api", {
   getPerfilTableData: (data) => ipcRenderer.invoke("get-perfil-table-data", data),
   clearPerfilTableData: (data) => ipcRenderer.invoke("clear-perfil-table-data", data),
 
-  //conf almacen
+  // conf almacen
   getAllConfAlmacen: () => ipcRenderer.invoke("getAll-almacenConf"),
   getOneConfAlmacen: (id) => ipcRenderer.invoke("get-almacenConf", id),
   updateConfAlmacen: (item) => ipcRenderer.invoke("update-almacenConf", item),
@@ -97,19 +99,19 @@ contextBridge.exposeInMainWorld("api", {
   deleteMetodoPago: (id) => ipcRenderer.invoke('delete-metodo-pago', id),
   updateMetodoPagoCuenta: (data) => ipcRenderer.invoke('update-metodo-pago-cuenta', data),
 
-  //notas - credito/debito
+  // notas - credito/debito
   getNotas: () => ipcRenderer.invoke("get-notas"),
   getNotaDetalle: (id) => ipcRenderer.invoke('get-nota-detalle', id),
   addNota: (data) => ipcRenderer.invoke("add-nota", data),
   searchFactura: (numero) => ipcRenderer.invoke("search-factura", numero),
 
-  // Categorias --
+  // Categorias
   getCategorias: () => ipcRenderer.invoke("get-categorias"),
   addCategoria: (item) => ipcRenderer.invoke("add-categoria", item),
   updateCategoria: (item) => ipcRenderer.invoke("update-categoria", item),
   deleteCategoria: (id) => ipcRenderer.invoke("delete-categoria", id),
 
-  // -- Etiquetas --
+  // Etiquetas
   getEtiquetas: () => ipcRenderer.invoke("get-etiquetas"),
   addEtiqueta: (item) => ipcRenderer.invoke("add-etiqueta", item),
   updateEtiqueta: (item) => ipcRenderer.invoke("update-etiqueta", item),
@@ -125,7 +127,7 @@ contextBridge.exposeInMainWorld("api", {
   readCsvFile: (filePath) => ipcRenderer.invoke('read-csv-file', filePath),
   executeImportCsv: (data) => ipcRenderer.invoke('execute-import-csv', data),
 
-  //logs de consola en backend
+  // logs de consola en backend
   onImportLog: (callback) => ipcRenderer.on('import-log', (_event, msg) => callback(msg)),
   removeAllImportLogs: () => ipcRenderer.removeAllListeners('import-log'),
 
@@ -133,7 +135,7 @@ contextBridge.exposeInMainWorld("api", {
   getCartera: () => ipcRenderer.invoke("get-cartera"),
   getAbonos: () => ipcRenderer.invoke("get-abonos"),
   addAbono: (data) => ipcRenderer.invoke("add-abono", data),
-  getCarteraPaginada: (params) => ipcRenderer.invoke('get-cartera-paginada', params),
+  getCarteraPaginada: (params) => ipcRenderer.invoke('get-cartera-pagada', params),
   getAbonosPaginados: (params) => ipcRenderer.invoke('get-abonos-paginados', params),
 
   // Exportación de Datos
@@ -145,7 +147,7 @@ contextBridge.exposeInMainWorld("api", {
   updateSubcategoria: (item) => ipcRenderer.invoke("update-subcategoria", item),
   deleteSubcategoria: (id) => ipcRenderer.invoke("delete-subcategoria", id),
 
-  //usuarios
+  // usuarios
   getUsuarios: () => ipcRenderer.invoke("get-usuarios"),
   addUsuario: (data) => ipcRenderer.invoke("add-usuario", data),
   updateUsuario: (data) => ipcRenderer.invoke("update-usuario", data),
@@ -153,7 +155,7 @@ contextBridge.exposeInMainWorld("api", {
   deleteUsuario: (id) => ipcRenderer.invoke("delete-usuario", id),
 })
 
-//contabilidad
+// contabilidad
 contextBridge.exposeInMainWorld('contaAPI', {
   getPuc: () => ipcRenderer.invoke('get-puc'),
   crearCuenta: (cuenta) => ipcRenderer.invoke('crear-cuenta', cuenta),
@@ -173,7 +175,6 @@ contextBridge.exposeInMainWorld('contaAPI', {
   getCuentasAuxiliares: () => ipcRenderer.invoke('get-cuentas-auxiliares'),
   getBalancePrueba: (params) => ipcRenderer.invoke('get-balance-prueba', params),
 
-  getBalancePrueba: (params) => ipcRenderer.invoke('get-balance-prueba', params),
   getEstadoResultados: (params) => ipcRenderer.invoke('get-estado-resultados', params),
   getBalanceGeneral: (params) => ipcRenderer.invoke('get-balance-general', params),
 
@@ -181,12 +182,12 @@ contextBridge.exposeInMainWorld('contaAPI', {
   updateConfigContable: (data) => ipcRenderer.invoke('update-config-contable', data),
 })
 
-  contextBridge.exposeInMainWorld('comprasAPI', {
-    getComprasPaginadas: (params) => ipcRenderer.invoke('get-compras-paginadas', params),
-    getCompraDetalle: (id) => ipcRenderer.invoke('get-compra-detalle', id),
-    crearCompra: (data) => ipcRenderer.invoke('crear-compra', data),
-    searchTercerosConta: (query) => ipcRenderer.invoke("search-terceros-conta", query),
-  }),
+contextBridge.exposeInMainWorld('comprasAPI', {
+  getComprasPaginadas: (params) => ipcRenderer.invoke('get-compras-paginadas', params),
+  getCompraDetalle: (id) => ipcRenderer.invoke('get-compra-detalle', id),
+  crearCompra: (data) => ipcRenderer.invoke('crear-compra', data),
+  searchTercerosConta: (query) => ipcRenderer.invoke("search-terceros-conta", query),
+})
 
 contextBridge.exposeInMainWorld('updaterAPI', {
   getVersion: () => ipcRenderer.invoke('get-app-version'),

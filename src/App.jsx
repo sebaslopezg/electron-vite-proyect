@@ -12,8 +12,10 @@ function App() {
 
   useEffect(() => {
     const verificarSeguridadAcceso = async () => {
+      const savedToken = localStorage.getItem('auth_token')
+      
       if (window.api && window.api.checkLoginRequired) {
-        const res = await window.api.checkLoginRequired()
+        const res = await window.api.checkLoginRequired(savedToken)
         if (res.success) {
           setLoginRequired(res.required)
           if (!res.required && res.user) {
@@ -84,6 +86,15 @@ function App() {
     }
   }, [])
 
+  const handleLogout = async () => {
+    localStorage.removeItem('auth_token')
+    if (window.api && window.api.logoutUser) {
+        await window.api.logoutUser()
+    }
+    setCurrentUser(null)
+    setLoginRequired(true)
+  }
+
   if (loading) {
     return (
       <div className="d-flex align-items-center justify-content-center bg-light" style={{ minHeight: '100vh', width: '100vw' }}>
@@ -100,7 +111,7 @@ function App() {
   }
 
   return <>
-    <Dashboard currentUser={currentUser} onLogout={() => setCurrentUser(null)} />
+    <Dashboard currentUser={currentUser} onLogout={handleLogout} />
   </>
 }
 

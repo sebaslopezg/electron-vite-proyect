@@ -236,25 +236,32 @@ export const Facturacion = () => {
             const safeData = encodeURIComponent(JSON.stringify(row))
             let buttons = ''
             
-            const allowEncargo = row.allow_encargo !== undefined ? row.allow_encargo : 1
-            const encargoSoloSinStock = row.encargo_solo_sin_stock !== undefined ? row.encargo_solo_sin_stock : 1
+            const allowEncargo = (row.allow_encargo === undefined || row.allow_encargo === null) 
+              ? 1 
+              : (String(row.allow_encargo) === '1' || String(row.allow_encargo).toLowerCase() === 'true' ? 1 : 0);
 
-            if (row.stock > 0 || row.tipo === 'servicio') {
+            const encargoSoloSinStock = (row.encargo_solo_sin_stock === undefined || row.encargo_solo_sin_stock === null) 
+              ? 1 
+              : (String(row.encargo_solo_sin_stock) === '1' || String(row.encargo_solo_sin_stock).toLowerCase() === 'true' ? 1 : 0);
+
+            if (Number(row.stock) > 0 || row.tipo === 'servicio') {
               buttons += `<button class="btn btn-sm btn-primary btn-select-product me-1 mb-1" data-alldata="${safeData}" data-force-encargo="0">
                 <i class="bi bi-cart-plus me-1"></i> Agregar
               </button>`
             }
+            
             if (allowEncargo === 1 && row.tipo === 'producto') {
-              if (row.stock <= 0) {
+              if (Number(row.stock) <= 0) {
                 buttons += `<button class="btn btn-sm btn-warning text-dark btn-select-product mb-1" data-alldata="${safeData}" data-force-encargo="1">
                 <i class="bi bi-box-seam me-1"></i> Encargar
                 </button>`
-              } else if (encargoSoloSinStock === 0) {
+              } 
+              else if (encargoSoloSinStock === 1) {
                 buttons += `<button class="btn btn-sm btn-warning text-dark btn-select-product mb-1" data-alldata="${safeData}" data-force-encargo="1">
                 <i class="bi bi-box-seam me-1"></i> Encargar
                 </button>`
               }
-            } else if (allowEncargo === 0 && row.stock <= 0) {
+            } else if (allowEncargo === 0 && Number(row.stock) <= 0) {
               buttons += `<button class="btn btn-sm btn-secondary disabled mb-1"><i class="bi bi-x-circle me-1"></i> Agotado</button>`
             }
             return buttons
@@ -306,7 +313,7 @@ export const Facturacion = () => {
         setCarrito(prev => prev.map(item => ({
           ...item, descuento: pct, tipoDescuento: 'porcentaje'
         })));
-        Toast.fire({ icon: 'success', title: `Descuento masivo del ${pct}% applied` })
+        Toast.fire({ icon: 'success', title: `Descuento masivo del ${pct}% aplicado` })
       }
     })
   }
@@ -337,7 +344,7 @@ export const Facturacion = () => {
       let isEncargoVal = forceEncargo ? '1' : '0'
 
       if (!forceEncargo && prod.tipo === "producto" && unitsInCartWithStock >= prod.stock) {
-        const allowEncargo = prod.allow_encargo !== undefined ? prod.allow_encargo : 1;
+        const allowEncargo = prod.allow_encargo !== undefined ? Number(prod.allow_encargo) : 1;
         if (allowEncargo === 0) {
           Toast.fire({ 
             icon: 'warning', 
@@ -353,7 +360,7 @@ export const Facturacion = () => {
 
       if (existe) {
         if (isEncargoVal === '0' && (existe.cantidad + 1) > prod.stock) {
-          const allowEncargo = prod.allow_encargo !== undefined ? prod.allow_encargo : 1
+          const allowEncargo = prod.allow_encargo !== undefined ? Number(prod.allow_encargo) : 1
           if (allowEncargo === 0) {
               Toast.fire({ icon: 'warning', title: 'Agotado', text: 'Alcanzaste el límite de stock y el producto no permite encargos.' })
               return prev
@@ -433,7 +440,7 @@ export const Facturacion = () => {
       const facturaGenerada = {
           id: result.maestroId, 
           numero_factura: result.numero_factura, 
-          prefijo: result.prefijo,
+          prefijo: result.prefijo, // CORREGIDO: Asignado result.prefijo correctamente en vez del numero_factura
           date_created: new Date().toISOString(), 
           nombre_cliente: cliente.nombre, 
           documento_cliente: cliente.documento,
@@ -486,7 +493,7 @@ export const Facturacion = () => {
       const newQty = item.cantidad + delta
 
       if (delta > 0 && isEncargo === '0' && newQty > item.stock && item.tipo === "producto") {
-        const allowEncargo = item.allow_encargo !== undefined ? item.allow_encargo : 1
+        const allowEncargo = item.allow_encargo !== undefined ? Number(item.allow_encargo) : 1
         if (allowEncargo === 0) {
           Toast.fire({ icon: 'warning', title: 'Agotado', text: 'Has alcanzado el límite de stock y este producto no permite encargos.' })
           return prev
@@ -642,7 +649,6 @@ export const Facturacion = () => {
           </Button>
         </div>
 
-
         <div className="w-100 pe-2" style={{ minWidth: 0 }}>
           <DataTableComponent
             tableId="dt-facturacion-carrito"
@@ -747,7 +753,6 @@ export const Facturacion = () => {
             ]}
           />
         </div>
-
       </Col>
 
       <Col lg={4} xl={3}>
