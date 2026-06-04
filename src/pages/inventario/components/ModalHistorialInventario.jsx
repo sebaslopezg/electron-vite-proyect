@@ -1,6 +1,7 @@
 import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
 import CustomDataTable from '../../../components/DataTableComponent'
+import { inventarioService } from '../../../services/inventarioService'
 
 export const ModalHistorialInventario = ({ 
     show, 
@@ -23,7 +24,7 @@ export const ModalHistorialInventario = ({
                         key={`history-${historyProductId}-${appConfig.formato_numero}`}
                         ajaxData={(params) => {
                             params.productoId = historyProductId;
-                            return window.api.getInventarioHistoryPaginados(params);
+                            return inventarioService.getInventarioHistoryPaginados(params);
                         }}
                         columns={[
                             { 
@@ -42,7 +43,7 @@ export const ModalHistorialInventario = ({
                                     const val = data ? data.toLowerCase() : '';
                                     let badgeClass = 'secondary';
                                     if (val === 'ingreso' || val === 'entrada' || val === 'creacion_producto') badgeClass = 'success';
-                                    if (val === 'egreso' || val === 'salida') badgeClass = 'danger';
+                                    if (val === 'egreso' || val === 'salida' || val === 'venta') badgeClass = 'danger';
                                     return `<span class="badge bg-${badgeClass}">${(data||'').toUpperCase()}</span>`;
                                 }
                             },

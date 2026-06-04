@@ -8,6 +8,7 @@ import { formatCurrency } from '../../utils/currencies'
 import { BuscadorFiltros } from '../../components/BuscadorFiltros'
 import { ModalAjusteStock } from './components/ModalAjusteStock'
 import { ModalHistorialInventario } from './components/ModalHistorialInventario'
+import { inventarioService } from '../../services/inventarioService'
 
 export const Inventario = ({ currentUser }) => {
     const [show, setShow] = useState(false)
@@ -49,7 +50,7 @@ export const Inventario = ({ currentUser }) => {
     }
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion()
+        const configData = await inventarioService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
@@ -75,10 +76,11 @@ export const Inventario = ({ currentUser }) => {
     const handleShow = () => setShow(true)
 
     const loadFilters = async () => {
+        // Redirigido al adaptador universal
         const [cats, tags, subs] = await Promise.all([
-            window.api.getCategorias(),
-            window.api.getEtiquetas(),
-            window.api.getSubcategorias()
+            inventarioService.getCategorias(),
+            inventarioService.getEtiquetas(),
+            inventarioService.getSubcategorias()
         ])
         setCategoriasList(cats || [])
         setEtiquetasList(tags || [])
@@ -148,7 +150,7 @@ export const Inventario = ({ currentUser }) => {
             })
 
         try {
-            const result = await window.api.setInventario({
+            const result = await inventarioService.setInventario({
                 id: selectedProduct.id,
                 amount: parseFloat(form.cantidad),
                 type: form.type,
@@ -253,7 +255,7 @@ export const Inventario = ({ currentUser }) => {
                     </Row>
                 </div>
 
-                <div ref={tableContainerRef} className="w-100 overflow-hidden">
+                <div className="w-100 overflow-hidden">
                     <CustomDataTable 
                         tableId="dt-inventario-maestro"
                         key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
@@ -261,7 +263,7 @@ export const Inventario = ({ currentUser }) => {
                             params.customCategory = filterCategory;
                             params.customSubcategory = filterSubcategory;
                             params.customTag = filterTag;
-                            return window.api.getInventarioPaginados(params);
+                            return inventarioService.getInventarioPaginados(params);
                         }}
                         
                         columns={[
