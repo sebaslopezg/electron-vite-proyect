@@ -13,8 +13,8 @@ export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, appConfig, current
     }
 
     useEffect(() => {
-        const container = tableCobrarRef.current;
-        if (!container) return;
+        const container = tableCobrarRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
             const btn = e.target.closest('.btn-pay-item')
@@ -23,11 +23,11 @@ export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, appConfig, current
                 const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
                 onOpenModal(item);
             } catch(err) { console.error(err) }
-        };
+        }
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [onOpenModal, currentUser]);
+    }, [onOpenModal, currentUser])
 
     return <>
         <div className="animation-fade-in">
@@ -59,14 +59,14 @@ export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, appConfig, current
                         {
                             data: null, title: 'Acciones', orderable: false, className: 'text-center',
                             render: function (data, type, row) {
-                                const safeData = encodeURIComponent(JSON.stringify(row));
-                                const canAbonar = hasPermission('cartera_abonar');
+                                const safeData = encodeURIComponent(JSON.stringify(row))
+                                const canAbonar = hasPermission('cartera_abonar')
 
                                 return canAbonar ? `
                                     <button class="btn btn-sm btn-success text-white btn-pay-item" data-alldata="${safeData}" title="Registrar Pago">
                                         <i class="bi bi-cash-coin me-1"></i> Abonar
                                     </button>
-                                ` : '<span class="text-muted small fst-italic">Solo Lectura</span>';
+                                ` : '<span class="text-muted small fst-italic">Solo Lectura</span>'
                             }
                         }
                     ]}
