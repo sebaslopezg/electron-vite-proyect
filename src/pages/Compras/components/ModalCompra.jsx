@@ -1,59 +1,77 @@
 import { useState, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import { Modal, Button, Form, Row, Col, Table, ListGroup } from 'react-bootstrap'
+import { comprasService } from '../../../services/comprasService'
+import { contabilidadService } from '../../../services/contabilidadService'
 
 export const ModalCompra = ({ show, handleClose, onSuccess }) => {
     const [maestro, setMaestro] = useState({
-        proveedor_id: '', documento_proveedor: '', nombre_proveedor: '', 
-        numero_factura: '', fecha_factura: new Date().toISOString().split('T')[0], 
-        fecha_vencimiento: new Date().toISOString().split('T')[0], concepto: '',
-        tipo_pago: 'contado', descuento_global: 0
+        proveedor_id: '', 
+        documento_proveedor: '', 
+        nombre_proveedor: '', 
+        numero_factura: '', 
+        fecha_factura: new Date().toISOString().split('T')[0], 
+        fecha_vencimiento: new Date().toISOString().split('T')[0], 
+        concepto: '',
+        tipo_pago: 'contado', 
+        descuento_global: 0
     })
 
     const rowInitialState = { 
-        id: Date.now(), tipo_item: 'gasto', 
-        cuenta_puc_id: '', cuenta_search: '', show_cuenta_results: false,
-        producto_id: '', producto_search: '', show_producto_results: false,
-        descripcion: '', cantidad: 1, precio_unitario: '', iva_percent: 0 
-    };
+        id: Date.now(), 
+        tipo_item: 'gasto', 
+        cuenta_puc_id: '', 
+        cuenta_search: '', 
+        show_cuenta_results: false,
+        producto_id: '', 
+        producto_search: '', 
+        show_producto_results: false,
+        descripcion: '', 
+        cantidad: 1, 
+        precio_unitario: '', 
+        iva_percent: 0 
+    }
 
-    const [detalles, setDetalles] = useState([{ ...rowInitialState }]);
+    const [detalles, setDetalles] = useState([{ ...rowInitialState }])
 
-    const [proveedoresTotales, setProveedoresTotales] = useState([]); 
-    const [busquedaProveedor, setBusquedaProveedor] = useState(''); 
-    const [resultadosProveedor, setResultadosProveedor] = useState([]); 
-    const [mostrarResultados, setMostrarResultados] = useState(false);
+    const [proveedoresTotales, setProveedoresTotales] = useState([])
+    const [busquedaProveedor, setBusquedaProveedor] = useState('')
+    const [resultadosProveedor, setResultadosProveedor] = useState([])
+    const [mostrarResultados, setMostrarResultados] = useState(false)
 
-    const [cuentasPuc, setCuentasPuc] = useState([]);
-    const [productos, setProductos] = useState([]);
+    const [cuentasPuc, setCuentasPuc] = useState([])
+    const [productos, setProductos] = useState([])
 
     useEffect(() => {
         if (show) {
-            cargarCatalogos();
+            cargarCatalogos()
             setMaestro({ 
-                proveedor_id: '', documento_proveedor: '', nombre_proveedor: '', 
-                numero_factura: '', fecha_factura: new Date().toISOString().split('T')[0], 
-                fecha_vencimiento: new Date().toISOString().split('T')[0], concepto: '',
-                tipo_pago: 'contado', descuento_global: 0 
-            });
-            setDetalles([{ ...rowInitialState, id: Date.now() }]);
-            setBusquedaProveedor('');
-            setResultadosProveedor([]);
+                proveedor_id: '', 
+                documento_proveedor: '', 
+                nombre_proveedor: '', 
+                numero_factura: '', 
+                fecha_factura: new Date().toISOString().split('T')[0], 
+                fecha_vencimiento: new Date().toISOString().split('T')[0], 
+                concepto: '',
+                tipo_pago: 'contado', 
+                descuento_global: 0 
+            })
+            setDetalles([{ ...rowInitialState, id: Date.now() + Math.random() }])
+            setBusquedaProveedor('')
+            setResultadosProveedor([])
         }
-    }, [show]);
+    }, [show])
 
     const cargarCatalogos = async () => {
-        if (window.contaAPI && window.api) {
-            const resTerceros = await window.contaAPI.getTerceros();
-            if (resTerceros.success) setProveedoresTotales(resTerceros.data);
+        const resTerceros = await contabilidadService.getTerceros()
+        if (resTerceros.success) setProveedoresTotales(resTerceros.data)
 
-            const resCuentas = await window.contaAPI.getCuentasAuxiliares();
-            if (resCuentas.success) setCuentasPuc(resCuentas.data);
+        const resCuentas = await contabilidadService.getCuentasAuxiliares()
+        if (resCuentas.success) setCuentasPuc(resCuentas.data)
 
-            const resProductos = await window.api.getAllProductos();
-            setProductos(resProductos || []);
-        }
-    };
+        const resProductos = await comprasService.getAllProductos()
+        setProductos(resProductos || [])
+    }
 
     // ==========================================
     // BUSCADOR PROVEEDORES
@@ -65,29 +83,34 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
         if (texto.trim() === '') {
             setResultadosProveedor([]);
             setMostrarResultados(false);
-            setMaestro({ ...maestro, proveedor_id: '', documento_proveedor: '', nombre_proveedor: '' });
-            return;
+            setMaestro({ 
+                ...maestro, 
+                proveedor_id: '', 
+                documento_proveedor: '', 
+                nombre_proveedor: '' 
+            })
+            return
         }
 
-        const textoLower = texto.toLowerCase();
+        const textoLower = texto.toLowerCase()
         const filtrados = proveedoresTotales.filter(p => {
-            const nombreCompleto = p.tipo_persona === 'juridica' ? p.razon_social : `${p.nombres || ''} ${p.apellidos || ''}`;
-            return (p.numero_documento && p.numero_documento.toLowerCase().includes(textoLower)) || 
-                   (nombreCompleto && nombreCompleto.toLowerCase().includes(textoLower));
-        }).slice(0, 10);
+            const nombreCompleto = p.tipo_persona === 'juridica' ? p.razon_social : `${p.nombres || ''} ${p.apellidos || ''}`
+            return (p.numero_documento && String(p.numero_documento).toLowerCase().includes(textoLower)) || 
+                   (nombreCompleto && nombreCompleto.toLowerCase().includes(textoLower))
+        }).slice(0, 10)
 
-        setResultadosProveedor(filtrados);
-        setMostrarResultados(true);
-    };
+        setResultadosProveedor(filtrados)
+        setMostrarResultados(true)
+    }
 
     const handleSeleccionarProveedor = (prov) => {
         const nombreDisplay = prov.tipo_persona === 'juridica' ? prov.razon_social : `${prov.nombres || ''} ${prov.apellidos || ''}`;
         setMaestro({ 
             ...maestro, proveedor_id: prov.id, documento_proveedor: prov.numero_documento, nombre_proveedor: nombreDisplay 
-        });
-        setBusquedaProveedor(`${prov.numero_documento} - ${nombreDisplay}`);
-        setMostrarResultados(false);
-    };
+        })
+        setBusquedaProveedor(`${prov.numero_documento} - ${nombreDisplay}`)
+        setMostrarResultados(false)
+    }
 
     // ==========================================
     // BUSCADOR DE CUENTAS PUC (En las filas)
@@ -95,21 +118,26 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
     const handleBuscarCuenta = (idFila, texto) => {
         setDetalles(detalles.map(d => {
             if (d.id === idFila) {
-                if (texto.trim() === '') return { ...d, cuenta_search: texto, show_cuenta_results: false, cuenta_puc_id: '' };
-                return { ...d, cuenta_search: texto, show_cuenta_results: true, cuenta_puc_id: '' };
+                if (texto.trim() === '') return { ...d, cuenta_search: texto, show_cuenta_results: false, cuenta_puc_id: '' }
+                return { ...d, cuenta_search: texto, show_cuenta_results: true, cuenta_puc_id: '' }
             }
-            return { ...d, show_cuenta_results: false }; // Cierra la lista en otras filas
-        }));
-    };
+            return { ...d, show_cuenta_results: false }
+        }))
+    }
 
     const handleSeleccionarCuenta = (idFila, cuenta) => {
         setDetalles(detalles.map(d => {
             if (d.id === idFila) {
-                return { ...d, cuenta_puc_id: cuenta.id, cuenta_search: `${cuenta.id} - ${cuenta.nombre}`, show_cuenta_results: false };
+                return { 
+                    ...d, 
+                    cuenta_puc_id: cuenta.id, 
+                    cuenta_search: `${cuenta.id} - ${cuenta.nombre}`, 
+                    show_cuenta_results: false 
+                }
             }
-            return d;
-        }));
-    };
+            return d
+        }))
+    }
 
     // ==========================================
     // BUSCADOR DE PRODUCTOS (En las filas)
@@ -117,12 +145,24 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
     const handleBuscarProducto = (idFila, texto) => {
         setDetalles(detalles.map(d => {
             if (d.id === idFila) {
-                if (texto.trim() === '') return { ...d, producto_search: texto, show_producto_results: false, producto_id: '', descripcion: '' };
-                return { ...d, producto_search: texto, show_producto_results: true, producto_id: '', descripcion: '' };
+                if (texto.trim() === '') return { 
+                    ...d, 
+                    producto_search: texto, 
+                    show_producto_results: false, 
+                    producto_id: '', 
+                    descripcion: '' 
+                }
+                return { 
+                    ...d, 
+                    producto_search: texto, 
+                    show_producto_results: true, 
+                    producto_id: '', 
+                    descripcion: '' 
+                }
             }
-            return { ...d, show_producto_results: false };
-        }));
-    };
+            return { ...d, show_producto_results: false }
+        }))
+    }
 
     const handleSeleccionarProducto = (idFila, prod) => {
         setDetalles(detalles.map(d => {
@@ -133,58 +173,67 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
                     producto_search: `${prod.sku} - ${prod.nombre_producto}`, 
                     descripcion: prod.ref_name || prod.nombre_producto,
                     show_producto_results: false 
-                };
+                }
             }
-            return d;
-        }));
-    };
+            return d
+        }))
+    }
 
     // ==========================================
     // MANEJO DE LA TABLA
     // ==========================================
     const handleAddRow = () => {
-        setDetalles([...detalles, { ...rowInitialState, id: Date.now() }]);
-    };
+        setDetalles([...detalles, { ...rowInitialState, id: Date.now() + Math.random() }])
+    }
 
     const handleRemoveRow = (id) => {
-        if (detalles.length === 1) return;
-        setDetalles(detalles.filter(d => d.id !== id));
-    };
+        if (detalles.length === 1) return
+        setDetalles(detalles.filter(d => d.id !== id))
+    }
 
     const handleChangeRow = (id, field, value) => {
         setDetalles(detalles.map(d => {
             if (d.id === id) {
-                // Si cambia el tipo de ítem, limpiamos las selecciones
                 if (field === 'tipo_item') {
-                    return { ...d, [field]: value, cuenta_puc_id: '', cuenta_search: '', producto_id: '', producto_search: '', descripcion: '' };
+                    return { 
+                        ...d, [field]: value, 
+                        cuenta_puc_id: '', 
+                        cuenta_search: '', 
+                        producto_id: '', 
+                        producto_search: '', 
+                        descripcion: '' 
+                    }
                 }
-                return { ...d, [field]: value };
+                return { ...d, [field]: value }
             }
-            return d;
-        }));
-    };
+            return d
+        }))
+    }
 
-    const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(val || 0);
+    const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(val || 0)
 
-    const subtotal = detalles.reduce((acc, item) => acc + ((Number(item.cantidad) || 0) * (Number(item.precio_unitario) || 0)), 0);
+    const subtotal = detalles.reduce((acc, item) => acc + ((Number(item.cantidad) || 0) * (Number(item.precio_unitario) || 0)), 0)
     const ivaTotal = detalles.reduce((acc, item) => {
-        const sub = (Number(item.cantidad) || 0) * (Number(item.precio_unitario) || 0);
-        return acc + (sub * (Number(item.iva_percent) || 0) / 100);
-    }, 0);
-    const descuentoTotal = Number(maestro.descuento_global) || 0;
-    const totalFactura = subtotal + ivaTotal - descuentoTotal;
+        const sub = (Number(item.cantidad) || 0) * (Number(item.precio_unitario) || 0)
+        return acc + (sub * (Number(item.iva_percent) || 0) / 100)
+    }, 0)
+    const descuentoTotal = Number(maestro.descuento_global) || 0
+    const totalFactura = subtotal + ivaTotal - descuentoTotal
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        e.preventDefault()
         
-        if (!maestro.proveedor_id) return Swal.fire('Error', 'Debe buscar y seleccionar un proveedor válido.', 'error');
-        if (detalles.some(d => d.tipo_item === 'gasto' && !d.cuenta_puc_id)) return Swal.fire('Error', 'Seleccione una cuenta contable válida de la lista para los gastos.', 'error');
-        if (detalles.some(d => d.tipo_item === 'inventario' && !d.producto_id)) return Swal.fire('Error', 'Seleccione un producto de inventario válido de la lista.', 'error');
+        if (!maestro.proveedor_id) return Swal.fire('Error', 'Debe buscar y seleccionar un proveedor válido.', 'error')
+        if (detalles.some(d => d.tipo_item === 'gasto' && !d.cuenta_puc_id)) return Swal.fire('Error', 'Seleccione una cuenta contable válida de la lista para los gastos.', 'error')
+        if (detalles.some(d => d.tipo_item === 'inventario' && !d.producto_id)) return Swal.fire('Error', 'Seleccione un producto de inventario válido de la lista.', 'error')
 
         const payload = {
             maestro: {
                 ...maestro,
-                subtotal, descuento: descuentoTotal, iva: ivaTotal, total_factura: totalFactura,
+                subtotal, 
+                descuento: descuentoTotal, 
+                iva: ivaTotal, 
+                total_factura: totalFactura,
                 total_pagado: maestro.tipo_pago === 'contado' ? totalFactura : 0,
                 saldo_pendiente: maestro.tipo_pago === 'credito' ? totalFactura : 0,
                 estado: maestro.tipo_pago === 'contado' ? 'pagada' : 'pendiente'
@@ -196,17 +245,17 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
             }))
         };
 
-        const res = await window.comprasAPI.crearCompra(payload);
+        const res = await comprasService.crearCompra(payload)
         if (res.success) {
-            Swal.fire({ title: '¡Compra Registrada!', text: 'La factura ha sido guardada.', icon: 'success', timer: 1500, showConfirmButton: false });
-            onSuccess();
-            handleClose();
+            Swal.fire({ title: '¡Compra Registrada!', text: 'La factura ha sido guardada.', icon: 'success', timer: 1500, showConfirmButton: false })
+            onSuccess()
+            handleClose()
         } else {
-            Swal.fire('Error', res.error, 'error');
+            Swal.fire('Error', res.error, 'error')
         }
-    };
+    }
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="xl" centered backdrop="static">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5"><i className="bi bi-cart-check-fill me-2 text-success"></i>Registrar Factura de Compra / Gasto</Modal.Title>
@@ -293,73 +342,86 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
                                         <th width="3%"></th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {detalles.map((row) => (
-                                        <tr key={row.id}>
-                                            <td>
-                                                <Form.Select size="sm" value={row.tipo_item} onChange={(e) => handleChangeRow(row.id, 'tipo_item', e.target.value)}>
-                                                    <option value="gasto">Gasto (PUC)</option>
-                                                    <option value="inventario">Inventario</option>
-                                                </Form.Select>
-                                            </td>
-                                            {/* COLUMNA OPTIMIZADA CON AUTOCOMPLETADO */}
-                                            <td className="position-relative">
-                                                {row.tipo_item === 'gasto' ? (
-                                                    <>
-                                                        <Form.Control 
-                                                            type="text" size="sm" placeholder="Buscar código o cuenta..." 
-                                                            value={row.cuenta_search} onChange={(e) => handleBuscarCuenta(row.id, e.target.value)} 
-                                                            autoComplete="off"
-                                                            className={row.cuenta_puc_id ? "border-success bg-light text-success fw-bold" : "border-primary"}
-                                                        />
-                                                        {row.show_cuenta_results && row.cuenta_search && (
-                                                            <ListGroup className="position-absolute shadow w-100" style={{zIndex: 1050, maxHeight: '160px', overflowY: 'auto', top: '100%', left: 0}}>
-                                                                {cuentasPuc
-                                                                    .filter(c => String(c.id).includes(row.cuenta_search) || c.nombre.toLowerCase().includes(row.cuenta_search.toLowerCase()))
-                                                                    .slice(0, 10)
-                                                                    .map(c => (
-                                                                        <ListGroup.Item key={c.id} action onClick={() => handleSeleccionarCuenta(row.id, c)} className="py-1 px-2 small border-bottom">
-                                                                            <strong>{c.id}</strong> - {c.nombre}
-                                                                        </ListGroup.Item>
-                                                                    ))
-                                                                }
-                                                            </ListGroup>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Form.Control 
-                                                            type="text" size="sm" placeholder="Buscar código o producto..." 
-                                                            value={row.producto_search} onChange={(e) => handleBuscarProducto(row.id, e.target.value)} 
-                                                            autoComplete="off"
-                                                            className={row.producto_id ? "border-success bg-light text-success fw-bold" : "border-primary"}
-                                                        />
-                                                        {row.show_producto_results && row.producto_search && (
-                                                            <ListGroup className="position-absolute shadow w-100" style={{zIndex: 1050, maxHeight: '160px', overflowY: 'auto', top: '100%', left: 0}}>
-                                                                {productos
-                                                                    .filter(p => p.sku?.toLowerCase().includes(row.producto_search.toLowerCase()) || p.nombre_producto?.toLowerCase().includes(row.producto_search.toLowerCase()))
-                                                                    .slice(0, 10)
-                                                                    .map(p => (
-                                                                        <ListGroup.Item key={p.id} action onClick={() => handleSeleccionarProducto(row.id, p)} className="py-1 px-2 small border-bottom">
-                                                                            <strong>{p.sku}</strong> - {p.nombre_producto}
-                                                                        </ListGroup.Item>
-                                                                    ))
-                                                                }
-                                                            </ListGroup>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </td>
-                                            <td><Form.Control size="sm" type="text" value={row.descripcion} onChange={(e) => handleChangeRow(row.id, 'descripcion', e.target.value)} required /></td>
-                                            <td><Form.Control size="sm" type="number" min="0.1" step="0.1" value={row.cantidad} onChange={(e) => handleChangeRow(row.id, 'cantidad', e.target.value)} required /></td>
-                                            <td><Form.Control size="sm" type="number" min="0" value={row.precio_unitario} onChange={(e) => handleChangeRow(row.id, 'precio_unitario', e.target.value)} required /></td>
-                                            <td><Form.Control size="sm" type="number" min="0" max="100" value={row.iva_percent} onChange={(e) => handleChangeRow(row.id, 'iva_percent', e.target.value)} /></td>
-                                            <td className="text-end fw-medium">{formatMoney((Number(row.cantidad) || 0) * (Number(row.precio_unitario) || 0))}</td>
-                                            <td className="text-center">
-                                                <button type="button" className="btn btn-link text-danger p-0" onClick={() => handleRemoveRow(row.id)}><i className="bi bi-trash-fill"></i></button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                <tbody style={{overflow: 'visible'}}>
+                                    {detalles.map((row) => {
+                                        const queryCuentaLower = (row.cuenta_search || '').toLowerCase();
+                                        const cuentasFiltradas = cuentasPuc.filter(c => 
+                                            String(c.id).includes(queryCuentaLower) || 
+                                            c.nombre.toLowerCase().includes(queryCuentaLower)
+                                        ).slice(0, 10);
+
+                                        const queryProdLower = (row.producto_search || '').toLowerCase();
+                                        const productosFiltrados = productos.filter(p => 
+                                            (p.sku && p.sku.toLowerCase().includes(queryProdLower)) || 
+                                            (p.nombre_producto && p.nombre_producto.toLowerCase().includes(queryProdLower))
+                                        ).slice(0, 10);
+
+                                        return (
+                                            <tr key={row.id}>
+                                                <td>
+                                                    <Form.Select size="sm" value={row.tipo_item} onChange={(e) => handleChangeRow(row.id, 'tipo_item', e.target.value)}>
+                                                        <option value="gasto">Gasto (PUC)</option>
+                                                        <option value="inventario">Inventario</option>
+                                                    </Form.Select>
+                                                </td>
+                                                <td className="position-relative">
+                                                    {row.tipo_item === 'gasto' ? (
+                                                        <>
+                                                            <Form.Control 
+                                                                type="text" size="sm" placeholder="Buscar código o cuenta..." 
+                                                                value={row.cuenta_search || ''} onChange={(e) => handleBuscarCuenta(row.id, e.target.value)} 
+                                                                autoComplete="off"
+                                                                className={row.cuenta_puc_id ? "border-success bg-light text-success fw-bold" : "border-primary"}
+                                                            />
+                                                            {row.show_cuenta_results && row.cuenta_search && (
+                                                                <ListGroup className="position-absolute shadow w-100" style={{zIndex: 1050, maxHeight: '160px', overflowY: 'auto', top: '100%', left: 0}}>
+                                                                    {cuentasFiltradas.length > 0 ? (
+                                                                        cuentasFiltradas.map(c => (
+                                                                            <ListGroup.Item key={c.id} action onClick={() => handleSeleccionarCuenta(row.id, c)} className="py-1 px-2 small border-bottom bg-white">
+                                                                                <strong>{c.id}</strong> - {c.nombre}
+                                                                            </ListGroup.Item>
+                                                                        ))
+                                                                    ) : (
+                                                                        <ListGroup.Item className="py-2 text-center text-muted small bg-white">No hay resultados.</ListGroup.Item>
+                                                                    )}
+                                                                </ListGroup>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Form.Control 
+                                                                type="text" size="sm" placeholder="Buscar código o producto..." 
+                                                                value={row.producto_search || ''} onChange={(e) => handleBuscarProducto(row.id, e.target.value)} 
+                                                                autoComplete="off"
+                                                                className={row.producto_id ? "border-success bg-light text-success fw-bold" : "border-primary"}
+                                                            />
+                                                            {row.show_producto_results && row.producto_search && (
+                                                                <ListGroup className="position-absolute shadow w-100" style={{zIndex: 1050, maxHeight: '160px', overflowY: 'auto', top: '100%', left: 0}}>
+                                                                    {productosFiltrados.length > 0 ? (
+                                                                        productosFiltrados.map(p => (
+                                                                            <ListGroup.Item key={p.id} action onClick={() => handleSeleccionarProducto(row.id, p)} className="py-1 px-2 small border-bottom bg-white">
+                                                                                <strong>{p.sku}</strong> - {p.nombre_producto}
+                                                                            </ListGroup.Item>
+                                                                        ))
+                                                                    ) : (
+                                                                        <ListGroup.Item className="py-2 text-center text-muted small bg-white">No hay resultados.</ListGroup.Item>
+                                                                    )}
+                                                                </ListGroup>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </td>
+                                                <td><Form.Control size="sm" type="text" value={row.descripcion || ''} onChange={(e) => handleChangeRow(row.id, 'descripcion', e.target.value)} required /></td>
+                                                <td><Form.Control size="sm" type="number" min="0.1" step="0.1" value={row.cantidad} onChange={(e) => handleChangeRow(row.id, 'cantidad', e.target.value)} required /></td>
+                                                <td><Form.Control size="sm" type="number" min="0" value={row.precio_unitario} onChange={(e) => handleChangeRow(row.id, 'precio_unitario', e.target.value)} required /></td>
+                                                <td><Form.Control size="sm" type="number" min="0" max="100" value={row.iva_percent} onChange={(e) => handleChangeRow(row.id, 'iva_percent', e.target.value)} /></td>
+                                                <td className="text-end fw-medium">{formatMoney((Number(row.cantidad) || 0) * (Number(row.precio_unitario) || 0))}</td>
+                                                <td className="text-center">
+                                                    <button type="button" className="btn btn-link text-danger p-0" onClick={() => handleRemoveRow(row.id)}><i className="bi bi-trash-fill"></i></button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </Table>
                             <div className="p-2 border-top bg-white rounded-bottom">
@@ -370,7 +432,7 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
                 </Form>
             </Modal.Body>
             <Modal.Footer className="bg-light d-flex justify-content-between position-relative z-3">
-                <div className="d-flex gap-4">
+                <div className="d-flex gap-4 align-items-center">
                     <div><span className="text-muted small d-block">Subtotal</span><strong className="fs-6">{formatMoney(subtotal)}</strong></div>
                     <div><span className="text-muted small d-block">IVA</span><strong className="fs-6">{formatMoney(ivaTotal)}</strong></div>
                     <div>
@@ -385,5 +447,5 @@ export const ModalCompra = ({ show, handleClose, onSuccess }) => {
                 </div>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

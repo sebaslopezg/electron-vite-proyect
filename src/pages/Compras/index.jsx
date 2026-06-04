@@ -3,15 +3,15 @@ import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import { ModalCompra } from './components/ModalCompra'
 import { ModalVerCompra } from './components/ModalVerCompra'
+import { comprasService } from '../../services/comprasService'
 
 export const Compras = ({ currentUser }) => {
-    const [showModal, setShowModal] = useState(false);
+    const [showModal, setShowModal] = useState(false)
     const [showViewModal, setShowViewModal] = useState(false)
     const [compraSeleccionada, setCompraSeleccionada] = useState(null)
-    const [reloadTable, setReloadTable] = useState(0);
-    const tableContainerRef = useRef(null);
+    const [reloadTable, setReloadTable] = useState(0)
+    const tableContainerRef = useRef(null)
 
-    // Validador de permisos interno para la interfaz de compras
     const hasPermission = (permissionKey) => {
         if (!currentUser) return false
         if (currentUser.permisos?.includes('ALL')) return true
@@ -22,7 +22,7 @@ export const Compras = ({ currentUser }) => {
 
     const handleVerDetalles = async (id) => {
         try {
-            const res = await window.comprasAPI.getCompraDetalle(id)
+            const res = await comprasService.getCompraDetalle(id)
             if (res.success) {
                 setCompraSeleccionada(res.data)
                 setShowViewModal(true)
@@ -30,14 +30,14 @@ export const Compras = ({ currentUser }) => {
                 Swal.fire('Error', res.error, 'error')
             }
         } catch (error) {
-            console.error(error);
+            console.error(error)
             Swal.fire('Error', 'Hubo un problema al cargar los detalles.', 'error')
         }
-    };
+    }
 
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
             const btn = e.target.closest('button[data-id]')
@@ -50,11 +50,11 @@ export const Compras = ({ currentUser }) => {
             }
         }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
-    return (
+    return <>
         <div>
             <div className="pagetitle">
                 <h1><i className="bi bi-cart4 me-2"></i>Compras y Gastos</h1>
@@ -74,7 +74,7 @@ export const Compras = ({ currentUser }) => {
                     <CustomDataTable 
                         tableId="dt-compras-maestro"
                         key={`compras-${reloadTable}`} 
-                        ajaxData={(params) => window.comprasAPI.getComprasPaginadas(params)}
+                        ajaxData={(params) => comprasService.getComprasPaginadas(params)}
                         columns={[
                             { 
                                 data: 'date_created', title: 'Fecha Registro',
@@ -93,9 +93,9 @@ export const Compras = ({ currentUser }) => {
                             { 
                                 data: 'estado', title: 'Estado', className: 'text-center',
                                 render: (data) => {
-                                    if (data === 'pagada') return '<span class="badge bg-success">Pagada</span>';
-                                    if (data === 'pendiente') return '<span class="badge bg-warning text-dark">Pendiente (CxP)</span>';
-                                    return '<span class="badge bg-secondary">Anulada</span>';
+                                    if (data === 'pagada') return '<span class="badge bg-success">Pagada</span>'
+                                    if (data === 'pendiente') return '<span class="badge bg-warning text-dark">Pendiente (CxP)</span>'
+                                    return '<span class="badge bg-secondary">Anulada</span>'
                                 }
                             },
                             {
@@ -103,9 +103,9 @@ export const Compras = ({ currentUser }) => {
                                 render: function (data, type, row) {
                                     return `
                                         <button class="btn btn-sm btn-info text-white me-2 btn-view" data-id="${row.id}" title="Ver Detalles">
-                                            <i class="bi bi-eye"></i>
+                                            <i className="bi bi-eye"></i>
                                         </button>
-                                    `;
+                                    `
                                 }
                             }
                         ]}
@@ -125,5 +125,5 @@ export const Compras = ({ currentUser }) => {
                 data={compraSeleccionada}
             />
         </div>
-    );
-};
+    </>
+}
