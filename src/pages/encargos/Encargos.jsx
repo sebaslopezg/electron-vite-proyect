@@ -3,6 +3,7 @@ import DataTableComponent from "../../components/DataTableComponent"
 import { Button, Col, Form, FormGroup, Modal } from "react-bootstrap"
 import Swal from "sweetalert2"
 import { EncargoDetalles } from "./components/EncargoDetalles"
+import { encargosService } from "../../services/encargosService"
 
 export const Encargos = () => {
     const [show, setShow] = useState(false)
@@ -23,17 +24,16 @@ export const Encargos = () => {
     const [estados, setEstados] = useState([])
     const [encargoSel, setEncargoSel] = useState([])
 
-    const tableContainerRef = useRef(null);
+    const tableContainerRef = useRef(null)
 
     const load = async () => {
-        const data = await window.api.getEncargos()
-
+        const data = await encargosService.getEncargos()
         setItems(data)
         setDataInTable(data)
     }
 
     const loadSelectData = async () => {
-        const data = await window.api.getEstados()
+        const data = await encargosService.getEstados()
         setEstados(data)
     }
 
@@ -42,16 +42,17 @@ export const Encargos = () => {
     }
 
     const handleSubmit = async (e) => {
-        e.preventDefault()
-        const result = await window.api.updateEncargo({ ...form, id: editingId })
+        if (e) e.preventDefault()
+        
+        const result = await encargosService.updateEncargo({ ...form, id: editingId })
 
         if (result && result.success) {
-            Swal.fire({ title: '¡Éxito!', text: 'Encargo agendado correctamente', icon: 'success', timer: 1500 });
+            Swal.fire({ title: '¡Éxito!', text: 'Encargo agendado correctamente', icon: 'success', timer: 1500 })
             cleanForm()
             handleClose()
             load()
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error');
+            Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error')
         }
     }
 
@@ -60,8 +61,7 @@ export const Encargos = () => {
     }
 
     const handleInfo = (item) => {
-        console.log(item);
-
+        console.log(item)
         setEncargoSel(item)
     }
 
@@ -74,7 +74,7 @@ export const Encargos = () => {
         });
 
         if (result.isConfirmed) {
-            await window.api.deleteEncargo(id)
+            await encargosService.deleteEncargo(id)
             load()
         }
     }
@@ -85,55 +85,53 @@ export const Encargos = () => {
     }, [])
 
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const editBtn = e.target.closest('.btn-edit');
+            const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
                 try {
-                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
-                    const item = JSON.parse(rawData);
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
                     setForm({
-                        fecha_entrega: item.fecha_entrega,
-                        descripcion: item.descripcion,
+                        fecha_entrega: item.fecha_entrega || '',
+                        descripcion: item.descripcion || '',
                         estado_id: item.estado_id || 'pendiente'
                     });
-                    setEditingId(item.id);
-                    handleShow();
-                } catch (err) { console.error("Error leyendo datos", err); }
+                    setEditingId(item.id)
+                    handleShow()
+                } catch (err) { console.error("Error leyendo datos", err) }
             }
 
-            const infoBtn = e.target.closest('.btn-info');
+            const infoBtn = e.target.closest('.btn-info')
             if (infoBtn) {
-                const rawData = decodeURIComponent(infoBtn.dataset.alldata);
-                const item = JSON.parse(rawData);
-                handleInfo(item);
+                const rawData = decodeURIComponent(infoBtn.dataset.alldata)
+                const item = JSON.parse(rawData)
+                handleInfo(item)
                 handleShowInfo()
             }
-        };
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
-    return (<>
+    return <>
         <div ref={tableContainerRef} className="w-100">
             <DataTableComponent
                 tableId="dt-encargos-maestro"
                 data={dataInTable}
                 columns={[
                     { data: 'encargo_numero', title: 'N° encargo' },
-                    {
-                        data: 'factura_numero', title: 'N° Factura',
-                    },
+                    { data: 'factura_numero', title: 'N° Factura' },
                     {
                         data: 'estado_titulo',
                         title: 'Estado',
                         render: (data, type, row) => {
                             let textColor = '#ffffff';
-                            if (row.color) {
-                                const hex = row.color.replace('#', '');
+                            if (row.estado_color) {
+                                const hex = row.estado_color.replace('#', '');
                                 const r = parseInt(hex.substr(0, 2), 16);
                                 const g = parseInt(hex.substr(2, 2), 16);
                                 const b = parseInt(hex.substr(4, 2), 16);
@@ -145,7 +143,7 @@ export const Encargos = () => {
                                 <span class="badge" style="background-color: ${row.estado_color}; color: ${textColor}; font-size: 13px;">
                                     <i class="${row.icon || 'bi bi-tag-fill'} me-1"></i> ${data}
                                 </span>
-                            `;
+                            `
                         }
                     },
                     { data: 'cliente_nombre', title: 'Cliente' },
@@ -170,9 +168,13 @@ export const Encargos = () => {
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
-                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-sm btn-info me-2 btn-info" data-id="${row.id}" data-alldata="${safeData}" title="Ver Detalles"><i class="bi bi-eye"></i></button>
-                            `;
+                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-info me-2 btn-info" data-id="${row.id}" data-alldata="${safeData}" title="Ver Detalles">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            `
                         }
                     }
                 ]}
@@ -180,12 +182,8 @@ export const Encargos = () => {
                 onDelete={handleDelete}
                 onShow={handleShow}
                 customRenders={{
-                    date_created: (data, type, row) => {
-                        return new Date(data).toLocaleDateString('es-ES');
-                    },
-                    date_modify: (data, type, row) => {
-                        return new Date(data).toLocaleDateString('es-ES');
-                    }
+                    date_created: (data) => new Date(data).toLocaleDateString('es-ES'),
+                    date_modify: (data) => new Date(data).toLocaleDateString('es-ES')
                 }}
             />
             <Modal show={show} onHide={handleClose} size="md" centered>
@@ -193,24 +191,21 @@ export const Encargos = () => {
                     <Modal.Title>Completar encargo</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <Form onSubmit={(e) => {
-                        e.preventDefault()
-                        handleSave()
-                    }}>
+                    <Form onSubmit={handleSubmit} id="encargoForm">
                         <Form.Group className="mb-3">
-                            <Form.Label htmlFor="cantidad">Fecha</Form.Label>
+                            <Form.Label htmlFor="fecha_entrega">Fecha</Form.Label>
                             <Form.Control
                                 id="fecha_entrega"
                                 value={form.fecha_entrega}
-                                onChange={(e) => setForm({ ...form, fecha_entrega: e.target.value, estado_encargo: 'agendado' })}
+                                onChange={(e) => setForm({ ...form, fecha_entrega: e.target.value })}
                                 type="date"
                                 placeholder="DD/MM/AAAA"
                                 required
                                 autoFocus
                             />
                         </Form.Group>
-                        <FormGroup>
-                            <Form.Label>Descripción</Form.Label>
+                        <Form.Group className="mb-3">
+                            <Form.Label htmlFor="descripcion">Descripción</Form.Label>
                             <Form.Control
                                 id="descripcion"
                                 value={form.descripcion}
@@ -219,26 +214,26 @@ export const Encargos = () => {
                                 rows={3}
                                 placeholder="Agregar descripción"
                                 required
-                                autoFocus
                             />
-                        </FormGroup>
-                        <FormGroup>
-                            <Col md={6}>
-                                <Form.Group>
-                                    <Form.Label>Estado</Form.Label>
-                                    <Form.Select value={form.estado_id} onChange={(e) => setForm({ ...form, estado_id: e.target.value })}>
-                                        {estados.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
-                                    </Form.Select>
-                                </Form.Group>
-                            </Col>
-                        </FormGroup>
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label htmlFor="estado_select">Estado</Form.Label>
+                            <Form.Select 
+                                id="estado_select"
+                                value={form.estado_id} 
+                                onChange={(e) => setForm({ ...form, estado_id: e.target.value })}
+                            >
+                                <option value="">Seleccione un estado...</option>
+                                {estados.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+                            </Form.Select>
+                        </Form.Group>
                     </Form>
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={handleClose}>
                         Cancelar
                     </Button>
-                    <Button variant="primary" onClick={handleSubmit}>
+                    <Button variant="primary" type="submit" form="encargoForm">
                         Guardar
                     </Button>
                 </Modal.Footer>
@@ -249,5 +244,5 @@ export const Encargos = () => {
                 encargoData={encargoSel}
             />
         </div>
-    </>)
+    </>
 }

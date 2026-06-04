@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react"
 import CustomDataTable from "../../components/DataTableComponent"
-import { Button, Col, Form, FormGroup, Modal, Row } from "react-bootstrap"
+import { 
+    Button, 
+    Col, 
+    Form, 
+    FormGroup, 
+    Modal, 
+    Row 
+} from "react-bootstrap"
 import Swal from "sweetalert2"
+import { encargosService } from "../../services/encargosService"
 
 export const Estados = () => {
     const [show, setShow] = useState(false)
@@ -21,36 +29,21 @@ export const Estados = () => {
     })
     const [editingId, setEditingId] = useState(null)
     const iconos = [
-        {
-            data: "bi-check-circle",
-        },
-        {
-            data: "bi-clock",
-        },
-        {
-            data: "bi-exclamation-triangle",
-        },
-        {
-            data: "bi-x-circle",
-        },
-        {
-            data: "bi-arrow-counterclockwise",
-        },
-        {
-            data: "bi-trash",
-        },
-        {
-            data: "bi-question-circle",
-        },
-        {
-            data: "bi bi-three-dots",
-        },
-    ];
+        { data: "bi-check-circle" },
+        { data: "bi-clock" },
+        { data: "bi-exclamation-triangle" },
+        { data: "bi-x-circle" },
+        { data: "bi-arrow-counterclockwise" },
+        { data: "bi-trash" },
+        { data: "bi-question-circle" },
+        { data: "bi bi-three-dots" }
+    ]
 
     const loadData = async () => {
-        const data = await window.api.getEstados()
+        const data = await encargosService.getEstados()
         setItems(data)
         setDataInTable(data)
+        setReloadTable(prev => prev + 1)
     }
 
     const cleanForm = () => setForm({
@@ -64,25 +57,22 @@ export const Estados = () => {
     useEffect(() => { loadData() }, [])
 
     const handleSubmit = async (e) => {
-        console.log(form);
-
         e.preventDefault()
         let result;
         if (editingId) {
-            result = await window.api.updateEstado({ ...form, id: editingId })
+            result = await encargosService.updateEstado({ ...form, id: editingId })
         } else {
-            result = await window.api.addEstado(form)
+            result = await encargosService.addEstado(form)
         }
 
         if (result && result.success) {
-            Swal.fire({ title: '¡Éxito!', text: 'Estado guardado', icon: 'success', timer: 1500 });
+            Swal.fire({ title: '¡Éxito!', text: 'Estado guardado', icon: 'success', timer: 1500 })
             cleanForm()
             handleClose()
             loadData()
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar', 'error');
+            Swal.fire('Error', result?.error || 'No se pudo guardar', 'error')
         }
-        cleanForm()
     }
 
     const handleDelete = async (id) => {
@@ -96,23 +86,25 @@ export const Estados = () => {
         })
 
         if (result.isConfirmed) {
-            const res = await window.api.deleteEstado(id)
+            const res = await encargosService.deleteEstado(id)
             if (res.success) {
                 loadData()
             }
         }
     }
 
+    const tableContainerRef = useRef(null)
+
     useEffect(() => {
-        const container = tableContainerRef.current;
-        if (!container) return;
+        const container = tableContainerRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const editBtn = e.target.closest('.btn-edit');
+            const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
                 try {
-                    const rawData = decodeURIComponent(editBtn.dataset.alldata);
-                    const item = JSON.parse(rawData);
+                    const rawData = decodeURIComponent(editBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
 
                     setForm({
                         titulo: item.titulo || '',
@@ -120,23 +112,21 @@ export const Estados = () => {
                         color: item.color || '#0d6efd',
                         allow_calendar: item.allow_calendar,
                         icon_data: item.icon_data || ''
-                    });
-                    setEditingId(item.id);
-                    handleShow();
-                } catch (err) { console.error("Error leyendo datos", err); }
+                    })
+                    setEditingId(item.id)
+                    handleShow()
+                } catch (err) { console.error("Error leyendo datos", err) }
             }
 
-            const delBtn = e.target.closest('.btn-delete');
-            if (delBtn) handleDelete(delBtn.dataset.id);
-        };
+            const delBtn = e.target.closest('.btn-delete')
+            if (delBtn) handleDelete(delBtn.dataset.id)
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
-    const tableContainerRef = useRef(null);
-
-    return (<>
+    return <>
         <div className="mb-3">
             <button className='btn btn-primary' onClick={() => {
                 setEditingId(null)
@@ -178,9 +168,7 @@ export const Estados = () => {
                     {
                         data: 'allow_calendar',
                         title: 'Mostrar en calendario',
-                        render: (data, type, row) => {
-                            return `${data > '0' ? 'Si' : 'No'}`
-                        }
+                        render: (data) => `${data > '0' ? 'Si' : 'No'}`
                     },
                     {
                         data: null,
@@ -277,7 +265,7 @@ export const Estados = () => {
                     <FormGroup>
                         <Col md={6} className="d-flex align-items-center">
                             <Form.Check
-                                disabled={form.id === 'pendiente'}
+                                disabled={editingId === 'pendiente'}
                                 type="switch"
                                 label="Mostrar en calendario"
                                 checked={form.allow_calendar === 1 || form.allow_calendar === true}
@@ -289,8 +277,8 @@ export const Estados = () => {
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="secondary" onClick={handleClose}>Cerrar</Button>
-                <Button variant="primary" type="submit" form="etiquetaForm" onClick={handleSubmit}>Guardar</Button>
+                <Button variant="primary" type="submit" form="estadoForm">Guardar</Button>
             </Modal.Footer>
         </Modal>
-    </>)
+    </>
 }

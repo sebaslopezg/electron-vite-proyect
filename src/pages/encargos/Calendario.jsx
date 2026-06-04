@@ -1,14 +1,15 @@
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import esLocale from "@fullcalendar/core/locales/es";
-import { useState, useEffect, useRef } from "react";
-import Swal from "sweetalert2";
-import { Button, Col, Modal, Row } from "react-bootstrap";
-import { EncargoDetalles } from "./components/EncargoDetalles";
+import FullCalendar from "@fullcalendar/react"
+import dayGridPlugin from "@fullcalendar/daygrid"
+import interactionPlugin from "@fullcalendar/interaction"
+import esLocale from "@fullcalendar/core/locales/es"
+import { useState, useEffect, useRef } from "react"
+import Swal from "sweetalert2"
+import { Button, Col, Modal, Row } from "react-bootstrap"
+import { EncargoDetalles } from "./components/EncargoDetalles"
+import { encargosService } from "../../services/encargosService"
 
 function renderEventContent(eventInfo) {
-  return (
+  return <>
     <div style={{ overflow: 'hidden', fontSize: '0.85em', lineHeight: '1.2' }}>
       <div style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
         {eventInfo.event.extendedProps.producto_nombre}
@@ -17,15 +18,15 @@ function renderEventContent(eventInfo) {
         {eventInfo.event.extendedProps.cliente_nombre}
       </div>
       <div style={{ fontStyle: 'italic', opacity: 0.9 }}>
-        {eventInfo.event.extendedProps.producto_cantidad}
+        Cant: {eventInfo.event.extendedProps.producto_cantidad}
       </div>
     </div>
-  );
+  </>
 }
 
 export const Calendario = () => {
-  const [eventos, setEventos] = useState([]);
-  const calendarRef = useRef(null);
+  const [eventos, setEventos] = useState([])
+  const calendarRef = useRef(null)
   const [show, setShow] = useState(false)
   const [encargoSel, setEncargoSel] = useState([])
 
@@ -33,26 +34,26 @@ export const Calendario = () => {
   const handleShow = () => setShow(true)
 
   useEffect(() => {
-    const tabEl = document.getElementById("calendario-tab");
+    const tabEl = document.getElementById("calendario-tab")
 
     if (tabEl) {
       const handleTabShown = () => {
         if (calendarRef.current) {
-          const calendarApi = calendarRef.current.getApi();
-          calendarApi.updateSize();
+          const calendarApi = calendarRef.current.getApi()
+          calendarApi.updateSize()
         }
-      };
+      }
 
-      tabEl.addEventListener("shown.bs.tab", handleTabShown);
+      tabEl.addEventListener("shown.bs.tab", handleTabShown)
 
       return () => {
-        tabEl.removeEventListener("shown.bs.tab", handleTabShown);
-      };
+        tabEl.removeEventListener("shown.bs.tab", handleTabShown)
+      }
     }
-  }, []);
+  }, [])
 
   const loadEncargos = async () => {
-    const data = await window.api.getEncargos();
+    const data = await encargosService.getEncargos()
     const formatted = data
       .filter((e) => e.allow_calendar > 0)
       .map((e) => ({
@@ -62,21 +63,21 @@ export const Calendario = () => {
         backgroundColor: e.estado_color,
         borderColor: "transparent",
         extendedProps: { ...e },
-      }));
-    setEventos(formatted);
-  };
+      }))
+    setEventos(formatted)
+  }
 
   useEffect(() => {
-    loadEncargos();
-  }, []);
+    loadEncargos()
+  }, [])
 
   const handleEventClick = (info) => {
-    const encargo = info.event.extendedProps;
+    const encargo = info.event.extendedProps
     setEncargoSel(encargo)
     handleShow()
-  };
+  }
 
-  return (
+  return <>
     <div className="card p-4 shadow-sm border-0">
       <FullCalendar
         ref={calendarRef}
@@ -100,5 +101,5 @@ export const Calendario = () => {
         encargoData={encargoSel}
       />
     </div>
-  );
-};
+  </>
+}

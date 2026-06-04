@@ -1,10 +1,9 @@
-import { Calendario } from "./Calendario";
-import { Encargos } from "./Encargos";
-import { Estados } from "./Estados";
+import { Calendario } from "./Calendario"
+import { Encargos } from "./Encargos"
+import { Estados } from "./Estados"
 
 export const IndexEncargos = () => {
-  return (
-    <>
+  return<>
       <div className="pagetitle">
         <h1><i className="bi bi-calendar-event"></i> Encargos</h1>
       </div>
@@ -90,6 +89,5 @@ export const IndexEncargos = () => {
           </div>
         </div>
       </div>
-    </>
-  );
-};
+  </>
+}
