@@ -3,6 +3,7 @@ import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { formatCurrency } from '../../../utils/currencies'
+import { carteraService } from '../../../services/carteraService'
 
 export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, currentUser }) => {
     const [abonoForm, setAbonoForm] = useState({
@@ -28,7 +29,6 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
     const handleSubmitAbono = async (e) => {
         e.preventDefault()
 
-        // Doble escudo protector en interfaz
         if (currentUser && !currentUser.permisos?.includes('ALL') && !currentUser.permisos?.includes('cartera_abonar')) {
             return Swal.fire('Operación Cancelada', 'No posees privilegios de caja para asentar recaudos.', 'error')
         }
@@ -53,7 +53,7 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
                 observaciones: abonoForm.observaciones
             }
 
-            const response = await window.api.addAbono(payload)
+            const response = await carteraService.crearAbono(payload)
             if (response.success) {
                 Swal.fire('¡Éxito!', 'Abono registrado correctamente', 'success')
                 onSuccess()

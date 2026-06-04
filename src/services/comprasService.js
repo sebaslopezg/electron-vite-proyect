@@ -1,4 +1,4 @@
-import { api } from './api'
+const api = ''
 
 const hasComprasAPI = () => typeof window !== 'undefined' && window.comprasAPI !== undefined
 const isElectron = () => typeof window !== 'undefined' && window.api !== undefined

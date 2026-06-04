@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import { ModalAbono } from './components/ModalAbono'
 import { TabCuentasPorCobrar } from './components/CuentasPorCobrar'
 import { TabHistorialAbonos } from './components/HistorialAbonos'
+import { carteraService } from '../../services/carteraService'
 
 export const Cartera = ({ currentUser }) => {
     const [reloadKey, setReloadKey] = useState(0)
     const [almacenConf, setAlmacenConf] = useState(null)
     const [activeTab, setActiveTab] = useState('') 
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const [showModal, setShowModal] = useState(false)
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
@@ -22,33 +23,33 @@ export const Cartera = ({ currentUser }) => {
     const canSeeHistorial = hasPermission('cartera_historial_ver')
 
     const loadConfig = async () => {
-        const configData = await window.api.getConfiguracion();
-        const confAppRaw = configData.find(c => c.key === 'confApp');
+        const configData = await carteraService.getConfiguracion()
+        const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
-                const parsed = JSON.parse(confAppRaw.value);
+                const parsed = JSON.parse(confAppRaw.value)
                 setAppConfig({
                     moneda: parsed.moneda || 'COP',
                     formato_numero: parsed.formato_numero || 'es-CO'
-                });
+                })
             } catch(e) {}
         }
-    };
+    }
 
     const loadAlmacenInfo = async () => {
         try {
-            const data = await window.api.getAllConfAlmacen();
-            if (data && data.length > 0) setAlmacenConf(data[0]);
+            const data = await carteraService.getAllConfAlmacen()
+            if (data && data.length > 0) setAlmacenConf(data[0])
         } catch (error) {
-            console.error("Error cargando info de almacén", error);
+            console.error("Error cargando info de almacén", error)
         }
-    };
+    }
 
     useEffect(() => {
-        loadAlmacenInfo();
-        loadConfig();
-        window.addEventListener('config-actualizada', loadConfig);
-        return () => window.removeEventListener('config-actualizada', loadConfig);
+        loadAlmacenInfo()
+        loadConfig()
+        window.addEventListener('config-actualizada', loadConfig)
+        return () => window.removeEventListener('config-actualizada', loadConfig)
     }, [])
 
     useEffect(() => {
@@ -70,7 +71,7 @@ export const Cartera = ({ currentUser }) => {
     }
 
     const handlePagoExitoso = () => {
-        setReloadKey(prev => prev + 1);
+        setReloadKey(prev => prev + 1)
     }
 
     if (!canSeeCobrar && !canSeeHistorial) {

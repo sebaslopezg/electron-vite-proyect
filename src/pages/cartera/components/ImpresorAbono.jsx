@@ -1,37 +1,38 @@
-import { useState, useEffect } from 'react';
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
-import { BaseImpresor } from '../../../components/BaseImpresor';
-import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies';
+import { useState, useEffect } from 'react'
+import Row from 'react-bootstrap/Row'
+import Col from 'react-bootstrap/Col'
+import { BaseImpresor } from '../../../components/BaseImpresor'
+import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies'
+import { carteraService } from '../../../services/carteraService'
 
 export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }) => {
     
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     useEffect(() => {
         const loadConfig = async () => {
-            const configData = await window.api.getConfiguracion();
-            const confAppRaw = configData.find(c => c.key === 'confApp');
+            const configData = await carteraService.getConfiguracion()
+            const confAppRaw = configData.find(c => c.key === 'confApp')
             if (confAppRaw) {
                 try {
-                    const parsed = JSON.parse(confAppRaw.value);
+                    const parsed = JSON.parse(confAppRaw.value)
                     setAppConfig({
                         moneda: parsed.moneda || 'COP',
                         formato_numero: parsed.formato_numero || 'es-CO'
-                    });
+                    })
                 } catch(e) {}
             }
-        };
-        if (show) loadConfig(); 
-    }, [show]);
+        }
+        if (show) loadConfig() 
+    }, [show])
 
-    if (!abono || !almacenConf) return null;
+    if (!abono || !almacenConf) return null
 
     const renderCurrency = (val) => {
-        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
-    };
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+    }
 
-    const facturaRef = `${abono.prefijo || ''}${almacenConf.separador || ''}${abono.numero_factura}`;
+    const facturaRef = `${abono.prefijo || ''}${almacenConf.separador || ''}${abono.numero_factura}`
 
     const PosTemplate = () => (
         <div className="formato-pos text-black">
@@ -49,7 +50,6 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
                 <div className="mt-2 fw-bold border-top border-bottom border-dark py-1 fs-6">
                     RECIBO DE CAJA
                 </div>
-                {/* FECHA POS EN VIVO */}
                 <div>Fecha: {new Date(abono.date_created).toLocaleString(appConfig.formato_numero, {
                     day: '2-digit', month: '2-digit', year: 'numeric',
                     hour: '2-digit', minute: '2-digit', hour12: true
@@ -86,7 +86,7 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
                 <small>{almacenConf.footer_factura}</small>
             </div>
         </div>
-    );
+    )
 
     const A4Template = () => (
         <div className="formato-a4 text-black">
@@ -104,7 +104,6 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
                 </div>
                 <div className="text-end">
                     <h3 className="mb-0 text-success text-uppercase fw-bold">Recibo de Caja</h3>
-                    {/* FECHA A4 EN VIVO */}
                     <div>Fecha: {new Date(abono.date_created).toLocaleString(appConfig.formato_numero, {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit', hour12: true
@@ -150,9 +149,9 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
                 <p className="fw-bold fs-6">{almacenConf.footer_factura}</p>
             </div>
         </div>
-    );
+    )
 
-    return (
+    return <>
         <BaseImpresor 
             show={show} 
             onClose={onClose} 
@@ -161,5 +160,5 @@ export const ImpresorAbono = ({ show, onClose, abono, almacenConf, textoVolver }
             renderPos={PosTemplate}
             renderA4={A4Template}
         />
-    );
-};
+    </>
+}

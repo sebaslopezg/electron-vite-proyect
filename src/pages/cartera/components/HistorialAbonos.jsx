@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import DataTableComponent from '../../../components/DataTableComponent'
 import { ImpresorAbono } from './ImpresorAbono'
 import { formatCurrency } from '../../../utils/currencies'
+import { carteraService } from '../../../services/carteraService'
 
 export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentUser }) => {
-    const tableAbonosRef = useRef(null);    
-    const [showPreview, setShowPreview] = useState(false);
-    const [abonoSeleccionado, setAbonoSeleccionado] = useState(null);
+    const tableAbonosRef = useRef(null)
+    const [showPreview, setShowPreview] = useState(false)
+    const [abonoSeleccionado, setAbonoSeleccionado] = useState(null)
 
     const hasPermission = (permissionKey) => {
         if (!currentUser) return false
@@ -15,31 +16,31 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
     }
 
     useEffect(() => {
-        const container = tableAbonosRef.current;
-        if (!container) return;
+        const container = tableAbonosRef.current
+        if (!container) return
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('.btn-print-abono');
-            if (!btn || !container.contains(btn)) return;
+            const btn = e.target.closest('.btn-print-abono')
+            if (!btn || !container.contains(btn)) return
             try {
-                const item = JSON.parse(decodeURIComponent(btn.dataset.alldata));
-                setAbonoSeleccionado(item);
-                setShowPreview(true);
-            } catch(err) { console.error(err); }
-        };
+                const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
+                setAbonoSeleccionado(item)
+                setShowPreview(true)
+            } catch(err) { console.error(err) }
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, [currentUser]);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [currentUser])
 
-    return (
+    return <>
         <div className="animation-fade-in">
             <div ref={tableAbonosRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
                     tableId="dt-cartera-historial-abonos"
                     key={`historial-${appConfig.moneda}-${appConfig.formato_numero}-${currentUser?.permisos?.length}`}
                     reloadKey={reloadKey}
-                    ajaxData={(params) => window.api.getAbonosPaginados(params)}
+                    ajaxData={(params) => carteraService.getHistorialAbonosPaginados(params)}
                     columns={[
                         { 
                             data: 'date_created', title: 'Fecha Abono',
@@ -62,14 +63,14 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
                         {
                             data: null, title: 'Recibo', orderable: false, className: 'text-center',
                             render: function (data, type, row) {
-                                const safeData = encodeURIComponent(JSON.stringify(row));
-                                const canPrint = hasPermission('cartera_abono_imprimir');
+                                const safeData = encodeURIComponent(JSON.stringify(row))
+                                const canPrint = hasPermission('cartera_abono_imprimir')
 
                                 return canPrint ? `
                                     <button class="btn btn-sm btn-outline-dark btn-print-abono" data-alldata="${safeData}" title="Imprimir Recibo">
-                                        <i class="bi bi-printer"></i>
+                                        <i className="bi bi-printer"></i>
                                     </button>
-                                ` : '<i class="bi bi-lock-fill text-muted" title="Sin permiso de impresión"></i>';
+                                ` : '<i class="bi bi-lock-fill text-muted" title="Sin permiso de impresión"></i>'
                             }
                         }
                     ]}
@@ -83,5 +84,5 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
                 almacenConf={almacenConf} 
             />
         </div>
-    )
+    </>
 }
