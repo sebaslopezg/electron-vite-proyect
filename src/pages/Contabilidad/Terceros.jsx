@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import { ModalTercero } from './components/ModalTercero'
+import { contabilidadService } from '../../services/contabilidadService'
 
 export const Terceros = ({ currentUser }) => {
     const [showModal, setShowModal] = useState(false)
@@ -15,8 +16,13 @@ export const Terceros = ({ currentUser }) => {
         return currentUser.permisos?.includes(permissionKey)
     }
 
-    const handleNuevo = () => { setTerceroAEditar(null); setShowModal(true); }
-    const handleEditar = (tercero) => { setTerceroAEditar(tercero); setShowModal(true); }
+    const handleNuevo = () => { 
+        setTerceroAEditar(null)
+        setShowModal(true) }
+    const handleEditar = (tercero) => { 
+        setTerceroAEditar(tercero)
+        setShowModal(true)
+    }
 
     const handleEliminar = (id, nombre) => {
         Swal.fire({
@@ -25,7 +31,7 @@ export const Terceros = ({ currentUser }) => {
             icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
         }).then(async (result) => {
             if (result.isConfirmed) {
-                const res = await window.contaAPI.eliminarTercero(id)
+                const res = await contabilidadService.eliminarTercero(id)
                 if (res.success) {
                     Swal.fire('¡Eliminado!', 'El tercero ha sido borrado.', 'success')
                     setReloadTable(prev => prev + 1)
@@ -67,7 +73,7 @@ export const Terceros = ({ currentUser }) => {
                 <CustomDataTable 
                     tableId="dt-contabilidad-terceros"
                     key={`terceros-${reloadTable}-${currentUser?.permisos?.length}`} 
-                    ajaxData={(params) => window.contaAPI.getTercerosPaginados(params)}
+                    ajaxData={(params) => contabilidadService.getTercerosPaginados(params)}
                     columns={[
                         { 
                             data: null, title: 'Documento',

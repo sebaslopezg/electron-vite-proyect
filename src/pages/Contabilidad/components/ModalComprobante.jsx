@@ -4,6 +4,7 @@ import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Row, Col, Table, ListGroup } from 'react-bootstrap'
+import { contabilidadService } from '../../../services/contabilidadService'
 
 export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => {
     const [cabecera, setCabecera] = useState({
@@ -15,7 +16,6 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
     const [detalles, setDetalles] = useState([])
     const [cuentas, setCuentas] = useState([])
     
-    // Almacenamos el catálogo completo de terceros en memoria
     const [tercerosTotales, setTercerosTotales] = useState([])
 
     const rowInitialState = { 
@@ -65,13 +65,11 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
     }, [show, editData])
 
     const cargarCatalogos = async () => {
-        if (window.contaAPI) {
-            const resCuentas = await window.contaAPI.getCuentasAuxiliares()
-            if (resCuentas.success) setCuentas(resCuentas.data)
+        const resCuentas = await contabilidadService.getCuentasAuxiliares()
+        if (resCuentas.success) setCuentas(resCuentas.data)
 
-            const resTerceros = await window.contaAPI.getTerceros()
-            if (resTerceros.success) setTercerosTotales(resTerceros.data)
-        }
+        const resTerceros = await contabilidadService.getTerceros()
+        if (resTerceros.success) setTercerosTotales(resTerceros.data)
     }
 
     const handleBuscarTercero = (idFila, texto) => {
@@ -155,13 +153,13 @@ export const ModalComprobante = ({ show, handleClose, onSuccess, editData }) => 
 
         let res
         if (editData) {
-            res = await window.contaAPI.actualizarComprobante({ 
+            res = await contabilidadService.actualizarComprobante({ 
                 id: editData.cabecera.id, 
                 cabecera, 
                 detalles 
             })
         } else {
-            res = await window.contaAPI.crearComprobante({ cabecera, detalles })
+            res = await contabilidadService.crearComprobante({ cabecera, detalles })
         }
 
         if (res.success) {

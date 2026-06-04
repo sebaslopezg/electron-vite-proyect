@@ -15,11 +15,41 @@ export const ContabilidadIndex = ({ currentUser }) => {
     }
 
     const pestañasValidas = [
-        { id: 'puc', label: 'Plan Único de Cuentas (PUC)', icono: 'bi-diagram-3', perm: 'puc_ver', component: <Puc currentUser={currentUser} /> },
-        { id: 'terceros', label: 'Terceros', icono: 'bi-people', perm: 'terceros_ver', component: <Terceros currentUser={currentUser} /> },
-        { id: 'comprobantes', label: 'Comprobantes', icono: 'bi-receipt', perm: 'comprobantes_ver', component: <Comprobantes currentUser={currentUser} /> },
-        { id: 'reportes', label: 'Reportes Financieros', icono: 'bi-graph-up', perm: 'contabilidad_reportes_ver', component: <Reportes currentUser={currentUser} /> },
-        { id: 'configContable', label: 'Configuración', icono: 'bi-gear', perm: 'contabilidad_config_ver', component: <ConfiguracionContable currentUser={currentUser} /> }
+        { 
+            id: 'puc', 
+            label: 'Plan Único de Cuentas (PUC)', 
+            icono: 'bi-diagram-3', 
+            perm: 'puc_ver', 
+            component: <Puc currentUser={currentUser} /> 
+        },
+        { 
+            id: 'terceros', 
+            label: 'Terceros', 
+            icono: 'bi-people', 
+            perm: 'terceros_ver', 
+            component: <Terceros currentUser={currentUser} /> 
+        },
+        { 
+            id: 'comprobantes', 
+            label: 'Comprobantes', 
+            icono: 'bi-receipt', 
+            perm: 'comprobantes_ver', 
+            component: <Comprobantes currentUser={currentUser} /> 
+        },
+        { 
+            id: 'reportes', 
+            label: 'Reportes Financieros', 
+            icono: 'bi-graph-up', 
+            perm: 'contabilidad_reportes_ver', 
+            component: <Reportes currentUser={currentUser} /> 
+        },
+        { 
+            id: 'configContable', 
+            label: 'Configuración', 
+            icono: 'bi-gear', 
+            perm: 'contabilidad_config_ver', 
+            component: <ConfiguracionContable currentUser={currentUser} /> 
+        }
     ].filter(t => hasPermission(t.perm))
 
     useEffect(() => {
@@ -27,13 +57,17 @@ export const ContabilidadIndex = ({ currentUser }) => {
     }, [currentUser])
 
     if (pestañasValidas.length === 0) {
-        return (
+        return <>
             <div className="alert alert-warning m-4 text-center shadow-sm">
                 <i className="bi bi-lock-fill fs-2 d-block mb-2"></i>
-                <h6 className="fw-bold">Sin Accesos Permitidos</h6>
-                <p className="small m-0 text-muted">Tu rol no cuenta con credenciales para auditar el libro mayor o balances contables.</p>
+                <h6 className="fw-bold">
+                    Sin Accesos Permitidos
+                </h6>
+                <p className="small m-0 text-muted">
+                    Tu rol no cuenta con credenciales para auditar el libro mayor o balances contables.
+                </p>
             </div>
-        )
+        </>
     }
 
     const currentTabObj = pestañasValidas.find(t => t.id === activeTab)

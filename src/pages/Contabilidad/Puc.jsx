@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import Swal from 'sweetalert2';
+import { useEffect, useState } from 'react'
+import Swal from 'sweetalert2'
 import { ModalCuenta } from './components/ModalCuenta'
+import { contabilidadService } from '../../services/contabilidadService'
 
 export const Puc = ({ currentUser }) => {
     const [cuentas, setCuentas] = useState([])
@@ -17,34 +18,38 @@ export const Puc = ({ currentUser }) => {
     useEffect(() => { cargarCuentas() }, [])
 
     const cargarCuentas = async () => {
-        setLoading(true);
-        if (window.contaAPI) {
-            const res = await window.contaAPI.getPuc()
-            if (res.success) setCuentas(res.data)
+        setLoading(true)
+        const res = await contabilidadService.getPuc()
+        if (res.success) {
+            setCuentas(res.data)
         }
         setLoading(false)
     }
 
-    const handleNuevo = () => { setCuentaAEditar(null); setShowModal(true); };
-    const handleEditar = (cuenta) => { setCuentaAEditar(cuenta); setShowModal(true); };
+    const handleNuevo = () => { setCuentaAEditar(null); setShowModal(true) }
+    const handleEditar = (cuenta) => { setCuentaAEditar(cuenta); setShowModal(true) }
 
     const handleEliminar = (id, nombre) => {
         Swal.fire({
             title: `¿Eliminar la cuenta ${id}?`,
             text: `Estás a punto de borrar "${nombre}". Esta acción no se puede deshacer.`,
-            icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
+            icon: 'warning', 
+            showCancelButton: true, 
+            confirmButtonColor: '#d33', 
+            confirmButtonText: 'Sí, eliminar', 
+            cancelButtonText: 'Cancelar'
         }).then(async (result) => {
             if (result.isConfirmed) {
-                const res = await window.contaAPI.eliminarCuenta(id);
+                const res = await contabilidadService.eliminarCuenta(id)
                 if (res.success) {
-                    Swal.fire('¡Eliminada!', 'La cuenta ha sido borrada.', 'success');
+                    Swal.fire('¡Eliminada!', 'La cuenta ha sido borrada.', 'success')
                     cargarCuentas();
                 } else {
-                    Swal.fire('No se pudo eliminar', res.error, 'error');
+                    Swal.fire('No se pudo eliminar', res.error, 'error')
                 }
             }
-        });
-    };
+        })
+    }
 
     const getIndentStyle = (id) => {
         const length = id.toString().length
@@ -102,7 +107,13 @@ export const Puc = ({ currentUser }) => {
                                                 <button className="btn btn-sm btn-secondary me-2" onClick={() => handleEditar(cuenta)} title="Editar"><i className="bi bi-pencil"></i></button>
                                             )}
                                             {hasPermission('puc_eliminar') && (
-                                                <button className="btn btn-sm btn-danger" onClick={() => handleEliminar(cuenta.id, cuenta.nombre)} title="Eliminar"><i className="bi bi-trash"></i></button>
+                                                <button 
+                                                    className="btn btn-sm btn-danger" 
+                                                    onClick={() => handleEliminar(cuenta.id, cuenta.nombre)} 
+                                                    title="Eliminar"
+                                                >
+                                                <i className="bi bi-trash"></i>
+                                                </button>
                                             )}
                                         </td>
                                     </tr>
@@ -113,6 +124,11 @@ export const Puc = ({ currentUser }) => {
                 </div>
             )}
         </div>
-        <ModalCuenta show={showModal} handleClose={() => setShowModal(false)} onSuccess={cargarCuentas} editData={cuentaAEditar} />
+        <ModalCuenta 
+            show={showModal} 
+            handleClose={() => setShowModal(false)} 
+            onSuccess={cargarCuentas} 
+            editData={cuentaAEditar} 
+        />
     </>
 }

@@ -4,6 +4,7 @@ import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
 import { Row, Col } from 'react-bootstrap'
+import { contabilidadService } from '../../../services/contabilidadService'
 
 export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceCliente, initialDocument = '' }) => {
     const defaultData = {
@@ -11,8 +12,13 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceClie
         numero_documento: initialDocument,
         digito_verificacion: '',
         tipo_persona: 'natural',
-        razon_social: '', nombres: '', apellidos: '',
-        direccion: '', telefono: '', email: '', ciudad_id: '',
+        razon_social: '', 
+        nombres: '', 
+        apellidos: '',
+        direccion: '', 
+        telefono: '', 
+        email: '', 
+        ciudad_id: '',
         es_cliente: forceCliente ? 1 : 0,
         es_proveedor: 0, estado: 1
     }
@@ -30,13 +36,16 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceClie
     const handleSubmit = async (e) => {
         e.preventDefault()
         
-        let res;
-        if (editData) res = await window.contaAPI.actualizarTercero(formData)
-        else res = await window.contaAPI.crearTercero(formData)
+        let res
+        if (editData) {
+            res = await contabilidadService.actualizarTercero(formData)
+        } else {
+            res = await contabilidadService.crearTercero(formData)
+        }
 
         if (res.success) {
             Swal.fire({ 
-                title: editData ? '¡Actualizado!' : '¡Creado!', 
+                title: formData.id || editData ? '¡Actualizado!' : '¡Creado!', 
                 text: 'Tercero guardado correctamente.', 
                 icon: 'success', 
                 timer: 1500,
@@ -49,7 +58,7 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceClie
         }
     }
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5">
@@ -212,5 +221,5 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceClie
                 </Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

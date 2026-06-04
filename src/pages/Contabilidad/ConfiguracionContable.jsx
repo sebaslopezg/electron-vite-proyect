@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Row, Col, Form, Button, Table } from 'react-bootstrap'
 import Swal from 'sweetalert2'
+import { contabilidadService } from '../../services/contabilidadService'
 
 export const ConfiguracionContable = ({ currentUser }) => {
     const [config, setConfig] = useState({
-        cuenta_caja: '', cuenta_cartera: '', cuenta_ingresos: '', cuenta_iva: '', 
-        cuenta_descuento: '', cuenta_proveedores: '', cuenta_iva_compras: '', cuenta_inventario: ''
+        cuenta_caja: '',
+        cuenta_cartera: '',
+        cuenta_ingresos: '',
+        cuenta_iva: '',
+        cuenta_descuento: '',
+        cuenta_proveedores: '',
+        cuenta_iva_compras: '',
+        cuenta_inventario: ''
     })
     const [cuentasAuxiliares, setCuentasAuxiliares] = useState([])
     const [metodosPago, setMetodosPago] = useState([])
@@ -17,7 +24,6 @@ export const ConfiguracionContable = ({ currentUser }) => {
         return currentUser.permisos?.includes(permissionKey)
     }
 
-    // Cacheo local de las tres sub-llaves de configuración
     const canSales = hasPermission('config_cuentas_ventas')
     const canPurchases = hasPermission('config_cuentas_compras')
     const canPayments = hasPermission('config_metodos_pago')
@@ -26,32 +32,31 @@ export const ConfiguracionContable = ({ currentUser }) => {
 
     const cargarDatos = async () => {
         setLoading(true)
-        if (window.contaAPI) {
-            const [resCuentas, resConfig, resMetodos] = await Promise.all([
-                window.contaAPI.getCuentasAuxiliares(),
-                window.contaAPI.getConfigContable(),
-                window.api.getMetodosPago()
-            ])
-            if (resCuentas.success) setCuentasAuxiliares(resCuentas.data)
-            if (resConfig.success && resConfig.data) setConfig({ ...resConfig.data })
-            setMetodosPago(resMetodos || [])
-        }
+        const [resCuentas, resConfig, resMetodos] = await Promise.all([
+            contabilidadService.getCuentasAuxiliares(),
+            contabilidadService.getConfigContable(),
+            contabilidadService.getMetodosPago()
+        ])
+        if (resCuentas.success) setCuentasAuxiliares(resCuentas.data)
+        if (resConfig.success && resConfig.data) setConfig({ ...resConfig.data })
+        setMetodosPago(resMetodos || [])
         setLoading(false)
     }
 
     const handleMetodoCuentaChange = async (metodoId, cuentaId) => {
         if (!canPayments) return Swal.fire('Acceso Denegado', 'No tienes permiso para re-mapear métodos de pago.', 'error')
-        const res = await window.api.updateMetodoPagoCuenta({ id: metodoId, cuenta_id: cuentaId })
+        
+        const res = await contabilidadService.updateMetodoPagoCuenta({ id: metodoId, cuenta_id: cuentaId })
         if (res.success) {
             setMetodosPago(prev => prev.map(m => m.id === metodoId ? { ...m, cuenta_id: cuentaId } : m))
         }
     }
 
-    const handleChange = (e) => { setConfig({ ...config, [e.target.name]: e.target.value }); };
+    const handleChange = (e) => { setConfig({ ...config, [e.target.name]: e.target.value })}
 
     const handleSubmitGeneral = async (e) => {
         e.preventDefault()
-        const res = await window.contaAPI.updateConfigContable({ config, subCheck: { canSales, canPurchases } })
+        const res = await contabilidadService.updateConfigContable({ config, subCheck: { canSales, canPurchases } })
         if (res.success) {
             Swal.fire({ title: '¡Guardado!', text: 'Mapeo contable general actualizado.', icon: 'success', timer: 1500, showConfirmButton: false })
         } else { Swal.fire('Error', res.error, 'error') }

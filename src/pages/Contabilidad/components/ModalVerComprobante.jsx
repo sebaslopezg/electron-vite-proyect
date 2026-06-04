@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import Button from 'react-bootstrap/Button'
 import { Row, Col, Table } from 'react-bootstrap'
+import { contabilidadService } from '../../../services/contabilidadService'
 
 export const ModalVerComprobante = ({ show, handleClose, data }) => {
     const [cuentas, setCuentas] = useState([])
@@ -14,14 +15,12 @@ export const ModalVerComprobante = ({ show, handleClose, data }) => {
     }, [show, data])
 
     const cargarCatalogos = async () => {
-        if (window.contaAPI) {
-            const resCuentas = await window.contaAPI.getCuentasAuxiliares()
-            if (resCuentas.success) setCuentas(resCuentas.data)
+        const resCuentas = await contabilidadService.getCuentasAuxiliares()
+        if (resCuentas.success) setCuentas(resCuentas.data)
 
-            const resTerceros = await window.contaAPI.getTerceros()
-            if (resTerceros.success) setTerceros(resTerceros.data)
-        }
-    };
+        const resTerceros = await contabilidadService.getTerceros()
+        if (resTerceros.success) setTerceros(resTerceros.data)
+    }
 
     if (!data) return null
 
@@ -31,7 +30,7 @@ export const ModalVerComprobante = ({ show, handleClose, data }) => {
     const totalDebito = detalles.reduce((acc, curr) => acc + (Number(curr.debito) || 0), 0)
     const totalCredito = detalles.reduce((acc, curr) => acc + (Number(curr.credito) || 0), 0)
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="xl" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5">
@@ -125,5 +124,5 @@ export const ModalVerComprobante = ({ show, handleClose, data }) => {
                 </Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

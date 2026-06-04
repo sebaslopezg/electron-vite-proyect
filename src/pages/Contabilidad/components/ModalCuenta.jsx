@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import Swal from 'sweetalert2';
-import Modal from 'react-bootstrap/Modal';
-import Button from 'react-bootstrap/Button';
-import Form from 'react-bootstrap/Form';
-import { Row, Col } from 'react-bootstrap';
+import { useState, useEffect } from 'react'
+import Swal from 'sweetalert2'
+import Modal from 'react-bootstrap/Modal'
+import Button from 'react-bootstrap/Button'
+import Form from 'react-bootstrap/Form'
+import { Row, Col } from 'react-bootstrap'
+import { contabilidadService } from '../../../services/contabilidadService'
 
 export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
     const defaultData = {
@@ -13,23 +14,23 @@ export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
         naturaleza: '', 
         exige_tercero: 1, 
         estado: 1
-    };
+    }
     
-    const [formData, setFormData] = useState(defaultData);
-    const [nivelVisual, setNivelVisual] = useState('');
-    const [esAuxiliar, setEsAuxiliar] = useState(0);
+    const [formData, setFormData] = useState(defaultData)
+    const [nivelVisual, setNivelVisual] = useState('')
+    const [esAuxiliar, setEsAuxiliar] = useState(0)
 
     useEffect(() => {
         if (editData) {
-            setFormData(editData);
+            setFormData(editData)
         } else {
-            setFormData(defaultData);
+            setFormData(defaultData)
         }
-    }, [editData, show]);
+    }, [editData, show])
 
     useEffect(() => {
-        const codigo = formData.id.toString().trim();
-        const length = codigo.length;
+        const codigo = formData.id.toString().trim()
+        const length = codigo.length
 
         if (length === 1) { setNivelVisual('Clase'); setEsAuxiliar(0); }
         else if (length === 2) { setNivelVisual('Grupo'); setEsAuxiliar(0); }
@@ -38,31 +39,31 @@ export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
         else { setNivelVisual('Longitud no estándar'); setEsAuxiliar(0); }
 
         if (!editData) {
-            if (codigo.startsWith('1')) setFormData(prev => ({ ...prev, tipo: 'activo', naturaleza: 'debito' }));
-            else if (codigo.startsWith('2')) setFormData(prev => ({ ...prev, tipo: 'pasivo', naturaleza: 'credito' }));
-            else if (codigo.startsWith('3')) setFormData(prev => ({ ...prev, tipo: 'patrimonio', naturaleza: 'credito' }));
-            else if (codigo.startsWith('4')) setFormData(prev => ({ ...prev, tipo: 'ingreso', naturaleza: 'credito' }));
-            else if (codigo.startsWith('5')) setFormData(prev => ({ ...prev, tipo: 'gasto', naturaleza: 'debito' }));
-            else if (codigo.startsWith('6')) setFormData(prev => ({ ...prev, tipo: 'costo', naturaleza: 'debito' }));
-            else if (codigo === '') setFormData(prev => ({ ...prev, tipo: '', naturaleza: '' }));
+            if (codigo.startsWith('1')) setFormData(prev => ({ ...prev, tipo: 'activo', naturaleza: 'debito' }))
+            else if (codigo.startsWith('2')) setFormData(prev => ({ ...prev, tipo: 'pasivo', naturaleza: 'credito' }))
+            else if (codigo.startsWith('3')) setFormData(prev => ({ ...prev, tipo: 'patrimonio', naturaleza: 'credito' }))
+            else if (codigo.startsWith('4')) setFormData(prev => ({ ...prev, tipo: 'ingreso', naturaleza: 'credito' }))
+            else if (codigo.startsWith('5')) setFormData(prev => ({ ...prev, tipo: 'gasto', naturaleza: 'debito' }))
+            else if (codigo.startsWith('6')) setFormData(prev => ({ ...prev, tipo: 'costo', naturaleza: 'debito' }))
+            else if (codigo === '') setFormData(prev => ({ ...prev, tipo: '', naturaleza: '' }))
         }
-    }, [formData.id, editData]);
+    }, [formData.id, editData])
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        e.preventDefault()
         
         if (!formData.tipo || !formData.naturaleza) {
-            Swal.fire('Error', 'El código debe empezar por un número válido (1 al 6)', 'warning');
-            return;
+            Swal.fire('Error', 'El código debe empezar por un número válido (1 al 6)', 'warning')
+            return
         }
 
-        const dataToSave = { ...formData, es_auxiliar: esAuxiliar };
+        const dataToSave = { ...formData, es_auxiliar: esAuxiliar }
 
-        let res;
+        let res
         if (editData) {
-            res = await window.contaAPI.actualizarCuenta(dataToSave);
+            res = await contabilidadService.actualizarCuenta(dataToSave)
         } else {
-            res = await window.contaAPI.crearCuenta(dataToSave);
+            res = await contabilidadService.crearCuenta(dataToSave)
         }
 
         if (res.success) {
@@ -72,15 +73,15 @@ export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
                 icon: 'success', 
                 timer: 1500,
                 showConfirmButton: false 
-            });
-            onSuccess();
-            handleClose();
+            })
+            onSuccess()
+            handleClose()
         } else {
-            Swal.fire('Error', res.error, 'error');
+            Swal.fire('Error', res.error, 'error')
         }
-    };
+    }
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="lg" centered>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5">
@@ -188,5 +189,5 @@ export const ModalCuenta = ({ show, handleClose, onSuccess, editData }) => {
                 </Button>
             </Modal.Footer>
         </Modal>
-    );
-};
+    </>
+}

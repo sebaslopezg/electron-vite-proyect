@@ -3,6 +3,7 @@ import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import { ModalComprobante } from './components/ModalComprobante'
 import { ModalVerComprobante } from './components/ModalVerComprobante'
+import { contabilidadService } from '../../services/contabilidadService'
 
 export const Comprobantes = ({ currentUser }) => {
     const [showModalEdit, setShowModalEdit] = useState(false)
@@ -26,7 +27,7 @@ export const Comprobantes = ({ currentUser }) => {
     }
 
     const handleAccion = async (id, accion) => {
-        const res = await window.contaAPI.getComprobanteDetalle(id)
+        const res = await contabilidadService.getComprobanteDetalle(id)
         if (res.success) {
             setComprobanteActivo(res.data)
             if (accion === 'ver') setShowModalView(true)
@@ -66,7 +67,7 @@ export const Comprobantes = ({ currentUser }) => {
                 <CustomDataTable 
                     tableId="dt-comprobantes-contables"
                     key={`comprobantes-${reloadTable}-${currentUser?.permisos?.length}`} 
-                    ajaxData={(params) => window.contaAPI.getComprobantesPaginados(params)}
+                    ajaxData={(params) => contabilidadService.getComprobantesPaginados(params)}
                     columns={[
                         { data: 'numero_comprobante', title: 'Número', render: (d) => `<span class="fw-bold"># ${d}</span>` },
                         { data: 'fecha', title: 'Fecha', render: (d) => new Date(d).toLocaleDateString('es-CO') },
@@ -88,8 +89,17 @@ export const Comprobantes = ({ currentUser }) => {
                 />
             </div>
 
-            <ModalComprobante show={showModalEdit} handleClose={() => setShowModalEdit(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={comprobanteActivo} />
-            <ModalVerComprobante show={showModalView} handleClose={() => setShowModalView(false)} data={comprobanteActivo} />
+            <ModalComprobante 
+                show={showModalEdit}
+                handleClose={() => setShowModalEdit(false)}
+                onSuccess={() => setReloadTable(prev => prev + 1)}
+                editData={comprobanteActivo}
+            />
+            <ModalVerComprobante 
+                show={showModalView}
+                handleClose={() => setShowModalView(false)}
+                data={comprobanteActivo}
+            />
         </div>
     </>
 }

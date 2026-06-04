@@ -7,6 +7,7 @@ import {
     Button, 
     Table 
 } from 'react-bootstrap'
+import { contabilidadService } from '../../services/contabilidadService'
 
 const TablaBalancePrueba = ({ data, formatMoney }) => {
     const { listado, totales } = data
@@ -171,13 +172,13 @@ export const Reportes = () => {
         setLoading(true)
         setDatosReporte(null)
 
-        let res;
+        let res
         if (filtros.tipoReporte === 'balance_prueba') {
-            res = await window.contaAPI.getBalancePrueba(filtros)
+            res = await contabilidadService.getBalancePrueba(filtros)
         } else if (filtros.tipoReporte === 'estado_resultados') {
-            res = await window.contaAPI.getEstadoResultados(filtros)
+            res = await contabilidadService.getEstadoResultados(filtros)
         } else if (filtros.tipoReporte === 'balance_general') {
-            res = await window.contaAPI.getBalanceGeneral(filtros)
+            res = await contabilidadService.getBalanceGeneral(filtros)
         }
 
         if (res?.success) {
