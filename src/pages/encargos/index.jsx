@@ -24,7 +24,7 @@ export const IndexEncargos = () => {
                 role="tab"
                 aria-controls="home"
                 aria-selected="false"
-                tabindex="-1"
+                tabIndex="-1"
               >
                 Encargos
               </button>
@@ -39,7 +39,7 @@ export const IndexEncargos = () => {
                 role="tab"
                 aria-controls="home"
                 aria-selected="false"
-                tabindex="-1"
+                tabIndex="-1"
               >
                 Calendario
               </button>
@@ -54,7 +54,7 @@ export const IndexEncargos = () => {
                 role="tab"
                 aria-controls="home"
                 aria-selected="false"
-                tabindex="-1"
+                tabIndex="-1"
               >
                 Estados
               </button>

@@ -69,6 +69,16 @@ export const Calendario = () => {
 
   useEffect(() => {
     loadEncargos()
+
+    const handleActualizacionExterna = () => {
+        loadEncargos()
+    }
+
+    window.addEventListener('encargos-actualizados', handleActualizacionExterna)
+    
+    return () => {
+        window.removeEventListener('encargos-actualizados', handleActualizacionExterna)
+    }
   }, [])
 
   const handleEventClick = (info) => {

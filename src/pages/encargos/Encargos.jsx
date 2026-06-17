@@ -38,7 +38,7 @@ export const Encargos = () => {
     }
 
     const cleanForm = () => {
-        setForm({ fecha_entrega: '', descripcion: '', estado_id: '' })
+        setForm({ fecha_entrega: '', description: '', estado_id: '' })
     }
 
     const handleSubmit = async (e) => {
@@ -51,6 +51,8 @@ export const Encargos = () => {
             cleanForm()
             handleClose()
             load()
+            
+            window.dispatchEvent(new CustomEvent('encargos-actualizados'))
         } else {
             Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error')
         }
@@ -67,7 +69,7 @@ export const Encargos = () => {
 
     const handleDelete = async (id) => {
         const result = await Swal.fire({
-            title: "¿Seguro que desea eliminar el registro?",
+            title: "@Seguro que desea eliminar el registro?",
             showDenyButton: true,
             confirmButtonText: "Sí",
             denyButtonText: `No`
@@ -76,12 +78,24 @@ export const Encargos = () => {
         if (result.isConfirmed) {
             await encargosService.deleteEncargo(id)
             load()
+            
+            window.dispatchEvent(new CustomEvent('encargos-actualizados'))
         }
     }
 
     useEffect(() => {
         load()
         loadSelectData()
+
+        // CORREGIDO: Escucha reactiva para sincronizar los estados dinámicamente sin recargar la app
+        const handleEstadosUpdate = () => {
+            loadSelectData()
+        }
+
+        window.addEventListener('estados-actualizados', handleEstadosUpdate)
+        return () => {
+            window.removeEventListener('estados-actualizados', handleEstadosUpdate)
+        }
     }, [])
 
     useEffect(() => {
@@ -140,8 +154,8 @@ export const Encargos = () => {
                             }
 
                             return `
-                                <span class="badge" style="background-color: ${row.estado_color}; color: ${textColor}; font-size: 13px;">
-                                    <i class="${row.icon || 'bi bi-tag-fill'} me-1"></i> ${data}
+                                <span class="badge" style="background-color: ${row.estado_color || '#6c757d'}; color: ${textColor}; font-size: 13px;">
+                                    <i class="${row.icon || 'bi bi-tag-fill'} me-1"></i> ${data || 'Pendiente'}
                                 </span>
                             `
                         }
@@ -230,12 +244,8 @@ export const Encargos = () => {
                     </Form>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={handleClose}>
-                        Cancelar
-                    </Button>
-                    <Button variant="primary" type="submit" form="encargoForm">
-                        Guardar
-                    </Button>
+                    <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
+                    <Button variant="primary" type="submit" form="encargoForm">Guardar</Button>
                 </Modal.Footer>
             </Modal>
             <EncargoDetalles

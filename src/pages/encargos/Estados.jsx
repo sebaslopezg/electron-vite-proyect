@@ -20,12 +20,14 @@ export const Estados = () => {
 
     const [items, setItems] = useState([])
     const [dataInTable, setDataInTable] = useState([])
+    
+    // CORREGIDO: Se asigna un color hexadecimal por defecto (#0d6efd) para evitar valores vacíos/transparentes
     const [form, setForm] = useState({
         titulo: '',
         descripcion: '',
-        color: '',
-        allow_calendar: '',
-        icon_data: ''
+        color: '#0d6efd',
+        allow_calendar: 0,
+        icon_data: 'bi-tag-fill'
     })
     const [editingId, setEditingId] = useState(null)
     const iconos = [
@@ -46,12 +48,13 @@ export const Estados = () => {
         setReloadTable(prev => prev + 1)
     }
 
+    // CORREGIDO: Al limpiar el formulario se restaura el color por defecto seguro
     const cleanForm = () => setForm({
         titulo: '',
         descripcion: '',
-        color: '',
-        allow_calendar: '',
-        icon_data: ''
+        color: '#0d6efd',
+        allow_calendar: 0,
+        icon_data: 'bi-tag-fill'
     })
 
     useEffect(() => { loadData() }, [])
@@ -70,6 +73,9 @@ export const Estados = () => {
             cleanForm()
             handleClose()
             loadData()
+            
+            // CORREGIDO: Notifica a la pestaña de encargos para actualizar los Selects
+            window.dispatchEvent(new CustomEvent('estados-actualizados'))
         } else {
             Swal.fire('Error', result?.error || 'No se pudo guardar', 'error')
         }
@@ -89,6 +95,8 @@ export const Estados = () => {
             const res = await encargosService.deleteEstado(id)
             if (res.success) {
                 loadData()
+                // CORREGIDO: Notifica la baja del estado al resto de componentes
+                window.dispatchEvent(new CustomEvent('estados-actualizados'))
             }
         }
     }
@@ -110,8 +118,8 @@ export const Estados = () => {
                         titulo: item.titulo || '',
                         descripcion: item.descripcion || '',
                         color: item.color || '#0d6efd',
-                        allow_calendar: item.allow_calendar,
-                        icon_data: item.icon_data || ''
+                        allow_calendar: item.allow_calendar ? 1 : 0,
+                        icon_data: item.icon_data || 'bi-tag-fill'
                     })
                     setEditingId(item.id)
                     handleShow()
@@ -158,7 +166,7 @@ export const Estados = () => {
                             }
 
                             return `
-                                <span class="badge" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px;">
+                                <span class="badge" style="background-color: ${row.color || '#6c757d'}; color: ${textColor}; font-size: 13px;">
                                     <i class="${row.icon_data || 'bi bi-tag-fill'} me-1"></i> ${data}
                                 </span>
                             `;
@@ -168,7 +176,7 @@ export const Estados = () => {
                     {
                         data: 'allow_calendar',
                         title: 'Mostrar en calendario',
-                        render: (data) => `${data > '0' ? 'Si' : 'No'}`
+                        render: (data) => `${Number(data) > 0 ? 'Si' : 'No'}`
                     },
                     {
                         data: null,
@@ -262,7 +270,7 @@ export const Estados = () => {
                             ))}
                         </div>
                     </Form.Group>
-                    <FormGroup>
+                    <Form.Group className="mb-3">
                         <Col md={6} className="d-flex align-items-center">
                             <Form.Check
                                 disabled={editingId === 'pendiente'}
@@ -272,7 +280,7 @@ export const Estados = () => {
                                 onChange={(e) => setForm({ ...form, allow_calendar: e.target.checked ? 1 : 0 })}
                             />
                         </Col>
-                    </FormGroup>
+                    </Form.Group>
                 </Form>
             </Modal.Body>
             <Modal.Footer>

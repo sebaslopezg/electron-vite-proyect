@@ -37,7 +37,7 @@ export const registerInventarioHandler = () => {
 
     ipcMain.handle("get-inventario-paginados", (_, dtParams) => {
         if (!checkPermission("inventario_ajustar") && !checkPermission("productos_ver")) {
-            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] };
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], totalStock: 0 };
         }
         try {
             const limit = parseInt(dtParams.length, 10) || 10;
@@ -89,6 +89,10 @@ export const registerInventarioHandler = () => {
             const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
             const recordsFiltered = filteredRow.count;
 
+            // CORREGIDO: Sumatoria exacta en SQLite de todas las existencias bajo el contexto actual de filtros
+            const totalStockRow = db.prepare(`SELECT SUM(p.stock) as totalStock ${baseQuery}`).get(...queryParams);
+            const totalStock = totalStockRow.totalStock || 0;
+
             const dataQuery = `
                 SELECT 
                     p.id, p.ref_name, p.sku, p.precio, p.stock, p.unidad_medida, p.descripcion, p.min_stock,
@@ -105,11 +109,12 @@ export const registerInventarioHandler = () => {
                 draw: dtParams.draw,
                 recordsTotal: recordsTotal,
                 recordsFiltered: recordsFiltered,
-                data: data
+                data: data,
+                totalStock: totalStock // Retornamos el valor calculado
             };
         } catch (error) {
             logger.error('INVENTARIO', "Error en paginación y filtros del inventario", error)
-            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [], totalStock: 0 }
         }
     })
 
@@ -162,7 +167,7 @@ export const registerInventarioHandler = () => {
                     id, producto_id, tipo_movimiento, modulo_movimiento, cantidad, 
                     stock_anterior, stock_nuevo, fecha, usuario, notas
                 ) VALUES (
-                    @id, @producto_id, @tipo_movimiento, @modulo_movimiento, @cantidad, @stock_anterior, @stock_nuevo, @fecha, @usuario, @notas
+                    @id, @producto_id, @tipo_movimiento, @modulo_movimiento, @cantidad, @stock_anterior, @stock_nuevo, @fecha, @usuario, @notes
                 )
             `)
 
@@ -176,7 +181,7 @@ export const registerInventarioHandler = () => {
                 stock_nuevo: stockNuevo,
                 fecha: now,
                 usuario: currentUser,
-                notas: item.notes || 'Ajuste manual de kárdex administrativo'
+                notes: item.notes || 'Ajuste manual de kárdex administrativo'
             })
 
             return {
@@ -230,7 +235,7 @@ export const registerInventarioHandler = () => {
             const orderColIndex = dtParams.order?.[0]?.column || 0;
             const orderDir = dtParams.order?.[0]?.dir === 'asc' ? 'ASC' : 'DESC'; 
             
-            const columnsMap = ['fecha', 'tipo_movimiento', 'cantidad', 'stock_anterior', 'stock_nuevo', 'usuario', 'notas'];
+            const columnsMap = ['fecha', 'tipo_movimiento', 'cantidad', 'stock_anterior', 'stock_nuevo', 'usuario', 'notes'];
             let orderCol = columnsMap[orderColIndex] || 'fecha';
 
             let baseQuery = `FROM inventario WHERE producto_id = ?`;

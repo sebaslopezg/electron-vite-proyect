@@ -42,6 +42,32 @@ export const encargosService = {
         }
     },
 
+    updateEncargo: async (payload) => {
+        if (isElectron()) {
+            return await window.api.updateProducto ? window.api.updateEncargo(payload) : window.api.updateEncargo(payload);
+        } else {
+            try {
+                const response = await api.put(`/encargos/${payload.id}`, payload)
+                return { success: true, ...response.data }
+            } catch (error) {
+                return { success: false, error: error.response?.data?.message || 'Error al actualizar el encargo' }
+            }
+        }
+    },
+
+    deleteEncargo: async (id) => {
+        if (isElectron()) {
+            return await window.api.deleteEncargo(id)
+        } else {
+            try {
+                const response = await api.delete(`/encargos/${id}`)
+                return { success: true, ...response.data }
+            } catch (error) {
+                return { success: false, error: error.response?.data?.message || 'Error al eliminar el encargo' }
+            }
+        }
+    },
+
     updateEstadoEncargo: async (id, estadoId) => {
         if (isElectron()) {
             return await window.api.updateEstadoEncargo(id, estadoId)

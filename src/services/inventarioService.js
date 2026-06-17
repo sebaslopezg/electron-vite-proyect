@@ -89,7 +89,8 @@ export const inventarioService = {
                 draw: result.draw || params.draw,
                 recordsTotal: result.recordsTotal || mappedData.length,
                 recordsFiltered: result.recordsFiltered || mappedData.length,
-                data: mappedData
+                data: mappedData,
+                totalStock: result.totalStock || 0
             };
         }
     },

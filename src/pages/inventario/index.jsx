@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import CustomDataTable from '../../components/DataTableComponent'
 import Button from 'react-bootstrap/Button'
 import Form from 'react-bootstrap/Form'
-import { Row, Col } from 'react-bootstrap'
+import { Row, Col, Card } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { formatCurrency } from '../../utils/currencies'
 import { BuscadorFiltros } from '../../components/BuscadorFiltros'
@@ -23,6 +23,8 @@ export const Inventario = ({ currentUser }) => {
     const [filterCategory, setFilterCategory] = useState(() => localStorage.getItem('inv_filtro_categoria') || '')
     const [filterSubcategory, setFilterSubcategory] = useState(() => localStorage.getItem('inv_filtro_subcategoria') || '')
     const [filterTag, setFilterTag] = useState(() => localStorage.getItem('inv_filtro_etiqueta') || '')
+
+    const [metrics, setMetrics] = useState({ totalStock: 0, totalReferences: 0, averageStock: 0 })
 
     useEffect(() => {
         localStorage.setItem('inv_filtro_categoria', filterCategory)
@@ -198,7 +200,6 @@ export const Inventario = ({ currentUser }) => {
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
         
-        // CORREGIDO: Escuchamos el cambio de reload y filtros para re-vincular el listener al nuevo árbol DOM de Datatables
     }, [reloadTable, filterCategory, filterSubcategory, filterTag])
 
     return <>
@@ -209,7 +210,7 @@ export const Inventario = ({ currentUser }) => {
         <div className="card" style={{ overflow: 'visible' }}>
             <div className="card-body pt-4" style={{ overflow: 'visible' }}>
                 
-                <div className="bg-light p-3 rounded mb-4 border" style={{ overflow: 'visible' }}>
+                <div className="bg-light p-3 rounded mb-3 border" style={{ overflow: 'visible' }}>
                     <Row className="g-3 align-items-end" style={{ overflow: 'visible' }}>
                         <Col md={3}>
                             <Form.Group>
@@ -258,15 +259,53 @@ export const Inventario = ({ currentUser }) => {
                     </Row>
                 </div>
 
+                <Row className="mb-4 g-2">
+                    <Col xs={12} sm={4}>
+                        <Card className="shadow-sm border-0 border-start border-primary border-4 bg-light">
+                            <Card.Body className="p-2 px-3">
+                                <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-boxes me-1"></i>Stock Disponible</p>
+                                <h4 className="m-0 fw-bold text-dark">{metrics.totalStock.toLocaleString()} <span className="fs-6 text-muted font-weight-normal">uds</span></h4>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                    <Col xs={12} sm={4}>
+                        <Card className="shadow-sm border-0 border-start border-info border-4 bg-light">
+                            <Card.Body className="p-2 px-3">
+                                <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-tag-fill me-1"></i>Referencias Filtradas</p>
+                                <h4 className="m-0 fw-bold text-dark">{metrics.totalReferences.toLocaleString()} <span className="fs-6 text-muted font-weight-normal">ítems</span></h4>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                    <Col xs={12} sm={4}>
+                        <Card className="shadow-sm border-0 border-start border-warning border-4 bg-light">
+                            <Card.Body className="p-2 px-3">
+                                <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-calculator me-1"></i>Promedio Stock / Ref</p>
+                                <h4 className="m-0 fw-bold text-dark">{metrics.averageStock.toFixed(1)} <span className="fs-6 text-muted font-weight-normal">uds/ref</span></h4>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
+
                 <div ref={tableContainerRef} className="w-100 overflow-hidden">
                     <CustomDataTable 
                         tableId="dt-inventario-maestro"
                         key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
-                        ajaxData={(params) => {
+                        ajaxData={async (params) => {
                             params.customCategory = filterCategory;
                             params.customSubcategory = filterSubcategory;
                             params.customTag = filterTag;
-                            return inventarioService.getInventarioPaginados(params);
+                            
+                            const response = await inventarioService.getInventarioPaginados(params);
+                            const totalFilteredRef = response.recordsFiltered || 0;
+                            const stockSum = response.totalStock || 0;
+                            
+                            setMetrics({
+                                totalStock: stockSum,
+                                totalReferences: totalFilteredRef,
+                                averageStock: totalFilteredRef > 0 ? (stockSum / totalFilteredRef) : 0
+                            });
+
+                            return response;
                         }}
                         
                         columns={[
