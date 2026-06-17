@@ -171,7 +171,7 @@ export const Notas = () => {
                             render: (data, type, row) => `<strong>${row.prefijo || ''}-${row.numero_nota}</strong>`
                         },
                         { 
-                            data: 'type_nota', 
+                            data: 'tipo_nota',
                             title: 'Tipo',
                             render: (data) => {
                                 const badgeColor = data === 'Crédito' ? 'warning text-dark' : 'secondary'

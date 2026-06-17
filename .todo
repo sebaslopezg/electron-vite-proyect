@@ -2,6 +2,11 @@
 
  ## Modificaciones Prioritarias:
  
+ - Modificar resumen de ventas, agregar filtros para visualizar lo que debe tener en efectivo, y quitar las ventas que tengan NC
+
+ - Modificar cache para que se guarde en DB y no en localstorage, ya que se borra. (o corregir el local storage)
+ - Agregar cartera con sistecredito y addi, el cliente no debe al almacen, si no que sea addi para controlar los pagos factoring
+
  - Mejorar modulo de pagos (mas sencillo)
  - Impuestos y Retenciones (Nivel Intermedio)
 
@@ -13,6 +18,7 @@
  - Conectar modulo de cartera con contabilidad
  - Crear modulo cobranzas
  - Crear modulo de servicios (sacar pestaña servicios de productos)
+ - Agregar boton de descarga en pdf y excel a algunas tablas en las vistas
 
  ## No prioritario
  - permitir cambiar de posicion las opciones de metodo de pago en el menu desplegable

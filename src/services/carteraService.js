@@ -23,7 +23,7 @@ export const carteraService = {
 
     getCuentasPorCobrarPaginadas: async (params) => {
         if (isElectron()) {
-            return await window.api.getCuentasPorCobrarPaginadas(params)
+            return await window.api.getCarteraPaginada(params)
         } else {
             const response = await api.get('/cartera/cuentas-por-cobrar', { params })
             return response.data
@@ -32,7 +32,7 @@ export const carteraService = {
 
     getHistorialAbonosPaginados: async (params) => {
         if (isElectron()) {
-            return await window.api.getHistorialAbonosPaginados(params)
+            return await window.api.getAbonosPaginados(params)
         } else {
             const response = await api.get('/cartera/historial-abonos', { params })
             return response.data;
@@ -41,7 +41,7 @@ export const carteraService = {
 
     crearAbono: async (payload) => {
         if (isElectron()) {
-            return await window.api.crearAbono(payload)
+            return await window.api.addAbono(payload)
         } else {
             try {
                 const response = await api.post('/cartera/abonos', payload)

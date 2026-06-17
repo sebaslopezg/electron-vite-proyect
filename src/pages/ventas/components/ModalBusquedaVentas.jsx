@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import DataTableComponent from '../../../components/DataTableComponent'
 import { BuscadorFiltros } from '../../../components/BuscadorFiltros'
 import { ventasService } from '../../../services/ventasService'
+import { formatCurrency } from '../../../utils/currencies'
 
 export const ModalBusquedaVentas = ({
     show,
@@ -21,12 +22,15 @@ export const ModalBusquedaVentas = ({
     const [subcategoriasTotales, setSubcategoriasTotales] = useState([])
     const [subcategoriasFiltradas, setSubcategoriasFiltradas] = useState([])
     const [filterSubcategory, setFilterSubcategory] = useState('')
+    
+    const [activeTab, setActiveTab] = useState('productos')
 
     useEffect(() => {
         if (show && modalData.type === 'producto') {
             ventasService.getSubcategorias().then(subs => {
                 setSubcategoriasTotales(subs || [])
             })
+            setActiveTab('productos')
         }
     }, [show, modalData.type])
 
@@ -49,6 +53,41 @@ export const ModalBusquedaVentas = ({
         handleClose()
     }
 
+    const renderCurrency = (val) => formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+
+    const columnasServicios = useMemo(() => [
+        { data: 'ref_name', title: 'Nombre Referencia' },
+        { 
+            data: 'sku', 
+            title: 'SKU',
+            render: (data, type, row) => {
+                if (!data) return '-';
+                const prefix = row.cat_prefix ? `${row.cat_prefix}${row.cat_separador || ''}`.toUpperCase() : '';
+                const skuVal = String(data).toUpperCase();
+                const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+                return `<strong>${finalSku}</strong>`;
+            }
+        },
+        { 
+            data: 'precio', 
+            title: 'Precio',
+            render: (data, type, row) => renderCurrency(row.precio) 
+        },
+        {
+            data: null,
+            title: 'Agregar',
+            orderable: false,
+            render: function (data, type, row) {
+                const safeData = encodeURIComponent(JSON.stringify(row))
+                return `
+                    <button class="btn btn-sm btn-success btn-select-product me-1 mb-1" data-alldata="${safeData}" data-force-encargo="0">
+                        <i class="bi bi-plus-circle me-1"></i> Agregar Servicio
+                    </button>
+                `
+            }
+        }
+    ], [appConfig])
+
     return (
         <>
             <Modal show={show} onHide={handleLocalClose} size="xl" centered scrollable>
@@ -59,7 +98,26 @@ export const ModalBusquedaVentas = ({
                     
                     {modalData.type === 'producto' && (
                         <>
-                            <div className="bg-light p-3 rounded mb-3 border" style={{ overflow: 'visible' }}>
+                            <ul className="nav nav-tabs nav-tabs-bordered mb-3" role="tablist">
+                                <li className="nav-item">
+                                    <button 
+                                        className={`nav-link ${activeTab === 'productos' ? 'active text-primary' : 'text-secondary'}`}
+                                        onClick={() => setActiveTab('productos')}
+                                    >
+                                        Productos
+                                    </button>
+                                </li>
+                                <li className="nav-item">
+                                    <button 
+                                        className={`nav-link ${activeTab === 'servicios' ? 'active text-primary' : 'text-secondary'}`}
+                                        onClick={() => setActiveTab('servicios')}
+                                    >
+                                        Servicios
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <div className="bg-light p-3 rounded mb-3 border animate__animated animate__fadeIn" style={{ overflow: 'visible' }}>
                                 <Row className="g-3 align-items-end" style={{ overflow: 'visible' }}>
                                     <Col md={3}>
                                         <Form.Group>
@@ -102,23 +160,44 @@ export const ModalBusquedaVentas = ({
                                             onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterTag(''); }} 
                                             disabled={!filterCategory && !filterSubcategory && !filterTag}
                                         >
-                                            <i className="bi bi-x-circle me-1"></i>Limpiar
+                                            <i className="bi bi-x-circle me-1"></i>Limpiar Filtros
                                         </Button>
                                     </Col>
                                 </Row>
                             </div>
 
-                            <div className="w-100 overflow-hidden">
-                                <DataTableComponent
-                                    key={`prod-modal-${filterCategory}-${filterSubcategory}-${filterTag}-${appConfig.moneda}`}
-                                    ajaxData={(params) => {
-                                        params.customCategory = filterCategory;
-                                        params.customSubcategory = filterSubcategory;
-                                        params.customTag = filterTag;
-                                        return ventasService.getProductosPaginados(params);
-                                    }}
-                                    columns={modalData.columns}
-                                />
+                            <div className="tab-content w-100 overflow-hidden">
+                                {activeTab === 'productos' && (
+                                    <div className="animate__animated animate__fadeIn">
+                                        <DataTableComponent
+                                            tableId="dt-modal-busqueda-productos"
+                                            key={`prod-modal-${filterCategory}-${filterSubcategory}-${filterTag}-${appConfig.moneda}`}
+                                            ajaxData={(params) => {
+                                                params.customCategory = filterCategory;
+                                                params.customSubcategory = filterSubcategory;
+                                                params.customTag = filterTag;
+                                                return ventasService.getProductosPaginados(params);
+                                            }}
+                                            columns={modalData.columns}
+                                        />
+                                    </div>
+                                )}
+                                
+                                {activeTab === 'servicios' && (
+                                    <div className="animate__animated animate__fadeIn">
+                                        <DataTableComponent
+                                            tableId="dt-modal-busqueda-servicios"
+                                            key={`serv-modal-${filterCategory}-${filterSubcategory}-${filterTag}-${appConfig.moneda}`}
+                                            ajaxData={(params) => {
+                                                params.customCategory = filterCategory;
+                                                params.customSubcategory = filterSubcategory;
+                                                params.customTag = filterTag;
+                                                return window.api.getServiciosPaginados(params);
+                                            }}
+                                            columns={columnasServicios}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}

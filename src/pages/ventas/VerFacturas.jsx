@@ -168,13 +168,21 @@ export const VerFacturas = ({ currentUser }) => {
             data: null, title: 'Estado', orderable: false,
             render: function (data, type, row) {
                 let badges = ''
-                if (row.tipo_pago === 'credito') {
-                    if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge bg-danger me-1">Crédito</span>'
-                    else if (row.saldo_pendiente > 0) badges += '<span class="badge bg-warning text-dark me-1">Crédito</span>'
-                    else badges += '<span class="badge bg-success me-1">Crédito</span>'
+                
+                const isAnulada = row.notas_motivos && row.notas_motivos.toLowerCase().includes('anula');
+
+                if (isAnulada) {
+                    badges += '<span class="badge bg-secondary me-1">Anulada</span>'
                 } else {
-                    badges += '<span class="badge bg-primary me-1">Contado</span>'
+                    if (row.tipo_pago === 'credito') {
+                        if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge bg-danger me-1">Crédito</span>'
+                        else if (row.saldo_pendiente > 0) badges += '<span class="badge bg-warning text-dark me-1">Crédito</span>'
+                        else badges += '<span class="badge bg-success me-1">Crédito</span>'
+                    } else {
+                        badges += '<span class="badge bg-primary me-1">Contado</span>'
+                    }
                 }
+
                 if (row.notas_aplicadas) {
                     if (row.notas_aplicadas.includes('Crédito')) badges += '<span class="badge bg-info text-dark me-1">Nota Crédito</span>'
                     if (row.notas_aplicadas.includes('Débito')) badges += '<span class="badge bg-secondary me-1">Nota Débito</span>'

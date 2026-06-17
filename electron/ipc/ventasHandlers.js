@@ -23,7 +23,10 @@ export const registerVentasHandlers = () => {
                     (SELECT separador FROM almacen_conf LIMIT 1) AS separador,
                     (SELECT GROUP_CONCAT(tipo_nota, ' y ') 
                      FROM nota 
-                     WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas
+                     WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas,
+                    (SELECT GROUP_CONCAT(motivo_dian, '|') 
+                     FROM nota 
+                     WHERE id_factura_origen = v.id AND status = 1) AS notas_motivos
                 FROM ventasMaestro v
                 WHERE v.status > 0
                 ORDER BY v.date_created DESC
@@ -83,7 +86,10 @@ export const registerVentasHandlers = () => {
                     (SELECT separador FROM almacen_conf LIMIT 1) AS separador,
                     (SELECT GROUP_CONCAT(tipo_nota, ' y ') 
                      FROM nota 
-                     WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas
+                     WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas,
+                    (SELECT GROUP_CONCAT(motivo_dian, '|') 
+                     FROM nota 
+                     WHERE id_factura_origen = v.id AND status = 1) AS notas_motivos
                 ${baseQuery}
                 ORDER BY v.${orderCol} ${orderDir} 
                 LIMIT ? OFFSET ?
@@ -185,23 +191,32 @@ export const registerVentasHandlers = () => {
             return { success: false, error: "No autorizado para consultar reportes financieros de ventas." };
         }
         try {
-            let baseQuery = `FROM ventasMaestro WHERE status > 0`;
+            let baseQuery = `
+                FROM ventasMaestro v 
+                WHERE v.status > 0 
+                AND NOT EXISTS (
+                    SELECT 1 FROM nota n 
+                    WHERE n.id_factura_origen = v.id 
+                    AND n.status = 1 
+                    AND n.motivo_dian COLLATE NOCASE LIKE '%anula%'
+                )
+            `;
             let queryParams = [];
 
             if (startDate) {
-                baseQuery += " AND date(date_created) >= date(?)";
+                baseQuery += " AND date(v.date_created) >= date(?)";
                 queryParams.push(startDate);
             }
             if (endDate) {
-                baseQuery += " AND date(date_created) <= date(?)";
+                baseQuery += " AND date(v.date_created) <= date(?)";
                 queryParams.push(endDate);
             }
 
             const query = `
-                SELECT *,
+                SELECT v.*,
                 (SELECT separador FROM almacen_conf LIMIT 1) AS separador
                 ${baseQuery}
-                ORDER BY date_created ASC
+                ORDER BY v.date_created ASC
             `;
             
             const data = db.prepare(query).all(...queryParams);
@@ -311,7 +326,6 @@ export const registerVentasHandlers = () => {
                             ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
                         )
                         
-                        // CORRECCIÓN: Se cambió 'nombre' por 'titulo' y se añadió COLLATE NOCASE 
                         let estadoIdObj = db.prepare("SELECT id FROM estadoEncargo WHERE titulo COLLATE NOCASE = 'Pendiente'").get();
                         let estadoId = estadoIdObj ? estadoIdObj.id : 'pendiente';
 

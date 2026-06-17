@@ -18,10 +18,19 @@ const Toast = Swal.mixin({
     }
 })
 
+const getLocalDatetime = (startOfDay = true) => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    
+    const time = startOfDay ? '00:00' : '23:59';
+    return `${year}-${month}-${day}T${time}`;
+}
+
 export const Reportes = () => {
-    const hoy = new Date().toISOString().split('T')[0]
-    const [startDate, setStartDate] = useState(hoy)
-    const [endDate, setEndDate] = useState(hoy)
+    const [startDate, setStartDate] = useState(() => getLocalDatetime(true))
+    const [endDate, setEndDate] = useState(() => getLocalDatetime(false))
 
     const [facturas, setFacturas] = useState([])
     const [almacenConf, setAlmacenConf] = useState(null)
@@ -68,10 +77,11 @@ export const Reportes = () => {
     const totales = useMemo(() => {
         return facturas.reduce((acc, f) => {
             acc.total += f.total_factura;
-            if (f.tipo_pago === 'contado') acc.contado += f.total_factura;
-            if (f.tipo_pago === 'credito') acc.credito += f.total_factura;
+            const metodo = f.metodo_pago || (f.tipo_pago === 'credito' ? 'Crédito' : 'Contado');
+            if (!acc.metodos[metodo]) acc.metodos[metodo] = 0;
+            acc.metodos[metodo] += f.total_factura;
             return acc;
-        }, { total: 0, contado: 0, credito: 0 });
+        }, { total: 0, metodos: {} });
     }, [facturas]);
 
     const columnas = [
@@ -86,8 +96,11 @@ export const Reportes = () => {
         },
         { data: 'nombre_cliente', title: 'Cliente' },
         { 
-            data: 'tipo_pago', title: 'Tipo Pago',
-            render: (data) => data === 'contado' ? '<span class="badge bg-primary">Contado</span>' : '<span class="badge bg-warning text-dark">Crédito</span>'
+            data: 'metodo_pago', title: 'Método / Tipo',
+            render: (data, type, row) => {
+                if (row.tipo_pago === 'credito') return '<span class="badge bg-warning text-dark">Crédito</span>'
+                return `<span class="badge bg-primary">${data || 'Contado'}</span>`
+            }
         },
         { 
             data: 'total_factura', title: 'Total',
@@ -105,43 +118,37 @@ export const Reportes = () => {
         <Row className="mb-4">
             <Col md={3}>
                 <Form.Group>
-                    <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Fecha Inicial</Form.Label>
-                    <Form.Control type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                    <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Desde Fecha/Hora</Form.Label>
+                    <Form.Control type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                 </Form.Group>
             </Col>
             <Col md={3}>
                 <Form.Group>
-                    <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Fecha Final</Form.Label>
-                    <Form.Control type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                    <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Hasta Fecha/Hora</Form.Label>
+                    <Form.Control type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
                 </Form.Group>
             </Col>
         </Row>
 
-        <Row className="mb-4">
-            <Col md={4}>
-                <Card className="shadow-sm border-0 border-start border-primary border-4">
-                    <Card.Body>
-                        <p className="text-muted small mb-1 fw-bold text-uppercase">Ventas de Contado</p>
-                        <h3 className="m-0">{_formatCurrency(totales.contado)}</h3>
-                    </Card.Body>
-                </Card>
-            </Col>
-            <Col md={4}>
-                <Card className="shadow-sm border-0 border-start border-warning border-4">
-                    <Card.Body>
-                        <p className="text-muted small mb-1 fw-bold text-uppercase">Ventas a Crédito</p>
-                        <h3 className="m-0">{_formatCurrency(totales.credito)}</h3>
-                    </Card.Body>
-                </Card>
-            </Col>
-            <Col md={4}>
-                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10">
-                    <Card.Body>
+        <Row className="mb-4 g-3">
+            <Col xs={12} sm={6} md={4} lg={3}>
+                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 h-100">
+                    <Card.Body className="p-3">
                         <p className="text-success small mb-1 fw-bold text-uppercase">Total Facturado</p>
-                        <h3 className="m-0 text-success fw-bold">{_formatCurrency(totales.total)}</h3>
+                        <h4 className="m-0 text-success fw-bold">{_formatCurrency(totales.total)}</h4>
                     </Card.Body>
                 </Card>
             </Col>
+            {Object.entries(totales.metodos).map(([metodo, valor]) => (
+                <Col xs={12} sm={6} md={4} lg={3} key={metodo}>
+                    <Card className="shadow-sm border-0 border-start border-primary border-4 h-100">
+                        <Card.Body className="p-3">
+                            <p className="text-muted small mb-1 fw-bold text-uppercase">{metodo}</p>
+                            <h5 className="m-0 fw-bold">{_formatCurrency(valor)}</h5>
+                        </Card.Body>
+                    </Card>
+                </Col>
+            ))}
         </Row>
 
         <h6 className="fw-bold text-secondary mb-3">Detalle de Facturas ({facturas.length})</h6>

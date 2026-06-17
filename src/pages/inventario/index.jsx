@@ -32,7 +32,7 @@ export const Inventario = ({ currentUser }) => {
 
     const [form, setForm] = useState({ cantidad: '', type: '' })
     const [modalInfo, setModalInfo] = useState({ 
-        title: 'Registro', 
+        title: 'Revision', 
         description: 'Ingrese la cantidad', 
         increase: null 
     })
@@ -76,7 +76,6 @@ export const Inventario = ({ currentUser }) => {
     const handleShow = () => setShow(true)
 
     const loadFilters = async () => {
-        // Redirigido al adaptador universal
         const [cats, tags, subs] = await Promise.all([
             inventarioService.getCategorias(),
             inventarioService.getEtiquetas(),
@@ -183,6 +182,7 @@ export const Inventario = ({ currentUser }) => {
     useEffect(() => {
         const container = tableContainerRef.current
         if (!container) return
+        
         const handleTableClick = (e) => {
             const btn = e.target.closest('button[data-alldata]')
             if (!btn || !container.contains(btn)) return
@@ -194,9 +194,12 @@ export const Inventario = ({ currentUser }) => {
                 else if (btn.classList.contains('btn-history')) viewHistory(item)
             } catch(err) { console.error("Error leyendo datos", err); }
         }
+        
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [subcategoriasFiltradas, etiquetasList])
+        
+        // CORREGIDO: Escuchamos el cambio de reload y filtros para re-vincular el listener al nuevo árbol DOM de Datatables
+    }, [reloadTable, filterCategory, filterSubcategory, filterTag])
 
     return <>
         <div className="pagetitle">
@@ -255,7 +258,7 @@ export const Inventario = ({ currentUser }) => {
                     </Row>
                 </div>
 
-                <div className="w-100 overflow-hidden">
+                <div ref={tableContainerRef} className="w-100 overflow-hidden">
                     <CustomDataTable 
                         tableId="dt-inventario-maestro"
                         key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 

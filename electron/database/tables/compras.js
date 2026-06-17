@@ -1,7 +1,6 @@
 import db from "../index.js"
 
 export const runV1Compras = () => {
-    // Tabla Maestra de Compras / Gastos
     db.exec(`
       CREATE TABLE IF NOT EXISTS comprasMaestro (
         id TEXT PRIMARY KEY,

@@ -134,11 +134,11 @@ export const registerInventarioHandler = () => {
             let stockNuevo
 
             if (item.type === 'ingreso') {
-                stockNuevo = stockAnterior + item.cantidad
+                stockNuevo = stockAnterior + item.amount
             } else if (item.type === 'egreso') {
-                stockNuevo = stockAnterior - item.cantidad
+                stockNuevo = stockAnterior - item.amount
             } else if (item.type === 'ajuste_manual') {
-                stockNuevo = item.cantidad
+                stockNuevo = item.amount
             } else {
                 throw new Error(`Tipo de movimiento no válido: ${item.type}`)
             }
@@ -171,7 +171,7 @@ export const registerInventarioHandler = () => {
                 producto_id: item.id,
                 tipo_movimiento: item.type,
                 modulo_movimiento: item.modulo || 'inventario',
-                cantidad: item.cantidad,
+                cantidad: item.amount,
                 stock_anterior: stockAnterior,
                 stock_nuevo: stockNuevo,
                 fecha: now,
@@ -237,7 +237,7 @@ export const registerInventarioHandler = () => {
             let queryParams = [productoId];
 
             if (searchValue) {
-                baseQuery += " Adjust AND (tipo_movimiento LIKE ? OR usuario LIKE ? OR notas LIKE ?)";
+                baseQuery += " AND (tipo_movimiento LIKE ? OR usuario LIKE ? OR notas LIKE ?)";
                 const likeParam = `%${searchValue}%`;
                 queryParams.push(likeParam, likeParam, likeParam);
             }
