@@ -12,6 +12,10 @@ contextBridge.exposeInMainWorld("api", {
   loginUser: (credentials) => ipcRenderer.invoke("login-user", credentials),
   logoutUser: () => ipcRenderer.invoke("logout-user"),
 
+  // Claves de activación e inmunidad de copia de instalador
+  checkLicense: () => ipcRenderer.invoke("check-license"),
+  activateApp: (key) => ipcRenderer.invoke("activate-app", key),
+
   // roles
   getRoles: () => ipcRenderer.invoke("get-roles"),
   addRol: (data) => ipcRenderer.invoke("add-rol", data),

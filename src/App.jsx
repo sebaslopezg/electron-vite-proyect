@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Dashboard from './components/layout/Dashboard'
 import { Login } from './pages/auth/Login'
+import { Activation } from './pages/auth/Activation'
 import Swal from 'sweetalert2'
 
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -10,22 +11,39 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null)
   const [loginRequired, setLoginRequired] = useState(false)
 
-  useEffect(() => {
-    const verificarSeguridadAcceso = async () => {
-      const savedToken = localStorage.getItem('auth_token')
-      
-      if (window.api && window.api.checkLoginRequired) {
-        const res = await window.api.checkLoginRequired(savedToken)
-        if (res.success) {
-          setLoginRequired(res.required)
-          if (!res.required && res.user) {
-            setCurrentUser(res.user)
-          }
+  const [licenseActive, setLicenseActive] = useState(false)
+  const [hardwareId, setHardwareId] = useState('')
+
+  const verificarSeguridadAcceso = async () => {
+    setLoading(true)
+    
+    if (window.api && window.api.checkLicense) {
+      const licRes = await window.api.checkLicense()
+      if (licRes.success) {
+        setHardwareId(licRes.hardwareId)
+        setLicenseActive(licRes.activated)
+        
+        if (!licRes.activated) {
+          setLoading(false)
+          return
         }
       }
-      setLoading(false)
     }
 
+    const savedToken = localStorage.getItem('auth_token')
+    if (window.api && window.api.checkLoginRequired) {
+      const res = await window.api.checkLoginRequired(savedToken)
+      if (res.success) {
+        setLoginRequired(res.required)
+        if (!res.required && res.user) {
+          setCurrentUser(res.user)
+        }
+      }
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
     verificarSeguridadAcceso()
 
     const handleGlobalProfileUpdate = (e) => {
@@ -104,6 +122,10 @@ function App() {
           </div>
       </div>
     )
+  }
+
+  if (!licenseActive) {
+    return <Activation hardwareId={hardwareId} onActivationSuccess={verificarSeguridadAcceso} />
   }
 
   if (loginRequired && !currentUser) {

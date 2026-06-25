@@ -21,6 +21,7 @@ import { registerSubcategoriaHandlers } from "./subcategoriaHandlers.js"
 import { registerLogsHandlers } from "./logsHandlers.js"
 import { registerUsuariosHandlers } from "./usuariosHandlers.js"
 import { registerRolesHandlers } from "./rolesHandlers.js"
+import { registerActivationHandlers } from "./activationHandlers.js"
 
 export const registerAllHandlers = () => {
   registerProductoHandlers()
@@ -46,4 +47,5 @@ export const registerAllHandlers = () => {
   registerLogsHandlers()
   registerUsuariosHandlers()
   registerRolesHandlers()
+  registerActivationHandlers()
 }
