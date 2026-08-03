@@ -4,7 +4,9 @@ import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
 import { ModalDetalleFactura } from "./components/ModalDetalleFactura"
 import Swal from 'sweetalert2'
+import { formatCurrency } from '../../utils/currencies'
 import { ventasService } from '../../services/ventasService'
+import { exportToExcel, exportToPDF, exportInvoicePDF } from '../../utils/exporter'
 
 export const VerFacturas = ({ currentUser }) => {
 
@@ -17,6 +19,8 @@ export const VerFacturas = ({ currentUser }) => {
     
     const [startDate, setStartDate] = useState(() => localStorage.getItem('ventas_filtro_inicio') || '')
     const [endDate, setEndDate] = useState(() => localStorage.getItem('ventas_filtro_fin') || '')
+
+    const [todasLasFacturas, setTodasLasFacturas] = useState([]) // Almacena los datos extraídos para la exportación masiva
 
     useEffect(() => {
         localStorage.setItem('ventas_filtro_inicio', startDate)
@@ -50,6 +54,8 @@ export const VerFacturas = ({ currentUser }) => {
         }
     }
 
+    const _formatCurrency = (val) => formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+
     useEffect(() => {
         loadConfig()
         window.addEventListener('config-actualizada', loadConfig)
@@ -71,6 +77,90 @@ export const VerFacturas = ({ currentUser }) => {
 
     const tableContainerRef = useRef(null)
 
+    // ─── FUNCIONES DE EXPORTACIÓN GENERAL (TODA LA TABLA) ───────────────
+    const handleExportAllExcel = () => {
+        if (todasLasFacturas.length === 0) return Swal.fire('Error', 'No hay facturas para exportar', 'warning')
+
+        const dataToExport = todasLasFacturas.map(f => ({
+            'Fecha y Hora': new Date(f.date_created).toLocaleString(appConfig.formato_numero),
+            'Factura N°': `${f.prefijo || ''}${f.separador || ''}${f.numero_factura}`,
+            'Doc Cliente': f.documento_cliente,
+            'Cliente': f.nombre_cliente,
+            'Método Pago': f.tipo_pago === 'credito' ? 'Crédito' : 'Contado',
+            'Subtotal': (f.total_factura || 0) + (f.descuento || 0) - (f.iva || 0),
+            'Descuento': f.descuento || 0,
+            'IVA': f.iva || 0,
+            'Total': f.total_factura || 0,
+            'Pagado': f.total_recibido || 0,
+            'Saldo Pendiente': f.saldo_pendiente || 0
+        }))
+
+        exportToExcel(dataToExport, `Historial_Facturas_${new Date().toISOString().split('T')[0]}`, "Facturas")
+    }
+
+    const handleExportAllPDF = () => {
+        if (todasLasFacturas.length === 0) return Swal.fire('Error', 'No hay facturas para exportar', 'warning')
+
+        const tableColumn = ["Fecha", "Factura", "Cliente", "Método", "Total", "Deuda"];
+        const tableRows = todasLasFacturas.map(f => [
+            new Date(f.date_created).toLocaleDateString(appConfig.formato_numero),
+            `${f.prefijo || ''}${f.separador || ''}${f.numero_factura}`,
+            f.nombre_cliente,
+            f.tipo_pago === 'credito' ? 'Crédito' : 'Contado',
+            _formatCurrency(f.total_factura || 0),
+            _formatCurrency(f.saldo_pendiente || 0)
+        ]);
+
+        exportToPDF({
+            title: 'Historial General de Facturas',
+            subtitle: (startDate && endDate) ? `Desde: ${startDate.replace('T', ' ')}  Hasta: ${endDate.replace('T', ' ')}` : 'Todas las facturas registradas',
+            columns: tableColumn,
+            data: tableRows,
+            filename: `Historial_Facturas_${new Date().toISOString().split('T')[0]}`
+        });
+    }
+
+    // ─── FUNCIONES DE EXPORTACIÓN INDIVIDUAL (UNA FACTURA) ──────────────
+    const handleExportSingleExcel = async (factura) => {
+        Swal.fire({ title: 'Procesando...', text: 'Extrayendo detalles', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+        const response = await ventasService.getDetalleFactura(factura.id)
+        Swal.close()
+
+        if (!response.success) return Swal.fire('Error', 'No se pudieron extraer los detalles de la factura', 'error')
+
+        const itemsExport = response.data.map(d => ({
+            'Ref / Artículo': d.nombre_producto,
+            'Cantidad': d.cantidad_producto,
+            'Precio Unitario': d.precio_producto,
+            'Subtotal': d.precio_producto * d.cantidad_producto,
+            'Descuento': d.descuento || 0,
+            'IVA': d.iva || 0,
+            'Total': d.total
+        }))
+
+        // Resumen
+        itemsExport.push({ 'Ref / Artículo': '', 'Cantidad': '', 'Precio Unitario': '', 'Subtotal': '', 'Descuento': '', 'IVA': '', 'Total': '' })
+        itemsExport.push({ 'Ref / Artículo': 'TOTALES', 'Cantidad': '', 'Precio Unitario': '', 'Subtotal': '', 'Descuento': '', 'IVA': '', 'Total': factura.total_factura })
+
+        exportToExcel(itemsExport, `Factura_${factura.prefijo || ''}${factura.numero_factura}`, "Detalle")
+    }
+
+    const handleExportSinglePDF = async (factura) => {
+        Swal.fire({ title: 'Generando Documento...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+        const response = await ventasService.getDetalleFactura(factura.id)
+        Swal.close()
+
+        if (!response.success) return Swal.fire('Error', 'No se pudieron extraer los detalles', 'error')
+
+        exportInvoicePDF({
+            factura: factura,
+            detalles: response.data,
+            configuracion: response.configuracion || {},
+            moneda: appConfig.moneda,
+            formato_numero: appConfig.formato_numero
+        });
+    }
+
     useEffect(() => {
         const container = tableContainerRef.current
         if (!container) return
@@ -89,6 +179,22 @@ export const VerFacturas = ({ currentUser }) => {
                 try {
                     const item = JSON.parse(decodeURIComponent(btnPrint.dataset.alldata))
                     imprimirDirecto(item)
+                } catch(err) { console.error(err) }
+            }
+
+            const btnExcel = e.target.closest('.btn-export-single-excel')
+            if (btnExcel) {
+                try {
+                    const item = JSON.parse(decodeURIComponent(btnExcel.dataset.alldata))
+                    handleExportSingleExcel(item)
+                } catch(err) { console.error(err) }
+            }
+
+            const btnPDF = e.target.closest('.btn-export-single-pdf')
+            if (btnPDF) {
+                try {
+                    const item = JSON.parse(decodeURIComponent(btnPDF.dataset.alldata))
+                    handleExportSinglePDF(item)
                 } catch(err) { console.error(err) }
             }
         }
@@ -191,20 +297,42 @@ export const VerFacturas = ({ currentUser }) => {
             }
         },
         {
-            data: null, title: 'Acciones', orderable: false,
+            data: null, title: 'Acciones', orderable: false, className: 'text-center',
             render: function (data, type, row) {
                 const safeData = encodeURIComponent(JSON.stringify(row))
                 const canPrint = hasPermission('ventas_imprimir')
 
                 return `
-                    <button class="btn btn-sm btn-secondary text-white btn-see-item me-1" data-alldata="${safeData}" title="Ver Detalles">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                    ${canPrint ? `
-                    <button class="btn btn-sm btn-primary text-white btn-print-item" data-alldata="${safeData}" title="Imprimir Factura">
-                        <i class="bi bi-printer"></i>
-                    </button>
-                    ` : ''}
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu shadow-sm">
+                            <li>
+                                <button class="dropdown-item btn-see-item" data-alldata="${safeData}">
+                                    <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                                </button>
+                            </li>
+                            ${canPrint ? `
+                            <li>
+                                <button class="dropdown-item btn-print-item" data-alldata="${safeData}">
+                                    <i class="bi bi-printer me-2 text-primary"></i> Imprimir Tirilla
+                                </button>
+                            </li>
+                            ` : ''}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button class="dropdown-item btn-export-single-pdf" data-alldata="${safeData}">
+                                    <i class="bi bi-file-earmark-pdf me-2 text-danger"></i> Descargar en PDF
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item btn-export-single-excel" data-alldata="${safeData}">
+                                    <i class="bi bi-file-earmark-excel me-2 text-success"></i> Exportar a Excel
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                 `
             }
         }
@@ -225,28 +353,49 @@ export const VerFacturas = ({ currentUser }) => {
                         <Form.Control type="datetime-local" size="sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </Form.Group>
                 </Col>
-                <Col md={3}>
-                    <Button 
-                        variant="outline-secondary" size="sm"
-                        onClick={() => { setStartDate(''); setEndDate(''); }}
-                        disabled={!startDate && !endDate}
-                    >
-                        <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
-                    </Button>
+                <Col md={6}>
+                    <div className="d-flex gap-2">
+                        <Button 
+                            variant="outline-secondary" size="sm"
+                            onClick={() => { setStartDate(''); setEndDate(''); }}
+                            disabled={!startDate && !endDate}
+                            title="Limpiar Filtros de Fecha"
+                        >
+                            <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
+                        </Button>
+                        <Button 
+                            variant="outline-danger" size="sm" 
+                            onClick={handleExportAllPDF} 
+                            disabled={todasLasFacturas.length === 0}
+                            title="Exportar Todo a PDF"
+                        >
+                            <i className="bi bi-file-earmark-pdf"></i>
+                        </Button>
+                        <Button 
+                            variant="outline-success" size="sm" 
+                            onClick={handleExportAllExcel} 
+                            disabled={todasLasFacturas.length === 0}
+                            title="Exportar Todo a Excel"
+                        >
+                            <i className="bi bi-file-earmark-excel"></i>
+                        </Button>
+                    </div>
                 </Col>
             </Row>
         </div>
 
         <div ref={tableContainerRef}>
-            <div className="card-body p-3 w-100 overflow-hidden">
+            <div className="card-body p-3 w-100 overflow-visible">
                 <DataTableComponent
                     tableId="dt-ver-facturas-maestro"
                     key={`facturas-main-${appConfig.moneda}-${appConfig.formato_numero}-${startDate}-${endDate}-${reloadTable}`}
                     reloadKey={reloadTable}
-                    ajaxData={(params) => {
+                    ajaxData={async (params) => {
                         params.startDate = startDate
                         params.endDate = endDate
-                        return ventasService.getFacturasPaginadas(params)
+                        const result = await ventasService.getFacturasPaginadas(params)
+                        setTodasLasFacturas(result.data || [])
+                        return result;
                     }}
                     columns={columnasTabla}
                 />

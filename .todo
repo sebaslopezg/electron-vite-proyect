@@ -3,12 +3,7 @@
 
  ## Modificaciones Prioritarias:
  
- - imprimir reportes en PDF
  - Incluir los abonos en los reportes, si la faja vale 100 mil y abonan 50 mil en el reporte aparece 100 mil, lo cual no es correcto con el efectivo.
-
- - Permitir bajar facturas en pdf y excel.
-
- - Incluir los asbonos en el reporte diario
 
  ------------------
 

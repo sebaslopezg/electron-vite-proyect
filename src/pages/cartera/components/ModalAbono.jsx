@@ -4,23 +4,37 @@ import { Button, Row, Col, Form } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { formatCurrency } from '../../../utils/currencies'
 import { carteraService } from '../../../services/carteraService'
+// Importamos ventasService para acceder al catálogo global de métodos de pago
+import { ventasService } from '../../../services/ventasService'
 
 export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, currentUser }) => {
+    const [listaMetodosPago, setListaMetodosPago] = useState([])
     const [abonoForm, setAbonoForm] = useState({
         valor: '',
         metodo_pago: 'Efectivo',
         observaciones: ''
     })
+
+    // Cargamos los métodos de pago dinámicos desde la base de datos al montar el componente
+    useEffect(() => {
+        const loadMetodos = async () => {
+            const metodos = await ventasService.getMetodosPago()
+            setListaMetodosPago(metodos || [])
+        }
+        loadMetodos()
+    }, [])
     
+    // Seteamos el estado inicial cuando se selecciona una factura
     useEffect(() => {
         if (factura) {
             setAbonoForm({
                 valor: factura.saldo_pendiente, 
-                metodo_pago: 'Efectivo',
+                // Asigna por defecto el primer método de la base de datos o 'Efectivo' en su defecto
+                metodo_pago: listaMetodosPago.length > 0 ? listaMetodosPago[0].nombre : 'Efectivo',
                 observaciones: ''
             })
         }
-    }, [factura])
+    }, [factura, listaMetodosPago])
 
     const handleChange = (e) => {
         setAbonoForm({ ...abonoForm, [e.target.name]: e.target.value })
@@ -99,9 +113,10 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
                             <Form.Group>
                                 <Form.Label className="fw-bold">Método de Pago</Form.Label>
                                 <Form.Select name="metodo_pago" value={abonoForm.metodo_pago} onChange={handleChange}>
-                                    <option value="Efectivo">Efectivo</option>
-                                    <option value="Transferencia">Transferencia Bancaria</option>
-                                    <option value="Tarjeta">Tarjeta (Datafono)</option>
+                                    {listaMetodosPago.length === 0 && <option value="Efectivo">Efectivo</option>}
+                                    {listaMetodosPago.map(m => (
+                                        <option key={m.id} value={m.nombre}>{m.nombre}</option>
+                                    ))}
                                 </Form.Select>
                             </Form.Group>
                         </Col>

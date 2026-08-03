@@ -57,7 +57,7 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
                         },
                         { 
                             data: 'valor', title: 'Valor Abonado',
-                            render: (data) => `<strong class="text-success fs-6">+${formatCurrency(data, appConfig.formato_numero, appConfig.moneda)}</strong>`
+                            render: (data) => `<strong class="text-success fs-6">${formatCurrency(data, appConfig.formato_numero, appConfig.moneda)}</strong>`
                         },
                         { data: 'usuario', title: 'Cajero' },
                         {
@@ -67,8 +67,8 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
                                 const canPrint = hasPermission('cartera_abono_imprimir')
 
                                 return canPrint ? `
-                                    <button class="btn btn-sm btn-outline-dark btn-print-abono" data-alldata="${safeData}" title="Imprimir Recibo">
-                                        <i className="bi bi-printer"></i>
+                                    <button class="btn btn-sm btn-secondary btn-print-abono" data-alldata="${safeData}" title="Imprimir Recibo">
+                                        <i class="bi bi-printer"></i> 
                                     </button>
                                 ` : '<i class="bi bi-lock-fill text-muted" title="Sin permiso de impresión"></i>'
                             }
