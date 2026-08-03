@@ -70,8 +70,8 @@ export const BaseImpresor = ({
                     </div>
                 </Modal.Body>
                 <Modal.Footer className="bg-light">
-                    <Button variant="outline-secondary" onClick={onClose}>{textoVolver}</Button>
-                    <Button variant="success" size="lg" onClick={confirmarImpresion}>
+                    <Button variant="secondary" onClick={onClose}>{textoVolver}</Button>
+                    <Button variant="primary" size="md" onClick={confirmarImpresion}>
                         <i className="bi bi-printer-fill me-2"></i> Imprimir Ahora
                     </Button>
                 </Modal.Footer>

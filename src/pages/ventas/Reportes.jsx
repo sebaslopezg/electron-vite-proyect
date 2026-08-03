@@ -5,6 +5,7 @@ import DataTableComponent from '../../components/DataTableComponent'
 import { formatCurrency } from '../../utils/currencies'
 import { ImpresorReporte } from './components/ImpresorReporte'
 import { ventasService } from '../../services/ventasService'
+import { exportToExcel, exportToPDF } from '../../utils/exporter'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -32,7 +33,7 @@ export const Reportes = () => {
     const [startDate, setStartDate] = useState(() => getLocalDatetime(true))
     const [endDate, setEndDate] = useState(() => getLocalDatetime(false))
 
-    const [facturas, setFacturas] = useState([])
+    const [transacciones, setTransacciones] = useState([])
     const [almacenConf, setAlmacenConf] = useState(null)
     const [showPreview, setShowPreview] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -59,7 +60,7 @@ export const Reportes = () => {
         setLoading(true)
         const res = await ventasService.getReporteVentas({ startDate, endDate })
         if (res.success) {
-            setFacturas(res.data);
+            setTransacciones(res.data);
             setAlmacenConf(res.configuracion)
         } else {
             Toast.fire({ icon: 'error', title: res.error || 'No se pudo cargar el reporte' })
@@ -75,14 +76,111 @@ export const Reportes = () => {
     }, [startDate, endDate]);
 
     const totales = useMemo(() => {
-        return facturas.reduce((acc, f) => {
-            acc.total += f.total_factura;
-            const metodo = f.metodo_pago || (f.tipo_pago === 'credito' ? 'Crédito' : 'Contado');
-            if (!acc.metodos[metodo]) acc.metodos[metodo] = 0;
-            acc.metodos[metodo] += f.total_factura;
+        return transacciones.reduce((acc, t) => {
+            if (t.tipo_transaccion === 'venta') {
+                acc.totalFacturado += (t.total_factura || 0);
+            }
+
+            if (t.tipo_transaccion === 'abono') {
+                const metodo = t.metodo_pago || 'Abono';
+                if (!acc.metodos[metodo]) acc.metodos[metodo] = 0;
+                acc.metodos[metodo] += (t.valor || 0);
+                
+                acc.ingresoTotalCaja += (t.valor || 0);
+            } 
+            else if (t.tipo_transaccion === 'venta') {
+                const ingresoReal = (t.total_factura || 0) - (t.saldo_pendiente || 0);
+                
+                if (ingresoReal > 0) {
+                    const metodo = t.metodo_pago || 'Contado';
+                    if (!acc.metodos[metodo]) acc.metodos[metodo] = 0;
+                    acc.metodos[metodo] += ingresoReal;
+                    
+                    acc.ingresoTotalCaja += ingresoReal;
+                }
+                
+                if (t.saldo_pendiente > 0) {
+                    if (!acc.metodos['Crédito']) acc.metodos['Crédito'] = 0;
+                    acc.metodos['Crédito'] += (t.saldo_pendiente || 0);
+                }
+            }
+
             return acc;
-        }, { total: 0, metodos: {} });
-    }, [facturas]);
+        }, { totalFacturado: 0, ingresoTotalCaja: 0, metodos: {} });
+    }, [transacciones]);
+
+    const handleExportExcel = () => {
+        try {
+            const dataToExport = transacciones.map(t => {
+                const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0));
+                const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0);
+
+                return {
+                    'Fecha y Hora': new Date(t.date_created).toLocaleString(appConfig.formato_numero),
+                    'Documento': t.tipo_transaccion === 'abono' ? `Abono a F-${t.factura_numero || ''}` : `${t.prefijo || ''}${t.separador || ''}${t.numero_factura || ''}`,
+                    'Cliente': t.nombre_cliente,
+                    'Concepto / Método': t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`),
+                    'Venta (Total)': venta,
+                    'Ingreso Real': ingreso
+                };
+            });
+
+            dataToExport.push({
+                'Fecha y Hora': '',
+                'Documento': '',
+                'Cliente': '',
+                'Concepto / Método': 'TOTALES GLOBALES',
+                'Venta (Total)': totales.totalFacturado,
+                'Ingreso Real': totales.ingresoTotalCaja
+            });
+
+            exportToExcel(dataToExport, `Reporte_Financiero_${startDate.split('T')[0]}`, "Transacciones");
+        } catch (error) {
+            console.error("Error exportando a Excel:", error);
+            Swal.fire('Error', 'No se pudo generar el archivo Excel: ' + error.message, 'error');
+        }
+    };
+
+    const handleExportPDF = () => {
+        try {
+            const tableColumn = ["Hora", "Documento", "Cliente", "Concepto / Método", "Venta", "Ingreso"];
+            const tableRows = [];
+
+            transacciones.forEach(t => {
+                const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0));
+                const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0);
+                const concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`);
+
+                const rowData = [
+                    new Date(t.date_created).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' }),
+                    t.tipo_transaccion === 'abono' ? `Abono a F-${t.factura_numero || ''}` : `${t.prefijo || ''}${t.separador || ''}${t.numero_factura || ''}`,
+                    t.nombre_cliente,
+                    concepto,
+                    venta > 0 ? _formatCurrency(venta) : '-',
+                    ingreso > 0 ? _formatCurrency(ingreso) : '$0'
+                ];
+                tableRows.push(rowData);
+            });
+
+            tableRows.push([
+                "", "", "", "TOTALES GLOBALES",
+                _formatCurrency(totales.totalFacturado),
+                _formatCurrency(totales.ingresoTotalCaja)
+            ]);
+
+            exportToPDF({
+                title: 'Reporte Financiero de Transacciones',
+                subtitle: `Periodo: ${startDate.replace('T', ' ')} a ${endDate.replace('T', ' ')}`,
+                columns: tableColumn,
+                data: tableRows,
+                filename: `Reporte_Financiero_${startDate.split('T')[0]}`
+            });
+        } catch (error) {
+            console.error("Error exportando a PDF:", error);
+            Swal.fire('Error', 'No se pudo generar el archivo PDF: ' + error.message, 'error');
+        }
+    };
+    // ──────────────────────────────────────────────────────────
 
     const columnas = [
         { 
@@ -91,28 +189,68 @@ export const Reportes = () => {
             render: (data) => new Date(data).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' })
         },
         { 
-            data: null, title: 'N° Factura',
-            render: (data, type, row) => `<strong>${row.prefijo || ''}${row.separador || ''}${row.numero_factura}</strong>`
+            data: null, title: 'Documento',
+            render: (data, type, row) => {
+                if (row.tipo_transaccion === 'abono') {
+                    return `<strong>Abono a F-${row.factura_numero || ''}</strong>`;
+                }
+                const pref = row.prefijo || '';
+                const sep = row.separador || '';
+                const num = row.numero_factura || '';
+                return `<strong>${pref}${sep}${num}</strong>`;
+            }
         },
         { data: 'nombre_cliente', title: 'Cliente' },
         { 
-            data: 'metodo_pago', title: 'Método / Tipo',
+            data: null, title: 'Concepto / Método',
             render: (data, type, row) => {
-                if (row.tipo_pago === 'credito') return '<span class="badge bg-warning text-dark">Crédito</span>'
-                return `<span class="badge bg-primary">${data || 'Contado'}</span>`
+                if (row.tipo_transaccion === 'abono') {
+                    return `<span class="badge bg-success me-1">Abono</span> <span class="badge border border-success text-success">${row.metodo_pago}</span>`;
+                }
+                if (row.tipo_pago === 'credito') {
+                    return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-warning text-warning text-dark">Crédito</span>`;
+                }
+                return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-primary text-primary">${row.metodo_pago || 'Contado'}</span>`;
             }
         },
         { 
-            data: 'total_factura', title: 'Total',
-            render: (data) => `<strong class="text-success">${_formatCurrency(data)}</strong>`
+            data: null, title: 'Venta',
+            render: (data, type, row) => {
+                if (row.tipo_transaccion === 'abono') return `<span class="text-muted">-</span>`;
+                return `${_formatCurrency(row.total_factura || 0)}`;
+            }
+        },
+        { 
+            data: null, title: 'Abono / Ingreso',
+            render: (data, type, row) => {
+                let ingreso = 0;
+                if (row.tipo_transaccion === 'abono') {
+                    ingreso = row.valor || 0;
+                } else {
+                    ingreso = (row.total_factura || 0) - (row.saldo_pendiente || 0);
+                }
+
+                if (ingreso <= 0) return `<span class="text-muted">$0</span>`;
+                return `<strong class="text-success">${_formatCurrency(ingreso)}</strong>`;
+            }
         }
     ];
 
     return <>
-        <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-            <Button variant="success" onClick={() => setShowPreview(true)} disabled={facturas.length === 0}>
-                <i className="bi bi-printer me-2"></i> Imprimir Reporte
-            </Button>
+        <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-3">
+            <div>
+                <Button variant="primary" className="me-2" onClick={() => setShowPreview(true)} disabled={transacciones.length === 0}>
+                    <i className="bi bi-printer me-2"></i> Imprimir Tirilla
+                </Button>
+            </div>
+            <div className="d-flex gap-2">
+                <Button variant="danger" onClick={handleExportPDF} disabled={transacciones.length === 0}>
+                    <i className="bi bi-file-earmark-pdf me-2"></i> Exportar PDF
+                </Button>
+                <Button variant="success" onClick={handleExportExcel} disabled={transacciones.length === 0}>
+                    <i className="bi bi-file-earmark-excel me-2"></i> Exportar Excel
+                </Button>
+            </div>
         </div>
 
         <Row className="mb-4">
@@ -135,10 +273,20 @@ export const Reportes = () => {
                 <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 h-100">
                     <Card.Body className="p-3">
                         <p className="text-success small mb-1 fw-bold text-uppercase">Total Facturado</p>
-                        <h4 className="m-0 text-success fw-bold">{_formatCurrency(totales.total)}</h4>
+                        <h4 className="m-0 text-success fw-bold">{_formatCurrency(totales.totalFacturado)}</h4>
                     </Card.Body>
                 </Card>
             </Col>
+            
+            <Col xs={12} sm={6} md={4} lg={3}>
+                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 h-100">
+                    <Card.Body className="p-3">
+                        <p className="text-success small mb-1 fw-bold text-uppercase">Ingreso Caja</p>
+                        <h4 className="m-0 text-success fw-bold">{_formatCurrency(totales.ingresoTotalCaja)}</h4>
+                    </Card.Body>
+                </Card>
+            </Col>
+
             {Object.entries(totales.metodos).map(([metodo, valor]) => (
                 <Col xs={12} sm={6} md={4} lg={3} key={metodo}>
                     <Card className="shadow-sm border-0 border-start border-primary border-4 h-100">
@@ -151,16 +299,17 @@ export const Reportes = () => {
             ))}
         </Row>
 
-        <h6 className="fw-bold text-secondary mb-3">Detalle de Facturas ({facturas.length})</h6>
+        <h6 className="mb-3">Detalle de Transacciones ({transacciones.length})</h6>
         <div className="w-100 overflow-hidden bg-white">
             {loading ? (
                 <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
             ) : (
                 <DataTableComponent 
                     tableId="dt-reportes-ventas"
-                    key={`reporte-${startDate}-${endDate}-${facturas.length}`}
-                    data={facturas}
+                    key={`reporte-${startDate}-${endDate}-${transacciones.length}`}
+                    data={transacciones}
                     columns={columnas}
+                    order={[[0, 'desc']]}
                 />
             )}
         </div>
@@ -168,7 +317,7 @@ export const Reportes = () => {
         <ImpresorReporte 
             show={showPreview} 
             onClose={() => setShowPreview(false)} 
-            facturas={facturas}
+            facturas={transacciones}
             almacenConf={almacenConf}
             fechaInicio={startDate}
             fechaFin={endDate}

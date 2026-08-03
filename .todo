@@ -1,7 +1,17 @@
+### Local: 481E4AFD-21C2-DD45-9149-3D476A74AF76
  # Lista de actividades pendientes para desarrollar
 
  ## Modificaciones Prioritarias:
  
+ - imprimir reportes en PDF
+ - Incluir los abonos en los reportes, si la faja vale 100 mil y abonan 50 mil en el reporte aparece 100 mil, lo cual no es correcto con el efectivo.
+
+ - Permitir bajar facturas en pdf y excel.
+
+ - Incluir los asbonos en el reporte diario
+
+ ------------------
+
  - Modificar resumen de ventas, agregar filtros para visualizar lo que debe tener en efectivo, y quitar las ventas que tengan NC
 
  - Modificar cache para que se guarde en DB y no en localstorage, ya que se borra. (o corregir el local storage)

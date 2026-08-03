@@ -143,7 +143,7 @@ contextBridge.exposeInMainWorld("api", {
   getAbonosPaginados: (params) => ipcRenderer.invoke('get-abonos-paginados', params),
 
   // Exportación de Datos
-  exportDatabase: () => ipcRenderer.invoke('export-db'),
+  exportDatabase: (data) => ipcRenderer.invoke('export-db', data),
 
   // Subcategorias
   getSubcategorias: () => ipcRenderer.invoke("get-subcategorias"),

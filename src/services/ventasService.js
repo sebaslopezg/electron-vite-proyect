@@ -240,38 +240,57 @@ export const ventasService = {
 
     // ─── REPORTES FINANCIEROS DE VENTAS ──────────────────────
     getReporteVentas: async ({ startDate, endDate }) => {
-        if (isElectron()) {
-            return await window.api.getReporteVentas({ startDate, endDate })
-        } else {
-            try {
-                const response = await api.get('/sales/reporte', { params: { startDate, endDate } })
-                const resData = response.data;
-                const rawFacturas = resData.data || []
+        try {
+            let rawFacturas = [];
+            let rawAbonos = [];
+            let configuracion = null;
 
-                const mappedFacturas = rawFacturas.map(f => ({
-                    id: f.id,
-                    date_created: f.createdAt,
-                    numero_factura: f.invoiceNumber,
-                    prefijo: f.prefix,
-                    separador: f.separador || '-',
-                    nombre_cliente: f.customerName || 'Cliente Mostrador',
-                    tipo_pago: f.paymentType,
-                    total_factura: f.total
-                }))
+            // Extraemos los datos dependiendo de si es Electron o Web
+            if (isElectron()) {
+                const res = await window.api.getReporteVentas({ startDate, endDate });
+                if (!res.success) throw new Error(res.error || 'Error local');
+                rawFacturas = res.data || [];
+                rawAbonos = res.abonos || [];
+                configuracion = res.configuracion || null;
+            } else {
+                const response = await api.get('/sales/reporte', { params: { startDate, endDate } });
+                rawFacturas = response.data.data || [];
+                rawAbonos = response.data.abonos || [];
+                configuracion = response.data.configuracion || null;
+            }
 
-                return {
-                    success: true,
-                    data: mappedFacturas,
-                    configuracion: resData.configuracion || null
-                }
-            } catch (error) {
-                return {
-                    success: false,
-                    error: error.response?.data?.message || 'Error al compilar el reporte en la nube'
-                }
+            // Mapeo seguro conservando todas las propiedades nativas
+            const mappedFacturas = rawFacturas.map(f => ({
+                ...f, 
+                tipo_transaccion: 'venta',
+                date_created: f.createdAt || f.date_created,
+                nombre_cliente: f.customerName || f.nombre_cliente || 'Cliente Mostrador'
+            }));
+
+            const mappedAbonos = rawAbonos.map(a => ({
+                ...a,
+                id: `abono-${a.id}`,
+                tipo_transaccion: 'abono',
+                date_created: a.fecha || a.date_created,
+                nombre_cliente: a.cliente_nombre || 'Desconocido'
+            }));
+
+            // Combinamos las listas y ordenamos descendentemente por fecha
+            const transaccionesUnificadas = [...mappedFacturas, ...mappedAbonos].sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
+
+            return {
+                success: true,
+                data: transaccionesUnificadas,
+                configuracion
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message || 'Error al compilar el reporte'
             }
         }
     },
+
     // ─── CONSULTA DE SUBCATEGORÍAS ───────────────────────────
     getSubcategorias: async () => {
         if (isElectron()) {

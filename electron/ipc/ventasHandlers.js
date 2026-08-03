@@ -191,7 +191,7 @@ export const registerVentasHandlers = () => {
             return { success: false, error: "No autorizado para consultar reportes financieros de ventas." };
         }
         try {
-            let baseQuery = `
+            let baseQueryVentas = `
                 FROM ventasMaestro v 
                 WHERE v.status > 0 
                 AND NOT EXISTS (
@@ -204,27 +204,54 @@ export const registerVentasHandlers = () => {
             let queryParams = [];
 
             if (startDate) {
-                baseQuery += " AND date(v.date_created) >= date(?)";
+                baseQueryVentas += " AND date(v.date_created) >= date(?)";
                 queryParams.push(startDate);
             }
             if (endDate) {
-                baseQuery += " AND date(v.date_created) <= date(?)";
+                baseQueryVentas += " AND date(v.date_created) <= date(?)";
                 queryParams.push(endDate);
             }
 
-            const query = `
+            const queryVentas = `
                 SELECT v.*,
                 (SELECT separador FROM almacen_conf LIMIT 1) AS separador
-                ${baseQuery}
+                ${baseQueryVentas}
                 ORDER BY v.date_created ASC
             `;
             
-            const data = db.prepare(query).all(...queryParams);
+            const dataVentas = db.prepare(queryVentas).all(...queryParams);
+
+            let abonosWhere = `WHERE 1=1`;
+            let abonosParams = [];
+
+            if (startDate) {
+                abonosWhere += " AND date(a.date_created) >= date(?)";
+                abonosParams.push(startDate);
+            }
+            if (endDate) {
+                abonosWhere += " AND date(a.date_created) <= date(?)";
+                abonosParams.push(endDate);
+            }
+
+            const queryAbonos = `
+                SELECT a.*, v.numero_factura as factura_numero, v.nombre_cliente as cliente_nombre 
+                FROM abonos_ventas a
+                LEFT JOIN ventasMaestro v ON a.maestro_id = v.id
+                ${abonosWhere}
+                ORDER BY a.date_created ASC
+            `;
+            
+            let dataAbonos = [];
+            try {
+                dataAbonos = db.prepare(queryAbonos).all(...abonosParams);
+            } catch (e) {
+                logger.warning('REPORTES_VENTAS', "No se encontraron abonos en el rango de fechas.", e.message);
+            }
             
             const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
             const configuracion = confStmt.get() || {};
 
-            return { success: true, data, configuracion };
+            return { success: true, data: dataVentas, abonos: dataAbonos, configuracion };
         } catch (error) {
             logger.error('REPORTES_VENTAS', "Error generando el reporte de ventas por rango de fechas", error);
             return { success: false, error: error.message };
@@ -238,6 +265,7 @@ export const registerVentasHandlers = () => {
         const transaction = db.transaction((maestroData, detallesData) => {
             const now = new Date().toISOString()
             const maestroId = uuidv4()
+            const currentUser = global.currentUserSession?.username || 'system'
 
             const config = db.prepare('SELECT * FROM almacen_conf LIMIT 1').get()
             if (!config) throw new Error("No se encontró configuración del almacén")
@@ -354,8 +382,8 @@ export const registerVentasHandlers = () => {
 
                     db.prepare(`
                         INSERT INTO comprobantes (id, numero_comprobante, fecha, concepto, documento_referencia, estado, date_created, modify_by)
-                        VALUES (?, ?, ?, ?, ?, 1, ?, 'system')
-                    `).run(comprobanteId, numeroComprobante, now, conceptoFactura, `${prefijoFactura}${nuevoNumeroFactura}`, now)
+                        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                    `).run(comprobanteId, numeroComprobante, now, conceptoFactura, `${prefijoFactura}${nuevoNumeroFactura}`, now, currentUser)
 
                     const insertDetalleContable = db.prepare(`
                         INSERT INTO comprobantesDetalle (id, comprobante_id, cuenta_id, tercero_id, descripcion_linea, debito, credito)
@@ -392,7 +420,7 @@ export const registerVentasHandlers = () => {
                     }
                 }
             } catch (err) {
-                throw err
+                logger.warning('CONTABILIDAD', "Aviso: Comprobante contable automático cancelado por error de configuración de cuentas.", err.message)
             }
 
             return {
