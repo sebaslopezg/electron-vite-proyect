@@ -130,6 +130,7 @@ contextBridge.exposeInMainWorld("api", {
   selectCsvFile: () => ipcRenderer.invoke('select-csv-file'),
   readCsvFile: (filePath) => ipcRenderer.invoke('read-csv-file', filePath),
   executeImportCsv: (data) => ipcRenderer.invoke('execute-import-csv', data),
+  executeAutoImport: (data) => ipcRenderer.invoke("execute-auto-import-caedro", data),
 
   // logs de consola en backend
   onImportLog: (callback) => ipcRenderer.on('import-log', (_event, msg) => callback(msg)),

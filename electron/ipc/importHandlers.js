@@ -784,4 +784,84 @@ export const registerImportHandlers = () => {
             return { success: false, error: error.message }; 
         }
     });
+
+    ipcMain.handle("execute-auto-import-caedro", async (event, { filePath }) => {
+        const sendLog = (msg) => { if (event && event.sender) event.sender.send('import-log', msg); };
+        try {
+            sendLog(`[AUTO] Abriendo base de datos de respaldo...`);
+            const extDb = new Database(filePath, { readonly: true });
+            
+            sendLog(`[AUTO] Mapeando tablas compatibles...`);
+            const extTables = extDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(t => t.name);
+            const internalTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all().map(t => t.name);
+
+            let totalInserted = 0;
+            let totalSkipped = 0;
+
+            db.pragma('foreign_keys = OFF');
+
+            const transaction = db.transaction(() => {
+                for (const tableName of extTables) {
+                    if (!internalTables.includes(tableName)) {
+                        sendLog(`[AUTO] ⏭️ Tabla '${tableName}' ignorada (No existe en tu sistema actual).`);
+                        continue;
+                    }
+
+                    const extCols = extDb.prepare(`PRAGMA table_info(${tableName})`).all().map(c => c.name);
+                    const intCols = db.prepare(`PRAGMA table_info(${tableName})`).all().map(c => c.name);
+                    
+                    const commonCols = extCols.filter(c => intCols.includes(c));
+                    
+                    if (commonCols.length === 0) continue;
+
+                    const rows = extDb.prepare(`SELECT ${commonCols.join(', ')} FROM ${tableName}`).all();
+                    if (rows.length === 0) continue;
+
+                    sendLog(`[AUTO] ⚙️ Procesando ${rows.length} registros en '${tableName}'...`);
+
+                    const placeholders = commonCols.map(() => '?').join(', ');
+                    // INSERT OR IGNORE agregará lo nuevo y saltará automáticamente lo que ya exista
+                    const insertStmt = db.prepare(`INSERT OR IGNORE INTO ${tableName} (${commonCols.join(', ')}) VALUES (${placeholders})`);
+
+                    let insertedInTable = 0;
+                    for (const row of rows) {
+                        const values = commonCols.map(col => row[col]);
+                        const info = insertStmt.run(values);
+                        if (info.changes > 0) {
+                            insertedInTable++;
+                            totalInserted++;
+                        } else {
+                            totalSkipped++;
+                        }
+                    }
+                    if(insertedInTable > 0) {
+                        sendLog(`[AUTO] ✓ '${tableName}': ${insertedInTable} registros nuevos agregados.`);
+                    }
+                }
+            });
+
+            // 2. EJECUTAR TRANSACCIÓN Y REACTIVAR LLAVES
+            try {
+                transaction();
+            } finally {
+                // Siempre reactivar las llaves foráneas, incluso si la transacción falla
+                db.pragma('foreign_keys = ON');
+            }
+            
+            extDb.close();
+
+            sendLog(`[AUTO] ✅ Proceso finalizado con éxito.`);
+            logger.success('IMPORTACION', `Auto-importación de respaldo completada`, `Nuevos: ${totalInserted} | Duplicados omitidos: ${totalSkipped}`);
+            
+            return { success: true, rows: totalInserted, skipped: totalSkipped };
+
+        } catch (error) {
+            // Asegurarnos de encender la protección si el error ocurrió antes de la transacción
+            try { db.pragma('foreign_keys = ON'); } catch(e) {}
+            
+            logger.error('IMPORTACION', "Error crítico en Auto-Importación", error);
+            sendLog(`[AUTO] ❌ ERROR CRÍTICO: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    });
 };

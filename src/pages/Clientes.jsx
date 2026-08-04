@@ -111,8 +111,8 @@ export const Clientes = ({ currentUser }) => {
                                         const canDelete = hasPermission('clientes_eliminar');
 
                                         return `
-                                            ${canEdit ? `<button class="btn btn-sm btn-outline-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>` : ''}
-                                            ${canDelete ? `<button class="btn btn-sm btn-outline-danger btn-delete" data-alldata="${safeData}" title="Eliminar"><i class="bi bi-trash"></i></button>` : ''}
+                                            ${canEdit ? `<button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>` : ''}
+                                            ${canDelete ? `<button class="btn btn-sm btn-danger btn-delete" data-alldata="${safeData}" title="Eliminar"><i class="bi bi-trash"></i></button>` : ''}
                                         `;
                                     }
                                 }

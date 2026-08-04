@@ -3,10 +3,6 @@
 
  ## Modificaciones Prioritarias:
  
- - Incluir los abonos en los reportes, si la faja vale 100 mil y abonan 50 mil en el reporte aparece 100 mil, lo cual no es correcto con el efectivo.
-
- ------------------
-
  - Modificar resumen de ventas, agregar filtros para visualizar lo que debe tener en efectivo, y quitar las ventas que tengan NC
 
  - Modificar cache para que se guarde en DB y no en localstorage, ya que se borra. (o corregir el local storage)

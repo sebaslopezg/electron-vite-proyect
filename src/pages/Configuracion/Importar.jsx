@@ -42,7 +42,7 @@ export const Importar = ({ currentUser }) => {
     const [externalSchema, setExternalSchema] = useState({})
     const [internalSchema, setInternalSchema] = useState({})
 
-    //Estado de consola (Ahora guardará objetos { time, text })
+    //Estado de consola
     const [showConsole, setShowConsole] = useState(false)
     const [consoleLogs, setConsoleLogs] = useState([])
     const logsEndRef = useRef(null)
@@ -69,7 +69,7 @@ export const Importar = ({ currentUser }) => {
     const [relMapMaestro, setRelMapMaestro] = useState({})
     const [relMapDetalle, setRelMapDetalle] = useState({})
 
-    // Modales y preview (componetizar)
+    // Modales y preview
     const [showPreview, setShowPreview] = useState(false)
     const [previewCols, setPreviewCols] = useState([])
     const [previewData, setPreviewData] = useState([])
@@ -91,7 +91,6 @@ export const Importar = ({ currentUser }) => {
 
         if (window.api.onImportLog) {
             window.api.onImportLog((msg) => {
-                // Almacenamos el timestamp fijo al momento de recibir el log
                 setConsoleLogs(prevLogs => [...prevLogs, { time: new Date().toLocaleTimeString(), text: msg }])
             })
         }
@@ -162,8 +161,48 @@ export const Importar = ({ currentUser }) => {
         }
     }
 
-    const executeUniversalImport = async (type) => {
+    // ───AUTO-IMPORTACIÓN NATIVA  ───────────────
+    const executeAutoImport = async () => {
+        if (!hasPermission()) return Swal.fire('Bloqueado', 'No posees la credencial para importar datos', 'error')
+        
+        const confirm = await Swal.fire({
+            title: '¿Iniciar Auto-Importación?',
+            text: 'El sistema buscará tablas compatibles con Caedro e insertará todos los registros de forma automática. Los registros que ya existan (mismo ID) serán omitidos para evitar daños.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, Auto-Importar Todo'
+        })
 
+        if (confirm.isConfirmed) {
+            setConsoleLogs([{ time: new Date().toLocaleTimeString(), text: "[SISTEMA] Iniciando Auto-Importación nativa..." }])
+            setShowConsole(true)
+
+            try {
+                const res = await window.api.executeAutoImport({ filePath })
+                
+                if (res.success) {
+                    setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: "[SISTEMA] ✓ Restauración completada con éxito. Cerrando consola..." }])
+                    
+                    setTimeout(() => {
+                        setShowConsole(false)
+                        let msg = `Se agregaron <strong>${res.rows}</strong> registros nuevos.`
+                        if(res.skipped > 0) msg += `<br><small class="text-muted">Se omitieron ${res.skipped} registros que ya existían.</small>`
+                        
+                        Swal.fire({ title: '¡Restauración Exitosa!', html: msg, icon: 'success' })
+                        resetWizard(true)
+                    }, 3000)
+
+                } else {
+                    setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: `[SISTEMA] X ERROR: ${res.error}` }])
+                }
+            } catch (err) {
+                setConsoleLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), text: `[SISTEMA] X ERROR CRÍTICO: Fallo en la comunicación con la base de datos.` }]);
+            }
+        }
+    };
+    // ────────────────────────────────────────────────────────────────────
+
+    const executeUniversalImport = async (type) => {
         if (!hasPermission()) return Swal.fire('Bloqueado', 'No posees la credencial para importar datos', 'error')
             
         if (Object.keys(mapping).length === 0 && Object.keys(fieldJoins).length === 0 && Object.keys(defaultValues).length === 0) {
@@ -517,14 +556,17 @@ return <>
             <div className="animate__animated animate__fadeIn">
                 <Alert variant="success"><i className="bi bi-check-circle me-2"></i>Archivo {fileType?.toUpperCase()} cargado correctamente.</Alert>
                 
-                {/* btns importacion */}
                 <div className="d-flex gap-3 mb-4 justify-content-center border-bottom pb-4 flex-wrap">
                     <Button variant={importMode === 'simple' ? 'primary' : 'outline-primary'} onClick={() => setImportMode('simple')}><i className="bi bi-table me-2"></i>Simple (Tabla a Tabla)</Button>
                     
                     {fileType === 'sql' && (
                         <>
-                            <Button variant={importMode === 'avanzado' ? 'dark' : 'outline-dark'} onClick={() => setImportMode('avanzado')}><i className="bi bi-magic me-2"></i>Avanzado (SQL + JSON)</Button>
-                            <Button variant={importMode === 'relacional' ? 'success' : 'outline-success'} onClick={() => setImportMode('relacional')}><i className="bi bi-diagram-3 me-2"></i>Facturas (Auto-Ensamblar)</Button>
+                            <Button variant={importMode === 'avanzado' ? 'primary' : 'outline-primary'} onClick={() => setImportMode('avanzado')}><i className="bi bi-magic me-2"></i>Avanzado (SQL + JSON)</Button>
+                            <Button variant={importMode === 'relacional' ? 'primary' : 'outline-primary'} onClick={() => setImportMode('relacional')}><i className="bi bi-diagram-3 me-2"></i>Facturas (Auto-Ensamblar)</Button>
+                            
+                            <Button variant="outline-primary" className="fw-bold" onClick={executeAutoImport}>
+                                <i className="bi bi-lightning-charge-fill me-2"></i>Auto-Importar
+                            </Button>
                         </>
                     )}
                 </div>

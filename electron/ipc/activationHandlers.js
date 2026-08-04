@@ -1,6 +1,6 @@
 import { ipcMain } from "electron"
 import { v4 as uuidv4 } from "uuid"
-import db from "../database/index.js"
+import { appDb } from "../database/index.js"
 import { execSync } from "child_process"
 import crypto from "crypto"
 import { logger } from "../utils/logger.js"
@@ -30,7 +30,8 @@ const generateValidKey = (hwid) => {
 
 export const registerActivationHandlers = () => {
     
-    db.exec(`
+    // Generamos la tabla en la base de datos global (appDb)
+    appDb.exec(`
         CREATE TABLE IF NOT EXISTS licencia (
             id TEXT PRIMARY KEY,
             hardware_id TEXT,
@@ -43,7 +44,7 @@ export const registerActivationHandlers = () => {
     ipcMain.handle("check-license", () => {
         try {
             const hwid = getHardwareId()
-            const license = db.prepare("SELECT * FROM licencia LIMIT 1").get()
+            const license = appDb.prepare("SELECT * FROM licencia LIMIT 1").get()
 
             if (!license || license.activado !== 1) {
                 return { success: true, activated: false, hardwareId: hwid }
@@ -68,9 +69,9 @@ export const registerActivationHandlers = () => {
 
             if (claveIngresada.trim().toUpperCase() === expectedKey) {
                 const now = new Date().toISOString()
-                db.prepare("DELETE FROM licencia").run()
+                appDb.prepare("DELETE FROM licencia").run()
                 
-                db.prepare(`
+                appDb.prepare(`
                     INSERT INTO licencia (id, hardware_id, clave_activacion, activado, date_activated) 
                     VALUES (?, ?, ?, 1, ?)
                 `).run(uuidv4(), hwid, expectedKey, now)
