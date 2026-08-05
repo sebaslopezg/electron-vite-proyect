@@ -33,6 +33,26 @@ export const Activation = ({ hardwareId, onActivationSuccess }) => {
         Swal.fire({ toast: true, position: 'bottom-end', title: '¡ID Copiado!', icon: 'success', showConfirmButton: false, timer: 2000 })
     }
 
+    const verDiagnostico = async () => {
+        try {
+            const data = await window.api.getHwidDebug()
+            const logsHtml = data.logs.map(log => `<div>${log}</div>`).join('<br/>')
+            
+            Swal.fire({
+                title: 'Diagnóstico de Hardware',
+                html: `<div style="text-align: left; font-size: 0.85rem; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 5px; max-height: 250px; overflow-y: auto;">
+                        <strong>HWID Calculado:</strong> ${data.hwid}<br/><br/>
+                        <strong>Traza de ejecución:</strong><br/>
+                        ${logsHtml}
+                       </div>`,
+                width: '600px',
+                confirmButtonText: 'Cerrar'
+            })
+        } catch (error) {
+            Swal.fire('Error', 'No se pudo obtener el diagnóstico.', 'error')
+        }
+    }
+
     return (
         <main className="bg-light min-vh-100 d-flex align-items-center justify-content-center">
             <div className="container">
@@ -49,7 +69,7 @@ export const Activation = ({ hardwareId, onActivationSuccess }) => {
                                 <div className="bg-white border rounded p-3 mb-4 text-start">
                                     <Form.Label className="small fw-bold text-secondary mb-1">ID de Hardware de este Equipo:</Form.Label>
                                     <InputGroup size="sm">
-                                        <Form.Control readOnly value={hardwareId} className="bg-light font-monospace text-center small" />
+                                        <Form.Control readOnly value={hardwareId} className="bg-light font-monospace text-center small text-danger fw-bold" />
                                         <Button variant="outline-secondary" onClick={copiarHwid}>
                                             <i className="bi bi-clipboard"></i> Copiar
                                         </Button>
@@ -75,6 +95,13 @@ export const Activation = ({ hardwareId, onActivationSuccess }) => {
                                         {loading ? 'Validando...' : 'Activar mi Licencia'}
                                     </Button>
                                 </Form>
+
+                                <div className="mt-4">
+                                    <Button variant="link" size="sm" className="text-muted text-decoration-none" onClick={verDiagnostico}>
+                                        <i className="bi bi-bug me-1"></i> Ver log de diagnóstico
+                                    </Button>
+                                </div>
+
                             </Card.Body>
                         </Card>
                     </Col>

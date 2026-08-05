@@ -135,6 +135,7 @@ contextBridge.exposeInMainWorld("api", {
   // logs de consola en backend
   onImportLog: (callback) => ipcRenderer.on('import-log', (_event, msg) => callback(msg)),
   removeAllImportLogs: () => ipcRenderer.removeAllListeners('import-log'),
+  getHwidDebug: () => ipcRenderer.invoke('get-hwid-debug'),
 
   // Cartera y cobranzas
   getCartera: () => ipcRenderer.invoke("get-cartera"),
