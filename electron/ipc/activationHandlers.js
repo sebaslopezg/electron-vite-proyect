@@ -1,6 +1,6 @@
 import { ipcMain } from "electron"
 import { v4 as uuidv4 } from "uuid"
-import { appDb } from "../database/index.js"
+import db, { appDb } from "../database/index.js" // Importamos ambas BD
 import { execSync } from "child_process"
 import crypto from "crypto"
 import os from "os"
@@ -92,8 +92,39 @@ export const registerActivationHandlers = () => {
 
     ipcMain.handle("check-license", () => {
         try {
-            const { hwid } = getHardwareId() // Modificado
-            const license = appDb.prepare("SELECT * FROM licencia LIMIT 1").get()
+            const { hwid } = getHardwareId()
+            let license = appDb.prepare("SELECT * FROM licencia LIMIT 1").get()
+
+            // --- MIGRACIÓN SILENCIOSA (Retrocompatibilidad) ---
+            if (!license || license.activado !== 1) {
+                try {
+                    // Verificar si la base de datos del perfil antiguo tiene la licencia
+                    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='licencia'").get();
+                    if (tableExists) {
+                        const legacyLicense = db.prepare("SELECT * FROM licencia LIMIT 1").get();
+                        
+                        if (legacyLicense && legacyLicense.activado === 1) {
+                            // Copiar la licencia a la base de datos global
+                            appDb.prepare("DELETE FROM licencia").run();
+                            appDb.prepare(`
+                                INSERT INTO licencia (id, hardware_id, clave_activacion, activado, date_activated) 
+                                VALUES (?, ?, ?, 1, ?)
+                            `).run(
+                                legacyLicense.id || uuidv4(), 
+                                legacyLicense.hardware_id || hwid, 
+                                legacyLicense.clave_activacion, 
+                                legacyLicense.date_activated || new Date().toISOString()
+                            );
+                            
+                            license = legacyLicense;
+                            logger.success('SEGURIDAD', 'Licencia heredada migrada automáticamente a la base de datos global.');
+                        }
+                    }
+                } catch (migrationError) {
+                    // Ignoramos silenciosamente si la tabla vieja no existe o está corrupta
+                }
+            }
+            // ---------------------------------------------------
 
             if (!license || license.activado !== 1) {
                 return { success: true, activated: false, hardwareId: hwid }
@@ -113,7 +144,7 @@ export const registerActivationHandlers = () => {
 
     ipcMain.handle("activate-app", (_, claveIngresada) => {
         try {
-            const { hwid } = getHardwareId() // Modificado
+            const { hwid } = getHardwareId()
             const expectedKey = generateValidKey(hwid)
 
             if (claveIngresada.trim().toUpperCase() === expectedKey) {

@@ -5,6 +5,9 @@ import Swal from 'sweetalert2'
 export const Activation = ({ hardwareId, onActivationSuccess }) => {
     const [key, setKey] = useState('')
     const [loading, setLoading] = useState(false)
+    
+    // Mostrar diagnóstico si el ID es genérico (falló HWID real)
+    const [showDebug, setShowDebug] = useState(() => hardwareId?.includes('GEN-HWID'))
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -24,6 +27,7 @@ export const Activation = ({ hardwareId, onActivationSuccess }) => {
                 onActivationSuccess()
             })
         } else {
+            setShowDebug(true) // Mostrar el botón de diagnóstico si la clave falla
             Swal.fire('Error de Validación', res.error || 'Clave inválida', 'error')
         }
     }
@@ -96,11 +100,13 @@ export const Activation = ({ hardwareId, onActivationSuccess }) => {
                                     </Button>
                                 </Form>
 
-                                <div className="mt-4">
-                                    <Button variant="link" size="sm" className="text-muted text-decoration-none" onClick={verDiagnostico}>
-                                        <i className="bi bi-bug me-1"></i> Ver log de diagnóstico
-                                    </Button>
-                                </div>
+                                {showDebug && (
+                                    <div className="mt-4 animate__animated animate__fadeIn">
+                                        <Button variant="link" size="sm" className="text-muted text-decoration-none" onClick={verDiagnostico}>
+                                            <i className="bi bi-bug me-1"></i> Ver log de diagnóstico
+                                        </Button>
+                                    </div>
+                                )}
 
                             </Card.Body>
                         </Card>
