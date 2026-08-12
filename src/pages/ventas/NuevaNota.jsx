@@ -77,19 +77,14 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
     }
 
     const handleSearchFactura = async () => {
-        if (!formData.numero_factura_origen) {
+        const busquedaExacta = formData.numero_factura_origen.trim()
+
+        if (!busquedaExacta) {
             Toast.fire({ icon: 'warning', title: 'Ingrese un número de factura' })
             return
         }
 
-        const numeroLimpio = formData.numero_factura_origen.replace(/\D/g, '')
-
-        if (!numeroLimpio) {
-            Toast.fire({ icon: 'warning', title: 'Asegúrese de incluir el número de la factura' })
-            return
-        }
-
-        const result = await ventasService.searchFactura(numeroLimpio)
+        const result = await ventasService.searchFactura(busquedaExacta)
         
         if (result.success) {
             setFacturaCargada(result.maestro)
@@ -141,7 +136,7 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
             amount: cantAAgregar,
             cantidad: cantAAgregar,
             precio_unitario: prodFactura.precio_producto,
-            iva_percent: (prodFactura.iva || 19) / 100,
+            iva_percent: Number(prodFactura.iva ?? 0) / 100,
             get subtotal() { return this.cantidad * this.precio_unitario },
             get total() { return this.subtotal * (1 + this.iva_percent) }
         };
@@ -310,8 +305,11 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                                         title: 'SKU',
                                         render: (data, type, row) => {
                                             if (!data) return '-'
-                                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
-                                            return `<strong>${prefix}${data.toUpperCase()}</strong>`
+                                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
+                                            const skuVal = String(data).toUpperCase();
+                                            
+                                            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+                                            return `<strong>${finalSku}</strong>`;
                                         }
                                     },
                                     { data: 'nombre_producto', title: 'Producto' },

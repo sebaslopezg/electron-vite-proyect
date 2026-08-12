@@ -23,11 +23,17 @@ export const ModalSeleccionItemNota = ({
                             value={itemForm.id_producto} 
                             onChange={(e) => setItemForm({...itemForm, id_producto: e.target.value})}
                         >
-                            {productosDisponibles.map((prod, idx) => (
-                                <option key={idx} value={prod.id_producto}>
-                                    {prod.sku_prefix ? `${prod.sku_prefix}${prod.separador || ''}` : ''}{prod.sku || ''} - {prod.nombre_producto} (Vendidos: {prod.cantidad_producto})
-                                </option>
-                            ))}
+                            {productosDisponibles.map((prod, idx) => {
+                                const prefix = prod.sku_prefix ? `${prod.sku_prefix}${prod.separador || ''}`.toUpperCase() : '';
+                                const skuVal = String(prod.sku || '').toUpperCase();
+                                const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+
+                                return (
+                                    <option key={idx} value={prod.id_producto}>
+                                        {finalSku} - {prod.nombre_producto} (Vendidos: {prod.cantidad_producto})
+                                    </option>
+                                );
+                            })}
                         </Form.Select>
                     </Form.Group>
                     <Form.Group className="mb-3">

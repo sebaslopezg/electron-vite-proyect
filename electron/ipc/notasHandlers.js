@@ -165,11 +165,20 @@ export const registerNotasHandlers = () => {
   ipcMain.handle("search-factura", (_, numero_factura) => {
     if (!checkPermission("notas_gestionar")) return { success: false, message: "No autorizado" };
     try {
-      const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE numero_factura = ? AND status > 0').get(numero_factura)
+      const stmt = db.prepare(`
+        SELECT * FROM ventasMaestro 
+        WHERE (
+            (IFNULL(prefijo, '') || IFNULL(separador, '') || numero_factura) COLLATE NOCASE = ? 
+            OR numero_factura = ?
+        )
+        AND status > 0
+      `);
+      
+      const maestro = stmt.get(numero_factura, numero_factura)
       if (!maestro) return { success: false, message: 'Factura no encontrada' }
 
       const detalles = db.prepare(`
-          SELECT df.*, p.sku, c.sku_prefix, c.separador
+          SELECT df.*, p.sku, p.iva, c.sku_prefix, c.separador
           FROM ventasDetalle df
           LEFT JOIN producto p ON df.id_producto = p.id
           LEFT JOIN categoria c ON p.categoria_id = c.id
