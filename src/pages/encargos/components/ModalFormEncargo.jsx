@@ -13,6 +13,9 @@ export const ModalFormEncargo = ({
     facturaOrigen,
     estados
 }) => {
+    
+    const isEncargoGeneral = !editingId || (editingId && !form.producto_id)
+
     return <>
         <Modal show={show} onHide={handleClose} size="md" centered backdrop="static">
             <Modal.Header closeButton className="bg-light">
@@ -45,6 +48,26 @@ export const ModalFormEncargo = ({
                                     <i className="bi bi-person me-1"></i> <strong>Cliente:</strong> {facturaOrigen.nombre_cliente}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {isEncargoGeneral ? (
+                        <Form.Group className="mb-3 animate__animated animate__fadeIn">
+                            <Form.Label htmlFor="titulo_personalizado" className="fw-bold small text-primary">Título del Encargo (Opcional)</Form.Label>
+                            <Form.Control
+                                id="titulo_personalizado"
+                                value={form.titulo_personalizado || ''}
+                                onChange={(e) => setForm({ ...form, titulo_personalizado: e.target.value })}
+                                type="text"
+                                placeholder="Ej: Pedido Especial Fiesta..."
+                            />
+                            <Form.Text className="text-muted" style={{fontSize:'0.7rem'}}>
+                                Este nombre reemplazará el texto "Factura" en el calendario.
+                            </Form.Text>
+                        </Form.Group>
+                    ) : (
+                        <div className="alert alert-secondary py-2 m-0 mb-3 small shadow-sm border-secondary animate__animated animate__fadeIn">
+                            <i className="bi bi-box-seam me-1"></i> <strong>Producto Asociado:</strong> {form.producto_nombre}
                         </div>
                     )}
 

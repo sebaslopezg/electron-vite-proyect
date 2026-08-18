@@ -4,6 +4,13 @@ import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
 export const registerEncargosHandlers = () => {
+    
+    try {
+        db.exec("ALTER TABLE encargos ADD COLUMN titulo_personalizado TEXT;");
+        logger.info('MIGRACION', 'Se agregó exitosamente la columna "titulo_personalizado" a la tabla encargos.');
+    } catch (error) {
+    }
+
     ipcMain.handle("get-encargos", () => {
         try {
             const stmt = db.prepare(`
@@ -15,6 +22,8 @@ export const registerEncargosHandlers = () => {
                     en.descripcion,
                     en.fecha_entrega, 
                     en.producto_cantidad,
+                    en.titulo_personalizado,
+                    en.producto_id,  -- CORRECCIÓN: Agregamos el ID del producto
                     es.titulo as estado_titulo, 
                     es.id as estado_id,
                     es.allow_calendar,
@@ -59,6 +68,7 @@ export const registerEncargosHandlers = () => {
                     cliente_documento,
                     factura_numero,
                     producto_cantidad,
+                    titulo_personalizado,
                     encargo_numero,
                     fecha_entrega,
                     descripcion,
@@ -75,6 +85,7 @@ export const registerEncargosHandlers = () => {
                     @cliente_documento,
                     @factura_numero,
                     @producto_cantidad,
+                    @titulo_personalizado,
                     @encargo_numero,
                     @fecha_entrega,
                     @descripcion,
@@ -86,6 +97,7 @@ export const registerEncargosHandlers = () => {
             const info = stmt.run({
                 ...item,
                 id: id,
+                titulo_personalizado: item.titulo_personalizado || '',
                 encargo_numero: encargoNum,
                 date_created: now,
                 status: status
@@ -109,12 +121,14 @@ export const registerEncargosHandlers = () => {
                     fecha_entrega = @fecha_entrega,
                     estado_id = @estado_id,
                     descripcion = @descripcion,
+                    titulo_personalizado = @titulo_personalizado,
                     date_modify = @date_modify,
                     modify_by = @modify_by
                 WHERE id = @id
             `)
             const info = stmt.run({
                 ...item,
+                titulo_personalizado: item.titulo_personalizado || '',
                 date_modify: now,
                 modify_by: item.modify_by || "system",
                 status: status

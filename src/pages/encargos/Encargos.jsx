@@ -30,7 +30,10 @@ export const Encargos = () => {
     const [form, setForm] = useState({
         fecha_entrega: '',
         descripcion: '',
-        estado_id: ''
+        estado_id: '',
+        titulo_personalizado: '',
+        producto_id: '',
+        producto_nombre: ''
     })
     const [editingId, setEditingId] = useState(null)
     const [estados, setEstados] = useState([])
@@ -53,7 +56,7 @@ export const Encargos = () => {
     }
 
     const cleanForm = () => {
-        setForm({ fecha_entrega: '', descripcion: '', estado_id: '' })
+        setForm({ fecha_entrega: '', descripcion: '', estado_id: '', titulo_personalizado: '', producto_id: '', producto_nombre: '' })
         setBusquedaFactura('')
         setFacturaOrigen(null)
     }
@@ -97,6 +100,7 @@ export const Encargos = () => {
                 cliente_documento: facturaOrigen.documento_cliente,
                 factura_numero: facturaOrigen.numero_factura,
                 producto_cantidad: 1, 
+                titulo_personalizado: form.titulo_personalizado || '',
                 encargo_numero: 0,
                 fecha_entrega: form.fecha_entrega,
                 descripcion: form.descripcion,
@@ -162,7 +166,10 @@ export const Encargos = () => {
                     setForm({
                         fecha_entrega: item.fecha_entrega || '',
                         descripcion: item.descripcion || '',
-                        estado_id: item.estado_id || 'pendiente'
+                        estado_id: item.estado_id || 'pendiente',
+                        titulo_personalizado: item.titulo_personalizado || '',
+                        producto_id: item.producto_id || '',
+                        producto_nombre: item.producto_nombre || ''
                     });
                     setEditingId(item.id)
                     handleShow()

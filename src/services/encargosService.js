@@ -25,7 +25,7 @@ export const encargosService = {
                 factura_id: e.invoiceId,
                 factura_numero: e.invoiceNumber,
                 producto_id: e.productId,
-                producto_nombre: e.productName || e.product?.ref_name || 'Producto',
+                producto_nombre: e.titulo_personalizado || e.productName || e.product?.ref_name || 'Factura',
                 producto_cantidad: e.quantity,
                 cliente_nombre: e.customerName,
                 cliente_documento: e.customerDocument,
