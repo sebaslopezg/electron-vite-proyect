@@ -42,9 +42,22 @@ export const encargosService = {
         }
     },
 
+    addEncargo: async (payload) => {
+        if (isElectron()) {
+            return await window.api.addEncargo(payload)
+        } else {
+            try {
+                const response = await api.post('/encargos', payload)
+                return { success: true, ...response.data }
+            } catch (error) {
+                return { success: false, error: error.response?.data?.message || 'Error al guardar el encargo' }
+            }
+        }
+    },
+
     updateEncargo: async (payload) => {
         if (isElectron()) {
-            return await window.api.updateProducto ? window.api.updateEncargo(payload) : window.api.updateEncargo(payload);
+            return await window.api.updateEncargo(payload);
         } else {
             try {
                 const response = await api.put(`/encargos/${payload.id}`, payload)

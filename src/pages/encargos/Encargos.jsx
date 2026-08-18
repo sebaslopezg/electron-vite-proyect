@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
-import { Button, Col, Form, FormGroup, Modal } from "react-bootstrap"
+import { Button } from "react-bootstrap"
 import Swal from "sweetalert2"
 import { EncargoDetalles } from "./components/EncargoDetalles"
+import { ModalFormEncargo } from "./components/ModalFormEncargo"
+import { ModalBuscarFactura } from "./components/ModalBuscarFactura"
 import { encargosService } from "../../services/encargosService"
+import { ventasService } from "../../services/ventasService"
+
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true
+})
 
 export const Encargos = () => {
     const [show, setShow] = useState(false)
     const [showInfo, setShowInfo] = useState(false)
+    const [showSearchFactura, setShowSearchFactura] = useState(false)
 
     const handleClose = () => setShow(false) || setShowInfo(false)
     const handleShow = () => setShow(true)
@@ -24,6 +36,9 @@ export const Encargos = () => {
     const [estados, setEstados] = useState([])
     const [encargoSel, setEncargoSel] = useState([])
 
+    const [busquedaFactura, setBusquedaFactura] = useState('')
+    const [facturaOrigen, setFacturaOrigen] = useState(null)
+
     const tableContainerRef = useRef(null)
 
     const load = async () => {
@@ -38,23 +53,66 @@ export const Encargos = () => {
     }
 
     const cleanForm = () => {
-        setForm({ fecha_entrega: '', description: '', estado_id: '' })
+        setForm({ fecha_entrega: '', descripcion: '', estado_id: '' })
+        setBusquedaFactura('')
+        setFacturaOrigen(null)
+    }
+
+    const handleSearchFactura = async (numToSearch) => {
+        const busquedaExacta = (numToSearch || busquedaFactura).trim()
+        if (!busquedaExacta) {
+            setShowSearchFactura(true)
+            return
+        }
+
+        const result = await ventasService.searchFactura(busquedaExacta)
+        
+        if (result.success) {
+            setFacturaOrigen(result.maestro)
+            setBusquedaFactura(`${result.maestro.prefijo || ''}${result.maestro.separador || ''}${result.maestro.numero_factura}`)
+            setShowSearchFactura(false)
+            Toast.fire({ icon: 'success', title: 'Factura Encontrada' })
+        } else {
+            setShowSearchFactura(true)
+        }
     }
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault()
         
-        const result = await encargosService.updateEncargo({ ...form, id: editingId })
+        let result;
+
+        if (editingId) {
+            result = await encargosService.updateEncargo({ ...form, id: editingId })
+        } else {
+            if (!facturaOrigen) return Swal.fire('Error', 'Debes buscar y seleccionar una factura', 'error')
+
+            const payload = {
+                factura_id: facturaOrigen.id,
+                producto_id: '',
+                estado_id: form.estado_id || 'pendiente',
+                almacen_id: facturaOrigen.almacen_id || 'general',
+                cliente_id: facturaOrigen.cliente_id || '',
+                cliente_nombre: facturaOrigen.nombre_cliente,
+                cliente_documento: facturaOrigen.documento_cliente,
+                factura_numero: facturaOrigen.numero_factura,
+                producto_cantidad: 1, 
+                encargo_numero: 0,
+                fecha_entrega: form.fecha_entrega,
+                descripcion: form.descripcion,
+                status: 1
+            }
+            result = await encargosService.addEncargo(payload)
+        }
 
         if (result && result.success) {
             Swal.fire({ title: '¡Éxito!', text: 'Encargo agendado correctamente', icon: 'success', timer: 1500 })
             cleanForm()
             handleClose()
             load()
-            
             window.dispatchEvent(new CustomEvent('encargos-actualizados'))
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar el producto', 'error')
+            Swal.fire('Error', result?.error || 'No se pudo guardar', 'error')
         }
     }
 
@@ -63,13 +121,12 @@ export const Encargos = () => {
     }
 
     const handleInfo = (item) => {
-        console.log(item)
         setEncargoSel(item)
     }
 
     const handleDelete = async (id) => {
         const result = await Swal.fire({
-            title: "@Seguro que desea eliminar el registro?",
+            title: "¿Seguro que desea eliminar el registro?",
             showDenyButton: true,
             confirmButtonText: "Sí",
             denyButtonText: `No`
@@ -78,7 +135,6 @@ export const Encargos = () => {
         if (result.isConfirmed) {
             await encargosService.deleteEncargo(id)
             load()
-            
             window.dispatchEvent(new CustomEvent('encargos-actualizados'))
         }
     }
@@ -87,15 +143,10 @@ export const Encargos = () => {
         load()
         loadSelectData()
 
-        // CORREGIDO: Escucha reactiva para sincronizar los estados dinámicamente sin recargar la app
-        const handleEstadosUpdate = () => {
-            loadSelectData()
-        }
+        const handleEstadosUpdate = () => loadSelectData()
 
         window.addEventListener('estados-actualizados', handleEstadosUpdate)
-        return () => {
-            window.removeEventListener('estados-actualizados', handleEstadosUpdate)
-        }
+        return () => window.removeEventListener('estados-actualizados', handleEstadosUpdate)
     }, [])
 
     useEffect(() => {
@@ -132,6 +183,12 @@ export const Encargos = () => {
     }, [])
 
     return <>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+            <Button variant="primary" onClick={() => { cleanForm(); setEditingId(null); handleShow(); }}>
+                <i className="bi bi-plus-circle me-2"></i>Nuevo Encargo
+            </Button>
+        </div>
+
         <div ref={tableContainerRef} className="w-100">
             <DataTableComponent
                 tableId="dt-encargos-maestro"
@@ -185,7 +242,7 @@ export const Encargos = () => {
                                 <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn btn-sm btn-info me-2 btn-info" data-id="${row.id}" data-alldata="${safeData}" title="Ver Detalles">
+                                <button class="btn btn-sm btn-info me-2 btn-info text-white" data-id="${row.id}" data-alldata="${safeData}" title="Ver Detalles">
                                     <i class="bi bi-eye"></i>
                                 </button>
                             `
@@ -200,54 +257,27 @@ export const Encargos = () => {
                     date_modify: (data) => new Date(data).toLocaleDateString('es-ES')
                 }}
             />
-            <Modal show={show} onHide={handleClose} size="md" centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Completar encargo</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Form onSubmit={handleSubmit} id="encargoForm">
-                        <Form.Group className="mb-3">
-                            <Form.Label htmlFor="fecha_entrega">Fecha</Form.Label>
-                            <Form.Control
-                                id="fecha_entrega"
-                                value={form.fecha_entrega}
-                                onChange={(e) => setForm({ ...form, fecha_entrega: e.target.value })}
-                                type="date"
-                                placeholder="DD/MM/AAAA"
-                                required
-                                autoFocus
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label htmlFor="descripcion">Descripción</Form.Label>
-                            <Form.Control
-                                id="descripcion"
-                                value={form.descripcion}
-                                onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-                                as="textarea"
-                                rows={3}
-                                placeholder="Agregar descripción"
-                                required
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label htmlFor="estado_select">Estado</Form.Label>
-                            <Form.Select 
-                                id="estado_select"
-                                value={form.estado_id} 
-                                onChange={(e) => setForm({ ...form, estado_id: e.target.value })}
-                            >
-                                <option value="">Seleccione un estado...</option>
-                                {estados.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
-                            </Form.Select>
-                        </Form.Group>
-                    </Form>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
-                    <Button variant="primary" type="submit" form="encargoForm">Guardar</Button>
-                </Modal.Footer>
-            </Modal>
+            
+            <ModalFormEncargo 
+                show={show}
+                handleClose={handleClose}
+                handleSubmit={handleSubmit}
+                editingId={editingId}
+                form={form}
+                setForm={setForm}
+                busquedaFactura={busquedaFactura}
+                setBusquedaFactura={setBusquedaFactura}
+                handleSearchFactura={handleSearchFactura}
+                facturaOrigen={facturaOrigen}
+                estados={estados}
+            />
+            
+            <ModalBuscarFactura 
+                show={showSearchFactura}
+                handleClose={() => setShowSearchFactura(false)}
+                handleSearchFactura={handleSearchFactura}
+            />
+
             <EncargoDetalles
                 show={showInfo}
                 handleClose={handleClose}

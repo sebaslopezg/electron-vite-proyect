@@ -62,10 +62,10 @@ export const ModalBusquedaVentas = ({
             title: 'SKU',
             render: (data, type, row) => {
                 if (!data) return '-';
-                const prefix = row.cat_prefix ? `${row.cat_prefix}${row.cat_separador || ''}`.toUpperCase() : '';
+                const prefix = row.cat_prefix ? `${row.cat_prefix}${row.cat_separador || ''}`.toUpperCase() : ''
                 const skuVal = String(data).toUpperCase();
-                const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
-                return `<strong>${finalSku}</strong>`;
+                const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
+                return `<strong>${finalSku}</strong>`
             }
         },
         { 

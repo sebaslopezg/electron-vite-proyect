@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld("api", {
   addEncargo: (item) => ipcRenderer.invoke("add-encargo", item),
   updateEncargo: (item) => ipcRenderer.invoke("update-encargo", item),
   deleteEncargo: (item) => ipcRenderer.invoke("delete-encargo", item),
+  addEncargo: (data) => ipcRenderer.invoke('add-encargo', data),
 
   // estados encargos
   getEstados: () => ipcRenderer.invoke("get-estados"),

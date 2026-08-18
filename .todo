@@ -27,3 +27,12 @@
  - Agregar una pestaña de configuracion donde yo pueda perzonalizar los filtros y crear plantillas (para facilitar  la digitacion de informacion en los modulos)
  - Separar pestaña de actualizaciones y hacerla un modulo a parte, integrar manejador de actualizaciones.
  - Crear un manejador de modulos
+
+ # Arreglos:
+ ## Formulario:
+ - Tipo de fajas
+ - Marca
+ - Fecha limite (poder escojer en en dias habiles)
+ - Tipo de arreglo - Precio
+ - Abonar
+ - Descripcion

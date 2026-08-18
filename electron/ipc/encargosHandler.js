@@ -41,6 +41,12 @@ export const registerEncargosHandlers = () => {
             const now = new Date().toISOString()
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
 
+            let encargoNum = item.encargo_numero
+            if (!encargoNum) {
+                const maxRow = db.prepare('SELECT MAX(encargo_numero) as maxNum FROM encargos').get()
+                encargoNum = (maxRow?.maxNum || 0) + 1
+            }
+
             const stmt = db.prepare(`
                 INSERT INTO encargos (
                     id,
@@ -80,12 +86,12 @@ export const registerEncargosHandlers = () => {
             const info = stmt.run({
                 ...item,
                 id: id,
+                encargo_numero: encargoNum,
                 date_created: now,
-                date_modify: now,
                 status: status
             })
 
-            logger.success('ENCARGOS', `Encargo N° ${item.encargo_numero} creado exitosamente`, `Factura: ${item.factura_numero} | Cliente: ${item.cliente_nombre}`)
+            logger.success('ENCARGOS', `Encargo N° ${encargoNum} creado exitosamente`, `Factura: ${item.factura_numero} | Cliente: ${item.cliente_nombre}`)
             return { success: true, id: id, changes: info.changes }
 
         } catch (error) {
@@ -125,7 +131,7 @@ export const registerEncargosHandlers = () => {
 
     ipcMain.handle("delete-encargo", (_, item) => {
         try {
-            const now = new Date().toISOString();
+            const now = new Date().toISOString()
             const stmt = db.prepare(`
                 UPDATE encargos
                 SET 

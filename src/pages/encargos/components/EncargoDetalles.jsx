@@ -1,10 +1,10 @@
-import { Button, Col, Modal, Row } from "react-bootstrap";
+import { Button, Col, Modal, Row } from "react-bootstrap"
 
 export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="lg" centered className="shadow">
             <Modal.Header closeButton className="bg-light">
-                <Modal.Title className="fw-bold">
+                <Modal.Title>
                     <i className="bi bi-info-circle me-2"></i>Detalles del Encargo
                 </Modal.Title>
             </Modal.Header>
@@ -14,8 +14,10 @@ export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
                     <Col md={12}>
                         <div className="d-flex justify-content-between align-items-center border-bottom pb-3">
                             <div>
-                                <h5 className="mb-0 fw-bold">{encargoData.producto_nombre}</h5>
-                                <small>Cantidad: {encargoData.producto_cantidad} unidades</small>
+                                <h5 className="mb-0 fw-bold">{encargoData.producto_nombre || 'Encargo General de Factura'}</h5>
+                                <small className="text-muted">
+                                    {encargoData.producto_nombre ? `Cantidad: ${encargoData.producto_cantidad} unidades` : 'Asociado al pedido completo de la factura'}
+                                </small>
                             </div>
                             <div className="text-end">
                                 <span className="badge rounded-pill px-3 py-2"
@@ -63,7 +65,7 @@ export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
             </Modal.Body>
 
             <Modal.Footer className="bg-light border-0">
-                <Button variant="outline-secondary" onClick={handleClose}>
+                <Button variant="secondary" onClick={handleClose}>
                     Cerrar
                 </Button>
                 <Button variant="primary" onClick={() => window.print()}>
@@ -71,5 +73,5 @@ export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
                 </Button>
             </Modal.Footer>
         </Modal>
-    );
+    </>
 }
