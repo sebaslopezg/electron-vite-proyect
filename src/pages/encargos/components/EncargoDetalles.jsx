@@ -50,6 +50,20 @@ export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
 
                     <Col md={6} className="ps-md-4">
                         <h6 className="text-uppercase small fw-bold mb-3">Detalles Técnicos</h6>
+
+                        {encargoData.custom_data && encargoData.custom_data !== '{}' && (
+                            <div className="mt-3 bg-white border rounded p-3 shadow-sm">
+                                <h6 className="small fw-bold text-primary mb-2 border-bottom pb-1">Especificaciones del Pedido</h6>
+                                {Object.entries(JSON.parse(encargoData.custom_data)).map(([key, value]) => (
+                                    <div key={key} className="mb-1 d-flex align-items-center">
+                                        <i className="bi bi-check2-circle text-success me-2"></i>
+                                        <span className="small text-muted me-1">{key}:</span> 
+                                        <span className="small fw-bold">{value || '-'}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        
                         <div className="bg-light p-3 rounded shadow-sm">
                             <label className="text-muted d-block small mb-1">Descripción del pedido</label>
                             <p className="mb-0" style={{ fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>

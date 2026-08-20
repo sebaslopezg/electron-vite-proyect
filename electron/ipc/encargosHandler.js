@@ -7,9 +7,49 @@ export const registerEncargosHandlers = () => {
     
     try {
         db.exec("ALTER TABLE encargos ADD COLUMN titulo_personalizado TEXT;");
-        logger.info('MIGRACION', 'Se agregó exitosamente la columna "titulo_personalizado" a la tabla encargos.');
-    } catch (error) {
-    }
+    } catch (error) {}
+
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS encargos_campos (
+                id TEXT PRIMARY KEY,
+                label TEXT,
+                type TEXT,
+                options TEXT,
+                required INTEGER,
+                orden INTEGER
+            );
+        `);
+        db.exec("ALTER TABLE encargos ADD COLUMN custom_data TEXT;");
+        logger.info('MIGRACION', 'Se inicializaron las tablas y columnas para campos dinámicos de encargos.');
+    } catch (error) {}
+
+    ipcMain.handle("get-encargos-campos", () => {
+        try {
+            return db.prepare("SELECT * FROM encargos_campos ORDER BY orden ASC").all();
+        } catch (error) {
+            logger.error('ENCARGOS', "Error al obtener campos dinámicos", error);
+            return [];
+        }
+    });
+
+    ipcMain.handle("save-encargos-campos", (_, campos) => {
+        try {
+            const transaction = db.transaction(() => {
+                db.prepare("DELETE FROM encargos_campos").run();
+                const insert = db.prepare("INSERT INTO encargos_campos (id, label, type, options, required, orden) VALUES (?, ?, ?, ?, ?, ?)");
+                campos.forEach((c, index) => {
+                    insert.run(c.id || uuidv4(), c.label, c.type, c.options || '', c.required ? 1 : 0, index);
+                });
+            });
+            transaction();
+            logger.success('ENCARGOS', 'Formulario dinámico actualizado con éxito');
+            return { success: true };
+        } catch (error) {
+            logger.error('ENCARGOS', "Error guardando campos dinámicos", error);
+            return { success: false, error: error.message };
+        }
+    });
 
     ipcMain.handle("get-encargos", () => {
         try {
@@ -23,7 +63,8 @@ export const registerEncargosHandlers = () => {
                     en.fecha_entrega, 
                     en.producto_cantidad,
                     en.titulo_personalizado,
-                    en.producto_id,  -- CORRECCIÓN: Agregamos el ID del producto
+                    en.producto_id,
+                    en.custom_data,
                     es.titulo as estado_titulo, 
                     es.id as estado_id,
                     es.allow_calendar,
@@ -58,39 +99,15 @@ export const registerEncargosHandlers = () => {
 
             const stmt = db.prepare(`
                 INSERT INTO encargos (
-                    id,
-                    factura_id,
-                    producto_id,
-                    estado_id,
-                    almacen_id,
-                    cliente_id,
-                    cliente_nombre,
-                    cliente_documento,
-                    factura_numero,
-                    producto_cantidad,
-                    titulo_personalizado,
-                    encargo_numero,
-                    fecha_entrega,
-                    descripcion,
-                    status,
-                    date_created
+                    id, factura_id, producto_id, estado_id, almacen_id, cliente_id,
+                    cliente_nombre, cliente_documento, factura_numero, producto_cantidad,
+                    titulo_personalizado, encargo_numero, fecha_entrega, descripcion,
+                    custom_data, status, date_created
                 ) VALUES (
-                    @id,
-                    @factura_id,
-                    @producto_id,
-                    @estado_id,
-                    @almacen_id,
-                    @cliente_id,
-                    @cliente_nombre,
-                    @cliente_documento,
-                    @factura_numero,
-                    @producto_cantidad,
-                    @titulo_personalizado,
-                    @encargo_numero,
-                    @fecha_entrega,
-                    @descripcion,
-                    @status,
-                    @date_created
+                    @id, @factura_id, @producto_id, @estado_id, @almacen_id, @cliente_id,
+                    @cliente_nombre, @cliente_documento, @factura_numero, @producto_cantidad,
+                    @titulo_personalizado, @encargo_numero, @fecha_entrega, @descripcion,
+                    @custom_data, @status, @date_created
                 )
             `)
 
@@ -98,6 +115,7 @@ export const registerEncargosHandlers = () => {
                 ...item,
                 id: id,
                 titulo_personalizado: item.titulo_personalizado || '',
+                custom_data: item.custom_data || '{}',
                 encargo_numero: encargoNum,
                 date_created: now,
                 status: status
@@ -122,6 +140,7 @@ export const registerEncargosHandlers = () => {
                     estado_id = @estado_id,
                     descripcion = @descripcion,
                     titulo_personalizado = @titulo_personalizado,
+                    custom_data = @custom_data,
                     date_modify = @date_modify,
                     modify_by = @modify_by
                 WHERE id = @id
@@ -129,6 +148,7 @@ export const registerEncargosHandlers = () => {
             const info = stmt.run({
                 ...item,
                 titulo_personalizado: item.titulo_personalizado || '',
+                custom_data: item.custom_data || '{}',
                 date_modify: now,
                 modify_by: item.modify_by || "system",
                 status: status
@@ -146,31 +166,11 @@ export const registerEncargosHandlers = () => {
     ipcMain.handle("delete-encargo", (_, item) => {
         try {
             const now = new Date().toISOString()
-            const stmt = db.prepare(`
-                UPDATE encargos
-                SET 
-                    status = 0,
-                    date_modify = @date_modify,
-                    modify_by = @modify_by
-                WHERE id = @id
-            `)
-
-            const info = stmt.run({
-                id: item,
-                date_modify: now,
-                modify_by: 'No user'
-            })
-
-            if (info.changes > 0) {
-                logger.warning('ENCARGOS', `Encargo eliminado (Soft delete)`, `ID Encargo: ${item}`);
-                return { success: true, changes: info.changes };
-            } else {
-                logger.warning('ENCARGOS', `Intento de eliminar un encargo que no existe`, `ID no encontrado: ${item}`);
-                return { success: false, changes: 0, message: "Product ID not found." }
-            }
-
+            const stmt = db.prepare(`UPDATE encargos SET status = 0, date_modify = @date_modify, modify_by = @modify_by WHERE id = @id`)
+            const info = stmt.run({ id: item, date_modify: now, modify_by: 'No user' })
+            if (info.changes > 0) return { success: true, changes: info.changes };
+            return { success: false, changes: 0, message: "Product ID not found." }
         } catch (error) {
-            logger.error('ENCARGOS', `Error crítico al intentar eliminar el encargo (ID: ${item})`, error)
             return { success: false, error: error.message }
         }
     })

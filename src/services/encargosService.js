@@ -161,5 +161,15 @@ export const encargosService = {
                 }
             }
         }
+    },
+
+    getEncargosCampos: async () => {
+        if (isElectron()) return await window.api.getEncargosCampos()
+        return []
+    },
+    
+    saveEncargosCampos: async (payload) => {
+        if (isElectron()) return await window.api.saveEncargosCampos(payload)
+        return { success: false }
     }
 }

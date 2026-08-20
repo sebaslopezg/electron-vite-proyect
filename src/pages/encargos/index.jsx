@@ -1,6 +1,7 @@
 import { Calendario } from "./Calendario"
 import { Encargos } from "./Encargos"
 import { Estados } from "./Estados"
+import { ConfiguracionEncargos } from "./Configuracion"
 
 export const IndexEncargos = () => {
   return<>
@@ -59,6 +60,17 @@ export const IndexEncargos = () => {
                 Estados
               </button>
             </li>
+            <li className="nav-item" role="presentation">
+              <button 
+                className="nav-link" 
+                data-bs-toggle="tab" 
+                data-bs-target="#configuracion" 
+                type="button" 
+                role="tab"
+              >
+                Configuración
+              </button>
+            </li>
           </ul>
 
           <div className="tab-content pt-2" id="borderedTabContent">
@@ -85,6 +97,13 @@ export const IndexEncargos = () => {
               aria-labelledby="estados-tab"
             >
               <Estados />
+            </div>
+            <div 
+              className="tab-pane fade" 
+              id="configuracion" 
+              role="tabpanel"
+            >
+              <ConfiguracionEncargos />
             </div>
           </div>
         </div>

@@ -57,24 +57,24 @@ export const Logs = () => {
 
     const logsFiltrados = useMemo(() => {
         return logs.filter(log => {
-            if (logType && log.tipo !== logType) return false;
-            if (logModule && log.modulo !== logModule) return false;
+            if (logType && log.tipo !== logType) return false
+            if (logModule && log.modulo !== logModule) return false
 
             if (startDate) {
-                const dateStart = new Date(startDate);
-                const logDate = new Date(log.fecha);
-                if (logDate < dateStart) return false;
+                const dateStart = new Date(startDate)
+                const logDate = new Date(log.fecha)
+                if (logDate < dateStart) return false
             }
 
             if (endDate) {
-                const dateEnd = new Date(endDate);
-                const logDate = new Date(log.fecha);
-                if (logDate > dateEnd) return false;
+                const dateEnd = new Date(endDate)
+                const logDate = new Date(log.fecha)
+                if (logDate > dateEnd) return false
             }
 
             return true;
         });
-    }, [logs, logType, logModule, startDate, endDate]);
+    }, [logs, logType, logModule, startDate, endDate])
 
     useEffect(() => {
         const container = tableContainerRef.current

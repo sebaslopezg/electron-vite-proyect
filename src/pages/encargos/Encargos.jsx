@@ -202,7 +202,14 @@ export const Encargos = () => {
                 data={dataInTable}
                 columns={[
                     { data: 'encargo_numero', title: 'N° encargo' },
-                    { data: 'factura_numero', title: 'N° Factura' },
+                    { 
+                        data: 'factura_numero', 
+                        title: 'N° Factura',
+                        render: (data, type, row) => {
+                            const prefix = row.prefijo ? `${row.prefijo}-` : '';
+                            return `<strong>${prefix}${data}</strong>`
+                        }
+                    },
                     {
                         data: 'estado_titulo',
                         title: 'Estado',
