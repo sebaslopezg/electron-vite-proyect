@@ -27,16 +27,20 @@ export const Encargos = () => {
 
     const [items, setItems] = useState([])
     const [dataInTable, setDataInTable] = useState([])
+    
     const [form, setForm] = useState({
         fecha_entrega: '',
         descripcion: '',
         estado_id: '',
         titulo_personalizado: '',
         producto_id: '',
-        producto_nombre: ''
+        producto_nombre: '',
+        custom_data: {}
     })
+    
     const [editingId, setEditingId] = useState(null)
     const [estados, setEstados] = useState([])
+    const [camposFormulario, setCamposFormulario] = useState([])
     const [encargoSel, setEncargoSel] = useState([])
 
     const [busquedaFactura, setBusquedaFactura] = useState('')
@@ -51,12 +55,18 @@ export const Encargos = () => {
     }
 
     const loadSelectData = async () => {
-        const data = await encargosService.getEstados()
-        setEstados(data)
+        const dataEstados = await encargosService.getEstados()
+        const dataCampos = await encargosService.getEncargosCampos()
+        setEstados(dataEstados)
+        setCamposFormulario(dataCampos || [])
     }
 
     const cleanForm = () => {
-        setForm({ fecha_entrega: '', descripcion: '', estado_id: '', titulo_personalizado: '', producto_id: '', producto_nombre: '' })
+        setForm({ 
+            fecha_entrega: '', descripcion: '', estado_id: '', 
+            titulo_personalizado: '', producto_id: '', producto_nombre: '', 
+            custom_data: {} 
+        })
         setBusquedaFactura('')
         setFacturaOrigen(null)
     }
@@ -86,7 +96,8 @@ export const Encargos = () => {
         let result;
 
         if (editingId) {
-            result = await encargosService.updateEncargo({ ...form, id: editingId })
+            const payload = { ...form, id: editingId, custom_data: JSON.stringify(form.custom_data || {}) }
+            result = await encargosService.updateEncargo(payload)
         } else {
             if (!facturaOrigen) return Swal.fire('Error', 'Debes buscar y seleccionar una factura', 'error')
 
@@ -104,6 +115,7 @@ export const Encargos = () => {
                 encargo_numero: 0,
                 fecha_entrega: form.fecha_entrega,
                 descripcion: form.descripcion,
+                custom_data: JSON.stringify(form.custom_data || {}),
                 status: 1
             }
             result = await encargosService.addEncargo(payload)
@@ -148,9 +160,14 @@ export const Encargos = () => {
         loadSelectData()
 
         const handleEstadosUpdate = () => loadSelectData()
-
+        
         window.addEventListener('estados-actualizados', handleEstadosUpdate)
-        return () => window.removeEventListener('estados-actualizados', handleEstadosUpdate)
+        window.addEventListener('formulario-encargos-actualizado', handleEstadosUpdate)
+        
+        return () => {
+            window.removeEventListener('estados-actualizados', handleEstadosUpdate)
+            window.removeEventListener('formulario-encargos-actualizado', handleEstadosUpdate)
+        }
     }, [])
 
     useEffect(() => {
@@ -169,7 +186,8 @@ export const Encargos = () => {
                         estado_id: item.estado_id || 'pendiente',
                         titulo_personalizado: item.titulo_personalizado || '',
                         producto_id: item.producto_id || '',
-                        producto_nombre: item.producto_nombre || ''
+                        producto_nombre: item.producto_nombre || '',
+                        custom_data: item.custom_data ? JSON.parse(item.custom_data) : {}
                     });
                     setEditingId(item.id)
                     handleShow()
@@ -188,6 +206,31 @@ export const Encargos = () => {
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
     }, [])
+
+    const getBadgeClassForDate = (dateString) => {
+        if (!dateString) return ''
+        
+        const hoy = new Date()
+        hoy.setHours(0, 0, 0, 0)
+        
+        const [year, month, day] = dateString.split('-');
+        const fechaEntrega = new Date(year, month - 1, day);
+        fechaEntrega.setHours(0, 0, 0, 0);
+
+        if (fechaEntrega.getTime() === hoy.getTime()) {
+            return 'bg-warning text-dark'
+        } else if (fechaEntrega < hoy) {
+            return 'bg-danger'
+        } else {
+            return 'bg-secondary'
+        }
+    };
+
+    const formatToLocalString = (dateString) => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
+    }
 
     return <>
         <div className="d-flex justify-content-between align-items-center mb-3">
@@ -239,11 +282,16 @@ export const Encargos = () => {
                         orderable: false,
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));
-                            return `
-                            ${row.fecha_entrega ? data : `<button class="btn btn-sm btn-warning me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
-                                    Agendar
-                                  </button>`}
-                                `
+                            
+                            if (row.fecha_entrega) {
+                                const badgeClass = getBadgeClassForDate(row.fecha_entrega);
+                                const formattedDate = formatToLocalString(row.fecha_entrega);
+                                return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`;
+                            } else {
+                                return `<button class="btn btn-sm btn-primary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
+                                            Agendar
+                                        </button>`;
+                            }
                         }
                     },
                     {
@@ -284,6 +332,7 @@ export const Encargos = () => {
                 handleSearchFactura={handleSearchFactura}
                 facturaOrigen={facturaOrigen}
                 estados={estados}
+                camposDinamicos={camposFormulario}
             />
             
             <ModalBuscarFactura 

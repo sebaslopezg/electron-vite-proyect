@@ -47,13 +47,14 @@ export const ConfiguracionEncargos = () => {
 
     return <>
         <div className="p-3 animate__animated animate__fadeIn">
-            <h5 className="card-title border-bottom pb-2 mb-4">
-                Editar Formulario de Encargos
-
-            </h5>
-            <Button variant="outline-primary" onClick={handleAddCampo}>
-                <i className="bi bi-plus-lg me-1"></i>Añadir Campo
-            </Button>
+            <div className="d-flex align-items-center border-bottom pb-2 mb-4">
+                <h5 className="card-title m-0 me-3">
+                    Editar Formulario de Encargos
+                </h5>
+                <Button variant="outline-primary" size="sm" onClick={handleAddCampo}>
+                    <i className="bi bi-plus-lg me-1"></i>Añadir Campo
+                </Button>
+            </div>
 
             <p className="text-muted small">
                 Agrega campos adicionales (como medidas, colores, sabores o enlaces) que deban llenarse al momento de crear un encargo.
@@ -80,16 +81,15 @@ export const ConfiguracionEncargos = () => {
                                     </Form.Select>
                                 </Col>
                                 <Col md={4}>
-                                    {campo.type === 'select' ? (
-                                        <>
-                                            <Form.Label className="small fw-bold text-primary">Opciones (Separadas por coma)</Form.Label>
+                                    {campo.type === 'select' && (
+                                        <div className="mb-2">
+                                            <Form.Label className="small fw-bold mb-1">Opciones (Separadas por coma)</Form.Label>
                                             <Form.Control size="sm" value={campo.options} onChange={(e) => handleChange(idx, 'options', e.target.value)} placeholder="Ej. Rojo, Verde, Azul" />
-                                        </>
-                                    ) : (
-                                        <div className="d-flex align-items-center h-100 pb-1">
-                                            <Form.Check type="switch" id={`req-${idx}`} label="Campo Obligatorio" checked={campo.required === 1 || campo.required === true} onChange={(e) => handleChange(idx, 'required', e.target.checked)} />
                                         </div>
                                     )}
+                                    <div className={`d-flex align-items-center ${campo.type === 'select' ? '' : 'h-100 pb-1'}`}>
+                                        <Form.Check type="switch" id={`req-${idx}`} label="Campo Obligatorio" checked={campo.required === 1 || campo.required === true} onChange={(e) => handleChange(idx, 'required', e.target.checked)} />
+                                    </div>
                                 </Col>
                                 <Col md={2} className="text-end">
                                     <Button variant="outline-danger" size="sm" onClick={() => handleRemoveCampo(idx)}>
