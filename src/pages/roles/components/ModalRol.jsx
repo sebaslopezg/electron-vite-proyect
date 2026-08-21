@@ -188,7 +188,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
         <Modal show={show} onHide={handleClose} size="xl" centered backdrop="static" scrollable>
             <Modal.Header closeButton className="bg-light border-bottom">
                 <Modal.Title className="h5 text-dark">
-                    {editData ? `Editar Matriz: ${editData.nombre}` : 'Crear Perfil y Matriz de Privilegios'}
+                    {editData ? `Editar rol: ${editData.nombre}` : 'Crear permisos del rol'}
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-4" style={{ maxHeight: '70vh' }}>
@@ -206,7 +206,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                             <Form.Group className="mb-3">
                                 <Form.Label className="small text-secondary">Nombre del Rol <span className="text-danger">*</span></Form.Label>
                                 <Form.Control 
-                                    type="text" placeholder="Ej: Cajero..." 
+                                    type="text" 
                                     value={nombre} onChange={e => setNombre(e.target.value)}
                                     required disabled={isSystemRole} size="sm" className="text-dark"
                                 />
@@ -216,14 +216,14 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                             <Form.Group className="mb-3">
                                 <Form.Label className="fw-bold small text-secondary">Descripción Operativa</Form.Label>
                                 <Form.Control 
-                                    type="text" placeholder="Funciones asignadas..." 
+                                    type="text"
                                     value={descripcion} onChange={e => setDescripcion(e.target.value)}
                                     disabled={isSystemRole} size="sm"
                                 />
                             </Form.Group>
                         </Col>
                         <Col md={4}>
-                            <Form.Group className="mb-3 bg-light p-2 rounded border border-primary border-opacity-25">
+                            <Form.Group className="mb-3 bg-light p-2 rounded border border-opacity-25">
                                 <Form.Label className="small m-0 mb-1">
                                     <i className="bi bi-box-arrow-in-right me-1"></i>Módulo de Inicio por Defecto
                                 </Form.Label>

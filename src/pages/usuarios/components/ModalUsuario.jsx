@@ -122,7 +122,7 @@ export const ModalUsuario = ({ show, handleClose, editData, onSuccess, rolesDisp
                     </Row>
 
                     <Form.Group className="mb-2 border-top pt-3">
-                        <Form.Label className="fw-bold small text-primary">Rol Global Asignado</Form.Label>
+                        <Form.Label className="fw-bold small">Rol Global Asignado</Form.Label>
                         <Form.Select 
                             value={formData.rol} 
                             onChange={e => setFormData({...formData, rol: e.target.value})}

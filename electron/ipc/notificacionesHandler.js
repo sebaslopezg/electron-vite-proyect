@@ -51,4 +51,19 @@ export const registerNotificacionesHandlers = () => {
             return { success: false, error: error.message };
         }
     })
+
+    // ─── NUEVO: ELIMINAR NOTIFICACIONES ──────────────────────────────────────
+    ipcMain.handle("delete-notificacion", (_, id) => {
+        try {
+            if (id === 'all') {
+                db.prepare("DELETE FROM notificaciones").run()
+            } else {
+                db.prepare("DELETE FROM notificaciones WHERE id = ?").run(id)
+            }
+            return { success: true }
+        } catch (error) {
+            logger.error('NOTIFICACIONES', "Error al eliminar notificación(es)", error)
+            return { success: false, error: error.message }
+        }
+    })
 }

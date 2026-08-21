@@ -139,7 +139,7 @@ export const Configuracion = ({ data, onReload }) => {
 
     return <>
         <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="card-title text-primary m-0"><i className="bi bi-shop me-2"></i>Datos del Almacén</h5>
+            <h5 className="card-title m-0"><i className="bi bi-shop me-2 text-primary"></i>Datos del Almacén</h5>
             <Button variant="outline-primary" size="sm" onClick={handleOpenMetodos}>
                 <i className="bi bi-credit-card me-2"></i>Administrar Métodos de Pago
             </Button>
@@ -277,7 +277,7 @@ export const Configuracion = ({ data, onReload }) => {
             </Row>
 
             <hr className="my-4" />
-            <h5 className="card-title text-primary"><i className="bi bi-receipt me-2"></i>Datos de Facturación y Notas</h5>
+            <h5 className="card-title"><i className="bi bi-receipt me-2 text-primary"></i>Datos de Facturación y Notas</h5>
 
             <Row>
                 <Col md={4}>
@@ -309,7 +309,7 @@ export const Configuracion = ({ data, onReload }) => {
                 
                 <Col md={2}>
                     <Form.Group className="mb-3">
-                        <Form.Label htmlFor="almacenPrefijo" className="fw-bold text-primary">Prefijo</Form.Label>
+                        <Form.Label htmlFor="almacenPrefijo" className="fw-bold">Prefijo</Form.Label>
                         <Form.Control
                             id="almacenPrefijo"
                             value={form.prefijo}
@@ -322,7 +322,7 @@ export const Configuracion = ({ data, onReload }) => {
                 </Col>
                 <Col md={2}>
                     <Form.Group className="mb-3">
-                        <Form.Label htmlFor="almacenSeparador" className="fw-bold text-primary">Separador</Form.Label>
+                        <Form.Label htmlFor="almacenSeparador" className="fw-bold">Separador</Form.Label>
                         <Form.Control
                             id="almacenSeparador"
                             value={form.separador}

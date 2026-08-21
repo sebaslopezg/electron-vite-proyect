@@ -22,5 +22,13 @@ export const notificacionesService = {
             return await window.api.addNotificacion(payload)
         }
         return { success: false }
+    },
+
+    // ─── NUEVO MÉTODO ─────────────────────────────────────────────────────────
+    deleteNotificacion: async (id) => {
+        if (isElectron() && window.api.deleteNotificacion) {
+            return await window.api.deleteNotificacion(id)
+        }
+        return { success: false }
     }
 }

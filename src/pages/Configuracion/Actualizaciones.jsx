@@ -77,7 +77,7 @@ export const Actualizaciones = () => {
 
     return <>
         <div>
-            <h5 className="card-title">Actualizaciones del Sistema</h5>
+            <h5 className="card-title"><i class="bi bi-arrow-repeat text-primary"></i> Actualizaciones del Sistema</h5>
             <div className="alert alert-primary d-flex align-items-center">
                 <i className="bi bi-info-circle-fill me-3 fs-3"></i>
                 <div>

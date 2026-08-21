@@ -3,6 +3,10 @@
 
  ## Modificaciones Prioritarias:
 
+ - Agregar todos los enlaces de facturas para que llame la modal de facturas directamente.
+ - Arreglar columna facturas en cartera (prefijo mal puesto)
+ 
+
  - Modificar cache para que se guarde en DB y no en localstorage, ya que se borra. (o corregir el local storage)
  - Agregar cartera con sistecredito y addi, el cliente no debe al almacen, si no que sea addi para controlar los pagos factoring
 
@@ -12,7 +16,6 @@
 
  - Mejorar modulo de pagos (mas sencillo)
  - Impuestos y Retenciones (Nivel Intermedio)
- - Crear modulo de notificaciones
  - Conectar modulo de cartera con contabilidad
  - Crear modulo cobranzas
  - Crear modulo de servicios (sacar pestaña servicios de productos)
@@ -27,14 +30,3 @@
  - Agregar una pestaña de configuracion donde yo pueda perzonalizar los filtros y crear plantillas (para facilitar  la digitacion de informacion en los modulos)
  - Separar pestaña de actualizaciones y hacerla un modulo a parte, integrar manejador de actualizaciones.
  - Crear un manejador de modulos
-
- # Arreglos:
- ## Formulario:
- - Tipo de fajas
- - Marca
- - Fecha limite (poder escojer en en dias habiles)
- - Tipo de arreglo - Precio
- - Abonar
- - Descripcion
-
- - poner colores en la tabla cuando se venza un encargo fecha limite

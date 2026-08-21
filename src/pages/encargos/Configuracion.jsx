@@ -49,7 +49,7 @@ export const ConfiguracionEncargos = () => {
         <div className="p-3 animate__animated animate__fadeIn">
             <div className="d-flex align-items-center border-bottom pb-2 mb-4">
                 <h5 className="card-title m-0 me-3">
-                    Editar Formulario de Encargos
+                    <i class="bi bi-pencil text-primary"></i> Editar Formulario de Encargos
                 </h5>
                 <Button variant="outline-primary" size="sm" onClick={handleAddCampo}>
                     <i className="bi bi-plus-lg me-1"></i>Añadir Campo

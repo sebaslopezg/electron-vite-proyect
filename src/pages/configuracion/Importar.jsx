@@ -161,7 +161,6 @@ export const Importar = ({ currentUser }) => {
         }
     }
 
-    // ───AUTO-IMPORTACIÓN NATIVA  ───────────────
     const executeAutoImport = async () => {
         if (!hasPermission()) return Swal.fire('Bloqueado', 'No posees la credencial para importar datos', 'error')
         
@@ -511,7 +510,7 @@ export const Importar = ({ currentUser }) => {
 return <>
 
         <h5 className="mb-4 card-title">
-            <i className="bi bi-cloud-arrow-up me-2"></i>Asistente de Importación
+            <i className="bi bi-cloud-arrow-up me-2 text-primary"></i>Asistente de Importación
             <p className="text-muted small m-0">Herramienta de importación de datos</p>
             {fileType && <span className="text-muted ms-2 fs-6">({fileType.toUpperCase()})</span>}
         </h5>

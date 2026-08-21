@@ -69,7 +69,7 @@ export const ModalDetalleFactura = ({
                     </div>
                 )}
 
-                <h6 className="fw-bold border-bottom pb-2 text-primary mb-3">Ítems de la Factura</h6>
+                <h6 className="fw-bold border-bottom pb-2 mb-3">Ítems de la Factura</h6>
                 <DataTableComponent
                     key={`detalle-${appConfig.moneda}-${appConfig.formato_numero}-${facturaSeleccionada?.id}`}
                     data={detalleData}

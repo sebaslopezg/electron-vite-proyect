@@ -158,15 +158,15 @@ export const Reportes = () => {
                     concepto,
                     venta > 0 ? _formatCurrency(venta) : '-',
                     ingreso > 0 ? _formatCurrency(ingreso) : '$0'
-                ];
-                tableRows.push(rowData);
-            });
+                ]
+                tableRows.push(rowData)
+            })
 
             tableRows.push([
                 "", "", "", "TOTALES GLOBALES",
                 _formatCurrency(totales.totalFacturado),
                 _formatCurrency(totales.ingresoTotalCaja)
-            ]);
+            ])
 
             exportToPDF({
                 title: 'Reporte Financiero de Transacciones',
@@ -174,13 +174,12 @@ export const Reportes = () => {
                 columns: tableColumn,
                 data: tableRows,
                 filename: `Reporte_Financiero_${startDate.split('T')[0]}`
-            });
+            })
         } catch (error) {
             console.error("Error exportando a PDF:", error);
-            Swal.fire('Error', 'No se pudo generar el archivo PDF: ' + error.message, 'error');
+            Swal.fire('Error', 'No se pudo generar el archivo PDF: ' + error.message, 'error')
         }
-    };
-    // ──────────────────────────────────────────────────────────
+    }
 
     const columnas = [
         { 
@@ -244,10 +243,10 @@ export const Reportes = () => {
                 </Button>
             </div>
             <div className="d-flex gap-2">
-                <Button variant="danger" onClick={handleExportPDF} disabled={transacciones.length === 0}>
+                <Button variant="outline-danger" onClick={handleExportPDF} disabled={transacciones.length === 0}>
                     <i className="bi bi-file-earmark-pdf me-2"></i> Exportar PDF
                 </Button>
-                <Button variant="success" onClick={handleExportExcel} disabled={transacciones.length === 0}>
+                <Button variant="outline-success" onClick={handleExportExcel} disabled={transacciones.length === 0}>
                     <i className="bi bi-file-earmark-excel me-2"></i> Exportar Excel
                 </Button>
             </div>

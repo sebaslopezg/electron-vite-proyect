@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Button, Badge } from 'react-bootstrap'
+import Swal from 'sweetalert2'
 import { notificacionesService } from '../../services/notificacionesService'
 
 const timeAgo = (dateString) => {
@@ -61,6 +62,35 @@ export const Notificaciones = () => {
         window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'))
     }
 
+    // ─── LÓGICA PARA ELIMINAR NOTIFICACIONES ─────────────────────────────────
+    const handleEliminarUna = async (e, id) => {
+        e.stopPropagation(); // Evita que se dispare el evento "onClick" que abre la notificación
+        await notificacionesService.deleteNotificacion(id);
+        loadData();
+        window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'));
+    }
+
+    const handleVaciarBandeja = async () => {
+        const result = await Swal.fire({
+            title: '¿Vaciar bandeja?',
+            text: "Se eliminarán todas las notificaciones de forma permanente.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, vaciar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            await notificacionesService.deleteNotificacion('all');
+            loadData();
+            window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'));
+            Swal.fire({ title: '¡Bandeja vacía!', icon: 'success', toast: true, position: 'bottom-end', timer: 2000, showConfirmButton: false });
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const noLeidas = notificaciones.filter(n => n.leida === 0).length
 
     return (
@@ -69,11 +99,18 @@ export const Notificaciones = () => {
                 <div>
                     <h1><i className="bi bi-bell me-2"></i>Centro de Notificaciones</h1>
                 </div>
-                {noLeidas > 0 && (
-                    <Button variant="outline-primary" size="sm" onClick={handleMarcarTodasLeidas}>
-                        <i className="bi bi-check-all me-2"></i>Marcar todas como leídas
-                    </Button>
-                )}
+                <div className="d-flex gap-2">
+                    {noLeidas > 0 && (
+                        <Button variant="outline-primary" size="sm" onClick={handleMarcarTodasLeidas}>
+                            <i className="bi bi-check-all me-2"></i>Marcar todas como leídas
+                        </Button>
+                    )}
+                    {notificaciones.length > 0 && (
+                        <Button variant="outline-danger" size="sm" onClick={handleVaciarBandeja}>
+                            <i className="bi bi-trash me-2"></i>Vaciar bandeja
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <Card className="shadow-sm border-0">
@@ -119,11 +156,22 @@ export const Notificaciones = () => {
                                                 </div>
                                             </div>
                                             
-                                            {noti.link && (
-                                                <div className="text-muted ms-3 d-none d-md-block mt-2">
-                                                    <i className="bi bi-chevron-right"></i>
-                                                </div>
-                                            )}
+                                            <div className="d-flex align-items-center gap-3 mt-2">
+                                                <Button 
+                                                    variant="link" 
+                                                    className="text-secondary p-0 border-0 opacity-75" 
+                                                    title="Eliminar notificación"
+                                                    onClick={(e) => handleEliminarUna(e, noti.id)}
+                                                >
+                                                    <i className="bi bi-x-lg"></i>
+                                                </Button>
+
+                                                {noti.link && (
+                                                    <div className="text-muted d-none d-md-block">
+                                                        <i className="bi bi-chevron-right"></i>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 )

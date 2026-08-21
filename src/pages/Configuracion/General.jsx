@@ -55,7 +55,7 @@ export const General = () => {
         } catch (error) { Swal.fire("Error", error.toString(), "error"); }
     }
 
-    return (
+    return <>
         <Form onSubmit={handleSaveGeneral}>
             <Row>
                 <Col md={4} className="text-center mb-4">
@@ -75,7 +75,7 @@ export const General = () => {
                 </Col>
                 
                 <Col md={8}>
-                    <h5 className="card-title p-0 mb-3">Datos del Entorno Actual</h5>
+                    <h5 className="card-title p-0 mb-3"><i class="bi bi-clipboard text-primary"></i> Datos del Entorno Actual</h5>
                     <Form.Group className="mb-4">
                         <Form.Label htmlFor="appName">Nombre del Sistema / Empresa</Form.Label>
                         <Form.Control 
@@ -88,7 +88,7 @@ export const General = () => {
                         <Form.Text className="text-muted">Este nombre y logo se guardarán exclusivamente para el Perfil de Datos actual.</Form.Text>
                     </Form.Group>
 
-                    <h5 className="card-title p-0 mb-3 border-top pt-3">Formato de Moneda</h5>
+                    <h5 className="card-title p-0 mb-3 border-top pt-3"><i class="bi bi-coin text-primary"></i> Formato de Moneda</h5>
                     <Row>
                         <Col md={6}>
                             <Form.Group className="mb-3">
@@ -125,5 +125,5 @@ export const General = () => {
                 </Col>
             </Row>
         </Form>
-    );
+    </>
 }

@@ -62,7 +62,7 @@ export const Clientes = ({ currentUser }) => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [currentUser])
 
-    return (
+    return <>
         <div>
             <div className="pagetitle">
                 <h1><i className="bi bi-people me-2"></i>Clientes</h1>
@@ -124,5 +124,5 @@ export const Clientes = ({ currentUser }) => {
             
             <ModalTercero show={showModal} handleClose={() => setShowModal(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={terceroAEditar} forceCliente={true} />
         </div>
-    )
+    </>
 }

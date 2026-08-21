@@ -10,10 +10,10 @@ export const ModalHistorialInventario = ({
     historyTitle, 
     appConfig 
 }) => {
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="xl" centered scrollable>
             <Modal.Header closeButton className="bg-light">
-                <Modal.Title className="fs-5 text-primary">
+                <Modal.Title className="fs-5">
                     <i className="bi bi-clock-history me-2"></i>{historyTitle}
                 </Modal.Title>
             </Modal.Header>
@@ -57,8 +57,8 @@ export const ModalHistorialInventario = ({
                 )}
             </Modal.Body>
             <Modal.Header className="bg-light border-top p-2 d-flex justify-content-end">
-                <Button variant="outline-secondary" size="sm" onClick={handleClose}>Cerrar</Button>
+                <Button variant="secondary" size="sm" onClick={handleClose}>Cerrar</Button>
             </Modal.Header>
         </Modal>
-    )
+    </>
 }

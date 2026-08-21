@@ -217,7 +217,7 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceClie
             <Modal.Footer>
                 <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
                 <Button variant="primary" type="submit" form="terceroForm">
-                    <i className="bi bi-save me-2"></i>{editData ? 'Actualizar' : 'Guardar Tercero'}
+                    {editData ? 'Actualizar' : 'Guardar Tercero'}
                 </Button>
             </Modal.Footer>
         </Modal>

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Button, Badge } from 'react-bootstrap'
 import defaultLogo from './../../assets/favicon.png'
 import { notificacionesService } from '../../services/notificacionesService'
 
-// Utilidad para mostrar hace cuánto tiempo fue la notificación
 const timeAgo = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -26,7 +26,6 @@ export const Header = ({ currentUser, onLogout }) => {
     const [appLogo, setAppLogo] = useState(defaultLogo)
     const [userVisual, setUserVisual] = useState(currentUser)
     
-    // Estados para las notificaciones
     const [notificaciones, setNotificaciones] = useState([])
     const navigate = useNavigate()
 
@@ -66,10 +65,8 @@ export const Header = ({ currentUser, onLogout }) => {
 
         window.addEventListener('config-actualizada', handleUpdate)
         window.addEventListener('perfil-actualizado', handleProfileUpdate)
-        // Este evento se puede disparar globalmente cuando se genere una nueva alerta
         window.addEventListener('notificaciones-actualizadas', handleNotifUpdate)
 
-        // Intervalo para actualizar notificaciones cada 2 minutos
         const interval = setInterval(loadNotificaciones, 120000)
 
         return () => {
@@ -98,6 +95,7 @@ export const Header = ({ currentUser, onLogout }) => {
         if (notificacion.leida === 0) {
             await notificacionesService.marcarLeida(notificacion.id);
             loadNotificaciones();
+            window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'));
         }
         if (notificacion.link) {
             navigate(notificacion.link);
@@ -106,8 +104,18 @@ export const Header = ({ currentUser, onLogout }) => {
 
     const handleMarcarTodasLeidas = async (e) => {
         e.preventDefault();
+        e.stopPropagation();
         await notificacionesService.marcarLeida('all');
         loadNotificaciones();
+        window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'));
+    }
+
+    const handleEliminarUna = async (e, id) => {
+        e.preventDefault();
+        e.stopPropagation()
+        await notificacionesService.deleteNotificacion(id);
+        loadNotificaciones();
+        window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'));
     }
 
     const primerNombre = currentUser?.nombre_completo?.split(' ')[0] || 'Usuario'
@@ -115,7 +123,6 @@ export const Header = ({ currentUser, onLogout }) => {
     const notificacionesNoLeidas = notificaciones.filter(n => n.leida === 0);
     const contador = notificacionesNoLeidas.length;
 
-    // Configuración visual según el tipo de notificación
     const getIconData = (tipo) => {
         switch(tipo) {
             case 'success': return { icon: 'bi-check-circle', color: 'text-success' };
@@ -150,7 +157,6 @@ export const Header = ({ currentUser, onLogout }) => {
                         </a>
                     </li>
 
-                    {/* MÓDULO DE NOTIFICACIONES HABILITADO */}
                     <li className="nav-item dropdown">
                         <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
                             <i className="bi bi-bell"></i>
@@ -181,8 +187,8 @@ export const Header = ({ currentUser, onLogout }) => {
                                 notificaciones.slice(0, 5).map((noti) => {
                                     const { icon, color } = getIconData(noti.tipo);
                                     return (
-                                        <div key={noti.id}>
-                                            <li className={`notification-item ${noti.leida === 0 ? 'bg-light' : ''}`} style={{ cursor: 'pointer' }} onClick={(e) => handleMarcarLeida(e, noti)}>
+                                        <div key={noti.id} className="position-relative">
+                                            <li className={`notification-item ${noti.leida === 0 ? 'bg-light' : ''} pe-5`} style={{ cursor: 'pointer' }} onClick={(e) => handleMarcarLeida(e, noti)}>
                                                 <i className={`bi ${icon} ${color}`}></i>
                                                 <div>
                                                     <h4 className={noti.leida === 0 ? 'fw-bold' : ''}>{noti.titulo}</h4>
@@ -190,6 +196,17 @@ export const Header = ({ currentUser, onLogout }) => {
                                                     <p className="text-muted small">{timeAgo(noti.date_created)}</p>
                                                 </div>
                                             </li>
+                                            
+                                            <Button 
+                                                variant="link" 
+                                                className="text-secondary p-1 border-0 position-absolute opacity-50" 
+                                                style={{ top: '10px', right: '15px', zIndex: 10 }}
+                                                title="Eliminar notificación"
+                                                onClick={(e) => handleEliminarUna(e, noti.id)}
+                                            >
+                                                <i className="bi bi-x-lg"></i>
+                                            </Button>
+                                            
                                             <li><hr className="dropdown-divider" /></li>
                                         </div>
                                     )
@@ -201,16 +218,6 @@ export const Header = ({ currentUser, onLogout }) => {
                             </li>
                         </ul>
                     </li> 
-
-                    {/*
-                    <li className="nav-item dropdown">
-                        <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
-                            <i className="bi bi-chat-left-text"></i>
-                            <span className="badge bg-success badge-number">3</span>
-                        </a>
-                        ...
-                    </li> 
-                    */}
 
                     <li className="nav-item dropdown pe-4">
                         <a className="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">

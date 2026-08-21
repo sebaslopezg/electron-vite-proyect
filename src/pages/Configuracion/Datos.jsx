@@ -18,7 +18,7 @@ export const Datos = ({ currentUser }) => {
     const [previewTableName, setPreviewTableName] = useState('')
     const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
-    const tableContainerRef = useRef(null) // Referencia para el contenedor de la tabla
+    const tableContainerRef = useRef(null)
 
     const hasPermission = (permissionKey) => {
         if (!currentUser) return false
@@ -138,9 +138,8 @@ export const Datos = ({ currentUser }) => {
                 handleShowStats(filename, statsData.nombre);
             } else Swal.fire('Error', res.error, 'error');
         }
-    };
+    }
 
-    // CORREGIDO: Escuchador nativo por delegación de eventos en el contenedor
     useEffect(() => {
         const container = tableContainerRef.current
         if (!container) return
@@ -167,7 +166,6 @@ export const Datos = ({ currentUser }) => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [perfiles, currentUser])
 
-    // Memorizamos las columnas para inyectar las clases de captura en lugar de onclicks globales
     const columnasTabla = useMemo(() => [
         { data: 'nombre', title: 'Nombre del Perfil' },
         { data: 'filename', title: 'Archivo BD', render: (data) => `<code>${data}</code>` },
@@ -214,7 +212,7 @@ export const Datos = ({ currentUser }) => {
     return <>
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h5 className="card-title p-0 m-0">Perfiles de Bases de Datos</h5>
+                    <h5 className="card-title p-0 m-0"><i class="bi bi-database text-primary"></i> Perfiles de Bases de Datos</h5>
                     <p className="text-muted small m-0">Cada perfil funciona como una tienda independiente con sus propios productos y facturas.</p>
                 </div>
                 {hasPermission('datos_perfiles_crear') && (
@@ -224,7 +222,6 @@ export const Datos = ({ currentUser }) => {
                 )}
             </div>
 
-            {/* CORREGIDO: Se añadió la referencia del contenedor perimetral */}
             <div ref={tableContainerRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
                     key={currentUser?.permisos?.length}
