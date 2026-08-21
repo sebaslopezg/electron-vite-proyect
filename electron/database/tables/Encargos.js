@@ -21,6 +21,7 @@ export function runV1Encargos() {
         fecha_entrega TEXT,
         descripcion TEXT,
   
+        notificado INTEGER DEFAULT 0,
         status INTEGER,
         date_created TEXT,
         date_modify TEXT,

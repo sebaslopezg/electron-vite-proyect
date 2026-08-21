@@ -6,7 +6,7 @@ import { logger } from "../utils/logger.js"
 export const registerEncargosHandlers = () => {
     
     try {
-        db.exec("ALTER TABLE encargos ADD COLUMN titulo_personalizado TEXT;");
+        db.exec("ALTER TABLE encargos ADD COLUMN titulo_personalizado TEXT;")
     } catch (error) {}
 
     try {
@@ -19,37 +19,37 @@ export const registerEncargosHandlers = () => {
                 required INTEGER,
                 orden INTEGER
             );
-        `);
-        db.exec("ALTER TABLE encargos ADD COLUMN custom_data TEXT;");
-        logger.info('MIGRACION', 'Se inicializaron las tablas y columnas para campos dinámicos de encargos.');
+        `)
+        db.exec("ALTER TABLE encargos ADD COLUMN custom_data TEXT;")
+        logger.info('MIGRACION', 'Se inicializaron las tablas y columnas para campos dinámicos de encargos.')
     } catch (error) {}
 
     ipcMain.handle("get-encargos-campos", () => {
         try {
-            return db.prepare("SELECT * FROM encargos_campos ORDER BY orden ASC").all();
+            return db.prepare("SELECT * FROM encargos_campos ORDER BY orden ASC").all()
         } catch (error) {
-            logger.error('ENCARGOS', "Error al obtener campos dinámicos", error);
-            return [];
+            logger.error('ENCARGOS', "Error al obtener campos dinámicos", error)
+            return []
         }
-    });
+    })
 
     ipcMain.handle("save-encargos-campos", (_, campos) => {
         try {
             const transaction = db.transaction(() => {
-                db.prepare("DELETE FROM encargos_campos").run();
-                const insert = db.prepare("INSERT INTO encargos_campos (id, label, type, options, required, orden) VALUES (?, ?, ?, ?, ?, ?)");
+                db.prepare("DELETE FROM encargos_campos").run()
+                const insert = db.prepare("INSERT INTO encargos_campos (id, label, type, options, required, orden) VALUES (?, ?, ?, ?, ?, ?)")
                 campos.forEach((c, index) => {
-                    insert.run(c.id || uuidv4(), c.label, c.type, c.options || '', c.required ? 1 : 0, index);
-                });
-            });
-            transaction();
-            logger.success('ENCARGOS', 'Formulario dinámico actualizado con éxito');
-            return { success: true };
+                    insert.run(c.id || uuidv4(), c.label, c.type, c.options || '', c.required ? 1 : 0, index)
+                })
+            })
+            transaction()
+            logger.success('ENCARGOS', 'Formulario dinámico actualizado con éxito')
+            return { success: true }
         } catch (error) {
-            logger.error('ENCARGOS', "Error guardando campos dinámicos", error);
-            return { success: false, error: error.message };
+            logger.error('ENCARGOS', "Error guardando campos dinámicos", error)
+            return { success: false, error: error.message }
         }
-    });
+    })
 
     ipcMain.handle("get-encargos", () => {
         try {
@@ -102,12 +102,12 @@ export const registerEncargosHandlers = () => {
                     id, factura_id, producto_id, estado_id, almacen_id, cliente_id,
                     cliente_nombre, cliente_documento, factura_numero, producto_cantidad,
                     titulo_personalizado, encargo_numero, fecha_entrega, descripcion,
-                    custom_data, status, date_created
+                    custom_data, notificado, status, date_created
                 ) VALUES (
                     @id, @factura_id, @producto_id, @estado_id, @almacen_id, @cliente_id,
                     @cliente_nombre, @cliente_documento, @factura_numero, @producto_cantidad,
                     @titulo_personalizado, @encargo_numero, @fecha_entrega, @descripcion,
-                    @custom_data, @status, @date_created
+                    @custom_data, 0, @status, @date_created
                 )
             `)
 
@@ -141,6 +141,7 @@ export const registerEncargosHandlers = () => {
                     descripcion = @descripcion,
                     titulo_personalizado = @titulo_personalizado,
                     custom_data = @custom_data,
+                    notificado = 0,
                     date_modify = @date_modify,
                     modify_by = @modify_by
                 WHERE id = @id

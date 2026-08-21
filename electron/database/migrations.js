@@ -179,6 +179,17 @@ const migrations = [
         up: () => {
             runV1Notificaciones()
         }
+    },
+    {
+        version: 16,
+        up: () => {
+            console.log("Applying migration V16: Notificaciones de Encargos")
+            try {
+                db.exec(`ALTER TABLE encargos ADD COLUMN notificado INTEGER DEFAULT 0;`)
+            } catch (error) {
+                if (!error.message.includes('duplicate column name')) throw error
+            }
+        }
     }
 ]
 

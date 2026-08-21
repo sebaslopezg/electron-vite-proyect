@@ -11,6 +11,7 @@ import { fileURLToPath } from "url"
 import { initDatabase } from "./database/init.js"
 import { registerPerfilHandlers } from "./ipc/perfilHandlers.js"
 import { registerAllHandlers } from "./ipc/index.js"
+import { startBackgroundTasks } from "./utils/backgroundTasks.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -33,7 +34,7 @@ async function createMainWindow() {
   })
 
   if (isDev) {
-    const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
+    const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173"
     console.log("Loading Vite dev server:", devServerURL)
     await mainWindow.loadURL(devServerURL)
 
@@ -54,7 +55,7 @@ async function createMainWindow() {
   })
 }
 
-ipcMain.handle("ping", () => "pong from main");
+ipcMain.handle("ping", () => "pong from main")
 
 ipcMain.on("custom-event", (event, data) => {
   console.log("Renderer says:", data)
@@ -80,6 +81,8 @@ app.whenReady().then(async () => {
   }
   
   await createMainWindow()
+
+  startBackgroundTasks(mainWindow)
 
   if (isDev) {
     globalShortcut.register("CommandOrControl+Shift+I", () => {

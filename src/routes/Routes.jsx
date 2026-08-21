@@ -11,6 +11,7 @@ import { Compras } from '../pages/compras'
 import { Usuarios } from '../pages/usuarios'
 import { Roles } from '../pages/roles'
 import { Perfil } from '../pages/perfil/index'
+import { Notificaciones } from '../pages/notificaciones/index'
 
 export const MainRoutes = ({ currentUser }) => {
 
@@ -129,8 +130,13 @@ export const MainRoutes = ({ currentUser }) => {
                     <Configuracion currentUser={currentUser} />
                 </ProtectedRoute>
             } />
+            
             <Route path="/perfil" element={
                 <Perfil currentUser={currentUser} />
+            } />
+
+            <Route path="/notificaciones" element={
+                <Notificaciones />
             } />
         </Routes>
     </>

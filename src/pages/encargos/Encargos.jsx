@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import DataTableComponent from "../../components/DataTableComponent"
 import { Button } from "react-bootstrap"
 import Swal from "sweetalert2"
@@ -19,6 +20,8 @@ const Toast = Swal.mixin({
 })
 
 export const Encargos = () => {
+    const [searchParams, setSearchParams] = useSearchParams()
+
     const [show, setShow] = useState(false)
     const [showInfo, setShowInfo] = useState(false)
     const [showSearchFactura, setShowSearchFactura] = useState(false)
@@ -267,7 +270,7 @@ export const Encargos = () => {
                         producto_id: item.producto_id || '',
                         producto_nombre: item.producto_nombre || '',
                         custom_data: item.custom_data ? JSON.parse(item.custom_data) : {}
-                    })
+                    });
                     setEditingId(item.id)
                     handleShow()
                 } catch (err) { console.error("Error leyendo datos", err) }
@@ -290,6 +293,32 @@ export const Encargos = () => {
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
     }, [])
+
+    // ─── APERTURA ROBUSTA DESDE LA URL (SOLUCIONADO) ───────────
+    useEffect(() => {
+        const verId = searchParams.get('ver_id');
+        
+        if (verId && items.length > 0) {
+            // Buscamos convirtiendo ambos a String para evitar problemas de tipado
+            const encargoSeleccionado = items.find(i => String(i.id) === String(verId));
+            
+            if (encargoSeleccionado) {
+                // Timeout permite que el estado del router se asiente antes de abrir la modal
+                setTimeout(() => {
+                    handleInfo(encargoSeleccionado);
+                    handleShowInfo();
+                }, 150);
+            } else {
+                Toast.fire({ icon: 'info', title: 'El encargo ya no existe o fue archivado' });
+            }
+
+            // Forma inmutable y segura de borrar el parámetro
+            const newParams = new URLSearchParams(searchParams);
+            newParams.delete('ver_id');
+            setSearchParams(newParams, { replace: true });
+        }
+    }, [searchParams, items, setSearchParams]);
+    // ──────────────────────────────────────────────────────────
 
     const getBadgeClassForDate = (dateString) => {
         if (!dateString) return ''
@@ -366,12 +395,12 @@ export const Encargos = () => {
                         title: 'Fecha de entrega',
                         orderable: false,
                         render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row))
+                            const safeData = encodeURIComponent(JSON.stringify(row));
                             
                             if (row.fecha_entrega) {
-                                const badgeClass = getBadgeClassForDate(row.fecha_entrega)
-                                const formattedDate = formatToLocalString(row.fecha_entrega)
-                                return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`
+                                const badgeClass = getBadgeClassForDate(row.fecha_entrega);
+                                const formattedDate = formatToLocalString(row.fecha_entrega);
+                                return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`;
                             } else {
                                 return `<button class="btn btn-sm btn-primary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
                                             Agendar
