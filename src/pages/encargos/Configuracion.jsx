@@ -57,7 +57,7 @@ export const ConfiguracionEncargos = () => {
             </div>
 
             <p className="text-muted small">
-                Agrega campos adicionales (como medidas, colores, sabores o enlaces) que deban llenarse al momento de crear un encargo.
+                Agrega campos adicionales que deban llenarse al momento de crear un encargo.
             </p>
 
             {campos.length === 0 ? (

@@ -162,6 +162,11 @@ contextBridge.exposeInMainWorld("api", {
   updateUsuario: (data) => ipcRenderer.invoke("update-usuario", data),
   updateMiPerfil: (data) => ipcRenderer.invoke("update-mi-perfil", data),
   deleteUsuario: (id) => ipcRenderer.invoke("delete-usuario", id),
+
+  //notificaciones
+  getNotificaciones: () => ipcRenderer.invoke('get-notificaciones'),
+  marcarNotificacionLeida: (id) => ipcRenderer.invoke('marcar-notificacion-leida', id),
+  addNotificacion: (data) => ipcRenderer.invoke('add-notificacion', data)
 })
 
 // contabilidad

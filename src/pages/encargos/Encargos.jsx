@@ -7,6 +7,8 @@ import { ModalFormEncargo } from "./components/ModalFormEncargo"
 import { ModalBuscarFactura } from "./components/ModalBuscarFactura"
 import { encargosService } from "../../services/encargosService"
 import { ventasService } from "../../services/ventasService"
+import { ModalDetalleFactura } from "../ventas/components/ModalDetalleFactura"
+import { ImpresorFactura } from "../ventas/components/ImpresorFactura"
 
 const Toast = Swal.mixin({
     toast: true,
@@ -21,9 +23,25 @@ export const Encargos = () => {
     const [showInfo, setShowInfo] = useState(false)
     const [showSearchFactura, setShowSearchFactura] = useState(false)
 
+    const [showFacturaModal, setShowFacturaModal] = useState(false)
+    const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
+    const [detalleData, setDetalleData] = useState([])
+    const [notasFactura, setNotasFactura] = useState([])
+    const [almacenConf, setAlmacenConf] = useState(null)
+    const [showPreview, setShowPreview] = useState(false)
+    const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+
     const handleClose = () => setShow(false) || setShowInfo(false)
     const handleShow = () => setShow(true)
     const handleShowInfo = () => setShowInfo(true)
+
+    const handleCloseFacturaModal = () => {
+        setShowFacturaModal(false)
+        setFacturaSeleccionada(null)
+        setDetalleData([])
+        setNotasFactura([])
+    }
 
     const [items, setItems] = useState([])
     const [dataInTable, setDataInTable] = useState([])
@@ -47,6 +65,20 @@ export const Encargos = () => {
     const [facturaOrigen, setFacturaOrigen] = useState(null)
 
     const tableContainerRef = useRef(null)
+
+    const loadConfig = async () => {
+        const configData = await ventasService.getConfiguracion()
+        const confAppRaw = configData.find(c => c.key === 'confApp')
+        if (confAppRaw) {
+            try {
+                const parsed = JSON.parse(confAppRaw.value)
+                setAppConfig({
+                    moneda: parsed.moneda || 'COP',
+                    formato_numero: parsed.formato_numero || 'es-CO'
+                })
+            } catch(e) {}
+        }
+    }
 
     const load = async () => {
         const data = await encargosService.getEncargos()
@@ -87,6 +119,39 @@ export const Encargos = () => {
             Toast.fire({ icon: 'success', title: 'Factura Encontrada' })
         } else {
             setShowSearchFactura(true)
+        }
+    }
+
+    const handleVerFactura = async (busquedaExacta) => {
+        const result = await ventasService.searchFactura(busquedaExacta)
+        if (result.success) {
+            setFacturaSeleccionada(result.maestro)
+            
+            const det = await ventasService.getDetalleFactura(result.maestro.id)
+            if (det.success) {
+                setDetalleData(det.data)
+                setNotasFactura(det.notes || [])
+                setAlmacenConf(det.configuracion || null)
+                setShowFacturaModal(true)
+            }
+        } else {
+            Toast.fire({ icon: 'error', title: 'La factura ya no existe o fue eliminada' })
+        }
+    }
+
+    const handlePrepararImpresion = () => {
+        setShowFacturaModal(false)
+        setAbiertoDesdeDetalles(true)
+        setShowPreview(true)
+    }
+
+    const handleCerrarPreview = () => {
+        setShowPreview(false)
+        if (abiertoDesdeDetalles) {
+            setShowFacturaModal(true)
+        } else {
+            setFacturaSeleccionada(null)
+            setDetalleData([])
         }
     }
 
@@ -156,6 +221,12 @@ export const Encargos = () => {
     }
 
     useEffect(() => {
+        loadConfig()
+        window.addEventListener('config-actualizada', loadConfig)
+        return () => window.removeEventListener('config-actualizada', loadConfig)
+    }, [])
+
+    useEffect(() => {
         load()
         loadSelectData()
 
@@ -168,6 +239,14 @@ export const Encargos = () => {
             window.removeEventListener('estados-actualizados', handleEstadosUpdate)
             window.removeEventListener('formulario-encargos-actualizado', handleEstadosUpdate)
         }
+    }, [])
+
+    useEffect(() => {
+        const handleRequestFactura = (e) => {
+            handleVerFactura(e.detail)
+        }
+        window.addEventListener('request-ver-factura', handleRequestFactura)
+        return () => window.removeEventListener('request-ver-factura', handleRequestFactura)
     }, [])
 
     useEffect(() => {
@@ -188,7 +267,7 @@ export const Encargos = () => {
                         producto_id: item.producto_id || '',
                         producto_nombre: item.producto_nombre || '',
                         custom_data: item.custom_data ? JSON.parse(item.custom_data) : {}
-                    });
+                    })
                     setEditingId(item.id)
                     handleShow()
                 } catch (err) { console.error("Error leyendo datos", err) }
@@ -200,6 +279,11 @@ export const Encargos = () => {
                 const item = JSON.parse(rawData)
                 handleInfo(item)
                 handleShowInfo()
+            }
+
+            const btnFactura = e.target.closest('.btn-ver-factura')
+            if (btnFactura) {
+                handleVerFactura(btnFactura.dataset.fullnum)
             }
         }
 
@@ -250,7 +334,8 @@ export const Encargos = () => {
                         title: 'N° Factura',
                         render: (data, type, row) => {
                             const prefix = row.prefijo ? `${row.prefijo}-` : '';
-                            return `<strong>${prefix}${data}</strong>`
+                            const fullNum = `${prefix}${data}`;
+                            return `<a href="#" class="text-primary fw-bold btn-ver-factura text-decoration-underline" data-fullnum="${fullNum}" onclick="event.preventDefault()">${fullNum}</a>`
                         }
                     },
                     {
@@ -281,12 +366,12 @@ export const Encargos = () => {
                         title: 'Fecha de entrega',
                         orderable: false,
                         render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row));
+                            const safeData = encodeURIComponent(JSON.stringify(row))
                             
                             if (row.fecha_entrega) {
-                                const badgeClass = getBadgeClassForDate(row.fecha_entrega);
-                                const formattedDate = formatToLocalString(row.fecha_entrega);
-                                return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`;
+                                const badgeClass = getBadgeClassForDate(row.fecha_entrega)
+                                const formattedDate = formatToLocalString(row.fecha_entrega)
+                                return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`
                             } else {
                                 return `<button class="btn btn-sm btn-primary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
                                             Agendar
@@ -345,6 +430,28 @@ export const Encargos = () => {
                 show={showInfo}
                 handleClose={handleClose}
                 encargoData={encargoSel}
+                onVerFactura={(numeroFactura) => {
+                    handleVerFactura(numeroFactura)
+                }}
+            />
+
+            <ModalDetalleFactura
+                show={showFacturaModal}
+                handleClose={handleCloseFacturaModal}
+                facturaSeleccionada={facturaSeleccionada}
+                detalleData={detalleData}
+                notasFactura={notasFactura}
+                handlePrepararImpresion={handlePrepararImpresion}
+                appConfig={appConfig}
+            />
+            
+            <ImpresorFactura 
+                show={showPreview} 
+                onClose={handleCerrarPreview} 
+                factura={facturaSeleccionada} 
+                detalles={detalleData} 
+                almacenConf={almacenConf} 
+                textoVolver={abiertoDesdeDetalles ? 'Volver a Detalles' : 'Cerrar'} 
             />
         </div>
     </>

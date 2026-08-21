@@ -111,6 +111,9 @@ export const Calendario = () => {
         show={show}
         handleClose={handleClose}
         encargoData={encargoSel}
+        onVerFactura={(numeroFactura) => {
+          window.dispatchEvent(new CustomEvent('request-ver-factura', { detail: numeroFactura }))
+        }}
       />
     </div>
   </>

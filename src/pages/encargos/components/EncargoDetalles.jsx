@@ -1,6 +1,6 @@
 import { Button, Col, Modal, Row } from "react-bootstrap"
 
-export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
+export const EncargoDetalles = ({ show, handleClose, encargoData, onVerFactura }) => {
     return <>
         <Modal show={show} onHide={handleClose} size="lg" centered className="shadow">
             <Modal.Header closeButton className="bg-light">
@@ -44,7 +44,19 @@ export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
                         </div>
                         <div>
                             <label className="d-block small">N° Factura Relacionada</label>
-                            <span className="badge bg-light text-dark border">{encargoData.prefijo}-{encargoData.factura_numero}</span>
+                            <div>
+                                <a 
+                                    href="#" 
+                                    className="text-primary fw-bold text-decoration-underline"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        const prefix = encargoData.prefijo ? `${encargoData.prefijo}-` : '';
+                                        if (onVerFactura) onVerFactura(`${prefix}${encargoData.factura_numero}`);
+                                    }}
+                                >
+                                    {encargoData.prefijo ? `${encargoData.prefijo}-` : ''}{encargoData.factura_numero}
+                                </a>
+                            </div>
                         </div>
                     </Col>
 
@@ -52,11 +64,11 @@ export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
                         <h6 className="text-uppercase small fw-bold mb-3">Detalles Técnicos</h6>
 
                         {encargoData.custom_data && encargoData.custom_data !== '{}' && (
-                            <div className="mt-3 bg-white border rounded p-3 shadow-sm">
-                                <h6 className="small fw-bold text-primary mb-2 border-bottom pb-1">Especificaciones del Pedido</h6>
+                            <div className="mt-3 bg-white border rounded p-3">
+                                <h6 className="small fw-bold mb-2 border-bottom pb-1">Especificaciones del Pedido</h6>
                                 {Object.entries(JSON.parse(encargoData.custom_data)).map(([key, value]) => (
                                     <div key={key} className="mb-1 d-flex align-items-center">
-                                        <i className="bi bi-check2-circle text-success me-2"></i>
+                                        <i className="bi bi-caret-right-fill text-primary me-2"></i>
                                         <span className="small text-muted me-1">{key}:</span> 
                                         <span className="small fw-bold">{value || '-'}</span>
                                     </div>
@@ -64,8 +76,8 @@ export const EncargoDetalles = ({ show, handleClose, encargoData }) => {
                             </div>
                         )}
                         
-                        <div className="bg-light p-3 rounded shadow-sm">
-                            <label className="text-muted d-block small mb-1">Descripción del pedido</label>
+                        <div className="bg-light p-3 rounded border mt-3">
+                            <label className="text-muted fw-bold d-block small mb-1">Descripción del pedido</label>
                             <p className="mb-0" style={{ fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
                                 {encargoData.descripcion || "Sin descripción adicional."}
                             </p>

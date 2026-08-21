@@ -6,10 +6,8 @@ import fs from 'fs'
 const dbDir = path.join(app.getPath("userData"), "app2")
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true })
 
-// BASE DE DATOS DEL SISTEMA (Siempre es data.db)
 export const appDb = new Database(path.join(dbDir, "data.db"))
 
-// BASE DE DATOS DEL NEGOCIO (Dinámica)
 let tenantDbInstance = null
 
 export const switchTenantDb = (filename) => {
@@ -21,7 +19,6 @@ export const switchTenantDb = (filename) => {
     return tenantDbInstance
 }
 
-// PROXY
 const dbProxy = new Proxy({}, {
     get: (target, prop) => {
         if (!tenantDbInstance) throw new Error("Ningún perfil de base de datos ha sido cargado.")

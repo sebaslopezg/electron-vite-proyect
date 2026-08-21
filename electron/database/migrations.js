@@ -23,6 +23,7 @@ import { runV1ConfiguracionContable } from './tables/configuracionContable.js'
 import { runV1Compras } from './tables/compras.js'
 import { runV1Subcategorias } from './tables/subcategorias.js'
 import { runV2ConfiguracionContable } from './tables/configuracionContable.js'
+import { runV1Notificaciones } from './tables/Notificaciones.js'
 
 const migrations = [
     {
@@ -44,6 +45,7 @@ const migrations = [
             runV1VentasDetalle()
             runV1VentasMaestro()
             runV1Bitacora()
+            runV1Notificaciones()
         }
     },
     
@@ -170,6 +172,12 @@ const migrations = [
                     fecha TEXT NOT NULL
                 );
             `)
+        }
+    },
+    {
+        version: 15,
+        up: () => {
+            runV1Notificaciones()
         }
     }
 ]

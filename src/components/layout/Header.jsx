@@ -1,12 +1,34 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import defaultLogo from './../../assets/favicon.png'
+import { notificacionesService } from '../../services/notificacionesService'
+
+// Utilidad para mostrar hace cuánto tiempo fue la notificación
+const timeAgo = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHrs = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHrs / 24);
+
+    if (diffMins < 1) return 'Hace un momento';
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    if (diffHrs < 24) return `Hace ${diffHrs} hr${diffHrs > 1 ? 's' : ''}`;
+    if (diffDays === 1) return 'Ayer';
+    return `Hace ${diffDays} días`;
+}
 
 export const Header = ({ currentUser, onLogout }) => {
     const [searchBarShow, setSearchBarShow] = useState(false)
     const [appName, setAppName] = useState('Caedro')
     const [appLogo, setAppLogo] = useState(defaultLogo)
     const [userVisual, setUserVisual] = useState(currentUser)
+    
+    // Estados para las notificaciones
+    const [notificaciones, setNotificaciones] = useState([])
+    const navigate = useNavigate()
 
     const loadConfig = async () => {
         try {
@@ -25,17 +47,36 @@ export const Header = ({ currentUser, onLogout }) => {
         }
     }
 
+    const loadNotificaciones = async () => {
+        try {
+            const data = await notificacionesService.getNotificaciones();
+            setNotificaciones(data || []);
+        } catch (error) {
+            console.error("Error cargando notificaciones:", error);
+        }
+    }
+
     useEffect(() => {
         loadConfig()
+        loadNotificaciones()
+
         const handleUpdate = () => loadConfig()
-        window.addEventListener('config-actualizada', handleUpdate)
-        
         const handleProfileUpdate = (e) => setUserVisual(e.detail)
+        const handleNotifUpdate = () => loadNotificaciones()
+
+        window.addEventListener('config-actualizada', handleUpdate)
         window.addEventListener('perfil-actualizado', handleProfileUpdate)
+        // Este evento se puede disparar globalmente cuando se genere una nueva alerta
+        window.addEventListener('notificaciones-actualizadas', handleNotifUpdate)
+
+        // Intervalo para actualizar notificaciones cada 2 minutos
+        const interval = setInterval(loadNotificaciones, 120000)
 
         return () => {
             window.removeEventListener('config-actualizada', handleUpdate)
             window.removeEventListener('perfil-actualizado', handleProfileUpdate)
+            window.removeEventListener('notificaciones-actualizadas', handleNotifUpdate)
+            clearInterval(interval)
         }
     }, [])
 
@@ -52,7 +93,37 @@ export const Header = ({ currentUser, onLogout }) => {
         setSearchBarShow(!searchBarShow)
     }
 
+    const handleMarcarLeida = async (e, notificacion) => {
+        e.preventDefault();
+        if (notificacion.leida === 0) {
+            await notificacionesService.marcarLeida(notificacion.id);
+            loadNotificaciones();
+        }
+        if (notificacion.link) {
+            navigate(notificacion.link);
+        }
+    }
+
+    const handleMarcarTodasLeidas = async (e) => {
+        e.preventDefault();
+        await notificacionesService.marcarLeida('all');
+        loadNotificaciones();
+    }
+
     const primerNombre = currentUser?.nombre_completo?.split(' ')[0] || 'Usuario'
+    
+    const notificacionesNoLeidas = notificaciones.filter(n => n.leida === 0);
+    const contador = notificacionesNoLeidas.length;
+
+    // Configuración visual según el tipo de notificación
+    const getIconData = (tipo) => {
+        switch(tipo) {
+            case 'success': return { icon: 'bi-check-circle', color: 'text-success' };
+            case 'warning': return { icon: 'bi-exclamation-circle', color: 'text-warning' };
+            case 'danger': return { icon: 'bi-x-circle', color: 'text-danger' };
+            default: return { icon: 'bi-info-circle', color: 'text-primary' };
+        }
+    }
 
     return <>
     <header id="header" className="header fixed-top d-flex align-items-center">
@@ -79,69 +150,57 @@ export const Header = ({ currentUser, onLogout }) => {
                         </a>
                     </li>
 
-                    {/*
+                    {/* MÓDULO DE NOTIFICACIONES HABILITADO */}
                     <li className="nav-item dropdown">
                         <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
                             <i className="bi bi-bell"></i>
-                            <span className="badge bg-primary badge-number">4</span>
+                            {contador > 0 && (
+                                <span className="badge bg-primary badge-number animate__animated animate__pulse animate__infinite">
+                                    {contador > 99 ? '99+' : contador}
+                                </span>
+                            )}
                         </a>
 
-                        <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications">
+                        <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications shadow-sm">
                             <li className="dropdown-header">
-                                You have 4 new notifications
-                                <a href="#"><span className="badge rounded-pill bg-primary p-2 ms-2">View all</span></a>
+                                {contador > 0 ? `Tienes ${contador} notificaciones nuevas` : 'No hay notificaciones nuevas'}
+                                {contador > 0 && (
+                                    <a href="#" onClick={handleMarcarTodasLeidas}>
+                                        <span className="badge rounded-pill bg-primary p-2 ms-2 hover-opacity">Marcar leídas</span>
+                                    </a>
+                                )}
                             </li>
                             <li><hr className="dropdown-divider" /></li>
 
-                            <li className="notification-item">
-                                <i className="bi bi-exclamation-circle text-warning"></i>
-                                <div>
-                                    <h4>Lorem Ipsum</h4>
-                                    <p>Quae dolorem earum veritatis oditseno</p>
-                                    <p>30 min. ago</p>
-                                </div>
-                            </li>
+                            {notificaciones.length === 0 ? (
+                                <li className="notification-item py-4 text-center text-muted">
+                                    <i className="bi bi-bell-slash fs-4 d-block mb-2"></i>
+                                    Al día
+                                </li>
+                            ) : (
+                                notificaciones.slice(0, 5).map((noti) => {
+                                    const { icon, color } = getIconData(noti.tipo);
+                                    return (
+                                        <div key={noti.id}>
+                                            <li className={`notification-item ${noti.leida === 0 ? 'bg-light' : ''}`} style={{ cursor: 'pointer' }} onClick={(e) => handleMarcarLeida(e, noti)}>
+                                                <i className={`bi ${icon} ${color}`}></i>
+                                                <div>
+                                                    <h4 className={noti.leida === 0 ? 'fw-bold' : ''}>{noti.titulo}</h4>
+                                                    <p>{noti.mensaje}</p>
+                                                    <p className="text-muted small">{timeAgo(noti.date_created)}</p>
+                                                </div>
+                                            </li>
+                                            <li><hr className="dropdown-divider" /></li>
+                                        </div>
+                                    )
+                                })
+                            )}
 
-                            <li><hr className="dropdown-divider" /></li>
-
-                            <li className="notification-item">
-                                <i className="bi bi-x-circle text-danger"></i>
-                                <div>
-                                    <h4>Atque rerum nesciunt</h4>
-                                    <p>Quae dolorem earum veritatis oditseno</p>
-                                    <p>1 hr. ago</p>
-                                </div>
-                            </li>
-
-                            <li><hr className="dropdown-divider" /></li>
-
-                            <li className="notification-item">
-                                <i className="bi bi-check-circle text-success"></i>
-                                <div>
-                                    <h4>Sit rerum fuga</h4>
-                                    <p>Quae dolorem earum veritatis oditseno</p>
-                                    <p>2 hrs. ago</p>
-                                </div>
-                            </li>
-
-                            <li><hr className="dropdown-divider" /></li>
-
-                            <li className="notification-item">
-                                <i className="bi bi-info-circle text-primary"></i>
-                                <div>
-                                    <h4>Dicta reprehenderit</h4>
-                                    <p>Quae dolorem earum veritatis oditseno</p>
-                                    <p>4 hrs. ago</p>
-                                </div>
-                            </li>
-
-                            <li><hr className="dropdown-divider" /></li>
                             <li className="dropdown-footer">
-                                <a href="#">Show all notifications</a>
+                                <Link to="/notificaciones">Ver todas las notificaciones</Link>
                             </li>
                         </ul>
                     </li> 
-                    */}
 
                     {/*
                     <li className="nav-item dropdown">
@@ -149,65 +208,15 @@ export const Header = ({ currentUser, onLogout }) => {
                             <i className="bi bi-chat-left-text"></i>
                             <span className="badge bg-success badge-number">3</span>
                         </a>
-
-                        <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow messages">
-                            <li className="dropdown-header">
-                                You have 3 new messages
-                                <a href="#"><span className="badge rounded-pill bg-primary p-2 ms-2">View all</span></a>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-
-                            <li className="message-item">
-                                <a href="#">
-                                    <img src="assets/img/messages-1.jpg" alt="" className="rounded-circle" />
-                                    <div>
-                                        <h4>Maria Hudson</h4>
-                                        <p>Velit asperiores et ducimus soluta repudiandae labore officia est ut...</p>
-                                        <p>4 hrs. ago</p>
-                                    </div>
-                                </a>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-
-                            <li className="message-item">
-                                <a href="#">
-                                    <img src="assets/img/messages-2.jpg" alt="" className="rounded-circle" />
-                                    <div>
-                                        <h4>Anna Nelson</h4>
-                                        <p>Velit asperiores et ducimus soluta repudiandae labore officia est ut...</p>
-                                        <p>6 hrs. ago</p>
-                                    </div>
-                                </a>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-
-                            <li className="message-item">
-                                <a href="#">
-                                    <img src="assets/img/messages-3.jpg" alt="" className="rounded-circle" />
-                                    <div>
-                                        <h4>David Muldon</h4>
-                                        <p>Velit asperiores et ducimus soluta repudiandae labore officia est ut...</p>
-                                        <p>8 hrs. ago</p>
-                                    </div>
-                                </a>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-
-                            <li className="dropdown-footer">
-                                <a href="#">Show all messages</a>
-                            </li>
-                        </ul>
+                        ...
                     </li> 
                     */}
-
-
 
                     <li className="nav-item dropdown pe-4">
                         <a className="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
                             {userVisual?.foto_perfil ? (
                                 <img src={userVisual.foto_perfil} alt="Profile" className="rounded-circle" style={{ width: '36px', height: '36px', objectFit: 'cover' }} />
                             ) : (
-                                /* CORREGIDO: Inicial dinámica con fondo de color si no hay avatar */
                                 <div 
                                     className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" 
                                     style={{ width: '36px', height: '36px', fontSize: '0.95rem', minWidth: '36px' }}
@@ -241,8 +250,6 @@ export const Header = ({ currentUser, onLogout }) => {
                             </li>
                         </ul>
                     </li>
-
-
                 </ul>
             </nav>
         </header>
