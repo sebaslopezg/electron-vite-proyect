@@ -11,7 +11,7 @@ export const ModalAjusteStock = ({
     selectedProduct, 
     handleSave 
 }) => {
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="sm" centered>
             <Modal.Header closeButton>
                 <Modal.Title className="fs-6">{modalInfo.title}</Modal.Title>
@@ -44,5 +44,5 @@ export const ModalAjusteStock = ({
                 <Button variant="primary" size="sm" onClick={handleSave}>Guardar</Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

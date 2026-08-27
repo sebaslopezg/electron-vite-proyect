@@ -4,7 +4,6 @@ import { Button, Row, Col, Form } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import { formatCurrency } from '../../../utils/currencies'
 import { carteraService } from '../../../services/carteraService'
-// Importamos ventasService para acceder al catálogo global de métodos de pago
 import { ventasService } from '../../../services/ventasService'
 
 export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, currentUser }) => {
@@ -15,7 +14,6 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
         observaciones: ''
     })
 
-    // Cargamos los métodos de pago dinámicos desde la base de datos al montar el componente
     useEffect(() => {
         const loadMetodos = async () => {
             const metodos = await ventasService.getMetodosPago()
@@ -24,12 +22,10 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
         loadMetodos()
     }, [])
     
-    // Seteamos el estado inicial cuando se selecciona una factura
     useEffect(() => {
         if (factura) {
             setAbonoForm({
                 valor: factura.saldo_pendiente, 
-                // Asigna por defecto el primer método de la base de datos o 'Efectivo' en su defecto
                 metodo_pago: listaMetodosPago.length > 0 ? listaMetodosPago[0].nombre : 'Efectivo',
                 observaciones: ''
             })
@@ -78,9 +74,9 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
         }
     }
 
-    if (!factura) return null;
+    if (!factura) return null
 
-    return (
+    return <>
         <Modal show={show} onHide={onClose} centered>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
@@ -134,5 +130,5 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
                 </Modal.Footer>
             </Form>
         </Modal>
-    )
+    </>
 }

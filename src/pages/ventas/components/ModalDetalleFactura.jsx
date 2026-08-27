@@ -14,8 +14,8 @@ export const ModalDetalleFactura = ({
 }) => {
 
     const _formatCurrency = (val) => {
-        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
-    };
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+    }
 
     const getBadgeClassPago = (factura) => {
         if (!factura) return 'bg-primary'
@@ -27,7 +27,7 @@ export const ModalDetalleFactura = ({
         return 'bg-primary'
     }
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
@@ -77,13 +77,13 @@ export const ModalDetalleFactura = ({
                         { 
                           data: null, title: 'SKU',
                           render: (data, type, row) => {
-                            if (!row.sku) return '<span class="text-muted" title="Producto eliminado o importado">Generico</span>'; 
+                            if (!row.sku) return '<span class="text-muted" title="Producto eliminado o importado">Generico</span>'
                             
-                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
-                            const skuVal = String(row.sku).toUpperCase();
+                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : ''
+                            const skuVal = String(row.sku).toUpperCase()
                             
-                            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
-                            return `<strong>${finalSku}</strong>`;
+                            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
+                            return `<strong>${finalSku}</strong>`
                           }
                         },
                         { data: 'nombre_producto', title: 'Producto' },
@@ -174,5 +174,5 @@ export const ModalDetalleFactura = ({
                 <Button variant="secondary" onClick={handleClose}>Cerrar</Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

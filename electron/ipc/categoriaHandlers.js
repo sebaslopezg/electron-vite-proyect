@@ -88,4 +88,19 @@ export const registerCategoriaHandlers = () => {
             return { success: false, error: error.message }
         }
     })
+
+    ipcMain.handle("get-productos-por-categoria", (_, categoriaId) => {
+        try {
+            const stmt = db.prepare(`
+                SELECT id, ref_name, sku, precio, stock, min_stock, status, tipo
+                FROM producto 
+                WHERE categoria_id = ? AND status > 0
+                ORDER BY ref_name ASC
+            `)
+            return stmt.all(categoriaId)
+        } catch (error) {
+            logger.error('CATEGORIAS', `Error al obtener productos para la categoría ${categoriaId}`, error)
+            return []
+        }
+    })
 }

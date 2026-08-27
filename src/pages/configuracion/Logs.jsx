@@ -201,7 +201,7 @@ export const Logs = () => {
             </Row>
         </div>
 
-        <div ref={tableContainerRef} className="w-100 overflow-hidden">
+        <div ref={tableContainerRef} className="w-100">
             <DataTableComponent 
                 tableId="dt-configuracion-logs"
                 key={`logs-table-${reloadKey}-${logsFiltrados.length}`}

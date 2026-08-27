@@ -15,17 +15,17 @@ export default function EtiquetaModal({
     
     const handleCategoryToggle = (catId) => {
         setForm(prev => {
-            const currentCats = prev.categorias || [];
+            const currentCats = prev.categorias || []
             if (currentCats.includes(catId)) {
-                if (catId === 'general' && currentCats.length === 1) return prev;
-                return { ...prev, categorias: currentCats.filter(id => id !== catId) };
+                if (catId === 'general' && currentCats.length === 1) return prev
+                return { ...prev, categorias: currentCats.filter(id => id !== catId) }
             } else {
-                return { ...prev, categorias: [...currentCats, catId] };
+                return { ...prev, categorias: [...currentCats, catId] }
             }
-        });
-    };
+        })
+    }
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="md" centered>
             <Modal.Header closeButton>
                 <Modal.Title>{editingId ? 'Editar Etiqueta' : 'Nueva Etiqueta'}</Modal.Title>
@@ -92,5 +92,5 @@ export default function EtiquetaModal({
                 <Button variant="primary" type="submit" form="etiquetaForm">Guardar</Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

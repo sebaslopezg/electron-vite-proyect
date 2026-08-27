@@ -222,7 +222,7 @@ export const Datos = ({ currentUser }) => {
                 )}
             </div>
 
-            <div ref={tableContainerRef} className="w-100 overflow-hidden">
+            <div ref={tableContainerRef} className="w-100">
                 <DataTableComponent 
                     key={currentUser?.permisos?.length}
                     data={perfiles}

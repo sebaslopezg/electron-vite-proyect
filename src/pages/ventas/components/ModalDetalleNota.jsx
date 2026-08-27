@@ -59,9 +59,9 @@ export const ModalDetalleNota = ({
                         { 
                           data: null, title: 'SKU',
                           render: (data, type, row) => {
-                            if (!row.sku) return '<span class="text-muted" title="Producto eliminado">Sin SKU</span>'; 
-                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                            return `<strong>${prefix}${row.sku.toUpperCase()}</strong>`;
+                            if (!row.sku) return '<span class="text-muted" title="Producto eliminado">Sin SKU</span>'
+                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
+                            return `<strong>${prefix}${row.sku.toUpperCase()}</strong>`
                           }
                         },
                         { data: 'nombre_producto', title: 'Producto' },

@@ -88,137 +88,135 @@ export const ModalBusquedaVentas = ({
         }
     ], [appConfig])
 
-    return (
-        <>
-            <Modal show={show} onHide={handleLocalClose} size="xl" centered scrollable>
-                <Modal.Header closeButton className="bg-light">
-                    <Modal.Title className="fs-5">{modalData.title}</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
+    return <>
+        <Modal show={show} onHide={handleLocalClose} size="xl" centered scrollable>
+            <Modal.Header closeButton className="bg-light">
+                <Modal.Title className="fs-5">{modalData.title}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
                     
-                    {modalData.type === 'producto' && (
-                        <>
-                            <ul className="nav nav-tabs nav-tabs-bordered mb-3" role="tablist">
-                                <li className="nav-item">
-                                    <button 
-                                        className={`nav-link ${activeTab === 'productos' ? 'active text-primary' : 'text-secondary'}`}
-                                        onClick={() => setActiveTab('productos')}
-                                    >
-                                        Productos
-                                    </button>
-                                </li>
-                                <li className="nav-item">
-                                    <button 
-                                        className={`nav-link ${activeTab === 'servicios' ? 'active text-primary' : 'text-secondary'}`}
-                                        onClick={() => setActiveTab('servicios')}
-                                    >
-                                        Servicios
-                                    </button>
-                                </li>
-                            </ul>
+                {modalData.type === 'producto' && (
+                    <>
+                        <ul className="nav nav-tabs nav-tabs-bordered mb-3" role="tablist">
+                            <li className="nav-item">
+                                <button 
+                                    className={`nav-link ${activeTab === 'productos' ? 'active text-primary' : 'text-secondary'}`}
+                                    onClick={() => setActiveTab('productos')}
+                                >
+                                    Productos
+                                </button>
+                            </li>
+                            <li className="nav-item">
+                                <button 
+                                    className={`nav-link ${activeTab === 'servicios' ? 'active text-primary' : 'text-secondary'}`}
+                                    onClick={() => setActiveTab('servicios')}
+                                >
+                                    Servicios
+                                </button>
+                            </li>
+                        </ul>
 
-                            <div className="bg-light p-3 rounded mb-3 border animate__animated animate__fadeIn" style={{ overflow: 'visible' }}>
-                                <Row className="g-3 align-items-end" style={{ overflow: 'visible' }}>
-                                    <Col md={3}>
-                                        <Form.Group>
-                                            <Form.Label className="fw-bold text-secondary"><small>Categoría:</small></Form.Label>
-                                            <BuscadorFiltros 
-                                                items={categoriasList}
-                                                value={filterCategory}
-                                                onChange={setFilterCategory}
-                                                placeholder="Todas las categorías..."
-                                            />
-                                        </Form.Group>
-                                    </Col>
-
-                                    <Col md={3} style={{ overflow: 'visible' }}>
-                                        <Form.Group>
-                                            <Form.Label className="fw-bold text-secondary"><small>Subcategoría:</small></Form.Label>
-                                            <BuscadorFiltros 
-                                                items={subcategoriasFiltradas}
-                                                value={filterSubcategory}
-                                                onChange={setFilterSubcategory}
-                                                placeholder={filterCategory ? "Todas las subcategorías..." : "Selecciona categoría primero"}
-                                                disabled={!filterCategory}
-                                            />
-                                        </Form.Group>
-                                    </Col>
-
-                                    <Col md={3}>
-                                        <Form.Group>
-                                            <Form.Label className="fw-bold text-secondary"><small>Etiqueta:</small></Form.Label>
-                                            <Form.Select size="sm" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
-                                                <option value="">Todas</option>
-                                                {etiquetasList.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-                                            </Form.Select>
-                                        </Form.Group>
-                                    </Col>
-                                    
-                                    <Col md={3}>
-                                        <Button 
-                                            variant="outline-secondary" size="sm" className="w-100" 
-                                            onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterTag(''); }} 
-                                            disabled={!filterCategory && !filterSubcategory && !filterTag}
-                                        >
-                                            <i className="bi bi-x-circle me-1"></i>Limpiar Filtros
-                                        </Button>
-                                    </Col>
-                                </Row>
-                            </div>
-
-                            <div className="tab-content w-100 overflow-hidden">
-                                {activeTab === 'productos' && (
-                                    <div className="animate__animated animate__fadeIn">
-                                        <DataTableComponent
-                                            tableId="dt-modal-busqueda-productos"
-                                            key={`prod-modal-${filterCategory}-${filterSubcategory}-${filterTag}-${appConfig.moneda}`}
-                                            ajaxData={(params) => {
-                                                params.customCategory = filterCategory;
-                                                params.customSubcategory = filterSubcategory;
-                                                params.customTag = filterTag;
-                                                return ventasService.getProductosPaginados(params);
-                                            }}
-                                            columns={modalData.columns}
+                        <div className="bg-light p-3 rounded mb-3 border animate__animated animate__fadeIn" style={{ overflow: 'visible' }}>
+                            <Row className="g-3 align-items-end" style={{ overflow: 'visible' }}>
+                                <Col md={3}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold text-secondary"><small>Categoría:</small></Form.Label>
+                                        <BuscadorFiltros 
+                                            items={categoriasList}
+                                            value={filterCategory}
+                                            onChange={setFilterCategory}
+                                            placeholder="Todas las categorías..."
                                         />
-                                    </div>
-                                )}
+                                    </Form.Group>
+                                </Col>
+
+                                <Col md={3} style={{ overflow: 'visible' }}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold text-secondary"><small>Subcategoría:</small></Form.Label>
+                                        <BuscadorFiltros 
+                                            items={subcategoriasFiltradas}
+                                            value={filterSubcategory}
+                                            onChange={setFilterSubcategory}
+                                            placeholder={filterCategory ? "Todas las subcategorías..." : "Selecciona categoría primero"}
+                                            disabled={!filterCategory}
+                                        />
+                                    </Form.Group>
+                                </Col>
+
+                                <Col md={3}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold text-secondary"><small>Etiqueta:</small></Form.Label>
+                                        <Form.Select size="sm" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
+                                            <option value="">Todas</option>
+                                            {etiquetasList.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
                                 
-                                {activeTab === 'servicios' && (
-                                    <div className="animate__animated animate__fadeIn">
-                                        <DataTableComponent
-                                            tableId="dt-modal-busqueda-servicios"
-                                            key={`serv-modal-${filterCategory}-${filterSubcategory}-${filterTag}-${appConfig.moneda}`}
-                                            ajaxData={(params) => {
-                                                params.customCategory = filterCategory;
-                                                params.customSubcategory = filterSubcategory;
-                                                params.customTag = filterTag;
-                                                return window.api.getServiciosPaginados(params);
-                                            }}
-                                            columns={columnasServicios}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
-
-                    {modalData.type === 'cliente' && (
-                        <div className="w-100 overflow-hidden">
-                            <DataTableComponent
-                                key={modalData.type}
-                                data={clientes}
-                                columns={modalData.columns}
-                            />
+                                <Col md={3}>
+                                    <Button 
+                                        variant="outline-secondary" size="sm" className="w-100" 
+                                        onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterTag(''); }} 
+                                        disabled={!filterCategory && !filterSubcategory && !filterTag}
+                                    >
+                                        <i className="bi bi-x-circle me-1"></i>Limpiar Filtros
+                                    </Button>
+                                </Col>
+                            </Row>
                         </div>
-                    )}
 
-                </Modal.Body>
-                <Modal.Footer className="bg-light border-top pt-2 pb-2 d-flex justify-content-end">
-                    <Button variant="secondary" size="sm" onClick={handleLocalClose}>
-                        Cerrar
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-        </>
-    )
+                        <div className="tab-content w-100 overflow-hidden">
+                            {activeTab === 'productos' && (
+                                <div className="animate__animated animate__fadeIn">
+                                    <DataTableComponent
+                                        tableId="dt-modal-busqueda-productos"
+                                        key={`prod-modal-${filterCategory}-${filterSubcategory}-${filterTag}-${appConfig.moneda}`}
+                                        ajaxData={(params) => {
+                                            params.customCategory = filterCategory;
+                                            params.customSubcategory = filterSubcategory;
+                                            params.customTag = filterTag;
+                                            return ventasService.getProductosPaginados(params);
+                                        }}
+                                        columns={modalData.columns}
+                                    />
+                                </div>
+                            )}
+                            
+                            {activeTab === 'servicios' && (
+                                <div className="animate__animated animate__fadeIn">
+                                    <DataTableComponent
+                                        tableId="dt-modal-busqueda-servicios"
+                                        key={`serv-modal-${filterCategory}-${filterSubcategory}-${filterTag}-${appConfig.moneda}`}
+                                        ajaxData={(params) => {
+                                            params.customCategory = filterCategory;
+                                            params.customSubcategory = filterSubcategory;
+                                            params.customTag = filterTag;
+                                            return window.api.getServiciosPaginados(params);
+                                        }}
+                                        columns={columnasServicios}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {modalData.type === 'cliente' && (
+                    <div className="w-100 overflow-hidden">
+                        <DataTableComponent
+                            key={modalData.type}
+                            data={clientes}
+                            columns={modalData.columns}
+                        />
+                    </div>
+                )}
+
+            </Modal.Body>
+            <Modal.Footer className="bg-light border-top pt-2 pb-2 d-flex justify-content-end">
+                <Button variant="secondary" size="sm" onClick={handleLocalClose}>
+                    Cerrar
+                </Button>
+            </Modal.Footer>
+        </Modal>
+    </>
 }

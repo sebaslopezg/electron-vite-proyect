@@ -20,13 +20,13 @@ const Toast = Swal.mixin({
 })
 
 const getLocalDatetime = (startOfDay = true) => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
     
-    const time = startOfDay ? '00:00' : '23:59';
-    return `${year}-${month}-${day}T${time}`;
+    const time = startOfDay ? '00:00' : '23:59'
+    return `${year}-${month}-${day}T${time}`
 }
 
 export const Reportes = () => {
@@ -65,55 +65,55 @@ export const Reportes = () => {
         } else {
             Toast.fire({ icon: 'error', title: res.error || 'No se pudo cargar el reporte' })
         }
-        setLoading(false);
+        setLoading(false)
     }
 
     useEffect(() => {
-        loadReporte();
-        const handleNovaFactura = () => loadReporte();
-        window.addEventListener('factura-creada', handleNovaFactura);
-        return () => window.removeEventListener('factura-creada', handleNovaFactura);
-    }, [startDate, endDate]);
+        loadReporte()
+        const handleNovaFactura = () => loadReporte()
+        window.addEventListener('factura-creada', handleNovaFactura)
+        return () => window.removeEventListener('factura-creada', handleNovaFactura)
+    }, [startDate, endDate])
 
     const totales = useMemo(() => {
         return transacciones.reduce((acc, t) => {
             if (t.tipo_transaccion === 'venta') {
-                acc.totalFacturado += (t.total_factura || 0);
+                acc.totalFacturado += (t.total_factura || 0)
             }
 
             if (t.tipo_transaccion === 'abono') {
-                const metodo = t.metodo_pago || 'Abono';
-                if (!acc.metodos[metodo]) acc.metodos[metodo] = 0;
-                acc.metodos[metodo] += (t.valor || 0);
+                const metodo = t.metodo_pago || 'Abono'
+                if (!acc.metodos[metodo]) acc.metodos[metodo] = 0
+                acc.metodos[metodo] += (t.valor || 0)
                 
-                acc.ingresoTotalCaja += (t.valor || 0);
+                acc.ingresoTotalCaja += (t.valor || 0)
             } 
             else if (t.tipo_transaccion === 'venta') {
-                const ingresoReal = (t.total_factura || 0) - (t.saldo_pendiente || 0);
+                const ingresoReal = (t.total_factura || 0) - (t.saldo_pendiente || 0)
                 
                 if (ingresoReal > 0) {
-                    const metodo = t.metodo_pago || 'Contado';
-                    if (!acc.metodos[metodo]) acc.metodos[metodo] = 0;
-                    acc.metodos[metodo] += ingresoReal;
+                    const metodo = t.metodo_pago || 'Contado'
+                    if (!acc.metodos[metodo]) acc.metodos[metodo] = 0
+                    acc.metodos[metodo] += ingresoReal
                     
-                    acc.ingresoTotalCaja += ingresoReal;
+                    acc.ingresoTotalCaja += ingresoReal
                 }
                 
                 if (t.saldo_pendiente > 0) {
-                    if (!acc.metodos['Crédito']) acc.metodos['Crédito'] = 0;
-                    acc.metodos['Crédito'] += (t.saldo_pendiente || 0);
+                    if (!acc.metodos['Crédito']) acc.metodos['Crédito'] = 0
+                    acc.metodos['Crédito'] += (t.saldo_pendiente || 0)
                 }
             }
 
-            return acc;
-        }, { totalFacturado: 0, ingresoTotalCaja: 0, metodos: {} });
-    }, [transacciones]);
+            return acc
+        }, { totalFacturado: 0, ingresoTotalCaja: 0, metodos: {} })
+    }, [transacciones])
 
     const handleExportExcel = () => {
         try {
             const dataToExport = transacciones.map(t => {
-                const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0));
-                const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0);
+                const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0))
+                const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0)
 
                 return {
                     'Fecha y Hora': new Date(t.date_created).toLocaleString(appConfig.formato_numero),
@@ -122,8 +122,8 @@ export const Reportes = () => {
                     'Concepto / Método': t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`),
                     'Venta (Total)': venta,
                     'Ingreso Real': ingreso
-                };
-            });
+                }
+            })
 
             dataToExport.push({
                 'Fecha y Hora': '',
@@ -132,24 +132,24 @@ export const Reportes = () => {
                 'Concepto / Método': 'TOTALES GLOBALES',
                 'Venta (Total)': totales.totalFacturado,
                 'Ingreso Real': totales.ingresoTotalCaja
-            });
+            })
 
-            exportToExcel(dataToExport, `Reporte_Financiero_${startDate.split('T')[0]}`, "Transacciones");
+            exportToExcel(dataToExport, `Reporte_Financiero_${startDate.split('T')[0]}`, "Transacciones")
         } catch (error) {
-            console.error("Error exportando a Excel:", error);
-            Swal.fire('Error', 'No se pudo generar el archivo Excel: ' + error.message, 'error');
+            console.error("Error exportando a Excel:", error)
+            Swal.fire('Error', 'No se pudo generar el archivo Excel: ' + error.message, 'error')
         }
-    };
+    }
 
     const handleExportPDF = () => {
         try {
-            const tableColumn = ["Hora", "Documento", "Cliente", "Concepto / Método", "Venta", "Ingreso"];
+            const tableColumn = ["Hora", "Documento", "Cliente", "Concepto / Método", "Venta", "Ingreso"]
             const tableRows = [];
 
             transacciones.forEach(t => {
-                const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0));
+                const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0))
                 const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0);
-                const concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`);
+                const concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`)
 
                 const rowData = [
                     new Date(t.date_created).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' }),
@@ -191,12 +191,12 @@ export const Reportes = () => {
             data: null, title: 'Documento',
             render: (data, type, row) => {
                 if (row.tipo_transaccion === 'abono') {
-                    return `<strong>Abono a F-${row.factura_numero || ''}</strong>`;
+                    return `<strong>Abono a F-${row.factura_numero || ''}</strong>`
                 }
-                const pref = row.prefijo || '';
-                const sep = row.separador || '';
-                const num = row.numero_factura || '';
-                return `<strong>${pref}${sep}${num}</strong>`;
+                const pref = row.prefijo || ''
+                const sep = row.separador || ''
+                const num = row.numero_factura || ''
+                return `<strong>${pref}${sep}${num}</strong>`
             }
         },
         { data: 'nombre_cliente', title: 'Cliente' },
@@ -204,19 +204,19 @@ export const Reportes = () => {
             data: null, title: 'Concepto / Método',
             render: (data, type, row) => {
                 if (row.tipo_transaccion === 'abono') {
-                    return `<span class="badge bg-success me-1">Abono</span> <span class="badge border border-success text-success">${row.metodo_pago}</span>`;
+                    return `<span class="badge bg-success me-1">Abono</span> <span class="badge border border-success text-success">${row.metodo_pago}</span>`
                 }
                 if (row.tipo_pago === 'credito') {
-                    return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-warning text-warning text-dark">Crédito</span>`;
+                    return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-warning text-warning text-dark">Crédito</span>`
                 }
-                return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-primary text-primary">${row.metodo_pago || 'Contado'}</span>`;
+                return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-primary text-primary">${row.metodo_pago || 'Contado'}</span>`
             }
         },
         { 
             data: null, title: 'Venta',
             render: (data, type, row) => {
-                if (row.tipo_transaccion === 'abono') return `<span class="text-muted">-</span>`;
-                return `${_formatCurrency(row.total_factura || 0)}`;
+                if (row.tipo_transaccion === 'abono') return `<span class="text-muted">-</span>`
+                return `${_formatCurrency(row.total_factura || 0)}`
             }
         },
         { 
@@ -226,14 +226,14 @@ export const Reportes = () => {
                 if (row.tipo_transaccion === 'abono') {
                     ingreso = row.valor || 0;
                 } else {
-                    ingreso = (row.total_factura || 0) - (row.saldo_pendiente || 0);
+                    ingreso = (row.total_factura || 0) - (row.saldo_pendiente || 0)
                 }
 
-                if (ingreso <= 0) return `<span class="text-muted">$0</span>`;
-                return `<strong class="text-success">${_formatCurrency(ingreso)}</strong>`;
+                if (ingreso <= 0) return `<span class="text-muted">$0</span>`
+                return `<strong class="text-success">${_formatCurrency(ingreso)}</strong>`
             }
         }
-    ];
+    ]
 
     return <>
         <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-3">
@@ -299,7 +299,7 @@ export const Reportes = () => {
         </Row>
 
         <h6 className="mb-3">Detalle de Transacciones ({transacciones.length})</h6>
-        <div className="w-100 overflow-hidden bg-white">
+        <div className="w-100 bg-white">
             {loading ? (
                 <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
             ) : (

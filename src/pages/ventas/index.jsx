@@ -44,23 +44,23 @@ export const Ventas = ({ currentUser }) => {
 
     useEffect(() => {
         loadAlmacenConf()
-        if (tabsDisponibles.length > 0) {
+        if (tabsDisponibles.length > 0 && activeTab === '') {
             setActiveTab(tabsDisponibles[0].id)
         }
-    }, [currentUser])
+    }, [currentUser, activeTab])
 
     if (!almacenData || almacenData.length === 0) {
         return <div className="p-3 text-muted small">Cargando datos contables...</div>
     }
 
     if (tabsDisponibles.length === 0) {
-        return (
+        return <>
             <div className="alert alert-warning m-3 text-center shadow-sm">
                 <i className="bi bi-lock-fill fs-2 d-block mb-2"></i>
                 <h6 className="fw-bold">Sin Accesos Permitidos</h6>
                 <p className="small m-0 text-muted">Tu rol no cuenta con permisos asignados para sub-módulos de facturación.</p>
             </div>
-        )
+        </>
     }
 
     const currentTabObj = tabsDisponibles.find(t => t.id === activeTab)

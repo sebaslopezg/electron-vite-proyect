@@ -294,31 +294,26 @@ export const Encargos = () => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [])
 
-    // ─── APERTURA ROBUSTA DESDE LA URL (SOLUCIONADO) ───────────
     useEffect(() => {
-        const verId = searchParams.get('ver_id');
+        const verId = searchParams.get('ver_id')
         
         if (verId && items.length > 0) {
-            // Buscamos convirtiendo ambos a String para evitar problemas de tipado
-            const encargoSeleccionado = items.find(i => String(i.id) === String(verId));
+            const encargoSeleccionado = items.find(i => String(i.id) === String(verId))
             
             if (encargoSeleccionado) {
-                // Timeout permite que el estado del router se asiente antes de abrir la modal
                 setTimeout(() => {
-                    handleInfo(encargoSeleccionado);
-                    handleShowInfo();
-                }, 150);
+                    handleInfo(encargoSeleccionado)
+                    handleShowInfo()
+                }, 150)
             } else {
-                Toast.fire({ icon: 'info', title: 'El encargo ya no existe o fue archivado' });
+                Toast.fire({ icon: 'info', title: 'El encargo ya no existe o fue archivado' })
             }
 
-            // Forma inmutable y segura de borrar el parámetro
-            const newParams = new URLSearchParams(searchParams);
-            newParams.delete('ver_id');
-            setSearchParams(newParams, { replace: true });
+            const newParams = new URLSearchParams(searchParams)
+            newParams.delete('ver_id')
+            setSearchParams(newParams, { replace: true })
         }
-    }, [searchParams, items, setSearchParams]);
-    // ──────────────────────────────────────────────────────────
+    }, [searchParams, items, setSearchParams])
 
     const getBadgeClassForDate = (dateString) => {
         if (!dateString) return ''
@@ -340,9 +335,9 @@ export const Encargos = () => {
     };
 
     const formatToLocalString = (dateString) => {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        return `${day}/${month}/${year}`;
+        if (!dateString) return ''
+        const [year, month, day] = dateString.split('-')
+        return `${day}/${month}/${year}`
     }
 
     return <>

@@ -43,7 +43,7 @@ export const Inventario = ({ currentUser }) => {
     const [historyProductId, setHistoryProductId] = useState(null)
     const [historyTitle, setHistoryTitle] = useState('')
 
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const hasPermission = (permissionKey) => {
         if (!currentUser) return false
@@ -286,7 +286,7 @@ export const Inventario = ({ currentUser }) => {
                     </Col>
                 </Row>
 
-                <div ref={tableContainerRef} className="w-100 overflow-hidden">
+                <div ref={tableContainerRef} className="w-100">
                     <CustomDataTable 
                         tableId="dt-inventario-maestro"
                         key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 

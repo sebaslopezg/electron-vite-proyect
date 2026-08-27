@@ -7,7 +7,7 @@ import { EncargoDetalles } from "./components/EncargoDetalles"
 import { encargosService } from "../../services/encargosService"
 
 function renderEventContent(eventInfo) {
-  const nombreAmostrar = eventInfo.event.extendedProps.producto_nombre || 'Pedido General de Factura';
+  const nombreAmostrar = eventInfo.event.extendedProps.producto_nombre || 'Pedido General de Factura'
   
   return <>
     <div style={{ overflow: 'hidden', fontSize: '0.85em', lineHeight: '1.2' }}>

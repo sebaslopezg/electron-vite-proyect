@@ -54,18 +54,18 @@ export const Facturacion = () => {
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
   const loadConfig = async () => {
-      const configData = await ventasService.getConfiguracion()
-      const confAppRaw = configData.find(c => c.key === 'confApp')
-      if (confAppRaw) {
-          try {
-              const parsed = JSON.parse(confAppRaw.value)
-              setAppConfig({
-                moneda: parsed.moneda || 'COP',
-                formato_numero: parsed.formato_numero || 'es-CO'
-              })
-          } catch(e) {}
-      }
-  };
+    const configData = await ventasService.getConfiguracion()
+    const confAppRaw = configData.find(c => c.key === 'confApp')
+    if (confAppRaw) {
+      try {
+        const parsed = JSON.parse(confAppRaw.value)
+        setAppConfig({
+          moneda: parsed.moneda || 'COP',
+          formato_numero: parsed.formato_numero || 'es-CO'
+        })
+      } catch(e) {}
+    }
+  }
 
   const loadMetodosDePago = async () => {
     const metodos = await ventasService.getMetodosPago()
@@ -440,7 +440,7 @@ export const Facturacion = () => {
       const facturaGenerada = {
           id: result.maestroId, 
           numero_factura: result.numero_factura, 
-          prefijo: result.prefijo, // CORREGIDO: Asignado result.prefijo correctamente en vez del numero_factura
+          prefijo: result.prefijo,
           date_created: new Date().toISOString(), 
           nombre_cliente: cliente.nombre, 
           documento_cliente: cliente.documento,

@@ -54,7 +54,7 @@ const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
         }
     }
 
-    return (
+    return <>
         <div style={{ position: 'relative' }}>
             <Form.Control
                 size="sm"
@@ -114,7 +114,7 @@ const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
                  </ListGroup>
             )}
         </div>
-    )
+    </>
 }
 
 export default function ProductModal(
@@ -138,7 +138,7 @@ export default function ProductModal(
         const b = parseInt(hex.substr(4, 2), 16)
         const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
         return (yiq >= 128) ? '#000000' : '#ffffff'
-    };
+    }
 
     const etiquetasFiltradas = etiquetas.filter(tag => {
         if (!tag.categorias_ids) return false;
@@ -188,32 +188,32 @@ export default function ProductModal(
 
     const handleTagToggle = (tagId) => {
         setForm(prev => {
-            const current = prev.etiquetas || [];
+            const current = prev.etiquetas || []
             if (current.includes(tagId)) {
-                return { ...prev, etiquetas: current.filter(id => id !== tagId) };
+                return { ...prev, etiquetas: current.filter(id => id !== tagId) }
             } else {
-                return { ...prev, etiquetas: [...current, tagId] };
+                return { ...prev, etiquetas: [...current, tagId] }
             }
-        });
-    };
+        })
+    }
 
     const addSubcategoriaRow = () => {
-        setForm({ ...form, subcategorias_ids: [...selectedSubIds, ''] });
+        setForm({ ...form, subcategorias_ids: [...selectedSubIds, ''] })
     }
 
     const removeSubcategoriaRow = (index) => {
-        const newIds = [...selectedSubIds];
-        newIds.splice(index, 1);
-        setForm({ ...form, subcategorias_ids: newIds });
+        const newIds = [...selectedSubIds]
+        newIds.splice(index, 1)
+        setForm({ ...form, subcategorias_ids: newIds })
     }
 
     const updateSubcategoriaId = (index, value) => {
-        const newIds = [...selectedSubIds];
-        newIds[index] = value;
-        setForm({ ...form, subcategorias_ids: newIds });
+        const newIds = [...selectedSubIds]
+        newIds[index] = value
+        setForm({ ...form, subcategorias_ids: newIds })
     }
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable backdrop="static">
             <Modal.Header closeButton>
                 <Modal.Title>{editingId ? 'Editar Producto' : 'Crear Producto'}</Modal.Title>
@@ -453,5 +453,5 @@ export default function ProductModal(
                 </Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

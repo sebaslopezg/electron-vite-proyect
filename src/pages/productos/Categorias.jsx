@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import CategoriaModal from './components/CategoriaModal'
+import { CategoriaDetalles } from './components/CategoriaDetalles'
 import { productosService } from '../../services/productosService'
 
 const Toast = Swal.mixin({
@@ -17,9 +18,14 @@ const Toast = Swal.mixin({
 })
 
 export const Categorias = () => {
-    const [show, setShow] = useState(false);
-    const handleClose = () => setShow(false);
-    const handleShow = () => setShow(true);
+    const [show, setShow] = useState(false)
+    const [showDetalles, setShowDetalles] = useState(false)
+
+    const handleClose = () => setShow(false)
+    const handleShow = () => setShow(true)
+
+    const handleCloseDetalles = () => setShowDetalles(false)
+    const handleShowDetalles = () => setShowDetalles(true)
 
     const [dataInTable, setDataInTable] = useState([])
     const [reloadTable, setReloadTable] = useState(0)
@@ -27,16 +33,32 @@ export const Categorias = () => {
     const emptyForm = { nombre: '', descripcion: '', sku_prefix: '', separador: '' }
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
+    const [catSel, setCatSel] = useState(null)
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+
+    const loadConfig = async () => {
+        const configData = await productosService.getConfiguracion()
+        const confAppRaw = configData.find(c => c.key === 'confApp')
+        if (confAppRaw) {
+            try {
+                const parsed = JSON.parse(confAppRaw.value)
+                setAppConfig({ moneda: parsed.moneda || 'COP', formato_numero: parsed.formato_numero || 'es-CO' })
+            } catch(e) {}
+        }
+    }
 
     const load = async () => {
         const data = await productosService.getCategorias()
         setDataInTable(data)
         setReloadTable(prev => prev + 1)
-    };
+    }
 
     const cleanForm = () => setForm({ ...emptyForm })
 
-    useEffect(() => { load() }, [])
+    useEffect(() => { 
+        load() 
+        loadConfig()
+    }, [])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -96,6 +118,7 @@ export const Categorias = () => {
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
+                e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -111,8 +134,22 @@ export const Categorias = () => {
                 } catch(err) { console.error("Error leyendo datos", err) }
             }
             
+            const viewBtn = e.target.closest('.btn-view')
+            if (viewBtn) {
+                e.preventDefault()
+                try {
+                    const rawData = decodeURIComponent(viewBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
+                    setCatSel(item)
+                    handleShowDetalles()
+                } catch(err) { console.error("Error leyendo datos para vista", err) }
+            }
+
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn) handleDelete(delBtn.dataset.id)
+            if (delBtn) {
+                e.preventDefault()
+                handleDelete(delBtn.dataset.id)
+            }
         }
 
         container.addEventListener('click', handleTableClick)
@@ -130,13 +167,16 @@ export const Categorias = () => {
             </button>
         </div>
 
-        <div ref={tableContainerRef} className="w-100 overflow-hidden">
+        <div ref={tableContainerRef} className="w-100">
             <CustomDataTable
                 tableId="dt-productos-categorias"
                 reloadKey={reloadTable}
                 data={dataInTable}
                 columns={[
-                    { data: 'nombre', title: 'Categoría' },
+                    { 
+                        data: 'nombre', 
+                        title: 'Categoría' 
+                    },
                     { 
                         data: 'sku_prefix', 
                         title: 'Prefijo SKU',
@@ -150,22 +190,48 @@ export const Categorias = () => {
                     { 
                         data: 'cant_productos', 
                         title: 'Productos Asociados',
-                        render: (data) => `<span class="badge bg-secondary">${data || 0}</span>`
+                        className: 'text-center',
+                        render: (data, type, row) => {
+                            const safeData = encodeURIComponent(JSON.stringify(row));
+                            return `
+                                <button class="btn btn-sm btn-outline-secondary btn-view rounded-pill px-3 fw-bold" data-alldata="${safeData}" title="Ver Lista de Productos">
+                                    ${data || 0}
+                                </button>
+                            `;
+                        }
                     },
                     {
                         data: null,
-                        title: 'Actions',
+                        title: 'Acciones',
                         orderable: false,
+                        className: 'text-center',
                         render: function (data, type, row) {
                             const isGeneral = row.id === 'general';
                             const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
-                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" ${isGeneral ? 'disabled' : ''} title="Eliminar">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
+                                <div class="dropdown">
+                                  <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                  </button>
+                                  <ul class="dropdown-menu shadow-sm">
+                                    <li>
+                                      <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
+                                        <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                                      </a>
+                                    </li>
+                                    <li>
+                                      <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                        <i class="bi bi-pencil me-2 text-secondary"></i> Editar
+                                      </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                      <a class="dropdown-item btn-delete text-danger ${isGeneral ? 'disabled' : ''}" href="#" data-id="${row.id}">
+                                        <i class="bi bi-trash3 me-2"></i> Eliminar
+                                      </a>
+                                    </li>
+                                  </ul>
+                                </div>
                             `;
                         }
                     }
@@ -180,6 +246,13 @@ export const Categorias = () => {
             form={form} 
             setForm={setForm} 
             editingId={editingId} 
+        />
+
+        <CategoriaDetalles 
+            show={showDetalles}
+            handleClose={handleCloseDetalles}
+            categoriaData={catSel}
+            appConfig={appConfig}
         />
     </>
 }

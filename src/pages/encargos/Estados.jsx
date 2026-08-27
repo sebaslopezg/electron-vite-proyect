@@ -21,7 +21,6 @@ export const Estados = () => {
     const [items, setItems] = useState([])
     const [dataInTable, setDataInTable] = useState([])
     
-    // CORREGIDO: Se asigna un color hexadecimal por defecto (#0d6efd) para evitar valores vacíos/transparentes
     const [form, setForm] = useState({
         titulo: '',
         descripcion: '',
@@ -48,7 +47,6 @@ export const Estados = () => {
         setReloadTable(prev => prev + 1)
     }
 
-    // CORREGIDO: Al limpiar el formulario se restaura el color por defecto seguro
     const cleanForm = () => setForm({
         titulo: '',
         descripcion: '',
@@ -74,7 +72,6 @@ export const Estados = () => {
             handleClose()
             loadData()
             
-            // CORREGIDO: Notifica a la pestaña de encargos para actualizar los Selects
             window.dispatchEvent(new CustomEvent('estados-actualizados'))
         } else {
             Swal.fire('Error', result?.error || 'No se pudo guardar', 'error')
@@ -95,7 +92,6 @@ export const Estados = () => {
             const res = await encargosService.deleteEstado(id)
             if (res.success) {
                 loadData()
-                // CORREGIDO: Notifica la baja del estado al resto de componentes
                 window.dispatchEvent(new CustomEvent('estados-actualizados'))
             }
         }

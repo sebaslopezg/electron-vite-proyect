@@ -63,7 +63,7 @@ export const Comprobantes = ({ currentUser }) => {
                 )}
             </div>
 
-            <div ref={tableContainerRef} className="w-100 overflow-hidden">
+            <div ref={tableContainerRef} className="w-100">
                 <CustomDataTable 
                     tableId="dt-comprobantes-contables"
                     key={`comprobantes-${reloadTable}-${currentUser?.permisos?.length}`} 

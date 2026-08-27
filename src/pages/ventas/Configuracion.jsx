@@ -79,7 +79,7 @@ export const Configuracion = ({ data, onReload }) => {
     }
 
     const handleImageUpload = (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files[0]
         if (file) {
             if (file.size > 2 * 1024 * 1024) { 
                 Toast.fire({ icon: 'error', title: 'La imagen es demasiado grande. Máximo 2MB.' })
@@ -89,7 +89,7 @@ export const Configuracion = ({ data, onReload }) => {
             reader.onloadend = () => setForm({ ...form, logo_almacen: reader.result })
             reader.readAsDataURL(file);
         }
-    };
+    }
 
     const loadMetodos = async () => {
         const res = await ventasService.getMetodosPago()

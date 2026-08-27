@@ -20,7 +20,7 @@ export const VerFacturas = ({ currentUser }) => {
     const [startDate, setStartDate] = useState(() => localStorage.getItem('ventas_filtro_inicio') || '')
     const [endDate, setEndDate] = useState(() => localStorage.getItem('ventas_filtro_fin') || '')
 
-    const [todasLasFacturas, setTodasLasFacturas] = useState([]) // Almacena los datos extraídos para la exportación masiva
+    const [todasLasFacturas, setTodasLasFacturas] = useState([])
 
     useEffect(() => {
         localStorage.setItem('ventas_filtro_inicio', startDate)
@@ -77,7 +77,6 @@ export const VerFacturas = ({ currentUser }) => {
 
     const tableContainerRef = useRef(null)
 
-    // ─── FUNCIONES DE EXPORTACIÓN GENERAL (TODA LA TABLA) ───────────────
     const handleExportAllExcel = () => {
         if (todasLasFacturas.length === 0) return Swal.fire('Error', 'No hay facturas para exportar', 'warning')
 
@@ -117,10 +116,9 @@ export const VerFacturas = ({ currentUser }) => {
             columns: tableColumn,
             data: tableRows,
             filename: `Historial_Facturas_${new Date().toISOString().split('T')[0]}`
-        });
+        })
     }
 
-    // ─── FUNCIONES DE EXPORTACIÓN INDIVIDUAL (UNA FACTURA) ──────────────
     const handleExportSingleExcel = async (factura) => {
         Swal.fire({ title: 'Procesando...', text: 'Extrayendo detalles', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
         const response = await ventasService.getDetalleFactura(factura.id)
@@ -138,7 +136,6 @@ export const VerFacturas = ({ currentUser }) => {
             'Total': d.total
         }))
 
-        // Resumen
         itemsExport.push({ 'Ref / Artículo': '', 'Cantidad': '', 'Precio Unitario': '', 'Subtotal': '', 'Descuento': '', 'IVA': '', 'Total': '' })
         itemsExport.push({ 'Ref / Artículo': 'TOTALES', 'Cantidad': '', 'Precio Unitario': '', 'Subtotal': '', 'Descuento': '', 'IVA': '', 'Total': factura.total_factura })
 

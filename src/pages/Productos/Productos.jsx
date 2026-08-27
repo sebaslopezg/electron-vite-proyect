@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import ProductModal from './components/ProductoModal'
+import { ProductoDetalles } from './components/ProductoDetalles'
 import { formatCurrency } from '../../utils/currencies'
 import { productosService } from '../../services/productosService'
 
@@ -19,8 +20,13 @@ const Toast = Swal.mixin({
 
 export const Productos = () => {
   const [show, setShow] = useState(false)
+  const [showDetalles, setShowDetalles] = useState(false)
+
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
+  
+  const handleCloseDetalles = () => setShowDetalles(false)
+  const handleShowDetalles = () => setShowDetalles(true)
 
   const [reloadTable, setReloadTable] = useState(0)
   const [categorias, setCategorias] = useState([])
@@ -49,6 +55,7 @@ export const Productos = () => {
 
   const [form, setForm] = useState({ ...emptyForm })
   const [editingId, setEditingId] = useState(null)
+  const [prodSel, setProdSel] = useState(null)
   
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
@@ -102,8 +109,10 @@ export const Productos = () => {
     if (!container) return
 
     const handleTableClick = (e) => {
+      // Editar
       const editBtn = e.target.closest('.btn-edit')
       if (editBtn) {
+        e.preventDefault()
         try {
           const rawData = decodeURIComponent(editBtn.dataset.alldata)
           const item = JSON.parse(rawData)
@@ -138,8 +147,22 @@ export const Productos = () => {
         } catch(err) { console.error("Error leyendo datos", err) }
       }
       
+      const viewBtn = e.target.closest('.btn-view')
+      if (viewBtn) {
+          e.preventDefault()
+          try {
+              const rawData = decodeURIComponent(viewBtn.dataset.alldata)
+              const item = JSON.parse(rawData)
+              setProdSel(item)
+              handleShowDetalles()
+          } catch(err) { console.error("Error leyendo datos para vista", err) }
+      }
+
       const delBtn = e.target.closest('.btn-delete')
-      if (delBtn) handleDelete(delBtn.dataset.id)
+      if (delBtn) {
+          e.preventDefault()
+          handleDelete(delBtn.dataset.id)
+      }
     }
 
     container.addEventListener('click', handleTableClick)
@@ -212,7 +235,11 @@ export const Productos = () => {
           },
           { 
             data: 'sku', title: 'SKU', 
-            render: (data) => data ? `<strong>${data.toUpperCase()}</strong>` : '-' 
+            render: (data, type, row) => {
+              if (!data) return '-';
+              const safeData = encodeURIComponent(JSON.stringify(row));
+              return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${data.toUpperCase()}</a>`;
+            }
           },
           { 
             data: 'categoria_nombre', 
@@ -235,16 +262,33 @@ export const Productos = () => {
             render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` 
           },
           {
-            data: null, title: 'Acciones', orderable: false,
+            data: null, title: 'Acciones', orderable: false, className: 'text-center',
             render: function (data, type, row) {
               const safeData = encodeURIComponent(JSON.stringify(row))
               return `
-                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
-                  <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}">
-                  <i class="bi bi-trash3"></i>
-                </button>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu shadow-sm">
+                    <li>
+                      <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
+                        <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item btn-edit" href="#" data-id="${row.id}" data-alldata="${safeData}">
+                        <i class="bi bi-pencil me-2 text-secondary"></i> Editar
+                      </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
+                        <i class="bi bi-trash3 me-2"></i> Eliminar
+                      </a>
+                    </li>
+                  </ul>
+                </div>
               `
             }
           }
@@ -262,6 +306,13 @@ export const Productos = () => {
       categorias={categorias} 
       subcategorias={subcategorias} 
       etiquetas={etiquetas} 
+    />
+
+    <ProductoDetalles 
+        show={showDetalles}
+        handleClose={handleCloseDetalles}
+        productoData={prodSel}
+        appConfig={appConfig}
     />
   </>
 }

@@ -195,7 +195,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
         </div>
     )
 
-    return (
+    return <>
         <BaseImpresor 
             show={show} 
             onClose={onClose} 
@@ -204,5 +204,5 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
             renderPos={PosTemplate}
             renderA4={A4Template}
         />
-    )
+    </>
 }

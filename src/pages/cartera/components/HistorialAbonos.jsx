@@ -35,7 +35,7 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
 
     return <>
         <div className="animation-fade-in">
-            <div ref={tableAbonosRef} className="w-100 overflow-hidden">
+            <div ref={tableAbonosRef} className="w-100">
                 <DataTableComponent 
                     tableId="dt-cartera-historial-abonos"
                     key={`historial-${appConfig.moneda}-${appConfig.formato_numero}-${currentUser?.permisos?.length}`}

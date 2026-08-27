@@ -7,51 +7,51 @@ import { ventasService } from '../../../services/ventasService'
 
 export const ImpresorReporte = ({ show, onClose, facturas = [], almacenConf, fechaInicio, fechaFin }) => {
     
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     useEffect(() => {
         const loadConfig = async () => {
-            const configData = await ventasService.getConfiguracion();
-            const confAppRaw = configData.find(c => c.key === 'confApp');
+            const configData = await ventasService.getConfiguracion()
+            const confAppRaw = configData.find(c => c.key === 'confApp')
             if (confAppRaw) {
                 try {
-                    const parsed = JSON.parse(confAppRaw.value);
+                    const parsed = JSON.parse(confAppRaw.value)
                     setAppConfig({
                         moneda: parsed.moneda || 'COP',
                         formato_numero: parsed.formato_numero || 'es-CO'
                     });
                 } catch(e) {}
             }
-        };
-        if (show) loadConfig();
-    }, [show]);
+        }
+        if (show) loadConfig()
+    }, [show])
 
-    const renderCurrency = (val) => formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
+    const renderCurrency = (val) => formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
 
     const stats = useMemo(() => {
         return facturas.reduce((acc, f) => {
-            acc.total += f.total_factura;
-            acc.subtotal += f.subtotal;
-            acc.iva += f.iva;
-            acc.descuentos += f.descuento;
-            acc.efectivoRecibido += (f.total_recibido_original ?? f.total_recibido);
+            acc.total += f.total_factura
+            acc.subtotal += f.subtotal
+            acc.iva += f.iva
+            acc.descuentos += f.descuento
+            acc.efectivoRecibido += (f.total_recibido_original ?? f.total_recibido)
             
-            if (f.tipo_pago === 'contado') acc.contado += f.total_factura;
-            if (f.tipo_pago === 'credito') acc.credito += f.total_factura;
+            if (f.tipo_pago === 'contado') acc.contado += f.total_factura
+            if (f.tipo_pago === 'credito') acc.credito += f.total_factura
 
-            const metodo = f.metodo_pago || 'Otros';
-            acc.metodos[metodo] = (acc.metodos[metodo] || 0) + f.total_factura;
+            const metodo = f.metodo_pago || 'Otros'
+            acc.metodos[metodo] = (acc.metodos[metodo] || 0) + f.total_factura
 
-            return acc;
-        }, { total: 0, subtotal: 0, iva: 0, descuentos: 0, contado: 0, credito: 0, efectivoRecibido: 0, metodos: {} });
-    }, [facturas]);
+            return acc
+        }, { total: 0, subtotal: 0, iva: 0, descuentos: 0, contado: 0, credito: 0, efectivoRecibido: 0, metodos: {} })
+    }, [facturas])
 
-    if (!almacenConf) return null;
+    if (!almacenConf) return null
 
     const RangoFechas = () => {
-        if (fechaInicio === fechaFin) return `Fecha: ${fechaInicio}`;
-        return `Desde: ${fechaInicio} | Hasta: ${fechaFin}`;
-    };
+        if (fechaInicio === fechaFin) return `Fecha: ${fechaInicio}`
+        return `Desde: ${fechaInicio} | Hasta: ${fechaFin}`
+    }
 
     const PosTemplate = () => (
         <div className="formato-pos text-black">
@@ -105,7 +105,7 @@ export const ImpresorReporte = ({ show, onClose, facturas = [], almacenConf, fec
                 </div>
             ))}
         </div>
-    );
+    )
 
     const A4Template = () => (
         <div className="formato-a4 text-black">
@@ -192,9 +192,9 @@ export const ImpresorReporte = ({ show, onClose, facturas = [], almacenConf, fec
                 </tbody>
             </table>
         </div>
-    );
+    )
 
-    return (
+    return <>
         <BaseImpresor 
             show={show} 
             onClose={onClose} 
@@ -203,5 +203,5 @@ export const ImpresorReporte = ({ show, onClose, facturas = [], almacenConf, fec
             renderPos={PosTemplate}
             renderA4={A4Template}
         />
-    );
-};
+    </>
+}

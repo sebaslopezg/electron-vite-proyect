@@ -7,33 +7,33 @@ import { ventasService } from '../../../services/ventasService'
 
 export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, textoVolver }) => {
     
-    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' });
+    const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     useEffect(() => {
         const loadConfig = async () => {
-            const configData = await ventasService.getConfiguracion();
-            const confAppRaw = configData.find(c => c.key === 'confApp');
+            const configData = await ventasService.getConfiguracion()
+            const confAppRaw = configData.find(c => c.key === 'confApp')
             if (confAppRaw) {
                 try {
-                    const parsed = JSON.parse(confAppRaw.value);
+                    const parsed = JSON.parse(confAppRaw.value)
                     setAppConfig({
                         moneda: parsed.moneda || 'COP',
                         formato_numero: parsed.formato_numero || 'es-CO'
-                    });
+                    })
                 } catch(e) {}
             }
-        };
-        if (show) loadConfig(); 
-    }, [show]);
+        }
+        if (show) loadConfig()
+    }, [show])
 
-    if (!nota || !almacenConf) return null;
+    if (!nota || !almacenConf) return null
 
     const renderCurrency = (val) => {
-        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda);
-    };
+        return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+    }
 
-    const tituloNota = `NOTA ${nota.tipo_nota.toUpperCase()}`;
-    const facturaRef = `${nota.prefijo_factura || ''}${almacenConf.separador || ''}${nota.numero_factura || nota.numero_factura_origen}`;
+    const tituloNota = `NOTA ${nota.tipo_nota.toUpperCase()}`
+    const facturaRef = `${nota.prefijo_factura || ''}${almacenConf.separador || ''}${nota.numero_factura || nota.numero_factura_origen}`
 
     const PosTemplate = () => (
         <div className="formato-pos text-black">
@@ -102,7 +102,7 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
                 <small>{almacenConf.footer_factura}</small>
             </div>
         </div>
-    );
+    )
 
     const A4Template = () => (
         <div className="formato-a4 text-black">
@@ -192,9 +192,9 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
                 <p className="fw-bold fs-6">{almacenConf.footer_factura}</p>
             </div>
         </div>
-    );
+    )
 
-    return (
+    return <>
         <BaseImpresor 
             show={show} 
             onClose={onClose} 
@@ -203,5 +203,5 @@ export const ImpresorNota = ({ show, onClose, nota, detalles, almacenConf, texto
             renderPos={PosTemplate}
             renderA4={A4Template}
         />
-    );
-};
+    </>
+}

@@ -3,12 +3,18 @@ import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
 import CustomDataTable from '../../components/DataTableComponent'
 import EtiquetaModal from './components/EtiquetaModal'
+import { EtiquetaDetalles } from './components/EtiquetaDetalles'
 import { productosService } from '../../services/productosService'
 
 export const Etiquetas = () => {
     const [show, setShow] = useState(false)
+    const [showDetalles, setShowDetalles] = useState(false)
+
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
+
+    const handleCloseDetalles = () => setShowDetalles(false)
+    const handleShowDetalles = () => setShowDetalles(true)
 
     const [dataInTable, setDataInTable] = useState([])
     const [categorias, setCategorias] = useState([])
@@ -22,6 +28,7 @@ export const Etiquetas = () => {
     }
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
+    const [tagSel, setTagSel] = useState(null)
 
     const loadData = useCallback(async () => {
         const [tagsData, catsData] = await Promise.all([
@@ -94,6 +101,7 @@ export const Etiquetas = () => {
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
+                e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -111,8 +119,22 @@ export const Etiquetas = () => {
                 } catch(err) { console.error("Error leyendo datos", err) }
             }
             
+            const viewBtn = e.target.closest('.btn-view')
+            if (viewBtn) {
+                e.preventDefault()
+                try {
+                    const rawData = decodeURIComponent(viewBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
+                    setTagSel(item)
+                    handleShowDetalles()
+                } catch(err) { console.error("Error leyendo datos para vista", err) }
+            }
+
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn) handleDelete(delBtn.dataset.id)
+            if (delBtn) {
+                e.preventDefault()
+                handleDelete(delBtn.dataset.id)
+            }
         }
 
         container.addEventListener('click', handleTableClick)
@@ -130,7 +152,7 @@ export const Etiquetas = () => {
             </button>
         </div>
 
-        <div ref={tableContainerRef} className="w-100 overflow-hidden">
+        <div ref={tableContainerRef} className="w-100">
             <CustomDataTable
                 tableId="dt-productos-etiquetas"
                 reloadKey={reloadTable}
@@ -151,7 +173,7 @@ export const Etiquetas = () => {
                             }
                             
                             return `
-                                <span class="badge border" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px; border-color: rgba(0,0,0,0.1) !important;">
+                                <span class="badge border py-1 px-2" style="background-color: ${row.color}; color: ${textColor}; font-size: 13px; border-color: rgba(0,0,0,0.1) !important;">
                                     <i class="bi bi-tag-fill me-1"></i> ${data}
                                 </span>
                             `
@@ -161,19 +183,49 @@ export const Etiquetas = () => {
                     { 
                         data: 'categorias_nombres', 
                         title: 'Categorías Visibles',
-                        render: (data) => data ? `<small class="text-muted">${data}</small>` : '-'
+                        render: (data, type, row) => {
+                            if (!data) return '<span class="text-muted">-</span>';
+                            const catsArray = data.split(',').map(s => s.trim()).filter(Boolean);
+                            const limit = 4;
+                            
+                            let html = catsArray.slice(0, limit).map(c => `<span class="badge bg-secondary text-light me-1 mb-1">${c}</span>`).join('');
+                            
+                            if (catsArray.length > limit) {
+                                const hiddenCats = catsArray.slice(limit).join(', ');
+                                const safeData = encodeURIComponent(JSON.stringify(row));
+                                html += `<button type="button" class="btn btn-sm btn-light border py-0 px-2 me-1 mb-1 btn-view" data-alldata="${safeData}" title="${hiddenCats}">... +${catsArray.length - limit}</button>`;
+                            }
+                            return html;
+                        }
                     },
                     {
-                        data: null, title: 'Actions', orderable: false,
+                        data: null, title: 'Acciones', orderable: false, className: 'text-center',
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row))
                             return `
-                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" title="Eliminar">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
+                                <div class="dropdown">
+                                  <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                  </button>
+                                  <ul class="dropdown-menu shadow-sm">
+                                    <li>
+                                      <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
+                                        <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                                      </a>
+                                    </li>
+                                    <li>
+                                      <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                        <i class="bi bi-pencil me-2 text-secondary"></i> Editar
+                                      </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                      <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
+                                        <i class="bi bi-trash3 me-2"></i> Eliminar
+                                      </a>
+                                    </li>
+                                  </ul>
+                                </div>
                             `
                         }
                     }
@@ -189,6 +241,13 @@ export const Etiquetas = () => {
             setForm={setForm} 
             editingId={editingId} 
             categoriasDisponibles={categorias} 
+        />
+
+        <EtiquetaDetalles 
+            show={showDetalles}
+            handleClose={handleCloseDetalles}
+            etiquetaData={tagSel}
+            categoriasDisponibles={categorias}
         />
     </>
 }

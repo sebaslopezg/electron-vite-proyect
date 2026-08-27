@@ -69,7 +69,7 @@ export const Terceros = ({ currentUser }) => {
                 )}
             </div>
 
-            <div ref={tableContainerRef} className="w-100 overflow-hidden">
+            <div ref={tableContainerRef} className="w-100">
                 <CustomDataTable 
                     tableId="dt-contabilidad-terceros"
                     key={`terceros-${reloadTable}-${currentUser?.permisos?.length}`} 

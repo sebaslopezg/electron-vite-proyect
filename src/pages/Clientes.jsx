@@ -80,7 +80,7 @@ export const Clientes = ({ currentUser }) => {
                         )}
                     </div>
 
-                    <div ref={tableContainerRef} className="w-100 overflow-hidden">
+                    <div ref={tableContainerRef} className="w-100">
                         <CustomDataTable 
                             tableId="dt-clientes-maestro"
                             key={`clientes-${reloadTable}-${currentUser?.permisos?.length}`} 

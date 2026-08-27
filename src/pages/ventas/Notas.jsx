@@ -159,7 +159,7 @@ export const Notas = () => {
                 </button>
             </div>
 
-            <div ref={tableContainerRef} className="w-100 overflow-hidden">
+            <div ref={tableContainerRef} className="w-100">
                 <DataTableComponent 
                     tableId="dt-gestion-notas-maestro"
                     key={`notas-main-${appConfig.moneda}-${appConfig.formato_numero}`}

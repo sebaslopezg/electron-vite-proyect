@@ -2,13 +2,19 @@ import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import ProductModal from './components/ProductoModal'
+import { ProductoDetalles } from './components/ProductoDetalles'
 import { formatCurrency } from '../../utils/currencies'
 import { productosService } from '../../services/productosService'
 
 export const Servicios = () => {
-    const [show, setShow] = useState(false);
-    const handleClose = () => setShow(false);
-    const handleShow = () => setShow(true);
+    const [show, setShow] = useState(false)
+    const [showDetalles, setShowDetalles] = useState(false)
+
+    const handleClose = () => setShow(false)
+    const handleShow = () => setShow(true)
+    
+    const handleCloseDetalles = () => setShowDetalles(false)
+    const handleShowDetalles = () => setShowDetalles(true)
 
     const [reloadTable, setReloadTable] = useState(0)
 
@@ -29,6 +35,7 @@ export const Servicios = () => {
 
     const [form, setForm] = useState({ ...emptyForm })
     const [editingId, setEditingId] = useState(null)
+    const [prodSel, setProdSel] = useState(null)
     const [categorias, setCategorias] = useState([])
     const [etiquetas, setEtiquetas] = useState([])
 
@@ -58,15 +65,15 @@ export const Servicios = () => {
                 productosService.getCategorias(),
                 productosService.getEtiquetas()
             ]);
-            setCategorias(cats || []);
-            setEtiquetas(tags || []);
+            setCategorias(cats || [])
+            setEtiquetas(tags || [])
         }
-        loadExtras();
-        loadConfig();
+        loadExtras()
+        loadConfig()
         
         window.addEventListener('config-actualizada', loadConfig);
-        return () => window.removeEventListener('config-actualizada', loadConfig);
-    }, []);
+        return () => window.removeEventListener('config-actualizada', loadConfig)
+    }, [])
 
     const cleanForm = () => setForm({ ...emptyForm })
 
@@ -80,17 +87,13 @@ export const Servicios = () => {
         }
 
         if (result && result.success) {
-            Swal.fire({ title: '¡Éxito!', text: 'Servicio guardado correctamente', icon: 'success', timer: 1500 });
+            Swal.fire({ title: '¡Éxito!', text: 'Servicio guardado correctamente', icon: 'success', timer: 1500 })
             cleanForm()
             handleClose()
             setReloadTable(prev => prev + 1)
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar el servicio', 'error');
+            Swal.fire('Error', result?.error || 'No se pudo guardar el servicio', 'error')
         }
-    }
-
-    const handleEdit = (id) => {
-        handleShow(); 
     }
 
     const handleDelete = async (id) => {
@@ -107,15 +110,16 @@ export const Servicios = () => {
         }
     }
 
-    const tableContainerRef = useRef(null);
+    const tableContainerRef = useRef(null)
 
     useEffect(() => {
-        const container = tableContainerRef.current;
+        const container = tableContainerRef.current
         if (!container) return
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
+                e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -135,20 +139,34 @@ export const Servicios = () => {
                         categoria_id: item.categoria_id || 'general', 
                         etiquetas: tagsArray
                     })
-                    setEditingId(item.id);
-                    handleShow();
+                    setEditingId(item.id)
+                    handleShow()
                 } catch(err) { console.error("Error leyendo datos", err) }
             }
+
+            const viewBtn = e.target.closest('.btn-view')
+            if (viewBtn) {
+                e.preventDefault()
+                try {
+                    const rawData = decodeURIComponent(viewBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
+                    setProdSel(item)
+                    handleShowDetalles()
+                } catch(err) { console.error("Error leyendo datos para vista", err) }
+            }
             
-            const delBtn = e.target.closest('.btn-delete');
-            if (delBtn) handleDelete(delBtn.dataset.id);
-        };
+            const delBtn = e.target.closest('.btn-delete')
+            if (delBtn) {
+                e.preventDefault()
+                handleDelete(delBtn.dataset.id)
+            }
+        }
 
-        container.addEventListener('click', handleTableClick);
-        return () => container.removeEventListener('click', handleTableClick);
-    }, []);
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
 
-    return (<>
+    return <>
         <div className="mb-3">
             <button className='btn btn-primary' onClick={() => {
                 setEditingId(null)
@@ -171,8 +189,12 @@ export const Servicios = () => {
                         data: 'sku', 
                         title: 'SKU', 
                         render: (data, type, row) => {
+                            if (!data) return '-';
                             const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                            return data ? `<strong>${prefix}${data.toUpperCase()}</strong>` : '-';
+                            const fullSku = `${prefix}${data.toUpperCase()}`;
+                            const safeData = encodeURIComponent(JSON.stringify(row));
+                            // Enlace clickeable para abrir detalles
+                            return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${fullSku}</a>`;
                         } 
                     },
                     { 
@@ -199,15 +221,33 @@ export const Servicios = () => {
                         data: null,
                         title: 'Acciones',
                         orderable: false,
+                        className: 'text-center',
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
-                            <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}">
-                            <i class="bi bi-trash3"></i>
-                            </button>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu shadow-sm">
+                                        <li>
+                                            <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
+                                                <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item btn-edit" href="#" data-id="${row.id}" data-alldata="${safeData}">
+                                                <i class="bi bi-pencil me-2 text-secondary"></i> Editar
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
+                                                <i class="bi bi-trash3 me-2"></i> Eliminar
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
                             `
                         }
                     }
@@ -225,5 +265,12 @@ export const Servicios = () => {
             categorias={categorias}
             etiquetas={etiquetas}
         />
-    </>)
+
+        <ProductoDetalles 
+            show={showDetalles}
+            handleClose={handleCloseDetalles}
+            productoData={prodSel}
+            appConfig={appConfig}
+        />
+    </>
 }

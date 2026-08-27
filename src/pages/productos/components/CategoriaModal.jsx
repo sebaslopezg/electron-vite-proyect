@@ -5,9 +5,9 @@ import { Row, Col } from 'react-bootstrap'
 
 export default function CategoriaModal({ show, handleClose, handleSubmit, form, setForm, editingId }) {
     
-    const isGeneral = editingId === 'general';
+    const isGeneral = editingId === 'general'
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="md" centered>
             <Modal.Header closeButton>
                 <Modal.Title>{editingId ? (isGeneral ? 'Ver Categoría' : 'Editar Categoría') : 'Nueva Categoría'}</Modal.Title>
@@ -86,5 +86,5 @@ export default function CategoriaModal({ show, handleClose, handleSubmit, form, 
                 )}
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

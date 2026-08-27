@@ -3,7 +3,6 @@ const api = ''
 const isElectron = () => typeof window !== 'undefined' && window.api !== undefined
 
 export const productosService = {
-    // ─── CATEGORÍAS ──────────────────────────────────────────
     getCategorias: async () => {
         if (isElectron()) {
             return await window.api.getCategorias()
@@ -13,7 +12,6 @@ export const productosService = {
         }
     },
 
-    // ─── SUBCATEGORÍAS ───────────────────────────────────────
     getSubcategorias: async () => {
         if (isElectron()) {
             return await window.api.getSubcategorias()
@@ -70,7 +68,6 @@ export const productosService = {
             }
         }
     },
-    // ─── CONFIGURACIÓN GLOBAL ────────────────────────────────
     getConfiguracion: async () => {
         if (isElectron()) {
             return await window.api.getConfiguracion()
@@ -80,7 +77,6 @@ export const productosService = {
         }
     },
 
-    // ─── GESTIÓN DE ETIQUETAS ────────────────────────────────
     getEtiquetas: async () => {
         if (isElectron()) {
             return await window.api.getEtiquetas()
@@ -90,7 +86,6 @@ export const productosService = {
         }
     },
 
-    // ─── MUTACIONES DE PRODUCTOS Y SERVICIOS ─────────────────
     addProducto: async (form) => {
         if (isElectron()) {
             return await window.api.addProducto(form)
@@ -139,7 +134,6 @@ export const productosService = {
         }
     },
 
-    // ─── PAGINACIÓN DE SERVICIOS ─────────────────────────────
     getServiciosPaginados: async (params) => {
         if (isElectron()) {
             return await window.api.getServiciosPaginados(params)
@@ -170,7 +164,6 @@ export const productosService = {
             }
         }
     },
-    // ─── PAGINACIÓN DE PRODUCTOS FÍSICOS ─────────────────────
     getProductosPaginados: async (params) => {
         if (isElectron()) {
             return await window.api.getProductosPaginados(params)
@@ -211,7 +204,6 @@ export const productosService = {
             }
         }
     },
-    // ─── MUTACIONES DE ETIQUETAS ─────────────────────────────
     addEtiqueta: async (form) => {
         if (isElectron()) {
             return await window.api.addEtiqueta(form)
@@ -259,7 +251,6 @@ export const productosService = {
             }
         }
     },
-    // ─── MUTACIONES DE CATEGORÍAS ────────────────────────────
     addCategoria: async (payload) => {
         if (isElectron()) {
             return await window.api.addCategoria(payload)
@@ -306,5 +297,12 @@ export const productosService = {
                 }
             }
         }
+    },
+
+    getProductosPorCategoria: async (categoriaId) => {
+        if (isElectron() && window.api.getProductosPorCategoria) {
+            return await window.api.getProductosPorCategoria(categoriaId)
+        }
+        return []
     }
 }

@@ -117,6 +117,7 @@ contextBridge.exposeInMainWorld("api", {
   addCategoria: (item) => ipcRenderer.invoke("add-categoria", item),
   updateCategoria: (item) => ipcRenderer.invoke("update-categoria", item),
   deleteCategoria: (id) => ipcRenderer.invoke("delete-categoria", id),
+  getProductosPorCategoria: (id) => ipcRenderer.invoke("get-productos-por-categoria", id),
 
   // Etiquetas
   getEtiquetas: () => ipcRenderer.invoke("get-etiquetas"),

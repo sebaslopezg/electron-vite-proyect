@@ -10,7 +10,7 @@ export const ModalSeleccionItemNota = ({
     setItemForm,
     handleConfirmAddItem
 }) => {
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} centered>
             <Modal.Header closeButton>
                 <Modal.Title>Agregar Producto a Nota</Modal.Title>
@@ -24,15 +24,15 @@ export const ModalSeleccionItemNota = ({
                             onChange={(e) => setItemForm({...itemForm, id_producto: e.target.value})}
                         >
                             {productosDisponibles.map((prod, idx) => {
-                                const prefix = prod.sku_prefix ? `${prod.sku_prefix}${prod.separador || ''}`.toUpperCase() : '';
+                                const prefix = prod.sku_prefix ? `${prod.sku_prefix}${prod.separador || ''}`.toUpperCase() : ''
                                 const skuVal = String(prod.sku || '').toUpperCase();
-                                const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+                                const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
 
-                                return (
+                                return <>
                                     <option key={idx} value={prod.id_producto}>
                                         {finalSku} - {prod.nombre_producto} (Vendidos: {prod.cantidad_producto})
                                     </option>
-                                );
+                                </>
                             })}
                         </Form.Select>
                     </Form.Group>
@@ -53,5 +53,5 @@ export const ModalSeleccionItemNota = ({
                 <Button variant="primary" onClick={handleConfirmAddItem}>Agregar a la Nota</Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }
