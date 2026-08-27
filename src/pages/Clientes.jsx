@@ -2,10 +2,15 @@ import { useState, useRef, useEffect } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../components/DataTableComponent'
 import { ModalTercero } from './contabilidad/components/ModalTercero'
+import { ModalDetalleTercero } from './contabilidad/components/ModalDetalleTercero'
 
 export const Clientes = ({ currentUser }) => {
     const [showModal, setShowModal] = useState(false)
     const [terceroAEditar, setTerceroAEditar] = useState(null)
+    
+    const [showDetalle, setShowDetalle] = useState(false)
+    const [terceroVer, setTerceroVer] = useState(null)
+
     const [reloadTable, setReloadTable] = useState(0)
     const tableContainerRef = useRef(null)
 
@@ -23,6 +28,11 @@ export const Clientes = ({ currentUser }) => {
     const handleEditar = (tercero) => {
       setTerceroAEditar(tercero)
       setShowModal(true)
+    }
+
+    const handleVerDetalles = (tercero) => {
+      setTerceroVer(tercero)
+      setShowDetalle(true)
     }
 
     const handleEliminar = (id, nombre) => {
@@ -48,13 +58,21 @@ export const Clientes = ({ currentUser }) => {
         if (!container) return
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('button[data-alldata]')
-            if (!btn || !container.contains(btn)) return
+            const actionEl = e.target.closest('[data-alldata], .btn-delete')
+            if (!actionEl || !container.contains(actionEl)) return
             
+            e.preventDefault()
             try {
-                const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
-                if (btn.classList.contains('btn-edit')) handleEditar(item)
-                else if (btn.classList.contains('btn-delete')) handleEliminar(item.id, item.tipo_persona === 'juridica' ? item.razon_social : `${item.nombres} ${item.apellidos}`)
+                if (actionEl.classList.contains('btn-delete')) {
+                    const id = actionEl.dataset.id
+                    const nombre = actionEl.dataset.nombre
+                    handleEliminar(id, nombre)
+                    return
+                }
+
+                const item = JSON.parse(decodeURIComponent(actionEl.dataset.alldata))
+                if (actionEl.classList.contains('btn-view')) handleVerDetalles(item)
+                else if (actionEl.classList.contains('btn-edit')) handleEditar(item)
             } catch(err) { console.error(err) }
         }
 
@@ -103,16 +121,42 @@ export const Clientes = ({ currentUser }) => {
                                     render: (d) => d === 1 ? '<i class="bi bi-check-circle-fill text-success"></i>' : '<i class="bi bi-x-circle-fill text-danger"></i>'
                                 },
                                 {
-                                    data: null, title: 'Acciones', orderable: false, className: 'text-end pe-4',
+                                    data: null, title: 'Acciones', orderable: false, className: 'text-center',
                                     render: function (data, type, row) {
                                         const safeData = encodeURIComponent(JSON.stringify(row));
+                                        const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`;
                                         
                                         const canEdit = hasPermission('clientes_editar');
                                         const canDelete = hasPermission('clientes_eliminar');
 
                                         return `
-                                            ${canEdit ? `<button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi bi-pencil"></i></button>` : ''}
-                                            ${canDelete ? `<button class="btn btn-sm btn-danger btn-delete" data-alldata="${safeData}" title="Eliminar"><i class="bi bi-trash"></i></button>` : ''}
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu shadow-sm">
+                                                    <li>
+                                                        <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
+                                                            <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                                                        </a>
+                                                    </li>
+                                                    ${canEdit ? `
+                                                    <li>
+                                                        <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                                            <i class="bi bi-pencil me-2 text-secondary"></i> Editar
+                                                        </a>
+                                                    </li>
+                                                    ` : ''}
+                                                    ${canDelete ? `
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
+                                                            <i class="bi bi-trash3 me-2"></i> Eliminar
+                                                        </a>
+                                                    </li>
+                                                    ` : ''}
+                                                </ul>
+                                            </div>
                                         `;
                                     }
                                 }
@@ -123,6 +167,7 @@ export const Clientes = ({ currentUser }) => {
             </div>
             
             <ModalTercero show={showModal} handleClose={() => setShowModal(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={terceroAEditar} forceCliente={true} />
+            <ModalDetalleTercero show={showDetalle} handleClose={() => setShowDetalle(false)} terceroData={terceroVer} />
         </div>
     </>
 }
