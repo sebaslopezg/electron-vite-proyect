@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react'
 import { ModalAbono } from './components/ModalAbono'
 import { TabCuentasPorCobrar } from './components/CuentasPorCobrar'
 import { TabHistorialAbonos } from './components/HistorialAbonos'
+import { ModalDetalleFactura } from '../ventas/components/ModalDetalleFactura'
+import { ImpresorFactura } from '../ventas/components/ImpresorFactura'
 import { carteraService } from '../../services/carteraService'
+import { ventasService } from '../../services/ventasService'
 
 export const Cartera = ({ currentUser }) => {
     const [reloadKey, setReloadKey] = useState(0)
@@ -12,6 +15,13 @@ export const Cartera = ({ currentUser }) => {
 
     const [showModal, setShowModal] = useState(false)
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
+
+    const [showModalFactura, setShowModalFactura] = useState(false)
+    const [facturaVer, setFacturaVer] = useState(null)
+    const [detalleData, setDetalleData] = useState([])
+    const [notasFactura, setNotasFactura] = useState([])
+    
+    const [showImpresor, setShowImpresor] = useState(false)
 
     const hasPermission = (permissionKey) => {
         if (!currentUser) return false
@@ -74,6 +84,38 @@ export const Cartera = ({ currentUser }) => {
         setReloadKey(prev => prev + 1)
     }
 
+    const handleViewFactura = async (factura) => {
+        setFacturaVer(factura)
+        setShowModalFactura(true)
+        
+        try {
+            const result = await ventasService.getDetalleFactura(factura.id)
+            if (result && result.success) {
+                setDetalleData(result.data || [])
+                setNotasFactura(result.notes || [])
+            } else {
+                setDetalleData([])
+                setNotasFactura([])
+            }
+        } catch(e) {
+            console.error("Error cargando detalle de la factura", e)
+            setDetalleData([])
+            setNotasFactura([])
+        }
+    }
+
+    const handleCloseModalFactura = () => {
+        setShowModalFactura(false)
+        setFacturaVer(null)
+        setDetalleData([])
+        setNotasFactura([])
+    }
+
+    const handlePrepararImpresion = () => {
+        setShowModalFactura(false)
+        setShowImpresor(true)
+    }
+
     if (!canSeeCobrar && !canSeeHistorial) {
         return (
             <div className="alert alert-warning m-4 text-center shadow-sm border-warning">
@@ -121,8 +163,10 @@ export const Cartera = ({ currentUser }) => {
                             <TabCuentasPorCobrar 
                                 reloadKey={reloadKey}
                                 onOpenModal={handleOpenModal} 
+                                onViewFactura={handleViewFactura}
                                 appConfig={appConfig}
                                 currentUser={currentUser}
+                                almacenConf={almacenConf}
                             />
                         )}
                         
@@ -132,6 +176,7 @@ export const Cartera = ({ currentUser }) => {
                                 almacenConf={almacenConf}
                                 appConfig={appConfig}
                                 currentUser={currentUser}
+                                onViewFactura={handleViewFactura} // <-- NUEVA PROP PASADA AL HISTORIAL
                             />
                         )}
                     </div>
@@ -147,6 +192,25 @@ export const Cartera = ({ currentUser }) => {
             onSuccess={handlePagoExitoso} 
             appConfig={appConfig}
             currentUser={currentUser}
+        />
+
+        <ModalDetalleFactura 
+            show={showModalFactura}
+            handleClose={handleCloseModalFactura}
+            facturaSeleccionada={facturaVer}
+            detalleData={detalleData}
+            notasFactura={notasFactura}
+            handlePrepararImpresion={handlePrepararImpresion}
+            appConfig={appConfig}
+        />
+
+        <ImpresorFactura 
+            show={showImpresor}
+            onClose={() => setShowImpresor(false)}
+            factura={facturaVer}
+            detalles={detalleData}
+            almacenConf={almacenConf}
+            textoVolver="Volver a Cartera"
         />
     </>
 }

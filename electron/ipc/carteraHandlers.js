@@ -128,10 +128,19 @@ export const registerCarteraHandlers = () => {
             const stmt = db.prepare(`
                 SELECT a.*, 
                     v.prefijo, 
+                    v.separador,
                     v.numero_factura, 
                     v.nombre_cliente, 
                     v.documento_cliente,
-                    v.saldo_pendiente
+                    v.saldo_pendiente,
+                    v.subtotal,
+                    v.descuento,
+                    v.iva,
+                    v.total_factura,
+                    v.tipo_pago,
+                    v.total_recibido,
+                    v.metodo_pago as metodo_pago_factura,
+                    v.date_created as fecha_factura
                 FROM abonos_ventas a
                 LEFT JOIN ventasMaestro v ON a.maestro_id = v.id
                 ORDER BY a.date_created DESC
@@ -178,11 +187,20 @@ export const registerCarteraHandlers = () => {
 
             const dataQuery = `
                 SELECT a.*, 
-                       v.prefijo, 
+                       v.prefijo,
+                       v.separador,
                        v.numero_factura, 
                        v.nombre_cliente, 
                        v.documento_cliente,
-                       v.saldo_pendiente
+                       v.saldo_pendiente,
+                       v.subtotal,
+                       v.descuento,
+                       v.iva,
+                       v.total_factura,
+                       v.tipo_pago,
+                       v.total_recibido,
+                       v.metodo_pago as metodo_pago_factura,
+                       v.date_created as fecha_factura
                 ${baseQuery}
                 ORDER BY ${orderCol} ${orderDir}
                 LIMIT ? OFFSET ?

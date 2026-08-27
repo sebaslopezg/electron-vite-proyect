@@ -78,11 +78,21 @@ export const inventarioService = {
                 id: p.id,
                 ref_name: p.ref_name,
                 sku: p.sku,
-                sku_prefix: p.sku_prefix || '',
-                separador: p.separador || '',
+                sku_prefix: p.sku_prefix || p.cat_prefix || '',
+                separador: p.separador || p.cat_separador || '',
                 stock: p.stock,
                 precio: p.precio,
-                min_stock: p.min_stock || 5
+                min_stock: p.min_stock || 5,
+                max_stock: p.max_stock || 50,
+                status: p.status,
+                tipo: p.tipo || 'producto',
+                categoria_nombre: p.categoria_nombre || p.category?.nombre || 'General',
+                iva: p.iva || 0,
+                unidad_medida: p.unidad_medida || 'Unidad',
+                descripcion: p.descripcion || '',
+                allow_negative: p.allow_negative || 0,
+                allow_encargo: p.allow_encargo !== undefined ? p.allow_encargo : 1,
+                encargo_solo_sin_stock: p.encargo_solo_sin_stock !== undefined ? p.encargo_solo_sin_stock : 1
             }));
 
             return {

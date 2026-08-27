@@ -19,11 +19,11 @@ export const registerInventarioHandler = () => {
         try {
             const stmt = db.prepare(`
                 SELECT 
-                    p.id, p.ref_name, p.sku, p.precio, p.stock, p.unidad_medida, p.descripcion, p.min_stock,
-                    c.sku_prefix, c.separador, p.categoria_id, c.nombre as categoria_nombre,
+                    p.*,
+                    c.sku_prefix, c.separador, c.nombre as categoria_nombre,
                     GROUP_CONCAT(pe.etiqueta_id, ',') as etiquetas_ids
                 FROM producto p
-                LEFT JOIN category c ON p.categoria_id = c.id
+                LEFT JOIN categoria c ON p.categoria_id = c.id
                 LEFT JOIN producto_etiqueta pe ON p.id = pe.producto_id
                 WHERE p.status = 1 AND p.tipo = 'producto'
                 GROUP BY p.id
@@ -89,14 +89,13 @@ export const registerInventarioHandler = () => {
             const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
             const recordsFiltered = filteredRow.count;
 
-            // CORREGIDO: Sumatoria exacta en SQLite de todas las existencias bajo el contexto actual de filtros
             const totalStockRow = db.prepare(`SELECT SUM(p.stock) as totalStock ${baseQuery}`).get(...queryParams);
             const totalStock = totalStockRow.totalStock || 0;
 
             const dataQuery = `
                 SELECT 
-                    p.id, p.ref_name, p.sku, p.precio, p.stock, p.unidad_medida, p.descripcion, p.min_stock,
-                    c.sku_prefix, c.separador, p.categoria_id, c.nombre as categoria_nombre,
+                    p.*,
+                    c.sku_prefix, c.separador, c.nombre as categoria_nombre,
                     (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
                 ${baseQuery}
                 ORDER BY ${orderCol} ${orderDir} 
@@ -110,7 +109,7 @@ export const registerInventarioHandler = () => {
                 recordsTotal: recordsTotal,
                 recordsFiltered: recordsFiltered,
                 data: data,
-                totalStock: totalStock // Retornamos el valor calculado
+                totalStock: totalStock
             };
         } catch (error) {
             logger.error('INVENTARIO', "Error en paginación y filtros del inventario", error)

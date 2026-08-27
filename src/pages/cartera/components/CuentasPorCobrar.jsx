@@ -3,7 +3,7 @@ import DataTableComponent from '../../../components/DataTableComponent'
 import { formatCurrency } from '../../../utils/currencies'
 import { carteraService } from '../../../services/carteraService'
 
-export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, appConfig, currentUser }) => {
+export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, onViewFactura, appConfig, currentUser, almacenConf }) => {
     const tableCobrarRef = useRef(null);
 
     const hasPermission = (permissionKey) => {
@@ -17,17 +17,27 @@ export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, appConfig, current
         if (!container) return
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('.btn-pay-item')
-            if (!btn || !container.contains(btn)) return
-            try {
-                const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
-                onOpenModal(item);
-            } catch(err) { console.error(err) }
+            const btnAbonar = e.target.closest('.btn-pay-item')
+            if (btnAbonar && container.contains(btnAbonar)) {
+                try {
+                    const item = JSON.parse(decodeURIComponent(btnAbonar.dataset.alldata))
+                    onOpenModal(item);
+                } catch(err) { console.error(err) }
+            }
+
+            const btnVerFactura = e.target.closest('.btn-view-factura')
+            if (btnVerFactura && container.contains(btnVerFactura)) {
+                e.preventDefault()
+                try {
+                    const item = JSON.parse(decodeURIComponent(btnVerFactura.dataset.alldata))
+                    onViewFactura(item);
+                } catch(err) { console.error(err) }
+            }
         }
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [onOpenModal, currentUser])
+    }, [onOpenModal, onViewFactura, currentUser])
 
     return <>
         <div className="animation-fade-in">
@@ -39,8 +49,28 @@ export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, appConfig, current
                     ajaxData={(params) => carteraService.getCuentasPorCobrarPaginadas(params)}
                     columns={[
                         { 
-                            data: null, title: 'N° Factura',
-                            render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
+                            data: 'numero_factura', 
+                            title: 'N° Factura',
+                            render: (data, type, row) => {
+                                if (!data) return '-';
+                                
+                                const prefix = row.prefijo ? String(row.prefijo) : '';
+                                const separador = row.separador || almacenConf?.separador || '-';
+                                let numVal = String(data);
+                                
+                                if (prefix && numVal.startsWith(prefix)) {
+                                    numVal = numVal.substring(prefix.length);
+                                }
+                                
+                                if (numVal.startsWith(separador)) {
+                                    numVal = numVal.substring(separador.length);
+                                }
+                                
+                                const finalFactura = prefix ? `${prefix}${separador}${numVal}` : numVal;
+                                const safeData = encodeURIComponent(JSON.stringify(row));
+                                
+                                return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura" data-alldata="${safeData}">${finalFactura}</a>`;
+                            }
                         },
                         { data: 'documento_cliente', title: 'Doc / NIT' },
                         { data: 'nombre_cliente', title: 'Cliente' },

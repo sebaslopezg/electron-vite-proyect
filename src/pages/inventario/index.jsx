@@ -8,18 +8,21 @@ import { formatCurrency } from '../../utils/currencies'
 import { BuscadorFiltros } from '../../components/BuscadorFiltros'
 import { ModalAjusteStock } from './components/ModalAjusteStock'
 import { ModalHistorialInventario } from './components/ModalHistorialInventario'
+import { ProductoDetalles } from '../productos/components/ProductoDetalles'
 import { inventarioService } from '../../services/inventarioService'
 
 export const Inventario = ({ currentUser }) => {
     const [show, setShow] = useState(false)
+    const [showDetalles, setShowDetalles] = useState(false)
     const [selectedProduct, setSelectedProduct] = useState(null)
+    const [prodSel, setProdSel] = useState(null)
     const [reloadTable, setReloadTable] = useState(0)
 
     const [categoriasList, setCategoriasList] = useState([])
     const [subcategoriasTotales, setSubcategoriasTotales] = useState([])
     const [subcategoriasFiltradas, setSubcategoriasFiltradas] = useState([])
     const [etiquetasList, setEtiquetasList] = useState([])
-  
+    
     const [filterCategory, setFilterCategory] = useState(() => localStorage.getItem('inv_filtro_categoria') || '')
     const [filterSubcategory, setFilterSubcategory] = useState(() => localStorage.getItem('inv_filtro_subcategoria') || '')
     const [filterTag, setFilterTag] = useState(() => localStorage.getItem('inv_filtro_etiqueta') || '')
@@ -76,6 +79,9 @@ export const Inventario = ({ currentUser }) => {
     }
 
     const handleShow = () => setShow(true)
+
+    const handleCloseDetalles = () => setShowDetalles(false)
+    const handleShowDetalles = () => setShowDetalles(true)
 
     const loadFilters = async () => {
         const [cats, tags, subs] = await Promise.all([
@@ -186,14 +192,21 @@ export const Inventario = ({ currentUser }) => {
         if (!container) return
         
         const handleTableClick = (e) => {
-            const btn = e.target.closest('button[data-alldata]')
+            const btn = e.target.closest('[data-alldata]')
             if (!btn || !container.contains(btn)) return
+            
+            e.preventDefault()
             try {
                 const rawData = decodeURIComponent(btn.dataset.alldata)
                 const item = JSON.parse(rawData)
+                
                 if (btn.classList.contains('btn-increase')) handleIncrease(item)
                 else if (btn.classList.contains('btn-decrease')) handleDecrease(item)
                 else if (btn.classList.contains('btn-history')) viewHistory(item)
+                else if (btn.classList.contains('btn-view')) {
+                    setProdSel(item)
+                    handleShowDetalles()
+                }
             } catch(err) { console.error("Error leyendo datos", err); }
         }
         
@@ -317,12 +330,14 @@ export const Inventario = ({ currentUser }) => {
                                     const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
                                     const skuVal = String(data);
                                     const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+                                    const safeData = encodeURIComponent(JSON.stringify(row));
                                     
-                                    return `<strong>${finalSku}</strong>`;
+                                    return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${finalSku}</a>`;
                                 }
                             },
                             { 
                                 data: 'stock', title: 'Stock',
+                                className: 'text-center',
                                 render: (data, type, row) => {
                                     const minStock = row.min_stock || 5; 
                                     const stockLevel = data <= minStock ? 'danger' : 'success';
@@ -334,17 +349,46 @@ export const Inventario = ({ currentUser }) => {
                                 render: (data) => renderCurrency(data)
                             },
                             {
-                                data: null, title: 'Acciones', orderable: false,
+                                data: null, title: 'Acciones', orderable: false, className: 'text-center',
                                 render: function (data, type, row) {
                                     const safeData = encodeURIComponent(JSON.stringify(row));
                                     const canAdjust = hasPermission('inventario_ajustar');
                                     
+                                    let menuItems = '';
+                                    
+                                    if (canAdjust) {
+                                        menuItems += `
+                                            <li>
+                                                <a class="dropdown-item btn-increase" href="#" data-alldata="${safeData}">
+                                                    <i class="bi bi-plus-lg me-2 text-success"></i> Aumentar Stock
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item btn-decrease" href="#" data-alldata="${safeData}">
+                                                    <i class="bi bi-dash-lg me-2 text-warning"></i> Disminuir Stock
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                        `;
+                                    }
+                                    
+                                    menuItems += `
+                                        <li>
+                                            <a class="dropdown-item btn-history" href="#" data-alldata="${safeData}">
+                                                <i class="bi bi-clock-history me-2 text-secondary"></i> Ver Historial
+                                            </a>
+                                        </li>
+                                    `;
+                                    
                                     return `
-                                        ${canAdjust ? `
-                                        <button class="btn btn-sm btn-success me-2 mb-1 btn-increase" data-alldata="${safeData}" title="Aumentar"><i class="bi bi-plus-lg"></i></button>
-                                        <button class="btn btn-sm btn-warning me-2 mb-1 btn-decrease" data-alldata="${safeData}" title="Disminuir"><i class="bi bi-dash"></i></button>
-                                        ` : ''}
-                                        <button class="btn btn-sm btn-info text-white mb-1 btn-history" data-alldata="${safeData}" title="Historial"><i class="bi bi-clock-history"></i></button>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu shadow-sm">
+                                                ${menuItems}
+                                            </ul>
+                                        </div>
                                     `;
                                 }
                             }
@@ -369,6 +413,13 @@ export const Inventario = ({ currentUser }) => {
             handleClose={() => setShowHistory(false)}
             historyProductId={historyProductId}
             historyTitle={historyTitle}
+            appConfig={appConfig}
+        />
+
+        <ProductoDetalles 
+            show={showDetalles}
+            handleClose={handleCloseDetalles}
+            productoData={prodSel}
             appConfig={appConfig}
         />
     </>
