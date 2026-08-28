@@ -163,8 +163,9 @@ export const VerFacturas = ({ currentUser }) => {
         if (!container) return
 
         const handleTableClick = (e) => {
-            const btnSee = e.target.closest('.btn-see-item')
+            const btnSee = e.target.closest('.btn-see-item, .btn-view-factura')
             if (btnSee) {
+                e.preventDefault()
                 try {
                     const item = JSON.parse(decodeURIComponent(btnSee.dataset.alldata))
                     verDetalle(item)
@@ -262,8 +263,13 @@ export const VerFacturas = ({ currentUser }) => {
             }
         },
         { 
-            data: null, title: 'N° Factura',
-            render: (data, type, row) => `<strong>${row.prefijo || ''}${row.separador || ''}${row.numero_factura}</strong>`
+            data: 'numero_factura', title: 'N° Factura',
+            render: (data, type, row) => {
+                const finalFactura = `${row.prefijo || ''}${row.separador || ''}${row.numero_factura}`
+                const safeData = encodeURIComponent(JSON.stringify(row))
+                
+                return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura" data-alldata="${safeData}">${finalFactura}</a>`
+            }
         },
         { data: 'documento_cliente', title: 'Doc Cliente' },
         { data: 'nombre_cliente', title: 'Nombre Cliente' },
@@ -313,7 +319,7 @@ export const VerFacturas = ({ currentUser }) => {
                             ${canPrint ? `
                             <li>
                                 <button class="dropdown-item btn-print-item" data-alldata="${safeData}">
-                                    <i class="bi bi-printer me-2 text-primary"></i> Imprimir Tirilla
+                                    <i class="bi bi-printer me-2 text-primary"></i> Imprimir
                                 </button>
                             </li>
                             ` : ''}

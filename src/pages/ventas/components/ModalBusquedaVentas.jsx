@@ -17,7 +17,8 @@ export const ModalBusquedaVentas = ({
     categoriasList,
     etiquetasList,
     appConfig,
-    clientes
+    clientes,
+    isUnder
 }) => {
     const [subcategoriasTotales, setSubcategoriasTotales] = useState([])
     const [subcategoriasFiltradas, setSubcategoriasFiltradas] = useState([])
@@ -65,7 +66,9 @@ export const ModalBusquedaVentas = ({
                 const prefix = row.cat_prefix ? `${row.cat_prefix}${row.cat_separador || ''}`.toUpperCase() : ''
                 const skuVal = String(data).toUpperCase();
                 const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
-                return `<strong>${finalSku}</strong>`
+                const safeData = encodeURIComponent(JSON.stringify(row));
+                
+                return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-product" data-alldata="${safeData}">${finalSku}</a>`
             }
         },
         { 
@@ -89,7 +92,20 @@ export const ModalBusquedaVentas = ({
     ], [appConfig])
 
     return <>
-        <Modal show={show} onHide={handleLocalClose} size="xl" centered scrollable>
+        <style>{`
+            .modal-under { z-index: 1040 !important; }
+            .backdrop-under { z-index: 1030 !important; }
+        `}</style>
+        
+        <Modal 
+            show={show} 
+            onHide={handleLocalClose} 
+            size="xl" 
+            centered 
+            scrollable
+            className={isUnder ? 'modal-under' : ''}
+            backdropClassName={isUnder ? 'backdrop-under' : ''}
+        >
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">{modalData.title}</Modal.Title>
             </Modal.Header>

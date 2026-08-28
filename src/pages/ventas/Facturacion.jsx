@@ -6,6 +6,7 @@ import { ImpresorFactura } from './components/ImpresorFactura'
 import { getCurrencySymbol, formatCurrency } from '../../utils/currencies'
 import { ModalTercero } from '../contabilidad/components/ModalTercero'
 import { ModalBusquedaVentas } from './components/ModalBusquedaVentas'
+import { ProductoDetalles } from '../productos/components/ProductoDetalles'
 import { ventasService } from '../../services/ventasService'
 
 const Toast = Swal.mixin({
@@ -45,6 +46,9 @@ export const Facturacion = () => {
   const [facturaParaImprimir, setFacturaParaImprimir] = useState(null)
   const [detallesParaImprimir, setDetallesParaImprimir] = useState([])
   const [almacenConfParaImprimir, setAlmacenConfParaImprimir] = useState(null)
+
+  const [showDetalleProd, setShowDetalleProd] = useState(false)
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null)
 
   const [categoriasList, setCategoriasList] = useState([])
   const [etiquetasList, setEtiquetasList] = useState([])
@@ -219,7 +223,9 @@ export const Facturacion = () => {
             const skuVal = String(data).toUpperCase();
             
             const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
-            return `<strong>${finalSku}</strong>`;
+            const safeData = encodeURIComponent(JSON.stringify(row));
+            
+            return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-product" data-alldata="${safeData}">${finalSku}</a>`;
           }
         },
         { data: 'stock', title: 'Stock' },
@@ -320,7 +326,7 @@ export const Facturacion = () => {
 
   const vaciarCarrito = () => {
     Swal.fire({
-      title: '¿Vaciar carrito?',
+      title: '¿Vaciar?',
       text: "Se eliminarán todos los productos de la preventa.",
       icon: 'warning',
       showCancelButton: true,
@@ -517,7 +523,7 @@ export const Facturacion = () => {
 
   useEffect(() => {
     const handleGlobalEvents = (e) => {
-      const target = e.target.closest('button') || e.target
+      const target = e.target.closest('button, a') || e.target
       const id = target.getAttribute('data-id')
       const isEncargo = target.getAttribute('data-encargo')
 
@@ -537,6 +543,16 @@ export const Facturacion = () => {
       }
 
       if (e.type === 'click') {
+        if (target.closest('.btn-view-product')) {
+            e.preventDefault()
+            const link = target.closest('.btn-view-product')
+            if (link.dataset.alldata) {
+                const selectedProd = JSON.parse(decodeURIComponent(link.dataset.alldata))
+                setProductoSeleccionado(selectedProd)
+                setShowDetalleProd(true)
+            }
+        }
+
         if (target.closest('.toggle-discount-type') && id) {
           setCarrito(prev => prev.map(item => {
             if (String(item.id) === String(id) && item.isEncargo === isEncargo) {
@@ -665,7 +681,9 @@ export const Facturacion = () => {
                   const skuVal = String(data).toUpperCase();
                   
                   const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
-                  return `<strong>${finalSku}</strong>`;
+                  const safeData = encodeURIComponent(JSON.stringify(row));
+                  
+                  return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-product" data-alldata="${safeData}">${finalSku}</a>`;
                 }
               },
               {
@@ -901,6 +919,7 @@ export const Facturacion = () => {
         etiquetasList={etiquetasList}
         appConfig={appConfig}
         clientes={clientes}
+        isUnder={showDetalleProd}
     />
 
     <ImpresorFactura 
@@ -929,6 +948,13 @@ export const Facturacion = () => {
                 Toast.fire({ icon: 'success', title: '¡Listo!', text: 'Cliente asignado a la factura.' })
             }
         }}
+    />
+
+    <ProductoDetalles 
+        show={showDetalleProd}
+        handleClose={() => setShowDetalleProd(false)}
+        productoData={productoSeleccionado}
+        appConfig={appConfig}
     />
   </>
 }

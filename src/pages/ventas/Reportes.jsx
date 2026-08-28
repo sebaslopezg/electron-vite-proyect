@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Form, Row, Col, Button, Card } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
 import { formatCurrency } from '../../utils/currencies'
 import { ImpresorReporte } from './components/ImpresorReporte'
+import { ModalDetalleFactura } from './components/ModalDetalleFactura'
+import { ImpresorFactura } from './components/ImpresorFactura'
 import { ventasService } from '../../services/ventasService'
 import { exportToExcel, exportToPDF } from '../../utils/exporter'
 
@@ -37,6 +39,13 @@ export const Reportes = () => {
     const [almacenConf, setAlmacenConf] = useState(null)
     const [showPreview, setShowPreview] = useState(false)
     const [loading, setLoading] = useState(false)
+
+    const tableContainerRef = useRef(null)
+    const [showModalFactura, setShowModalFactura] = useState(false)
+    const [showImpresorFactura, setShowImpresorFactura] = useState(false)
+    const [facturaVer, setFacturaVer] = useState(null)
+    const [detalleData, setDetalleData] = useState([])
+    const [notasFactura, setNotasFactura] = useState([])
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
@@ -74,6 +83,67 @@ export const Reportes = () => {
         window.addEventListener('factura-creada', handleNovaFactura)
         return () => window.removeEventListener('factura-creada', handleNovaFactura)
     }, [startDate, endDate])
+
+    useEffect(() => {
+        const container = tableContainerRef.current
+        if (!container) return
+
+        const handleTableClick = (e) => {
+            const btnFactura = e.target.closest('.btn-view-factura')
+            if (btnFactura && container.contains(btnFactura)) {
+                e.preventDefault()
+                try {
+                    const item = JSON.parse(decodeURIComponent(btnFactura.dataset.alldata))
+                    const facturaId = item.tipo_transaccion === 'abono' ? item.maestro_id : item.id
+                    
+                    handleViewFactura({
+                        ...item,
+                        id: facturaId,
+                        numero_factura: item.numero_factura || item.factura_numero,
+                        tipo_pago: item.tipo_transaccion === 'abono' ? 'credito' : item.tipo_pago
+                    })
+                } catch(err) { console.error(err) }
+            }
+        }
+
+        container.addEventListener('click', handleTableClick)
+        return () => container.removeEventListener('click', handleTableClick)
+    }, [])
+
+    const handleViewFactura = async (factura) => {
+        setFacturaVer(factura)
+        setShowModalFactura(true)
+        
+        try {
+            const result = await ventasService.getDetalleFactura(factura.id)
+            if (Array.isArray(result)) {
+                setDetalleData(result)
+                setNotasFactura([])
+            } else if (result && (result.success || result.data || result.detalles)) {
+                setDetalleData(result.data || result.detalles || [])
+                setNotasFactura(result.notes || result.notas || [])
+            } else {
+                setDetalleData([])
+                setNotasFactura([])
+            }
+        } catch(e) {
+            console.error("Error cargando detalle", e)
+            setDetalleData([])
+            setNotasFactura([])
+        }
+    }
+
+    const handleCloseModalFactura = () => {
+        setShowModalFactura(false)
+        setFacturaVer(null)
+        setDetalleData([])
+        setNotasFactura([])
+    }
+
+    const handlePrepararImpresionFactura = () => {
+        setShowModalFactura(false)
+        setShowImpresorFactura(true)
+    }
 
     const totales = useMemo(() => {
         return transacciones.reduce((acc, t) => {
@@ -190,13 +260,14 @@ export const Reportes = () => {
         { 
             data: null, title: 'Documento',
             render: (data, type, row) => {
+                const safeData = encodeURIComponent(JSON.stringify(row))
                 if (row.tipo_transaccion === 'abono') {
-                    return `<strong>Abono a F-${row.factura_numero || ''}</strong>`
+                    return `<strong>Abono a <a href="#" class="text-primary text-decoration-underline btn-view-factura" data-alldata="${safeData}">F-${row.factura_numero || ''}</a></strong>`
                 }
                 const pref = row.prefijo || ''
                 const sep = row.separador || ''
                 const num = row.numero_factura || ''
-                return `<strong>${pref}${sep}${num}</strong>`
+                return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura" data-alldata="${safeData}">${pref}${sep}${num}</a>`
             }
         },
         { data: 'nombre_cliente', title: 'Cliente' },
@@ -239,7 +310,7 @@ export const Reportes = () => {
         <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-3">
             <div>
                 <Button variant="primary" className="me-2" onClick={() => setShowPreview(true)} disabled={transacciones.length === 0}>
-                    <i className="bi bi-printer me-2"></i> Imprimir Tirilla
+                    <i className="bi bi-printer me-2"></i> Imprimir
                 </Button>
             </div>
             <div className="d-flex gap-2">
@@ -299,7 +370,7 @@ export const Reportes = () => {
         </Row>
 
         <h6 className="mb-3">Detalle de Transacciones ({transacciones.length})</h6>
-        <div className="w-100 bg-white">
+        <div className="w-100 bg-white" ref={tableContainerRef}>
             {loading ? (
                 <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
             ) : (
@@ -320,6 +391,25 @@ export const Reportes = () => {
             almacenConf={almacenConf}
             fechaInicio={startDate}
             fechaFin={endDate}
+        />
+
+        <ModalDetalleFactura 
+            show={showModalFactura}
+            handleClose={handleCloseModalFactura}
+            facturaSeleccionada={facturaVer}
+            detalleData={detalleData}
+            notasFactura={notasFactura}
+            handlePrepararImpresion={handlePrepararImpresionFactura}
+            appConfig={appConfig}
+        />
+
+        <ImpresorFactura 
+            show={showImpresorFactura}
+            onClose={() => setShowImpresorFactura(false)}
+            factura={facturaVer}
+            detalles={detalleData}
+            almacenConf={almacenConf}
+            textoVolver="Volver a Reportes"
         />
     </>
 }

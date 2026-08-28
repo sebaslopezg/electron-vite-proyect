@@ -210,3 +210,154 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
 
     doc.save(`Factura_${numFactura}.pdf`)
 }
+
+// NUEVA FUNCIÓN: Exportar el detalle de una Nota Crédito / Débito
+export const exportNotaPDF = ({ nota, detalles, configuracion, moneda = 'COP', formato_numero = 'es-CO' }) => {
+    const doc = new jsPDF('p', 'mm', 'a4')
+    const pageWidth = doc.internal.pageSize.getWidth()
+    
+    const formatCurr = (val) => {
+        return new Intl.NumberFormat(formato_numero, {
+            style: 'currency',
+            currency: moneda,
+            minimumFractionDigits: 0
+        }).format(val);
+    }
+
+    const isCredito = nota.tipo_nota === 'Crédito';
+
+    // --- HEADER (INFO ALMACEN) ---
+    doc.setFontSize(22)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(33, 37, 41)
+    doc.text(configuracion.nombre_almacen?.toUpperCase() || 'MI EMPRESA', 14, 22)
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(108, 117, 125)
+    let currentY = 28
+    if (configuracion.nit_almacen) { doc.text(`NIT: ${configuracion.nit_almacen}`, 14, currentY); currentY += 5; }
+    if (configuracion.direccion_almacen) { doc.text(`Dirección: ${configuracion.direccion_almacen}`, 14, currentY); currentY += 5; }
+    if (configuracion.telefono_almacen) { doc.text(`Teléfono: ${configuracion.telefono_almacen}`, 14, currentY); currentY += 5; }
+
+    const rightMargin = pageWidth - 14
+    const numNota = `${nota.prefijo || 'NC'}-${nota.numero_nota}`
+    
+    // Título principal (NOTA CRÉDITO o NOTA DÉBITO)
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(33, 37, 41)
+    doc.text(`NOTA ${nota.tipo_nota?.toUpperCase() || 'CRÉDITO'}`, rightMargin, 22, { align: 'right' })
+    
+    // Color según el tipo de nota (Rojo Crédito, Azul Débito)
+    doc.setFontSize(14)
+    if(isCredito) {
+        doc.setTextColor(220, 53, 69); 
+    } else {
+        doc.setTextColor(13, 110, 253);
+    }
+    doc.text(`N° ${numNota}`, rightMargin, 29, { align: 'right' })
+
+    // Fecha
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(33, 37, 41)
+    const fechaFormat = new Date(nota.date_created).toLocaleString(formato_numero, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    doc.text(`Fecha: ${fechaFormat}`, rightMargin, 36, { align: 'right' })
+
+    // --- LÍNEA SEPARADORA ---
+    currentY = Math.max(currentY, 42)
+    doc.setDrawColor(222, 226, 230)
+    doc.setLineWidth(0.5)
+    doc.line(14, currentY, rightMargin, currentY)
+    currentY += 8
+
+    // --- DATOS DE LA NOTA ---
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DATOS DE LA NOTA:', 14, currentY)
+    currentY += 6
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    
+    // Formatear la factura original correctamente
+    const numFacturaOr = String(nota.numero_factura || nota.numero_factura_origen || '');
+    const onlyNums = numFacturaOr.replace(/^\D+/g, '');
+    let finalPrefix = nota.prefijo_factura;
+    if (!finalPrefix) {
+        const match = numFacturaOr.match(/^([A-Za-z]+)/);
+        if(match) finalPrefix = match[1];
+    }
+    const refFactura = finalPrefix ? `${finalPrefix}${configuracion?.separador || '-'}${onlyNums}` : onlyNums;
+
+    doc.text(`Aplica a Factura: ${refFactura}`, 14, currentY)
+    doc.text(`Motivo DIAN: ${nota.motivo_dian || 'No especificado'}`, 14, currentY + 5)
+    
+    currentY += 12
+
+    // --- TABLA DE DETALLES ---
+    const tableColumn = ["Cant.", "Producto", "V. Unitario", "Total"]
+    const tableRows = detalles.map(d => [
+        d.cantidad_producto,
+        d.nombre_producto,
+        formatCurr(d.precio_producto),
+        formatCurr(d.total)
+    ])
+
+    autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: currentY,
+        theme: 'grid',
+        headStyles: { fillColor: [108, 117, 125], textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 9, textColor: [33, 37, 41] },
+        alternateRowStyles: { fillColor: [248, 249, 250] },
+        columnStyles: {
+            0: { halign: 'center', cellWidth: 15 },
+            2: { halign: 'right', cellWidth: 35 },
+            3: { halign: 'right', cellWidth: 35 }
+        }
+    })
+
+    // --- RESUMEN FINAL ---
+    let finalY = doc.lastAutoTable.finalY + 8
+    const rightColX = pageWidth - 45
+    const valueColX = rightMargin
+
+    // Caja gris para el TOTAL NOTA
+    doc.setFillColor(248, 249, 250)
+    doc.rect(rightColX - 5, finalY - 4, 50, 10, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.text('TOTAL NOTA:', rightColX, finalY + 3)
+    
+    if(isCredito) { doc.setTextColor(220, 53, 69); } 
+    else { doc.setTextColor(13, 110, 253); }
+    
+    doc.text(formatCurr(Math.abs(nota.total_final || 0)), valueColX, finalY + 3, { align: 'right' })
+    finalY += 12
+
+    // --- OBSERVACIONES / NOTAS INTERNAS ---
+    doc.setTextColor(33, 37, 41)
+    if (nota.notas_internas) {
+        finalY += 5
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(10)
+        doc.text('Notas / Descripciones:', 14, finalY)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        const splitObs = doc.splitTextToSize(nota.notas_internas, pageWidth - 28)
+        doc.text(splitObs, 14, finalY + 5)
+    }
+
+    if (configuracion.footer_factura) {
+        doc.setFontSize(8)
+        doc.setTextColor(108, 117, 125)
+        const pageHeight = doc.internal.pageSize.getHeight()
+        const splitFooter = doc.splitTextToSize(configuracion.footer_factura, pageWidth - 28)
+        doc.text(splitFooter, pageWidth / 2, pageHeight - 15, { align: 'center' })
+    }
+
+    doc.save(`Nota_${numNota}.pdf`)
+}
