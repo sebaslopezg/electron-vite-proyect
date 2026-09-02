@@ -27,6 +27,8 @@ export const registerEstadoHandlers = () => {
                         color,
                         allow_calendar,
                         icon_data,
+                        usuario_asignado,
+                        rol_asignado,
                         status, 
                         date_created
                     )
@@ -37,6 +39,8 @@ export const registerEstadoHandlers = () => {
                         @color,
                         @allow_calendar,
                         @icon_data,
+                        @usuario_asignado,
+                        @rol_asignado,
                         @status, 
                         @date_created
                     )
@@ -44,6 +48,8 @@ export const registerEstadoHandlers = () => {
             const info = stmt.run({
                 ...item,
                 id: id,
+                usuario_asignado: item.usuario_asignado || '',
+                rol_asignado: item.rol_asignado || '',
                 date_created: now,
                 modify_by: item.modify_by || 'system',
                 date_modify: now,
@@ -69,6 +75,8 @@ export const registerEstadoHandlers = () => {
                         color=@color,
                         allow_calendar=@allow_calendar,
                         icon_data=@icon_data,
+                        usuario_asignado=@usuario_asignado,
+                        rol_asignado=@rol_asignado,
                         status=@status, 
                         modify_by=@modify_by,
                         date_modify=@date_modify
@@ -76,6 +84,8 @@ export const registerEstadoHandlers = () => {
                 `)
             const info = stmt.run({
                 ...item,
+                usuario_asignado: item.usuario_asignado || '',
+                rol_asignado: item.rol_asignado || '',
                 modify_by: item.modify_by || 'system',
                 date_modify: now,
                 status: item.status === 1 || item.status === 2 ? item.status : defaultStatus

@@ -24,6 +24,42 @@ export const registerEncargosHandlers = () => {
         logger.info('MIGRACION', 'Se inicializaron las tablas y columnas para campos dinámicos de encargos.')
     } catch (error) {}
 
+    try {
+        db.exec("ALTER TABLE estadoEncargo ADD COLUMN usuario_asignado TEXT;")
+    } catch (error) {}
+
+    try {
+        db.exec("ALTER TABLE estadoEncargo ADD COLUMN rol_asignado TEXT;")
+    } catch (error) {}
+
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS encargos_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+        `)
+        db.exec(`INSERT OR IGNORE INTO encargos_settings (key, value) VALUES ('alcance_estados', 'global')`)
+    } catch (error) {}
+
+    ipcMain.handle("get-encargos-settings", () => {
+        try {
+            const settings = db.prepare("SELECT * FROM encargos_settings").all()
+            return settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {})
+        } catch (error) {
+            return {}
+        }
+    })
+
+    ipcMain.handle("save-encargos-settings", (_, key, value) => {
+        try {
+            db.prepare("INSERT OR REPLACE INTO encargos_settings (key, value) VALUES (?, ?)").run(key, value)
+            return { success: true }
+        } catch (error) {
+            return { success: false, error: error.message }
+        }
+    })
+
     ipcMain.handle("get-encargos-campos", () => {
         try {
             return db.prepare("SELECT * FROM encargos_campos ORDER BY orden ASC").all()

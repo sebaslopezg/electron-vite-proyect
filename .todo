@@ -4,9 +4,6 @@
 
 
  ### Modulo Encargos:
- - > Modificar configuracion de los estados  
- - > Hacer que se pueda poner cualquier icono de bootstrap a los estados  
- - > Configurar en los estados las notificaciones
  - > Tener la opcion de poner el estado global o por usuarios
  - > Permitir agregar usuarios a cada estado uno por uno, y configurar si ese usuario puede modificar dicho estado
  - > Habilitar cuadro de firma para que un usuario tenga que cambiar un estado.  
