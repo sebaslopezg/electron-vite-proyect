@@ -1,12 +1,17 @@
-### Local: 481E4AFD-21C2-DD45-9149-3D476A74AF76
  # Lista de actividades pendientes para desarrollar
 
  ## Modificaciones Prioritarias:
 
- - Agregar todos los enlaces de facturas para que llame la modal de facturas directamente.
- - Arreglar columna facturas en cartera (prefijo mal puesto)
- 
 
+ ### Modulo Encargos:
+ - > Modificar configuracion de los estados  
+ - > Hacer que se pueda poner cualquier icono de bootstrap a los estados  
+ - > Configurar en los estados las notificaciones
+ - > Tener la opcion de poner el estado global o por usuarios
+ - > Permitir agregar usuarios a cada estado uno por uno, y configurar si ese usuario puede modificar dicho estado
+ - > Habilitar cuadro de firma para que un usuario tenga que cambiar un estado.  
+
+ ### Otros:
  - Modificar cache para que se guarde en DB y no en localstorage, ya que se borra. (o corregir el local storage)
  - Agregar cartera con sistecredito y addi, el cliente no debe al almacen, si no que sea addi para controlar los pagos factoring
 

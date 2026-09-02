@@ -20,8 +20,8 @@ export const Logs = () => {
 
     const loadLogs = async () => {
         const data = await window.api.getSystemLogs(2000)
-        setLogs(data || []);
-    };
+        setLogs(data || [])
+    }
 
     useEffect(() => {
         loadLogs()
@@ -72,8 +72,8 @@ export const Logs = () => {
                 if (logDate > dateEnd) return false
             }
 
-            return true;
-        });
+            return true
+        })
     }, [logs, logType, logModule, startDate, endDate])
 
     useEffect(() => {
@@ -104,14 +104,19 @@ export const Logs = () => {
             render: (data) => data ? new Date(data).toLocaleString() : '-'
         },
         { 
+            data: 'usuario', 
+            title: 'Usuario',
+            render: (data) => `<span class="fw-bold text-secondary"> ${data || 'Sistema'}</span>`
+        },
+        { 
             data: 'tipo', 
             title: 'Tipo',
             render: (data) => {
-                let color = 'info';
-                if(data === 'ERROR') color = 'danger';
-                if(data === 'WARNING') color = 'warning text-dark';
-                if(data === 'SUCCESS') color = 'success';
-                return `<span class="badge bg-${color} fw-bold">${data}</span>`;
+                let color = 'info'
+                if(data === 'ERROR') color = 'danger'
+                if(data === 'WARNING') color = 'warning text-dark'
+                if(data === 'SUCCESS') color = 'success'
+                return `<span class="badge bg-${color} fw-bold">${data}</span>`
             }
         },
         { 
@@ -119,7 +124,19 @@ export const Logs = () => {
             title: 'Módulo',
             render: (data) => `<span class="badge bg-dark bg-opacity-75">${data}</span>`
         },
-        { data: 'mensaje', title: 'Mensaje' },
+        { 
+            data: 'mensaje', 
+            title: 'Mensaje',
+            render: (data) => {
+                if (!data) return ''
+                const text = String(data)
+                if (text.length > 65) {
+                    const safeText = text.replace(/"/g, '&quot;')
+                    return `<span title="${safeText}" style="cursor: help;">${text.substring(0, 65)}...</span>`
+                }
+                return text
+            }
+        },
         { 
             data: null, 
             title: 'Detalle',
@@ -134,7 +151,7 @@ export const Logs = () => {
                 `
             }
         }
-    ];
+    ]
 
     return <>
         <div className="d-flex justify-content-between align-items-center mb-4">

@@ -15,20 +15,21 @@ const getHardwareId = () => {
     try {
         if (process.platform === 'win32') {
             try {
-                hwid = execSync('powershell.exe -NoProfile -Command "(Get-CimInstance -Class Win32_ComputerSystem).UUID"').toString().trim()
+                // Se agrega stdio ignore para evitar que advertencias de consola bloqueen la ejecución
+                hwid = execSync('powershell.exe -NoProfile -Command "(Get-CimInstance -Class Win32_ComputerSystem).UUID"', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim()
                 logs.push(`[Capa 1 - Win32] PowerShell ejecutado con éxito. Resultado: ${hwid}`);
             } catch (e) {
                 logs.push(`[Capa 1 - Win32] Error PowerShell: ${e.message}`);
-                const output = execSync('wmic csproduct get uuid').toString()
+                const output = execSync('wmic csproduct get uuid', { stdio: ['pipe', 'pipe', 'ignore'] }).toString()
                 const lines = output.split('\n')
                 hwid = lines[1] ? lines[1].trim() : ''
                 logs.push(`[Capa 1 - Win32] WMIC ejecutado. Resultado: ${hwid}`);
             }
         } else if (process.platform === 'darwin') {
-            hwid = execSync("ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/ { print $4 }'").toString().replace(/"/g, "").trim()
+            hwid = execSync("ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/ { print $4 }'", { stdio: ['pipe', 'pipe', 'ignore'] }).toString().replace(/"/g, "").trim()
             logs.push(`[Capa 1 - Darwin] Comando IOReg ejecutado. Resultado: ${hwid}`);
         } else {
-            hwid = execSync('cat /etc/machine-id').toString().trim()
+            hwid = execSync('cat /etc/machine-id', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim()
             logs.push(`[Capa 1 - Linux] Archivo machine-id leído. Resultado: ${hwid}`);
         }
 
@@ -45,16 +46,27 @@ const getHardwareId = () => {
             const interfaces = os.networkInterfaces()
             logs.push(`[Capa 2] Interfaces de red detectadas: ${Object.keys(interfaces).join(', ')}`);
             
+            // Recolectar todas las MAC válidas del sistema
+            const validMacs = [];
             for (const key in interfaces) {
                 for (const net of interfaces[key]) {
-                    if (!net.internal && net.mac !== '00:00:00:00:00:00') {
-                        const fallbackStr = `${os.hostname()}-${net.mac}`
-                        const macHwid = crypto.createHash('sha256').update(fallbackStr).digest('hex').substring(0, 32).toUpperCase()
-                        logs.push(`[Capa 2 Exitosa] Se usó la interfaz física '${key}' con MAC ${net.mac}.`);
-                        return { hwid: macHwid, logs }
+                    if (!net.internal && net.mac && net.mac !== '00:00:00:00:00:00') {
+                        validMacs.push(net.mac);
                     }
                 }
             }
+            
+            if (validMacs.length > 0) {
+                validMacs.sort()
+                const selectedMac = validMacs[0]
+
+                const fallbackStr = `${os.hostname()}-${selectedMac}`;
+                const macHwid = crypto.createHash('sha256').update(fallbackStr).digest('hex').substring(0, 32).toUpperCase();
+                
+                logs.push(`[Capa 2 Exitosa] Se usó la MAC más estable: ${selectedMac}.`);
+                return { hwid: macHwid, logs }
+            }
+            
             logs.push(`[Capa 2 Fallida] No se encontró ninguna interfaz de red con una MAC válida (No virtual).`);
         } catch (errFallback) {
             logs.push(`[Capa 2 Fallida] Error en módulo 'os': ${errFallback.message}`);
@@ -95,16 +107,13 @@ export const registerActivationHandlers = () => {
             const { hwid } = getHardwareId()
             let license = appDb.prepare("SELECT * FROM licencia LIMIT 1").get()
 
-            // --- MIGRACIÓN SILENCIOSA (Retrocompatibilidad) ---
             if (!license || license.activado !== 1) {
                 try {
-                    // Verificar si la base de datos del perfil antiguo tiene la licencia
                     const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='licencia'").get();
                     if (tableExists) {
                         const legacyLicense = db.prepare("SELECT * FROM licencia LIMIT 1").get();
                         
                         if (legacyLicense && legacyLicense.activado === 1) {
-                            // Copiar la licencia a la base de datos global
                             appDb.prepare("DELETE FROM licencia").run();
                             appDb.prepare(`
                                 INSERT INTO licencia (id, hardware_id, clave_activacion, activado, date_activated) 
@@ -121,7 +130,6 @@ export const registerActivationHandlers = () => {
                         }
                     }
                 } catch (migrationError) {
-                    // Ignoramos silenciosamente si la tabla vieja no existe o está corrupta
                 }
             }
             // ---------------------------------------------------

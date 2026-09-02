@@ -145,9 +145,12 @@ export const Datos = ({ currentUser }) => {
         if (!container) return
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('button[data-alldata]')
+            // Actualizado para escuchar clics en los enlaces <a> del menú desplegable
+            const btn = e.target.closest('a[data-alldata]')
             if (!btn || !container.contains(btn)) return
             
+            e.preventDefault() // Prevenir salto de página
+
             try {
                 const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
                 if (btn.classList.contains('btn-switch-profile')) {
@@ -181,6 +184,7 @@ export const Datos = ({ currentUser }) => {
             data: null,
             title: 'Acciones',
             orderable: false,
+            className: 'text-center',
             render: function (data, type, row) {
                 const isMain = row.filename === 'main.db';
                 const isActive = row.is_active === 1;
@@ -191,20 +195,69 @@ export const Datos = ({ currentUser }) => {
                 
                 const safeData = encodeURIComponent(JSON.stringify(row));
 
-                let switchBtn = isActive 
-                    ? `<button class="btn btn-sm btn-light me-2" disabled>En uso</button>`
-                    : (canSwitch ? `<button class="btn btn-sm btn-primary text-white me-2 btn-switch-profile" data-alldata="${safeData}" title="Cargar Perfil"><i class="bi bi-box-arrow-in-right"></i></button>` : '');
-                
-                let infoBtn = canViewInfo ? `<button class="btn btn-sm btn-info text-white me-2 btn-info-profile" data-alldata="${safeData}" title="Información de la Base de Datos"><i class="bi bi-info-circle"></i></button>` : '';
-                
-                let deleteBtn = '';
-                if (canDelete) {
-                    deleteBtn = (isMain || isActive)
-                    ? `<button class="btn btn-sm btn-secondary" disabled title="No se puede eliminar"><i class="bi bi-trash3"></i></button>`
-                    : `<button class="btn btn-sm btn-danger btn-delete-profile" data-alldata="${safeData}" title="Eliminar Base de Datos"><i class="bi bi-trash3"></i></button>`;
+                let menuOptions = '';
+
+                // Opción Cambiar Perfil
+                if (isActive) {
+                    menuOptions += `
+                        <li>
+                            <a class="dropdown-item text-muted disabled" href="#">
+                                <i class="bi bi-box-arrow-in-right me-2"></i> Perfil actual en uso
+                            </a>
+                        </li>
+                    `;
+                } else if (canSwitch) {
+                    menuOptions += `
+                        <li>
+                            <a class="dropdown-item btn-switch-profile" href="#" data-alldata="${safeData}">
+                                <i class="bi bi-box-arrow-in-right me-2 text-primary"></i> Cargar Perfil
+                            </a>
+                        </li>
+                    `;
                 }
 
-                return switchBtn + infoBtn + deleteBtn
+                // Opción Información BD
+                if (canViewInfo) {
+                    menuOptions += `
+                        <li>
+                            <a class="dropdown-item btn-info-profile" href="#" data-alldata="${safeData}">
+                                <i class="bi bi-info-circle me-2 text-info"></i> Info Base de Datos
+                            </a>
+                        </li>
+                    `;
+                }
+
+                // Opción Eliminar
+                if (canDelete) {
+                    if (isMain || isActive) {
+                        menuOptions += ``;
+                    } else {
+                        menuOptions += `
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item btn-delete-profile text-danger" href="#" data-alldata="${safeData}">
+                                    <i class="bi bi-trash3 me-2"></i> Eliminar
+                                </a>
+                            </li>
+                        `;
+                    }
+                }
+
+                // Si no hay opciones permitidas, retornar vacío o un botón desactivado
+                if (!menuOptions) {
+                    return `<span class="text-muted small fst-italic">Sin permisos</span>`;
+                }
+
+                return `
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu shadow-sm">
+                            ${menuOptions}
+                        </ul>
+                    </div>
+                `;
             }
         }
     ], [currentUser?.permisos, perfiles])
@@ -212,7 +265,7 @@ export const Datos = ({ currentUser }) => {
     return <>
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h5 className="card-title p-0 m-0"><i class="bi bi-database text-primary"></i> Perfiles de Bases de Datos</h5>
+                    <h5 className="card-title p-0 m-0"><i className="bi bi-database text-primary me-2"></i>Perfiles de Bases de Datos</h5>
                     <p className="text-muted small m-0">Cada perfil funciona como una tienda independiente con sus propios productos y facturas.</p>
                 </div>
                 {hasPermission('datos_perfiles_crear') && (
@@ -224,6 +277,7 @@ export const Datos = ({ currentUser }) => {
 
             <div ref={tableContainerRef} className="w-100">
                 <DataTableComponent 
+                    tableId="dt-configuracion-datos"
                     key={currentUser?.permisos?.length}
                     data={perfiles}
                     columns={columnasTabla} 

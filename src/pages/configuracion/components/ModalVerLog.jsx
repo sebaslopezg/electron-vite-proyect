@@ -12,15 +12,21 @@ export const ModalVerLog = ({ show, onHide, log }) => {
             </Modal.Header>
             <Modal.Body className="p-4">
                 <Row className="g-3">
-                    <Col md={6}>
+                    <Col md={4}>
                         <span className="text-muted small d-block">Fecha y Hora</span>
                         <strong className="text-dark">{new Date(log.fecha).toLocaleString()}</strong>
                     </Col>
-                    <Col md={3}>
+                    <Col md={4}>
+                        <span className="text-muted small d-block">Autor de la Acción</span>
+                        <span className="fw-bold text-secondary">
+                            <i className="bi bi-person-circle me-1"></i> {log.usuario || 'Sistema'}
+                        </span>
+                    </Col>
+                    <Col md={2}>
                         <span className="text-muted small d-block">Módulo</span>
                         <span className="badge bg-dark px-2 py-1">{log.modulo}</span>
                     </Col>
-                    <Col md={3}>
+                    <Col md={2}>
                         <span className="text-muted small d-block">Severidad</span>
                         <span className={`badge bg-${log.tipo === 'ERROR' ? 'danger' : log.tipo === 'WARNING' ? 'warning text-dark' : log.tipo === 'SUCCESS' ? 'success' : 'info'} px-2 py-1 fw-bold`}>
                             {log.tipo}
