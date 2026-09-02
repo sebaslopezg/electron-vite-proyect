@@ -13,7 +13,6 @@ export const ConfiguracionEncargos = () => {
         setCampos(data || [])
 
         try {
-            // Corregido: Llamamos a la función puente expuesta en preload.js
             const settings = await window.api.getEncargosSettings()
             if (settings && settings.alcance_estados) {
                 setAlcanceEstados(settings.alcance_estados)

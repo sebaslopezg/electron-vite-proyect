@@ -216,4 +216,8 @@ export const registerUsuariosHandlers = () => {
             return { success: true }
         } catch (error) { return { success: false, error: error.message } }
     })
+
+    ipcMain.handle("get-current-user", () => {
+        return { success: true, data: global.currentUserSession || null }
+    })
 }

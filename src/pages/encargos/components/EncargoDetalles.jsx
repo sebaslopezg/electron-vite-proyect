@@ -1,6 +1,6 @@
 import { Button, Col, Modal, Row } from "react-bootstrap"
 
-export const EncargoDetalles = ({ show, handleClose, encargoData, onVerFactura }) => {
+export const EncargoDetalles = ({ show, handleClose, encargoData, onVerFactura, onShowHistory }) => {
     return <>
         <Modal show={show} onHide={handleClose} size="lg" centered className="shadow">
             <Modal.Header closeButton className="bg-light">
@@ -44,7 +44,7 @@ export const EncargoDetalles = ({ show, handleClose, encargoData, onVerFactura }
                         </div>
                         <div>
                             <label className="d-block small">N° Factura Relacionada</label>
-                            <div>
+                            <div className="mb-3">
                                 <a 
                                     href="#" 
                                     className="text-primary fw-bold text-decoration-underline"
@@ -56,6 +56,11 @@ export const EncargoDetalles = ({ show, handleClose, encargoData, onVerFactura }
                                 >
                                     {encargoData.prefijo ? `${encargoData.prefijo}-` : ''}{encargoData.factura_numero}
                                 </a>
+                            </div>
+                            <div>
+                                <Button variant="outline-secondary" size="sm" className="me-2 mb-2 d-inline-block" onClick={onShowHistory}>
+                                    <i className="bi bi-clock-history me-1"></i> Ver Historial
+                                </Button>
                             </div>
                         </div>
                     </Col>

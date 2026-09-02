@@ -1,5 +1,10 @@
 import { Button, Form, InputGroup, Modal, Row, Col } from "react-bootstrap"
 
+const safeParse = (str) => {
+    if (!str) return [];
+    try { return JSON.parse(str); } catch { return []; }
+};
+
 export const ModalFormEncargo = ({
     show,
     handleClose,
@@ -12,7 +17,10 @@ export const ModalFormEncargo = ({
     handleSearchFactura,
     facturaOrigen,
     estados,
-    camposDinamicos
+    camposDinamicos,
+    currentUser,
+    alcancePolitica,
+    initialEstadoId
 }) => {
     
     const handleCustomChange = (label, value) => {
@@ -24,6 +32,49 @@ export const ModalFormEncargo = ({
     
     const isEncargoGeneral = !editingId || (editingId && !form.producto_id)
     const tieneDinamicos = camposDinamicos && camposDinamicos.length > 0;
+
+    // Evaluamos el estado original del encargo para saber si se puede modificar
+    const originalStateObj = estados.find(e => String(e.id) === String(initialEstadoId));
+
+    let canModifyOriginal = true;
+    if (editingId && originalStateObj && alcancePolitica !== 'global' && currentUser) {
+        if (alcancePolitica === 'usuario') {
+            const arr = safeParse(originalStateObj.usuario_asignado);
+            const userMatch = arr.find(u => 
+                (u.nombre || '').toLowerCase() === (currentUser.nombre_completo || '').toLowerCase() || 
+                (u.nombre || '').toLowerCase() === (currentUser.username || '').toLowerCase()
+            );
+            if (userMatch) canModifyOriginal = userMatch.can_modify;
+            else canModifyOriginal = false; 
+
+        } else if (alcancePolitica === 'rol') {
+            const arr = safeParse(originalStateObj.rol_asignado);
+            const roleMatch = arr.find(r => (r.nombre || '').toLowerCase() === (currentUser.rol || '').toLowerCase());
+            if (roleMatch) canModifyOriginal = roleMatch.can_modify;
+            else canModifyOriginal = false;
+        }
+    }
+
+    const assignableStates = estados.filter(st => {
+        if (alcancePolitica === 'global' || !currentUser) return true;
+        
+        if (alcancePolitica === 'usuario') {
+            const arr = safeParse(st.usuario_asignado);
+            const userMatch = arr.find(u => 
+                (u.nombre || '').toLowerCase() === (currentUser.nombre_completo || '').toLowerCase() || 
+                (u.nombre || '').toLowerCase() === (currentUser.username || '').toLowerCase()
+            );
+            return userMatch ? userMatch.can_assign : false;
+        }
+        
+        if (alcancePolitica === 'rol') {
+            const arr = safeParse(st.rol_asignado);
+            const roleMatch = arr.find(r => (r.nombre || '').toLowerCase() === (currentUser.rol || '').toLowerCase());
+            return roleMatch ? roleMatch.can_assign : false;
+        }
+        
+        return true;
+    });
 
     return <>
             <Modal show={show} onHide={handleClose} size={tieneDinamicos ? "lg" : "md"} centered backdrop="static">
@@ -97,10 +148,25 @@ export const ModalFormEncargo = ({
                                     value={form.estado_id} 
                                     onChange={(e) => setForm({ ...form, estado_id: e.target.value })}
                                     required
+                                    disabled={editingId && !canModifyOriginal}
                                 >
                                     <option value="">Seleccione un estado...</option>
-                                    {estados.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
+                                    {estados.map(c => {
+                                        const isAssignable = assignableStates.some(s => s.id === c.id);
+                                        const isCurrent = String(form.estado_id) === String(c.id);
+                                        const isInitial = String(initialEstadoId) === String(c.id);
+                                        
+                                        if (isAssignable || isCurrent || isInitial) {
+                                            return <option key={c.id} value={c.id}>{c.titulo}</option>
+                                        }
+                                        return null;
+                                    })}
                                 </Form.Select>
+                                {(editingId && !canModifyOriginal) && (
+                                    <Form.Text className="text-danger" style={{fontSize:'0.7rem'}}>
+                                        <i className="bi bi-lock-fill"></i> No tienes permisos para modificar este estado.
+                                    </Form.Text>
+                                )}
                             </Form.Group>
                             <Form.Group className="mb-3">
                                 <Form.Label htmlFor="descripcion" className="fw-bold small">Instrucciones / Descripción</Form.Label>
@@ -151,7 +217,7 @@ export const ModalFormEncargo = ({
             </Modal.Body>
             <Modal.Footer className="bg-light">
                 <Button variant="secondary" onClick={handleClose}>Cancelar</Button>
-                <Button variant="primary" type="submit" form="encargoForm">
+                <Button variant="primary" type="submit" form="encargoForm" disabled={editingId && !canModifyOriginal}>
                     {editingId ? 'Guardar Cambios' : 'Generar Encargo'}
                 </Button>
             </Modal.Footer>

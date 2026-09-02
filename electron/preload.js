@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld("api", {
   saveEncargosCampos: (data) => ipcRenderer.invoke('save-encargos-campos', data),
   getEncargosSettings: () => ipcRenderer.invoke('get-encargos-settings'),
   saveEncargosSettings: (key, value) => ipcRenderer.invoke('save-encargos-settings', key, value),
+  getEncargoHistory: (encargoId) => ipcRenderer.invoke('get-encargo-history', encargoId),
 
   // estados encargos
   getEstados: () => ipcRenderer.invoke("get-estados"),
@@ -158,12 +159,13 @@ contextBridge.exposeInMainWorld("api", {
   updateSubcategoria: (item) => ipcRenderer.invoke("update-subcategoria", item),
   deleteSubcategoria: (id) => ipcRenderer.invoke("delete-subcategoria", id),
 
-  // usuarios
+// usuarios
   getUsuarios: () => ipcRenderer.invoke("get-usuarios"),
   addUsuario: (data) => ipcRenderer.invoke("add-usuario", data),
   updateUsuario: (data) => ipcRenderer.invoke("update-usuario", data),
   updateMiPerfil: (data) => ipcRenderer.invoke("update-mi-perfil", data),
   deleteUsuario: (id) => ipcRenderer.invoke("delete-usuario", id),
+  getCurrentUser: () => ipcRenderer.invoke("get-current-user"),
 
   //notificaciones
   getNotificaciones: () => ipcRenderer.invoke('get-notificaciones'),

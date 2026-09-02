@@ -4,6 +4,7 @@ import interactionPlugin from "@fullcalendar/interaction"
 import esLocale from "@fullcalendar/core/locales/es"
 import { useState, useEffect, useRef } from "react"
 import { EncargoDetalles } from "./components/EncargoDetalles"
+import { ModalHistorialEncargo } from "./components/ModalHistorialEncargo"
 import { encargosService } from "../../services/encargosService"
 
 function renderEventContent(eventInfo) {
@@ -28,7 +29,10 @@ export const Calendario = () => {
   const [eventos, setEventos] = useState([])
   const calendarRef = useRef(null)
   const [show, setShow] = useState(false)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  
   const [encargoSel, setEncargoSel] = useState([])
+  const [historialEncargo, setHistorialEncargo] = useState([])
 
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
@@ -58,7 +62,7 @@ export const Calendario = () => {
       .filter((e) => e.fecha_entrega && e.allow_calendar > 0)
       .map((e) => ({
         id: e.id,
-        title: `${e.producto_nombre || 'Factura'} - ${e.cliente_nombre}`,
+        title: `${e.titulo_personalizado || e.producto_nombre || 'Factura'} - ${e.cliente_nombre}`,
         start: e.fecha_entrega,
         backgroundColor: e.estado_color || '#6c757d',
         borderColor: "transparent",
@@ -83,9 +87,17 @@ export const Calendario = () => {
     }
   }, [])
 
-  const handleEventClick = (info) => {
+  const handleEventClick = async (info) => {
     const encargo = info.event.extendedProps
     setEncargoSel(encargo)
+    
+    if (window.api.getEncargoHistory) {
+        const historyRes = await window.api.getEncargoHistory(encargo.id)
+        if (historyRes.success) {
+            setHistorialEncargo(historyRes.data)
+        }
+    }
+    
     handleShow()
   }
 
@@ -107,13 +119,23 @@ export const Calendario = () => {
         height="75vh"
         eventClassNames="p-1 shadow-sm"
       />
+      
       <EncargoDetalles
         show={show}
         handleClose={handleClose}
         encargoData={encargoSel}
+        historial={historialEncargo}
+        onShowHistory={() => setShowHistoryModal(true)}
         onVerFactura={(numeroFactura) => {
           window.dispatchEvent(new CustomEvent('request-ver-factura', { detail: numeroFactura }))
         }}
+      />
+
+      <ModalHistorialEncargo 
+        show={showHistoryModal}
+        handleClose={() => setShowHistoryModal(false)}
+        historial={historialEncargo}
+        encargoData={encargoSel}
       />
     </div>
   </>

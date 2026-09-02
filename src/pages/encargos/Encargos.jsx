@@ -6,6 +6,7 @@ import Swal from "sweetalert2"
 import { EncargoDetalles } from "./components/EncargoDetalles"
 import { ModalFormEncargo } from "./components/ModalFormEncargo"
 import { ModalBuscarFactura } from "./components/ModalBuscarFactura"
+import { ModalHistorialEncargo } from "./components/ModalHistorialEncargo"
 import { encargosService } from "../../services/encargosService"
 import { ventasService } from "../../services/ventasService"
 import { ModalDetalleFactura } from "../ventas/components/ModalDetalleFactura"
@@ -24,6 +25,7 @@ export const Encargos = () => {
 
     const [show, setShow] = useState(false)
     const [showInfo, setShowInfo] = useState(false)
+    const [showHistoryModal, setShowHistoryModal] = useState(false)
     const [showSearchFactura, setShowSearchFactura] = useState(false)
 
     const [showFacturaModal, setShowFacturaModal] = useState(false)
@@ -60,9 +62,14 @@ export const Encargos = () => {
     })
     
     const [editingId, setEditingId] = useState(null)
+    const [initialEstadoId, setInitialEstadoId] = useState(null)
     const [estados, setEstados] = useState([])
     const [camposFormulario, setCamposFormulario] = useState([])
     const [encargoSel, setEncargoSel] = useState([])
+    const [historialEncargo, setHistorialEncargo] = useState([])
+
+    const [currentUser, setCurrentUser] = useState(null)
+    const [alcancePolitica, setAlcancePolitica] = useState('global')
 
     const [busquedaFactura, setBusquedaFactura] = useState('')
     const [facturaOrigen, setFacturaOrigen] = useState(null)
@@ -87,6 +94,16 @@ export const Encargos = () => {
         const data = await encargosService.getEncargos()
         setItems(data)
         setDataInTable(data)
+
+        try {
+            const userRes = await window.api.getCurrentUser()
+            if (userRes?.success) setCurrentUser(userRes.data)
+
+            const settings = await window.api.getEncargosSettings()
+            if (settings && settings.alcance_estados) {
+                setAlcancePolitica(settings.alcance_estados)
+            }
+        } catch (e) { console.error('Error cargando permisos', e) }
     }
 
     const loadSelectData = async () => {
@@ -104,6 +121,7 @@ export const Encargos = () => {
         })
         setBusquedaFactura('')
         setFacturaOrigen(null)
+        setInitialEstadoId(null)
     }
 
     const handleSearchFactura = async (numToSearch) => {
@@ -204,8 +222,14 @@ export const Encargos = () => {
         setEditingId(item.id)
     }
 
-    const handleInfo = (item) => {
+    const handleInfo = async (item) => {
         setEncargoSel(item)
+        if (window.api.getEncargoHistory) {
+            const historyRes = await window.api.getEncargoHistory(item.id);
+            if (historyRes.success) {
+                setHistorialEncargo(historyRes.data);
+            }
+        }
     }
 
     const handleDelete = async (id) => {
@@ -259,6 +283,7 @@ export const Encargos = () => {
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
+                e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -272,20 +297,36 @@ export const Encargos = () => {
                         custom_data: item.custom_data ? JSON.parse(item.custom_data) : {}
                     });
                     setEditingId(item.id)
+                    setInitialEstadoId(item.estado_id || 'pendiente')
                     handleShow()
                 } catch (err) { console.error("Error leyendo datos", err) }
             }
 
             const infoBtn = e.target.closest('.btn-info')
             if (infoBtn) {
+                e.preventDefault()
                 const rawData = decodeURIComponent(infoBtn.dataset.alldata)
                 const item = JSON.parse(rawData)
                 handleInfo(item)
                 handleShowInfo()
             }
 
+            // Capturamos el clic del nuevo botón del historial
+            const historyBtn = e.target.closest('.btn-history')
+            if (historyBtn) {
+                e.preventDefault()
+                try {
+                    const rawData = decodeURIComponent(historyBtn.dataset.alldata)
+                    const item = JSON.parse(rawData)
+                    handleInfo(item).then(() => {
+                        setShowHistoryModal(true)
+                    })
+                } catch (err) { console.error("Error cargando historial", err) }
+            }
+
             const btnFactura = e.target.closest('.btn-ver-factura')
             if (btnFactura) {
+                e.preventDefault()
                 handleVerFactura(btnFactura.dataset.fullnum)
             }
         }
@@ -347,7 +388,7 @@ export const Encargos = () => {
             </Button>
         </div>
 
-        <div ref={tableContainerRef} className="w-100">
+        <div ref={tableContainerRef} className="w-100" style={{ overflow: 'visible' }}>
             <DataTableComponent
                 tableId="dt-encargos-maestro"
                 data={dataInTable}
@@ -397,7 +438,7 @@ export const Encargos = () => {
                                 const formattedDate = formatToLocalString(row.fecha_entrega);
                                 return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`;
                             } else {
-                                return `<button class="btn btn-sm btn-primary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}">
+                                return `<button class="btn btn-sm btn-primary btn-edit" data-id="${row.id}" data-alldata="${safeData}">
                                             Agendar
                                         </button>`;
                             }
@@ -407,15 +448,38 @@ export const Encargos = () => {
                         data: null,
                         title: 'Acciones',
                         orderable: false,
+                        className: 'text-center',
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));
                             return `
-                                <button class="btn btn-sm btn-secondary me-2 btn-edit" data-id="${row.id}" data-alldata="${safeData}" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm btn-info me-2 btn-info text-white" data-id="${row.id}" data-alldata="${safeData}" title="Ver Detalles">
-                                    <i class="bi bi-eye"></i>
-                                </button>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu shadow-sm">
+                                        <li>
+                                            <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                                <i class="bi bi-pencil me-2 text-primary"></i> Editar Encargo
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item btn-info" href="#" data-alldata="${safeData}">
+                                                <i class="bi bi-eye me-2 text-info"></i> Ver Detalles
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item btn-history" href="#" data-alldata="${safeData}">
+                                                <i class="bi bi-clock-history me-2 text-secondary"></i> Historial de Estados
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
+                                                <i class="bi bi-trash3 me-2"></i> Eliminar
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
                             `
                         }
                     }
@@ -442,6 +506,9 @@ export const Encargos = () => {
                 facturaOrigen={facturaOrigen}
                 estados={estados}
                 camposDinamicos={camposFormulario}
+                currentUser={currentUser}
+                alcancePolitica={alcancePolitica}
+                initialEstadoId={initialEstadoId}
             />
             
             <ModalBuscarFactura 
@@ -454,9 +521,17 @@ export const Encargos = () => {
                 show={showInfo}
                 handleClose={handleClose}
                 encargoData={encargoSel}
+                onShowHistory={() => setShowHistoryModal(true)}
                 onVerFactura={(numeroFactura) => {
                     handleVerFactura(numeroFactura)
                 }}
+            />
+
+            <ModalHistorialEncargo 
+                show={showHistoryModal}
+                handleClose={() => setShowHistoryModal(false)}
+                historial={historialEncargo}
+                encargoData={encargoSel}
             />
 
             <ModalDetalleFactura

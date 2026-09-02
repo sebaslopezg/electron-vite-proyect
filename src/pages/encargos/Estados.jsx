@@ -12,8 +12,8 @@ import {
 } from "react-bootstrap"
 import Swal from "sweetalert2"
 import { encargosService } from "../../services/encargosService"
+import { BuscadorFiltros } from '../../components/BuscadorFiltros'
 
-// Función auxiliar para parsear JSON de forma segura
 const safeParse = (str) => {
     if (!str) return [];
     try { 
@@ -30,9 +30,12 @@ export const Estados = () => {
     
     const [alcancePolitica, setAlcancePolitica] = useState('global')
 
-    // Listas globales de DB (Blindadas para que siempre sean Arrays)
     const [usuariosDB, setUsuariosDB] = useState([])
     const [rolesDB, setRolesDB] = useState([])
+
+    // Estados para adaptar la DB al BuscadorFiltros (espera {id, nombre})
+    const [usuariosForBuscador, setUsuariosForBuscador] = useState([])
+    const [rolesForBuscador, setRolesForBuscador] = useState([])
 
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
@@ -48,11 +51,10 @@ export const Estados = () => {
         icon_data: 'bi-tag-fill',
     })
 
-    // Estados para las listas dinámicas de permisos
     const [asignacionesUsuarios, setAsignacionesUsuarios] = useState([])
     const [asignacionesRoles, setAsignacionesRoles] = useState([])
     
-    // Inputs temporales para agregar a las listas
+    // Aquí guardamos el ID (o valor único) que devuelve BuscadorFiltros
     const [newUserItem, setNewUserItem] = useState('')
     const [newRoleItem, setNewRoleItem] = useState('')
 
@@ -67,12 +69,10 @@ export const Estados = () => {
     ]
 
     const loadData = async () => {
-        // Cargar los estados
         const data = await encargosService.getEstados()
         setItems(Array.isArray(data) ? data : [])
         setDataInTable(Array.isArray(data) ? data : [])
         
-        // Cargar la configuración corregida
         try {
             const settings = await window.api.getEncargosSettings()
             if (settings && settings.alcance_estados) {
@@ -80,25 +80,41 @@ export const Estados = () => {
             }
         } catch (error) {}
 
-        // Cargar Catálogos BLINDADOS
         try {
             if (window.api.getUsuarios) {
-                const users = await window.api.getUsuarios()
-                // Evitamos que falle si devuelve un objeto en vez de arreglo
-                if (users?.success && Array.isArray(users?.data)) setUsuariosDB(users.data)
-                else if (Array.isArray(users)) setUsuariosDB(users)
-                else setUsuariosDB([])
+                const usersResponse = await window.api.getUsuarios()
+                let arrUsers = [];
+                if (Array.isArray(usersResponse)) arrUsers = usersResponse;
+                else if (usersResponse && typeof usersResponse === 'object') {
+                    arrUsers = usersResponse.data || usersResponse.usuarios || Object.values(usersResponse);
+                }
+                if (Array.isArray(arrUsers)) {
+                    setUsuariosDB(arrUsers);
+                    // Formateamos para el BuscadorFiltros
+                    setUsuariosForBuscador(arrUsers.map(u => ({
+                        id: u.username || u.usuario || u.nombre_completo || u.id,
+                        nombre: u.nombre_completo || u.nombre || u.username
+                    })));
+                }
             }
             if (window.api.getRoles) {
-                const roles = await window.api.getRoles()
-                if (roles?.success && Array.isArray(roles?.data)) setRolesDB(roles.data)
-                else if (Array.isArray(roles)) setRolesDB(roles)
-                else setRolesDB([])
+                const rolesResponse = await window.api.getRoles()
+                let arrRoles = [];
+                if (Array.isArray(rolesResponse)) arrRoles = rolesResponse;
+                else if (rolesResponse && typeof rolesResponse === 'object') {
+                    arrRoles = rolesResponse.data || rolesResponse.roles || Object.values(rolesResponse);
+                }
+                if (Array.isArray(arrRoles)) {
+                    setRolesDB(arrRoles);
+                    // Formateamos para el BuscadorFiltros
+                    setRolesForBuscador(arrRoles.map(r => ({
+                        id: r.nombre,
+                        nombre: r.nombre
+                    })));
+                }
             }
         } catch (e) { 
             console.error("No se pudieron cargar catálogos", e) 
-            setUsuariosDB([])
-            setRolesDB([])
         }
 
         setReloadTable(prev => prev + 1)
@@ -125,31 +141,42 @@ export const Estados = () => {
     }, [])
 
     const handleAddAsignacion = (tipo) => {
-        if (tipo === 'usuario' && newUserItem.trim()) {
-            const nombreUser = newUserItem.trim();
-            if (asignacionesUsuarios.some(u => u.nombre.toLowerCase() === nombreUser.toLowerCase())) {
-                return Swal.fire('Aviso', 'Este usuario ya está en la lista', 'info');
+        if (tipo === 'usuario' && newUserItem) {
+            // Buscamos al usuario en la DB original usando el ID seleccionado
+            const userObj = usuariosDB.find(u => 
+                u.username === newUserItem || 
+                u.usuario === newUserItem || 
+                u.nombre_completo === newUserItem || 
+                u.id === newUserItem
+            );
+
+            if (!userObj) return;
+
+            const nameToSave = userObj.nombre_completo || userObj.nombre || userObj.username;
+
+            if (asignacionesUsuarios.some(u => u.nombre === nameToSave)) {
+                return Swal.fire('Aviso', 'Este usuario ya está en la lista.', 'info');
             }
             
-            // Buscar si el usuario existe en DB para traer su foto
-            const userObj = usuariosDB.find(u => u.nombre === nombreUser || u.usuario === nombreUser) || {};
-            
             setAsignacionesUsuarios([...asignacionesUsuarios, {
-                nombre: nombreUser,
-                foto: userObj.foto || userObj.avatar || null,
+                nombre: nameToSave,
+                foto: userObj.foto_perfil || userObj.foto || userObj.avatar || null,
                 can_assign: true,
                 can_modify: true
             }]);
             setNewUserItem('');
 
-        } else if (tipo === 'rol' && newRoleItem.trim()) {
-            const nombreRol = newRoleItem.trim().toUpperCase();
-            if (asignacionesRoles.some(r => r.nombre === nombreRol)) {
-                return Swal.fire('Aviso', 'Este rol ya está en la lista', 'info');
+        } else if (tipo === 'rol' && newRoleItem) {
+            const rolObj = rolesDB.find(r => r.nombre === newRoleItem);
+
+            if (!rolObj) return;
+
+            if (asignacionesRoles.some(r => r.nombre === rolObj.nombre)) {
+                return Swal.fire('Aviso', 'Este rol ya está en la lista.', 'info');
             }
             
             setAsignacionesRoles([...asignacionesRoles, {
-                nombre: nombreRol,
+                nombre: rolObj.nombre,
                 can_assign: true,
                 can_modify: true
             }]);
@@ -187,7 +214,6 @@ export const Estados = () => {
         
         const cleanIcon = form.icon_data.trim().replace(/^bi\s+/, '');
         
-        // Convertimos las asignaciones a string JSON para guardarlas en la base de datos
         const payload = { 
             ...form, 
             icon_data: cleanIcon,
@@ -206,7 +232,6 @@ export const Estados = () => {
             cleanForm()
             handleClose()
             loadData()
-            
             window.dispatchEvent(new CustomEvent('estados-actualizados'))
         } else {
             Swal.fire('Error', result?.error || 'No se pudo guardar', 'error')
@@ -354,11 +379,12 @@ export const Estados = () => {
             />
         </div>
 
-        <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
+        <Modal show={show} onHide={handleClose} size="lg" centered>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>{editingId ? 'Editar Estado' : 'Nuevo Estado'}</Modal.Title>
             </Modal.Header>
-            <Modal.Body className="p-4">
+            {/* Scrollable body pero asegurando altura máxima controlada */}
+            <Modal.Body className="p-4" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', overflowX: 'hidden' }}>
                 <Form onSubmit={handleSubmit} id="estadoForm">
                     <Row>
                         <Col md={8}>
@@ -391,28 +417,26 @@ export const Estados = () => {
                         <div className="mb-4 p-3 bg-light border border-primary border-opacity-25 rounded shadow-sm">
                             <Form.Label className="fw-bold text-primary"><i className="bi bi-people-fill me-1"></i> Asignación de Usuarios</Form.Label>
                             <InputGroup className="mb-3">
-                                <Form.Control 
-                                    list="usuarios-list"
-                                    placeholder="Escribe o selecciona un usuario..." 
-                                    value={newUserItem} 
-                                    onChange={(e) => setNewUserItem(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddAsignacion('usuario'))}
-                                />
-                                <datalist id="usuarios-list">
-                                    {usuariosDB.map(u => <option key={u.id} value={u.nombre || u.usuario} />)}
-                                </datalist>
-                                <Button variant="primary" onClick={() => handleAddAsignacion('usuario')}>
+                                <div className="flex-grow-1" style={{ position: 'relative', zIndex: 10 }}>
+                                    <BuscadorFiltros 
+                                        items={usuariosForBuscador}
+                                        value={newUserItem}
+                                        onChange={setNewUserItem}
+                                        placeholder="Escribe para buscar o selecciona de la lista..."
+                                    />
+                                </div>
+                                <Button variant="primary" type="button" onClick={() => handleAddAsignacion('usuario')} disabled={!newUserItem}>
                                     <i className="bi bi-plus-lg me-1"></i> Agregar
                                 </Button>
                             </InputGroup>
 
                             {asignacionesUsuarios.length > 0 && (
-                                <Table size="sm" bordered hover className="align-middle bg-white mb-0">
+                                <Table size="sm" bordered hover className="align-middle bg-white mb-0 mt-3">
                                     <thead className="table-light text-center small">
                                         <tr>
                                             <th className="text-start">Usuario</th>
-                                            <th>Puede Asignar este estado</th>
-                                            <th>Puede Modificar este estado</th>
+                                            <th>Puede Asignar</th>
+                                            <th>Puede Modificar</th>
                                             <th style={{ width: '50px' }}></th>
                                         </tr>
                                     </thead>
@@ -449,28 +473,26 @@ export const Estados = () => {
                         <div className="mb-4 p-3 bg-light border border-info border-opacity-25 rounded shadow-sm">
                             <Form.Label className="fw-bold text-info"><i className="bi bi-shield-lock-fill me-1"></i> Asignación de Roles</Form.Label>
                             <InputGroup className="mb-3">
-                                <Form.Control 
-                                    list="roles-list"
-                                    placeholder="Escribe o selecciona un rol..." 
-                                    value={newRoleItem} 
-                                    onChange={(e) => setNewRoleItem(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddAsignacion('rol'))}
-                                />
-                                <datalist id="roles-list">
-                                    {rolesDB.map(r => <option key={r.id} value={r.nombre} />)}
-                                </datalist>
-                                <Button variant="info" className="text-white" onClick={() => handleAddAsignacion('rol')}>
+                                <div className="flex-grow-1" style={{ position: 'relative', zIndex: 10 }}>
+                                    <BuscadorFiltros 
+                                        items={rolesForBuscador}
+                                        value={newRoleItem}
+                                        onChange={setNewRoleItem}
+                                        placeholder="Escribe para buscar o selecciona un rol..."
+                                    />
+                                </div>
+                                <Button variant="info" type="button" className="text-white" onClick={() => handleAddAsignacion('rol')} disabled={!newRoleItem}>
                                     <i className="bi bi-plus-lg me-1"></i> Agregar
                                 </Button>
                             </InputGroup>
 
                             {asignacionesRoles.length > 0 && (
-                                <Table size="sm" bordered hover className="align-middle bg-white mb-0">
+                                <Table size="sm" bordered hover className="align-middle bg-white mb-0 mt-3">
                                     <thead className="table-light text-center small">
                                         <tr>
                                             <th className="text-start">Rol</th>
-                                            <th>Puede Asignar este estado</th>
-                                            <th>Puede Modificar este estado</th>
+                                            <th>Puede Asignar</th>
+                                            <th>Puede Modificar</th>
                                             <th style={{ width: '50px' }}></th>
                                         </tr>
                                     </thead>
