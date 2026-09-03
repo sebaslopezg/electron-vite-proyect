@@ -47,9 +47,8 @@ export const ConfiguracionEncargos = () => {
         
         Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
         
-        const resultCampos = await encargosService.saveEncargosCampos(campos);
-        // Corregido: Llamamos a la función puente expuesta en preload.js
-        const resultSettings = await window.api.saveEncargosSettings('alcance_estados', alcanceEstados);
+        const resultCampos = await encargosService.saveEncargosCampos(campos)
+        const resultSettings = await window.api.saveEncargosSettings('alcance_estados', alcanceEstados)
 
         if (resultCampos.success && resultSettings.success) {
             Swal.fire('¡Éxito!', 'Configuración de encargos actualizada correctamente', 'success')
@@ -75,13 +74,10 @@ export const ConfiguracionEncargos = () => {
                             <Form.Group>
                                 <Form.Label className="fw-bold">Alcance de los estados</Form.Label>
                                 <Form.Select value={alcanceEstados} onChange={e => setAlcanceEstados(e.target.value)}>
-                                    <option value="global">Global (Cualquier usuario puede usar los estados)</option>
-                                    <option value="usuario">Por Usuario (Especificar qué usuario tiene permisos)</option>
-                                    <option value="rol">Por Rol (Especificar qué rol tiene permisos)</option>
+                                    <option value="global">Global</option>
+                                    <option value="usuario">Por Usuario</option>
+                                    <option value="rol">Por Rol</option>
                                 </Form.Select>
-                                <Form.Text className="text-muted">
-                                    Determina la política de acceso. Si seleccionas "Por usuario" o "Por rol", al crear o editar un estado se te pedirá especificar el perfil autorizado.
-                                </Form.Text>
                             </Form.Group>
                         </Col>
                     </Row>
@@ -144,8 +140,8 @@ export const ConfiguracionEncargos = () => {
             )}
 
             <div className="d-flex justify-content-end mt-4 border-top pt-3">
-                <Button variant="primary" className="px-4" size="lg" onClick={handleSave}>
-                    <i className="bi bi-save me-2"></i> Guardar Toda la Configuración
+                <Button variant="primary" className="px-4" onClick={handleSave}>
+                    Guardar Toda la Configuración
                 </Button>
             </div>
         </div>
