@@ -24,11 +24,13 @@ export const registerRolesHandlers = () => {
         );
     `)
 
+    try { appDb.exec("ALTER TABLE roles ADD COLUMN color TEXT;") } catch (e) {}
+
     const checkAdminRol = appDb.prepare("SELECT COUNT(*) as count FROM roles").get()
     if (checkAdminRol.count === 0) {
         appDb.prepare(`
-            INSERT INTO roles (id, nombre, descripcion, permisos_json, is_system, status, date_created) 
-            VALUES (?, ?, ?, ?, 1, 1, datetime('now'))
+            INSERT INTO roles (id, nombre, descripcion, permisos_json, is_system, status, date_created, color) 
+            VALUES (?, ?, ?, ?, 1, 1, datetime('now'), '#0d6efd')
         `).run(uuidv4(), 'Administrador', 'Acceso total absoluto al sistema', '["ALL"]')
         logger.info('SISTEMA', 'Rol "Administrador" creado por defecto.')
     }
@@ -53,9 +55,10 @@ export const registerRolesHandlers = () => {
         try {
             const id = uuidv4()
             const permisosStr = JSON.stringify(rolData.permisos || [])
+            const color = rolData.color || '#6c757d'
 
-            const stmt = appDb.prepare(`INSERT INTO roles (id, nombre, descripcion, permisos_json, is_system, status, date_created) VALUES (?, ?, ?, ?, 0, 1, datetime('now'))`)
-            stmt.run(id, rolData.nombre.trim(), rolData.descripcion, permisosStr)
+            const stmt = appDb.prepare(`INSERT INTO roles (id, nombre, descripcion, permisos_json, is_system, status, date_created, color) VALUES (?, ?, ?, ?, 0, 1, datetime('now'), ?)`)
+            stmt.run(id, rolData.nombre.trim(), rolData.descripcion, permisosStr, color)
             
             logger.success('ROLES', `Nuevo rol creado: ${rolData.nombre}`);
             return { success: true, id }
@@ -75,8 +78,9 @@ export const registerRolesHandlers = () => {
             if (rolActual && rolActual.is_system === 1) return { success: false, error: "El rol del sistema no puede ser modificado." }
 
             const permisosStr = JSON.stringify(rolData.permisos || [])
-            const stmt = appDb.prepare(`UPDATE roles SET nombre = ?, descripcion = ?, permisos_json = ? WHERE id = ?`)
-            stmt.run(rolData.nombre.trim(), rolData.descripcion, permisosStr, rolData.id)
+            const color = rolData.color || '#6c757d'
+            const stmt = appDb.prepare(`UPDATE roles SET nombre = ?, descripcion = ?, permisos_json = ?, color = ? WHERE id = ?`)
+            stmt.run(rolData.nombre.trim(), rolData.descripcion, permisosStr, color, rolData.id)
             
             logger.success('ROLES', `Rol actualizado: ${rolData.nombre}`);
             return { success: true }

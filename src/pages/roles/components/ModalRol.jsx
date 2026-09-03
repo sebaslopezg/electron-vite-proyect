@@ -14,6 +14,7 @@ const Toast = Swal.mixin({
 export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
     const [nombre, setNombre] = useState('')
     const [descripcion, setDescripcion] = useState('')
+    const [color, setColor] = useState('#6c757d')
     const [permisosSeleccionados, setPermisosSeleccionados] = useState([])
     const [modulosActivos, setModulosActivos] = useState({})
     const [defaultRoute, setDefaultRoute] = useState('/ventas')
@@ -23,6 +24,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
             if (editData) {
                 setNombre(editData.nombre)
                 setDescripcion(editData.descripcion || '')
+                setColor(editData.color || '#6c757d')
                 let parsed = []
                 try { parsed = JSON.parse(editData.permisos_json) } catch (e) {}
                 
@@ -52,6 +54,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
             } else {
                 setNombre('')
                 setDescripcion('')
+                setColor('#6c757d')
                 setPermisosSeleccionados([])
                 setModulosActivos({})
                 setDefaultRoute('/ventas')
@@ -162,7 +165,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
 
         const permisosFinales = [...permisosLimpios, `START_PATH:${defaultRoute}`]
 
-        const payload = { nombre: nombre, descripcion: descripcion, permisos: permisosFinales }
+        const payload = { nombre: nombre, descripcion: descripcion, permisos: permisosFinales, color: color }
 
         let res = editData ? await window.api.updateRol({ ...payload, id: editData.id }) : await window.api.addRol(payload)
 
@@ -212,7 +215,17 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                                 />
                             </Form.Group>
                         </Col>
-                        <Col md={5}>
+                        <Col md={2}>
+                            <Form.Group className="mb-3">
+                                <Form.Label className="small text-secondary">Color</Form.Label>
+                                <Form.Control 
+                                    type="color" 
+                                    value={color} onChange={e => setColor(e.target.value)}
+                                    disabled={isSystemRole} size="sm" className="w-100 form-control-color"
+                                />
+                            </Form.Group>
+                        </Col>
+                        <Col md={4}>
                             <Form.Group className="mb-3">
                                 <Form.Label className="fw-bold small text-secondary">Descripción Operativa</Form.Label>
                                 <Form.Control 
@@ -222,10 +235,10 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                                 />
                             </Form.Group>
                         </Col>
-                        <Col md={4}>
+                        <Col md={3}>
                             <Form.Group className="mb-3 bg-light p-2 rounded border border-opacity-25">
                                 <Form.Label className="small m-0 mb-1">
-                                    <i className="bi bi-box-arrow-in-right me-1"></i>Módulo de Inicio por Defecto
+                                    <i className="bi bi-box-arrow-in-right me-1"></i>Módulo de Inicio
                                 </Form.Label>
                                 <Form.Select 
                                     size="sm" 
@@ -239,7 +252,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                                         <option key={m.id} value={m.path}>{m.nombre}</option>
                                     ))}
                                     {modulosDisponiblesParaInicio.length === 0 && !isSystemRole && (
-                                        <option value="/ventas">Selecciona un módulo a la derecha...</option>
+                                        <option value="/ventas">Selecciona un módulo...</option>
                                     )}
                                 </Form.Select>
                             </Form.Group>
@@ -262,7 +275,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                     <Row className="g-3">
                         {ESQUEMA_SEGURIDAD.map(modulo => {
                             const moduloHabilitado = !!modulosActivos[modulo.id] || isSystemRole
-                            return (
+                            return <>
                                 <Col md={6} xl={4} key={modulo.id}>
                                     <Card className={`h-100 shadow-sm border-0 border-top border-3 ${moduloHabilitado ? 'border-primary' : 'border-muted bg-light bg-opacity-50'}`} style={{ borderRadius: '6px' }}>
                                         <Card.Header className="bg-white d-flex justify-content-between align-items-center py-2 px-3">
@@ -286,7 +299,11 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                                                             <div key={sub.id} className="mb-2 border-bottom border-light pb-1 last-border-0">
                                                                 <Form.Check 
                                                                     type="checkbox" id={`check-${sub.id}`}
-                                                                    label={<span className={`small ${subMarcado ? 'fw-medium text-dark' : 'text-muted'}`}>{sub.label}</span>}
+                                                                    label={
+                                                                        <span className={`small ${subMarcado ? 'fw-medium text-dark' : 'text-muted'}`}>
+                                                                           {sub.label} 
+                                                                        </span>
+                                                                    }
                                                                     checked={subMarcado} disabled={isSystemRole}
                                                                     onChange={() => handleTogglePermiso(sub.id)}
                                                                     className="d-flex align-items-start"
@@ -315,7 +332,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
                                         </Collapse>
                                     </Card>
                                 </Col>
-                            )
+                            </>
                         })}
                     </Row>
                 </Form>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Dashboard from './components/layout/Dashboard'
 import { Login } from './pages/auth/Login'
 import { Activation } from './pages/auth/Activation'
@@ -13,6 +14,9 @@ function App() {
 
   const [licenseActive, setLicenseActive] = useState(false)
   const [hardwareId, setHardwareId] = useState('')
+
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const verificarSeguridadAcceso = async () => {
     setLoading(true)
@@ -37,6 +41,12 @@ function App() {
         setLoginRequired(res.required)
         if (!res.required && res.user) {
           setCurrentUser(res.user)
+          
+          if (location.pathname === '/') {
+            const startPathToken = res.user.permisos?.find(p => p.startsWith('START_PATH:'))
+            const defaultRoute = startPathToken ? startPathToken.split(':')[1] : '/ventas'
+            navigate(defaultRoute, { replace: true })
+          }
         }
       }
     }
@@ -111,6 +121,15 @@ function App() {
     }
     setCurrentUser(null)
     setLoginRequired(true)
+    navigate('/', { replace: true }) 
+  }
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user)
+    
+    const startPathToken = user.permisos?.find(p => p.startsWith('START_PATH:'))
+    const defaultRoute = startPathToken ? startPathToken.split(':')[1] : '/ventas'
+    navigate(defaultRoute, { replace: true })
   }
 
   if (loading) {
@@ -129,7 +148,7 @@ function App() {
   }
 
   if (loginRequired && !currentUser) {
-    return <Login onLoginSuccess={(user) => setCurrentUser(user)} />
+    return <Login onLoginSuccess={handleLoginSuccess} />
   }
 
   return <>

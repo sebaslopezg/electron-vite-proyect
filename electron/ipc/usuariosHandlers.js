@@ -44,7 +44,7 @@ export const registerUsuariosHandlers = () => {
             if (token) {
                 const userByToken = appDb.prepare("SELECT * FROM usuarios WHERE remember_token = ? AND status = 1").get(token)
                 if (userByToken) {
-                    const roleRow = appDb.prepare("SELECT permisos_json FROM roles WHERE nombre = ?").get(userByToken.rol)
+                    const roleRow = appDb.prepare("SELECT permisos_json, color FROM roles WHERE nombre = ?").get(userByToken.rol)
                     let permisos = ["ALL"]
                     try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
 
@@ -54,7 +54,8 @@ export const registerUsuariosHandlers = () => {
                         username: userByToken.username, 
                         rol: userByToken.rol, 
                         permisos: permisos,
-                        foto_perfil: userByToken.foto_perfil 
+                        foto_perfil: userByToken.foto_perfil,
+                        rol_color: roleRow?.color || '#0d6efd'
                     }
                     global.currentUserSession = userSession
                     logger.info('SISTEMA', `Auto-login exitoso mediante token persistente para: @${userByToken.username}`)
@@ -70,7 +71,7 @@ export const registerUsuariosHandlers = () => {
                 if (singleUser.username === 'admin') {
                     const isDefaultPassword = bcrypt.compareSync('admin123', singleUser.password_hash)
                     if (isDefaultPassword) {
-                        const roleRow = appDb.prepare("SELECT permisos_json FROM roles WHERE nombre = ?").get(singleUser.rol)
+                        const roleRow = appDb.prepare("SELECT permisos_json, color FROM roles WHERE nombre = ?").get(singleUser.rol)
                         let permisos = ["ALL"]
                         try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
 
@@ -80,7 +81,8 @@ export const registerUsuariosHandlers = () => {
                             username: singleUser.username, 
                             rol: singleUser.rol, 
                             permisos: permisos,
-                            foto_perfil: singleUser.foto_perfil 
+                            foto_perfil: singleUser.foto_perfil,
+                            rol_color: roleRow?.color || '#0d6efd'
                         }
                         global.currentUserSession = userSession
                         return { success: true, required: false, user: userSession }
@@ -102,7 +104,7 @@ export const registerUsuariosHandlers = () => {
             const match = bcrypt.compareSync(password, user.password_hash)
             if (!match) return { success: false, error: "Usuario o contraseña incorrectos." }
 
-            const roleRow = appDb.prepare("SELECT permisos_json FROM roles WHERE nombre = ?").get(user.rol)
+            const roleRow = appDb.prepare("SELECT permisos_json, color FROM roles WHERE nombre = ?").get(user.rol)
             let permisos = []
             try { if (roleRow) permisos = JSON.parse(roleRow.permisos_json); } catch (e) {}
 
@@ -112,7 +114,8 @@ export const registerUsuariosHandlers = () => {
                 username: user.username, 
                 rol: user.rol, 
                 permisos: permisos,
-                foto_perfil: user.foto_perfil
+                foto_perfil: user.foto_perfil,
+                rol_color: roleRow?.color || '#0d6efd'
             }
             global.currentUserSession = userSession
 

@@ -57,21 +57,45 @@ export const Roles = ({ currentUser }) => {
     useEffect(() => {
         const container = tableContainerRef.current
         if (!container) return
+        
         const handleTableClick = (e) => {
-            const target = e.target.closest('button')
-            if (!target || !container.contains(target)) return
-            if (target.classList.contains('btn-edit')) handleEdit(JSON.parse(decodeURIComponent(target.dataset.alldata)))
-            if (target.classList.contains('btn-delete')) handleDelete(target.dataset.id)
+            const editBtn = e.target.closest('.btn-edit')
+            if (editBtn) {
+                e.preventDefault()
+                handleEdit(JSON.parse(decodeURIComponent(editBtn.dataset.alldata)))
+            }
+            
+            const delBtn = e.target.closest('.btn-delete')
+            if (delBtn && !delBtn.disabled) {
+                e.preventDefault()
+                handleDelete(delBtn.dataset.id)
+            }
         }
+        
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
     }, [currentUser])
+
+    const getTextColor = (hexColor) => {
+        if (!hexColor) return '#ffffff'
+        const hex = hexColor.replace('#', '')
+        const r = parseInt(hex.substr(0, 2), 16)
+        const g = parseInt(hex.substr(2, 2), 16)
+        const b = parseInt(hex.substr(4, 2), 16)
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+        return (yiq >= 128) ? '#000000' : '#ffffff'
+    }
 
     const columnasTabla = useMemo(() => [
         { 
             data: 'nombre', 
             title: 'Rol', 
-            render: (d, t, r) => `<strong>${d}</strong> ${r.is_system ? '<span class="badge bg-primary ms-1">Sistema</span>':''}` 
+            render: (d, t, r) => {
+                const color = r.color || '#6c757d';
+                const textColor = getTextColor(color);
+                const badge = `<span class="badge me-2" style="background-color: ${color}; color: ${textColor}; padding: 6px 12px; border-radius: 12px;"><i class="bi bi-shield-check me-1"></i>${d}</span>`;
+                return `${badge} ${r.is_system ? '<span class="badge bg-primary ms-1">Sistema</span>':''}`;
+            } 
         },
         { 
             data: 'descripcion', 
@@ -87,15 +111,48 @@ export const Roles = ({ currentUser }) => {
             data: null, 
             title: 'Acciones', 
             orderable: false, 
-            className: 'text-end pe-4',
+            className: 'text-center pe-4',
             render: function (data, type, row) {
                 const safeData = encodeURIComponent(JSON.stringify(row))
                 const canEdit = hasPermission('roles_editar')
                 const canDelete = hasPermission('roles_eliminar')
 
+                let menuItems = ''
+
+                if (canEdit) {
+                    menuItems += `
+                        <li>
+                            <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                <i class="bi ${row.is_system ? 'bi-eye text-info' : 'bi-pencil text-primary'} me-2"></i> ${row.is_system ? 'Ver Detalles' : 'Editar Rol'}
+                            </a>
+                        </li>
+                    `
+                }
+
+                if (canDelete) {
+                    if (canEdit) menuItems += `<li><hr class="dropdown-divider"></li>`
+                    menuItems += `
+                        <li>
+                            <button class="dropdown-item text-danger btn-delete" data-id="${row.id}" ${row.is_system ? 'disabled' : ''}>
+                                <i class="bi bi-trash3 me-2"></i> Eliminar
+                            </button>
+                        </li>
+                    `
+                }
+
+                if (!menuItems) {
+                    return '<span class="text-muted small">Sin acciones</span>'
+                }
+
                 return `
-                    ${canEdit ? `<button class="btn btn-sm btn-secondary me-2 btn-edit" data-alldata="${safeData}" title="Editar"><i class="bi ${row.is_system ? 'bi-eye' : 'bi-pencil'}"></i></button>` : ''}
-                    ${canDelete ? `<button class="btn btn-sm btn-danger btn-delete" data-id="${row.id}" ${row.is_system ? 'disabled' : ''} title="Eliminar"><i class="bi bi-trash"></i></button>` : ''}
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu shadow-sm">
+                            ${menuItems}
+                        </ul>
+                    </div>
                 `
             }
         }
@@ -108,7 +165,7 @@ export const Roles = ({ currentUser }) => {
 
         <div className="card shadow-sm border-0">
             <div className="card-body pt-4">
-                <div ref={tableContainerRef}>
+                <div ref={tableContainerRef} style={{ overflow: 'visible' }}>
                     
                     {hasPermission('roles_crear') && (
                         <div className="d-flex justify-content-between align-items-center mb-3">
