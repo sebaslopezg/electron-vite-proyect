@@ -10,7 +10,8 @@ export const ModalDetalleFactura = ({
     detalleData, 
     notasFactura, 
     handlePrepararImpresion, 
-    appConfig 
+    appConfig,
+    canPrint
 }) => {
 
     const _formatCurrency = (val) => {
@@ -36,9 +37,11 @@ export const ModalDetalleFactura = ({
             </Modal.Header>
             <Modal.Body className="p-4">
                 <div className="d-flex justify-content-end mb-3">
-                    <Button variant="primary" onClick={handlePrepararImpresion} className="shadow-sm">
-                        <i className="bi bi-printer me-2"></i> Imprimir Copia
-                    </Button>
+                    {canPrint && (
+                        <Button variant="primary" onClick={handlePrepararImpresion} className="shadow-sm">
+                            <i className="bi bi-printer me-2"></i> Imprimir Copia
+                        </Button>
+                    )}
                 </div>
 
                 {facturaSeleccionada && (

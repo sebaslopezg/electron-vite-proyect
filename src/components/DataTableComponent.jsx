@@ -1,8 +1,13 @@
 import DataTable from 'datatables.net-react'
 import DT from 'datatables.net-bs5'
+import Swal from 'sweetalert2'
 import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css'
 
 DataTable.use(DT);
+
+if (DT && DT.ext) {
+  DT.ext.errMode = 'none';
+}
 
 const spanishLanguage = {
   search: "Buscar:",
@@ -51,9 +56,40 @@ const CustomDataTable = ({ columns, reloadKey = 0, ajaxData, data, tableId }) =>
   if (isServerSide) {
     baseOptions.ajax = function(params, callback) {
       ajaxData(params)
-        .then(response => callback(response))
+        .then(response => {
+            if (response && response.success === false) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Acceso Restringido',
+                    text: response.error || 'No tienes permisos para visualizar esta información.',
+                    confirmButtonColor: '#3085d6',
+                    confirmButtonText: 'Entendido'
+                });
+                callback({ data: [], recordsTotal: 0, recordsFiltered: 0 });
+            } 
+            else if (response && response.error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de Datos',
+                    text: response.error,
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'Cerrar'
+                });
+                callback({ data: [], recordsTotal: 0, recordsFiltered: 0 });
+            } 
+            else {
+                callback(response);
+            }
+        })
         .catch(err => {
           console.error("DataTable Ajax Error:", err);
+          Swal.fire({
+              icon: 'error',
+              title: 'Error de Conexión',
+              text: 'Ocurrió un error inesperado al intentar cargar los datos de la tabla.',
+              confirmButtonColor: '#d33',
+              confirmButtonText: 'Cerrar'
+          });
           callback({ data: [], recordsTotal: 0, recordsFiltered: 0 });
         });
     };
@@ -73,4 +109,4 @@ const CustomDataTable = ({ columns, reloadKey = 0, ajaxData, data, tableId }) =>
   );
 };
 
-export default CustomDataTable;
+export default CustomDataTable

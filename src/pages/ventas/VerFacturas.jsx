@@ -40,6 +40,9 @@ export const VerFacturas = ({ currentUser }) => {
         return currentUser.permisos?.includes(permissionKey)
     }
 
+    const canDownloadPDF = hasPermission('ventas_descargar_pdf');
+    const canDownloadExcel = hasPermission('ventas_descargar_excel');
+
     const loadConfig = async () => {
         const configData = await ventasService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
@@ -304,6 +307,10 @@ export const VerFacturas = ({ currentUser }) => {
             render: function (data, type, row) {
                 const safeData = encodeURIComponent(JSON.stringify(row))
                 const canPrint = hasPermission('ventas_imprimir')
+                const canDownloadPDF = hasPermission('ventas_descargar_pdf')
+                const canDownloadExcel = hasPermission('ventas_descargar_excel')
+                
+                const hasExtraActions = canPrint || canDownloadPDF || canDownloadExcel;
 
                 return `
                     <div class="dropdown">
@@ -316,6 +323,7 @@ export const VerFacturas = ({ currentUser }) => {
                                     <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                                 </button>
                             </li>
+                            ${hasExtraActions ? `<li><hr class="dropdown-divider"></li>` : ''}
                             ${canPrint ? `
                             <li>
                                 <button class="dropdown-item btn-print-item" data-alldata="${safeData}">
@@ -323,17 +331,20 @@ export const VerFacturas = ({ currentUser }) => {
                                 </button>
                             </li>
                             ` : ''}
-                            <li><hr class="dropdown-divider"></li>
+                            ${canDownloadPDF ? `
                             <li>
                                 <button class="dropdown-item btn-export-single-pdf" data-alldata="${safeData}">
                                     <i class="bi bi-file-earmark-pdf me-2 text-danger"></i> Descargar en PDF
                                 </button>
                             </li>
+                            ` : ''}
+                            ${canDownloadExcel ? `
                             <li>
                                 <button class="dropdown-item btn-export-single-excel" data-alldata="${safeData}">
                                     <i class="bi bi-file-earmark-excel me-2 text-success"></i> Exportar a Excel
                                 </button>
                             </li>
+                            ` : ''}
                         </ul>
                     </div>
                 `
@@ -366,22 +377,28 @@ export const VerFacturas = ({ currentUser }) => {
                         >
                             <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
                         </Button>
-                        <Button 
-                            variant="outline-danger" size="sm" 
-                            onClick={handleExportAllPDF} 
-                            disabled={todasLasFacturas.length === 0}
-                            title="Exportar Todo a PDF"
-                        >
-                            <i className="bi bi-file-earmark-pdf"></i>
-                        </Button>
-                        <Button 
-                            variant="outline-success" size="sm" 
-                            onClick={handleExportAllExcel} 
-                            disabled={todasLasFacturas.length === 0}
-                            title="Exportar Todo a Excel"
-                        >
-                            <i className="bi bi-file-earmark-excel"></i>
-                        </Button>
+                        
+                        {canDownloadPDF && (
+                            <Button 
+                                variant="outline-danger" size="sm" 
+                                onClick={handleExportAllPDF} 
+                                disabled={todasLasFacturas.length === 0}
+                                title="Exportar Todo a PDF"
+                            >
+                                <i className="bi bi-file-earmark-pdf"></i>
+                            </Button>
+                        )}
+                        
+                        {canDownloadExcel && (
+                            <Button 
+                                variant="outline-success" size="sm" 
+                                onClick={handleExportAllExcel} 
+                                disabled={todasLasFacturas.length === 0}
+                                title="Exportar Todo a Excel"
+                            >
+                                <i className="bi bi-file-earmark-excel"></i>
+                            </Button>
+                        )}
                     </div>
                 </Col>
             </Row>
@@ -413,6 +430,7 @@ export const VerFacturas = ({ currentUser }) => {
             notasFactura={notesFactura}
             handlePrepararImpresion={handlePrepararImpresion}
             appConfig={appConfig}
+            canPrint={hasPermission('ventas_imprimir')}
         />
         
         <ImpresorFactura 

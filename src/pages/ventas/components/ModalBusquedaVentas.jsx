@@ -218,7 +218,7 @@ export const ModalBusquedaVentas = ({
                 )}
 
                 {modalData.type === 'cliente' && (
-                    <div className="w-100 overflow-hidden">
+                    <div className="w-100">
                         <DataTableComponent
                             key={modalData.type}
                             data={clientes}

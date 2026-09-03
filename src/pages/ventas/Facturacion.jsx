@@ -56,6 +56,13 @@ export const Facturacion = () => {
   const [filterTag, setFilterTag] = useState('')
 
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+  const [currentUser, setCurrentUser] = useState(null)
+
+  const hasPermission = (permissionKey) => {
+      if (!currentUser) return false
+      if (currentUser.permisos?.includes('ALL')) return true
+      return currentUser.permisos?.includes(permissionKey)
+  }
 
   const loadConfig = async () => {
     const configData = await ventasService.getConfiguracion()
@@ -78,6 +85,11 @@ export const Facturacion = () => {
   }
 
   const loadInitialData = async () => {
+    if (window.api && window.api.getCurrentUser) {
+        const userRes = await window.api.getCurrentUser()
+        if (userRes?.success) setCurrentUser(userRes.data)
+    }
+
     const prods = await ventasService.getAllProductos()
     setProductos(prods)
     const clis = await ventasService.getClientes()
@@ -279,6 +291,16 @@ export const Facturacion = () => {
   }
 
   const handleAddClient = () => {
+    if (!hasPermission('clientes_ver')) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'Acceso Restringido',
+            text: 'Tu rol no tiene permisos para explorar el directorio general de clientes. Por favor, busca digitando el número de documento exacto.',
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'Entendido'
+        });
+    }
+
     setModalData({
       type: 'cliente',
       title: 'Seleccionar Cliente',

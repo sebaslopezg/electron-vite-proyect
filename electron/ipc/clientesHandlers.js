@@ -2,8 +2,19 @@ import { ipcMain } from "electron"
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession
+    if (!user) return false
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
+}
+
 export const registerClientesHandlers = () => {
     ipcMain.handle("get-clientes", () => {
+        if (!checkPermission("clientes_ver") && !checkPermission("ventas_crear")) {
+            return []
+        }
+        
         try {
             const stmt = db.prepare(`
                 SELECT 
