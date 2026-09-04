@@ -62,14 +62,6 @@ export const Cartera = ({ currentUser }) => {
         return () => window.removeEventListener('config-actualizada', loadConfig)
     }, [])
 
-    useEffect(() => {
-        if (canSeeCobrar) {
-            setActiveTab('cobrar')
-        } else if (canSeeHistorial) {
-            setActiveTab('abonos')
-        }
-    }, [currentUser])
-
     const handleOpenModal = (factura) => {
         setShowModal(true)
         setFacturaSeleccionada(factura)
@@ -116,7 +108,43 @@ export const Cartera = ({ currentUser }) => {
         setShowImpresor(true)
     }
 
-    if (!canSeeCobrar && !canSeeHistorial) {
+    const tabsDisponibles = [
+        { 
+            id: 'cobrar',
+            label: 'Cuentas por Cobrar',
+            icon: 'bi bi-cash-stack',
+            visible: canSeeCobrar,
+            component: <TabCuentasPorCobrar 
+                reloadKey={reloadKey}
+                onOpenModal={handleOpenModal} 
+                onViewFactura={handleViewFactura}
+                appConfig={appConfig}
+                currentUser={currentUser}
+                almacenConf={almacenConf}
+            />
+        },
+        { 
+            id: 'abonos',
+            label: 'Historial de Abonos',
+            icon: 'bi bi-clock-history',
+            visible: canSeeHistorial,
+            component: <TabHistorialAbonos 
+                reloadKey={reloadKey}
+                almacenConf={almacenConf}
+                appConfig={appConfig}
+                currentUser={currentUser}
+                onViewFactura={handleViewFactura}
+            />
+        }
+    ].filter(tab => tab.visible)
+
+    useEffect(() => {
+        if (tabsDisponibles.length > 0 && !activeTab) {
+            setActiveTab(tabsDisponibles[0].id)
+        }
+    }, [currentUser, activeTab])
+
+    if (tabsDisponibles.length === 0) {
         return (
             <div className="alert alert-warning m-4 text-center shadow-sm border-warning">
                 <i className="bi bi-lock-fill fs-2 d-block mb-2"></i>
@@ -125,6 +153,8 @@ export const Cartera = ({ currentUser }) => {
             </div>
         )
     }
+
+    const currentTabObj = tabsDisponibles.find(t => t.id === activeTab) || tabsDisponibles[0]
 
     return <>
         <div className="pagetitle">
@@ -136,49 +166,22 @@ export const Cartera = ({ currentUser }) => {
                 <div className="card-body pt-3">
                     
                     <ul className="nav nav-tabs nav-tabs-bordered mb-4" role="tablist">
-                        {canSeeCobrar && (
-                            <li className="nav-item">
+                        {tabsDisponibles.map(tab => (
+                            <li className="nav-item" role="presentation" key={tab.id}>
                                 <button 
-                                    className={`nav-link ${activeTab === 'cobrar' ? 'active text-primary' : 'text-secondary'}`}
-                                    onClick={() => setActiveTab('cobrar')}
+                                    className={`nav-link ${activeTab === tab.id ? 'active' : 'text-secondary'}`}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    type="button" 
+                                    role="tab"
                                 >
-                                    Cuentas por Cobrar
+                                    <i className={`${tab.icon} me-1`}></i> {tab.label}
                                 </button>
                             </li>
-                        )}
-                        {canSeeHistorial && (
-                            <li className="nav-item">
-                                <button 
-                                    className={`nav-link ${activeTab === 'abonos' ? 'active text-primary' : 'text-secondary'}`}
-                                    onClick={() => setActiveTab('abonos')}
-                                >
-                                    Historial de Abonos
-                                </button>
-                            </li>
-                        )}
+                        ))}
                     </ul>
 
                     <div className="tab-content pt-2 animate__animated animate__fadeIn">
-                        {activeTab === 'cobrar' && canSeeCobrar && (
-                            <TabCuentasPorCobrar 
-                                reloadKey={reloadKey}
-                                onOpenModal={handleOpenModal} 
-                                onViewFactura={handleViewFactura}
-                                appConfig={appConfig}
-                                currentUser={currentUser}
-                                almacenConf={almacenConf}
-                            />
-                        )}
-                        
-                        {activeTab === 'abonos' && canSeeHistorial && (
-                            <TabHistorialAbonos 
-                                reloadKey={reloadKey}
-                                almacenConf={almacenConf}
-                                appConfig={appConfig}
-                                currentUser={currentUser}
-                                onViewFactura={handleViewFactura} // <-- NUEVA PROP PASADA AL HISTORIAL
-                            />
-                        )}
+                        {currentTabObj ? currentTabObj.component : <div className="text-muted small">Cargando módulo...</div>}
                     </div>
 
                 </div>

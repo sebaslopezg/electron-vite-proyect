@@ -28,10 +28,34 @@ export const IndexEncargos = ({ currentUser }) => {
   }
 
   const tabsDisponibles = [
-      { id: 'encargos', label: 'Encargos', permission: 'encargos_ver', component: <Encargos currentUser={activeUser || currentUser} /> },
-      { id: 'calendario', label: 'Calendario', permission: 'encargos_calendario', component: <Calendario currentUser={activeUser || currentUser} /> },
-      { id: 'estados', label: 'Estados', permission: 'estados_ver', component: <Estados currentUser={activeUser || currentUser} /> },
-      { id: 'configuracion', label: 'Configuración', permission: 'encargos_editar', component: <ConfiguracionEncargos currentUser={activeUser || currentUser} /> }
+    { 
+        id: 'encargos', 
+        label: 'Encargos',
+        icon: 'bi bi-box-seam',
+        permission: 'encargos_ver', 
+        component: <Encargos currentUser={activeUser || currentUser} /> 
+    },  
+    { 
+        id: 'calendario', 
+        label: 'Calendario', 
+        icon: 'bi bi-calendar-check',
+        permission: 'encargos_calendario', 
+        component: <Calendario currentUser={activeUser || currentUser} /> 
+    },
+    { 
+        id: 'estados', 
+        label: 'Estados',
+        icon: 'bi bi-clipboard', 
+        permission: 'estados_ver', 
+        component: <Estados currentUser={activeUser || currentUser} /> 
+    },  
+    { 
+        id: 'configuracion', 
+        label: 'Configuración', 
+        icon: 'bi bi-gear',
+        permission: 'encargos_editar', 
+        component: <ConfiguracionEncargos currentUser={activeUser || currentUser} /> 
+    }
   ].filter(tab => hasPermission(tab.permission))
 
   useEffect(() => {
@@ -71,7 +95,7 @@ export const IndexEncargos = ({ currentUser }) => {
                         type="button"
                         role="tab"
                     >
-                        {tab.label}
+                       {tab.icon && <i className={`${tab.icon} me-1`}></i>} {tab.label}
                     </button>
                 </li>
             ))}

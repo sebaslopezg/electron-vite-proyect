@@ -179,7 +179,22 @@ export const registerUsuariosHandlers = () => {
 
     ipcMain.handle("get-usuarios", () => {
         if (!checkPermission("usuarios_ver")) return { success: false, error: "No autorizado." }
-        try { return { success: true, data: appDb.prepare("SELECT id, nombre_completo, username, rol, status, date_created FROM usuarios WHERE status = 1 ORDER BY nombre_completo ASC").all() } } catch (e) { return { success: false, error: e.message } }
+        try { 
+            return { 
+                success: true, 
+                data: appDb.prepare("SELECT id, nombre_completo, username, rol, status, date_created FROM usuarios WHERE status = 1 ORDER BY nombre_completo ASC").all() 
+            } 
+        } catch (e) { return { success: false, error: e.message } }
+    })
+
+    ipcMain.handle("get-usuarios-fotos", () => {
+        if (!checkPermission("usuarios_ver")) return { success: false, error: "No autorizado." }
+        try { 
+            return { 
+                success: true, 
+                data: appDb.prepare("SELECT id, foto_perfil FROM usuarios WHERE status = 1 AND foto_perfil IS NOT NULL AND foto_perfil != ''").all() 
+            } 
+        } catch (e) { return { success: false, error: e.message } }
     })
 
     ipcMain.handle("add-usuario", async (_, user) => {

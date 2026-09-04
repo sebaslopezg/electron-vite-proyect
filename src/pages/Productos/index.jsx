@@ -15,11 +15,41 @@ export const ProductosIndex = ({ currentUser }) => {
     }
 
     const tabsDisponibles = [
-        { id: 'productos', label: 'Productos', permission: 'productos_ver', component: <Productos currentUser={currentUser} /> },
-        { id: 'servicios', label: 'Servicios', permission: 'servicios_ver', component: <Servicios currentUser={currentUser} /> },
-        { id: 'categorias', label: 'Categorías', permission: 'categorias_ver', component: <Categorias currentUser={currentUser} /> },
-        { id: 'subcategorias', label: 'Subcategorías', permission: 'subcategorias_ver', component: <Subcategorias currentUser={currentUser} /> },
-        { id: 'etiquetas', label: 'Etiquetas', permission: 'etiquetas_ver', component: <Etiquetas currentUser={currentUser} /> }
+        { 
+            id: 'productos',
+            label: 'Productos',
+            icon:'bi bi-boxes',
+            permission: 'productos_ver',
+            component: <Productos currentUser={currentUser} />
+        },
+        { 
+            id: 'servicios',
+            label: 'Servicios',
+            icon:'bi bi-briefcase',
+            permission: 'servicios_ver',
+            component: <Servicios currentUser={currentUser} />
+        },
+        {
+            id: 'categorias',
+            label: 'Categorías',
+            icon:'bi bi-diagram-2',
+            permission: 'categorias_ver',
+            component: <Categorias currentUser={currentUser} />
+        },
+        {
+            id: 'subcategorias',
+            label: 'Subcategorías',
+            icon:'bi bi-diagram-3',
+            permission: 'subcategorias_ver',
+            component: <Subcategorias currentUser={currentUser} />
+        },
+        {
+            id: 'etiquetas',
+            label: 'Etiquetas',
+            icon:'bi bi-tags',
+            permission: 'etiquetas_ver',
+            component: <Etiquetas currentUser={currentUser} />
+        }
     ].filter(tab => hasPermission(tab.permission))
 
     useEffect(() => {
@@ -56,7 +86,7 @@ export const ProductosIndex = ({ currentUser }) => {
                                 type="button" 
                                 role="tab"
                             >
-                                {tab.label}
+                               {tab.icon && <i className={`${tab.icon} me-1`}></i>} {tab.label}
                             </button>
                         </li>
                     ))}

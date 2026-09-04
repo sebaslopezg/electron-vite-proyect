@@ -23,10 +23,6 @@
  ## No prioritario
  - permitir cambiar de posicion las opciones de metodo de pago en el menu desplegable
  - organizar preload.js porque esta muy largo
- - Separar todas las modales de sus archivos en componentes pa que esos archivos no sean tan largos
  - integrar todos los try catch de las tablas en los campos normales para limpiar todos los archivos de tablas.
  - Revisar swal en todas las interacciones con los forms
- - Organizar carpetas, todas deben comenzar o no en minuscula o mayuscula, no mezclar
  - Agregar una pestaña de configuracion donde yo pueda perzonalizar los filtros y crear plantillas (para facilitar  la digitacion de informacion en los modulos)
- - Separar pestaña de actualizaciones y hacerla un modulo a parte, integrar manejador de actualizaciones.
- - Crear un manejador de modulos

@@ -19,7 +19,7 @@ export const ConfiguracionIndex = ({ currentUser }) => {
         { 
             id: 'general', 
             label: 'General', 
-            icon: '', 
+            icon: 'bi bi-grid', 
             perm: 'configuracion_general', 
             component: <General currentUser={currentUser} /> 
         },

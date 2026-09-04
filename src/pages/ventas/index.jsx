@@ -35,11 +35,41 @@ export const Ventas = ({ currentUser }) => {
     }
 
     const tabsDisponibles = [
-        { id: 'facturacion', label: 'Facturación', permission: 'ventas_crear', component: <Facturacion /> },
-        { id: 'verFacturas', label: 'Ver Facturas', permission: 'ventas_historial', component: <VerFacturas currentUser={currentUser} /> },
-        { id: 'reportes', label: 'Reportes', permission: 'reportes_ver', component: <Reportes /> },
-        { id: 'notas', label: 'Nota Crédito/Débito', permission: 'notas_gestionar', component: <Notas /> },
-        { id: 'config', label: 'Configurar', permission: 'ventas_configurar', component: <Configuracion data={almacenData} onReload={loadAlmacenConf} /> }
+        {
+            id: 'facturacion',
+            label: 'Facturación',
+            icon:'bi bi-receipt',
+            permission: 'ventas_crear',
+            component: <Facturacion />
+        },
+        {
+            id: 'verFacturas',
+            label: 'Ver Facturas',
+            icon:'bi bi-search',
+            permission: 'ventas_historial',
+            component: <VerFacturas currentUser={currentUser} />
+        },
+        {
+            id: 'reportes',
+            label: 'Reportes',
+            icon:'bi bi-clipboard',
+            permission: 'reportes_ver',
+            component: <Reportes />
+        },
+        {
+            id: 'notas',
+            label: 'Nota Crédito/Débito',
+            icon:'bi bi-journal',
+            permission: 'notas_gestionar',
+            component: <Notas />
+        },
+        {
+            id: 'config',
+            label: 'Configurar',
+            icon:'bi bi-gear',
+            permission: 'ventas_configurar',
+            component: <Configuracion data={almacenData} onReload={loadAlmacenConf} />
+        }
     ].filter(tab => hasPermission(tab.permission))
 
     useEffect(() => {
@@ -83,7 +113,7 @@ export const Ventas = ({ currentUser }) => {
                                     type="button" 
                                     role="tab"
                                 >
-                                    {tab.label}
+                                   {tab.icon && <i className={`${tab.icon} me-1`}></i>} {tab.label}
                                 </button>
                             </li>
                         ))}

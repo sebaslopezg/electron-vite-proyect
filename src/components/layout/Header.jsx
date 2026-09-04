@@ -145,7 +145,15 @@ export const Header = ({ currentUser, onLogout }) => {
     }
 
     return <>
-    <header id="header" className="header fixed-top d-flex align-items-center">
+        <style>
+            {`
+                /* Corrección para el deslizamiento del header al abrir modales */
+                #header.fixed-top {
+                    transition: left 0.5s, top 0.5s, width 0.5s, background-color 0.5s !important;
+                }
+            `}
+        </style>
+        <header id="header" className="header fixed-top d-flex align-items-center">
             <div className="d-flex align-items-center justify-content-between">
                 <Link to="/" className="logo d-flex align-items-center text-decoration-none">
                     <img src={appLogo} alt="Logo" style={{ maxHeight: '40px', objectFit: 'contain' }} />

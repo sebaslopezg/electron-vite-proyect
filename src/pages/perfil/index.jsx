@@ -1,12 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import Swal from 'sweetalert2'
 
+const getTextColor = (hexColor) => {
+    if (!hexColor) return '#ffffff'
+    const hex = hexColor.replace('#', '')
+    const r = parseInt(hex.substr(0, 2), 16)
+    const g = parseInt(hex.substr(2, 2), 16)
+    const b = parseInt(hex.substr(4, 2), 16)
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+    return (yiq >= 128) ? '#000000' : '#ffffff'
+}
+
 export const Perfil = ({ currentUser }) => {
     const [formData, setFormData] = useState({
         id: '',
         nombre_completo: '',
         username: '',
         rol: '',
+        rol_color: '#0d6efd',
         foto_perfil: ''
     })
 
@@ -24,6 +35,7 @@ export const Perfil = ({ currentUser }) => {
                 nombre_completo: currentUser.nombre_completo || '',
                 username: currentUser.username || '',
                 rol: currentUser.rol || '',
+                rol_color: currentUser.rol_color || '#0d6efd',
                 foto_perfil: formData.foto_perfil || currentUser.foto_perfil || ''
             })
         }
@@ -106,8 +118,12 @@ export const Perfil = ({ currentUser }) => {
                                 <input type="file" accept="image/*" className="d-none" ref={fileInputRef} onChange={handleImageChange}/>
                                 
                                 <h2 className="fs-5 text-center">{formData.nombre_completo}</h2>
-                                <h3 className="text-muted fs-6 mb-1">{formData.rol}</h3>
-                                <span className="badge bg-light text-primary border border-primary mt-2 px-3 py-2 fs-6">@{formData.username}</span>
+                                <h3 className="fs-6 mb-2 mt-1">
+                                    <span className="badge shadow-sm" style={{ backgroundColor: formData.rol_color, color: getTextColor(formData.rol_color), padding: '6px 12px', borderRadius: '12px' }}>
+                                        <i className="bi bi-shield-check me-1"></i>{formData.rol}
+                                    </span>
+                                </h3>
+                                <span className="badge bg-light text-primary border border-primary mt-1 px-3 py-2 fs-6">@{formData.username}</span>
                             </div>
                         </div>
                     </div>
@@ -153,8 +169,10 @@ export const Perfil = ({ currentUser }) => {
 
                                             <div className="row mb-3">
                                                 <label className="col-md-4 col-lg-3 col-form-label text-secondary">Rol Actual</label>
-                                                <div className="col-md-8 col-lg-9">
-                                                    <input type="text" className="form-control bg-light text-muted" value={formData.rol} disabled />
+                                                <div className="col-md-8 col-lg-9 d-flex align-items-center">
+                                                    <span className="badge shadow-sm" style={{ backgroundColor: formData.rol_color, color: getTextColor(formData.rol_color), padding: '6px 12px', borderRadius: '12px' }}>
+                                                        {formData.rol}
+                                                    </span>
                                                 </div>
                                             </div>
 

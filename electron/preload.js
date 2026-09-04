@@ -163,6 +163,7 @@ contextBridge.exposeInMainWorld("api", {
 
   // usuarios
   getUsuarios: () => ipcRenderer.invoke("get-usuarios"),
+  getUsuariosFotos: () => ipcRenderer.invoke("get-usuarios-fotos"),
   addUsuario: (data) => ipcRenderer.invoke("add-usuario", data),
   updateUsuario: (data) => ipcRenderer.invoke("update-usuario", data),
   updateMiPerfil: (data) => ipcRenderer.invoke("update-mi-perfil", data),

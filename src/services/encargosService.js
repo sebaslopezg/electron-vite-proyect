@@ -57,7 +57,7 @@ export const encargosService = {
 
     updateEncargo: async (payload) => {
         if (isElectron()) {
-            return await window.api.updateEncargo(payload);
+            return await window.api.updateEncargo(payload)
         } else {
             try {
                 const response = await api.put(`/encargos/${payload.id}`, payload)
@@ -175,23 +175,23 @@ export const encargosService = {
 
     getUsuariosAsignacion: async () => {
         if (isElectron()) {
-            return await window.api.getEstadosUsuarios();
+            return await window.api.getEstadosUsuarios()
         } else {
             try {
-                const response = await api.get('/encargos/estados/usuarios');
-                return response.data.data || response.data || [];
-            } catch (e) { return []; }
+                const response = await api.get('/encargos/estados/usuarios')
+                return response.data.data || response.data || []
+            } catch (e) { return [] }
         }
     },
 
     getRolesAsignacion: async () => {
         if (isElectron()) {
-            return await window.api.getEstadosRoles();
+            return await window.api.getEstadosRoles()
         } else {
             try {
-                const response = await api.get('/encargos/estados/roles');
-                return response.data.data || response.data || [];
-            } catch (e) { return []; }
+                const response = await api.get('/encargos/estados/roles')
+                return response.data.data || response.data || []
+            } catch (e) { return [] }
         }
     }
 }
