@@ -276,6 +276,7 @@ export const Productos = ({ currentUser }) => {
       render: function (data, type, row) {
         const safeData = encodeURIComponent(JSON.stringify(row))
         const canEditAction = hasPermission('productos_editar');
+        const canDeleteAction = hasPermission('productos_eliminar');
 
         let menuItems = `
           <li>
@@ -292,7 +293,12 @@ export const Productos = ({ currentUser }) => {
                 <i class="bi bi-pencil me-2 text-primary"></i> Editar
               </a>
             </li>
-            <li><hr class="dropdown-divider"></li>
+          `;
+        }
+
+        if (canDeleteAction) {
+          if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+          menuItems += `
             <li>
               <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
                 <i class="bi bi-trash3 me-2"></i> Eliminar

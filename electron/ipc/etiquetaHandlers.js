@@ -13,7 +13,7 @@ const checkPermission = (permission) => {
 export const registerEtiquetaHandlers = () => {
 
     ipcMain.handle("get-etiquetas", () => {
-        if (!checkPermission("productos_ver") && !checkPermission("categorias_gestionar") && !checkPermission("ventas_crear")) return [];
+        if (!checkPermission("etiquetas_ver") && !checkPermission("productos_ver") && !checkPermission("ventas_crear")) return [];
         try {
             const stmt = db.prepare(`
                 SELECT e.*, 
@@ -33,8 +33,8 @@ export const registerEtiquetaHandlers = () => {
     })
 
     ipcMain.handle("add-etiqueta", (_, item) => {
-        if (!checkPermission("categorias_gestionar")) {
-            return { success: false, error: "No autorizado." };
+        if (!checkPermission("etiquetas_crear")) {
+            return { success: false, error: "No autorizado para crear etiquetas." };
         }
         const transaction = db.transaction((data) => {
             const id = uuidv4()
@@ -59,8 +59,8 @@ export const registerEtiquetaHandlers = () => {
     })
 
     ipcMain.handle("update-etiqueta", (_, item) => {
-        if (!checkPermission("categorias_gestionar")) {
-            return { success: false, error: "No autorizado." };
+        if (!checkPermission("etiquetas_editar")) {
+            return { success: false, error: "No autorizado para modificar etiquetas." };
         }
         const transaction = db.transaction((data) => {
             db.prepare(`UPDATE etiqueta SET nombre = @nombre, descripcion = @descripcion, color = @color WHERE id = @id`).run(data)
@@ -84,8 +84,8 @@ export const registerEtiquetaHandlers = () => {
     })
 
     ipcMain.handle("delete-etiqueta", (_, id) => {
-        if (!checkPermission("categorias_gestionar")) {
-            return { success: false, error: "No autorizado." }
+        if (!checkPermission("etiquetas_eliminar")) {
+            return { success: false, error: "No autorizado para eliminar etiquetas." }
         }
         try {
             const stmt = db.prepare("UPDATE etiqueta SET status = 0 WHERE id = ?")

@@ -13,7 +13,7 @@ const checkPermission = (permission) => {
 export const registerSubcategoriaHandlers = () => {
 
     ipcMain.handle("get-subcategorias", () => {
-        if (!checkPermission("productos_ver") && !checkPermission("categorias_gestionar")) return [];
+        if (!checkPermission("subcategorias_ver") && !checkPermission("productos_ver")) return [];
         try {
             const stmt = db.prepare(`
                 SELECT s.*, 
@@ -34,8 +34,8 @@ export const registerSubcategoriaHandlers = () => {
     })
 
     ipcMain.handle("add-subcategoria", (_, item) => {
-        if (!checkPermission("categorias_gestionar")) {
-            return { success: false, error: "No autorizado para registrar taxonomías." };
+        if (!checkPermission("subcategorias_crear")) {
+            return { success: false, error: "No autorizado para registrar nuevas subcategorías." };
         }
         const transaction = db.transaction((data) => {
             const id = uuidv4()
@@ -66,8 +66,8 @@ export const registerSubcategoriaHandlers = () => {
     })
 
     ipcMain.handle("update-subcategoria", (_, item) => {
-        if (!checkPermission("categorias_gestionar")) {
-            return { success: false, error: "No autorizado para modificar taxonomías." };
+        if (!checkPermission("subcategorias_editar")) {
+            return { success: false, error: "No autorizado para modificar subcategorías." };
         }
         const transaction = db.transaction((data) => {
             const legacyCategoriaId = data.categorias_ids && data.categorias_ids.length > 0 ? data.categorias_ids[0] : 'general'
@@ -101,8 +101,8 @@ export const registerSubcategoriaHandlers = () => {
     })
 
     ipcMain.handle("delete-subcategoria", (_, id) => {
-        if (!checkPermission("categorias_gestionar")) {
-            return { success: false, error: "No autorizado para eliminar taxonomías." };
+        if (!checkPermission("subcategorias_eliminar")) {
+            return { success: false, error: "No autorizado para eliminar subcategorías." };
         }
         try {
             const check = db.prepare("SELECT COUNT(*) as count FROM producto WHERE subcategorias_ids_json LIKE '%' || ? || '%' AND status = 1").get(id)

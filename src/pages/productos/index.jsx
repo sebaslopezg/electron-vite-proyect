@@ -16,10 +16,10 @@ export const ProductosIndex = ({ currentUser }) => {
 
     const tabsDisponibles = [
         { id: 'productos', label: 'Productos', permission: 'productos_ver', component: <Productos currentUser={currentUser} /> },
-        { id: 'servicios', label: 'Servicios', permission: 'productos_ver', component: <Servicios currentUser={currentUser} /> },
-        { id: 'categorias', label: 'Categorías', permission: 'categorias_gestionar', component: <Categorias currentUser={currentUser} /> },
-        { id: 'subcategorias', label: 'Subcategorías', permission: 'categorias_gestionar', component: <Subcategorias currentUser={currentUser} /> },
-        { id: 'etiquetas', label: 'Etiquetas', permission: 'categorias_gestionar', component: <Etiquetas currentUser={currentUser} /> }
+        { id: 'servicios', label: 'Servicios', permission: 'servicios_ver', component: <Servicios currentUser={currentUser} /> },
+        { id: 'categorias', label: 'Categorías', permission: 'categorias_ver', component: <Categorias currentUser={currentUser} /> },
+        { id: 'subcategorias', label: 'Subcategorías', permission: 'subcategorias_ver', component: <Subcategorias currentUser={currentUser} /> },
+        { id: 'etiquetas', label: 'Etiquetas', permission: 'etiquetas_ver', component: <Etiquetas currentUser={currentUser} /> }
     ].filter(tab => hasPermission(tab.permission))
 
     useEffect(() => {
@@ -42,7 +42,7 @@ export const ProductosIndex = ({ currentUser }) => {
 
     return <>
         <div className="pagetitle">
-            <h1><i className="bi bi-box-seam me-2"></i>Productos</h1>
+            <h1><i className="bi bi-box-seam me-2"></i>Productos y Servicios</h1>
         </div>
         <div className="card shadow-sm border-0">
             <div className="card-body">

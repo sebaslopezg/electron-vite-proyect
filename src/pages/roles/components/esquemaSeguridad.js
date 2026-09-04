@@ -100,12 +100,100 @@ export const ESQUEMA_SEGURIDAD = [
                     { 
                         id: 'productos_editar', 
                         label: 'Modificar' 
+                    },
+                    { 
+                        id: 'productos_eliminar', 
+                        label: 'Eliminar' 
                     }
                 ]
             }, 
             { 
-                id: 'categorias_gestionar', 
-                label: 'Administrar taxonomías (Categorías, Subcategorías y Etiquetas)' 
+                id: 'servicios_menu', 
+                label: 'Servicios',
+                permisos_hijos: [
+                    { 
+                        id: 'servicios_ver', 
+                        label: 'Ver' 
+                    },
+                    { 
+                        id: 'servicios_crear', 
+                        label: 'Crear' 
+                    },
+                    { 
+                        id: 'servicios_editar', 
+                        label: 'Modificar' 
+                    },
+                    { 
+                        id: 'servicios_eliminar', 
+                        label: 'Eliminar' 
+                    }
+                ]
+            },
+            { 
+                id: 'categorias_menu', 
+                label: 'Categorías',
+                permisos_hijos: [
+                    { 
+                        id: 'categorias_ver', 
+                        label: 'Ver' 
+                    },
+                    { 
+                        id: 'categorias_crear', 
+                        label: 'Crear' 
+                    },
+                    { 
+                        id: 'categorias_editar', 
+                        label: 'Modificar' 
+                    },
+                    { 
+                        id: 'categorias_eliminar', 
+                        label: 'Eliminar' 
+                    }
+                ]
+            },
+            { 
+                id: 'subcategorias_menu', 
+                label: 'Sub Categorías',
+                permisos_hijos: [
+                    { 
+                        id: 'subcategorias_ver', 
+                        label: 'Ver' 
+                    },
+                    { 
+                        id: 'subcategorias_crear', 
+                        label: 'Crear' 
+                    },
+                    { 
+                        id: 'subcategorias_editar', 
+                        label: 'Modificar' 
+                    },
+                    { 
+                        id: 'subcategorias_eliminar', 
+                        label: 'Eliminar' 
+                    }
+                ]
+            },
+            { 
+                id: 'etiquetas_menu', 
+                label: 'Etiquetas',
+                permisos_hijos: [
+                    { 
+                        id: 'etiquetas_ver', 
+                        label: 'Ver' 
+                    },
+                    { 
+                        id: 'etiquetas_crear', 
+                        label: 'Crear' 
+                    },
+                    { 
+                        id: 'etiquetas_editar', 
+                        label: 'Modificar' 
+                    },
+                    { 
+                        id: 'etiquetas_eliminar', 
+                        label: 'Eliminar' 
+                    }
+                ]
             }
         ] 
     },

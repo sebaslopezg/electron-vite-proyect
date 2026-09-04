@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import CategoriaModal from './components/CategoriaModal'
@@ -17,9 +17,12 @@ const Toast = Swal.mixin({
     }
 })
 
-export const Categorias = () => {
+export const Categorias = ({ currentUser }) => {
     const [show, setShow] = useState(false)
     const [showDetalles, setShowDetalles] = useState(false)
+
+    // Estado local para garantizar la persistencia de sesión
+    const [activeUser, setActiveUser] = useState(currentUser)
 
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
@@ -35,6 +38,31 @@ export const Categorias = () => {
     const [editingId, setEditingId] = useState(null)
     const [catSel, setCatSel] = useState(null)
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+
+    // Garantizamos la carga de la sesión
+    useEffect(() => {
+        if (currentUser) {
+            setActiveUser(currentUser)
+        } else if (window.api && window.api.getCurrentUser) {
+            window.api.getCurrentUser().then(res => {
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            })
+        }
+    }, [currentUser])
+
+    // Validador de permisos dinámico
+    const hasPermission = (permissionKey) => {
+        const u = activeUser || currentUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
+    }
+
+    const canCreate = hasPermission('categorias_crear');
+    const canEditAction = hasPermission('categorias_editar');
+    const canDeleteAction = hasPermission('categorias_eliminar');
 
     const loadConfig = async () => {
         const configData = await productosService.getConfiguracion()
@@ -146,7 +174,7 @@ export const Categorias = () => {
             }
 
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn) {
+            if (delBtn && !delBtn.classList.contains('disabled')) {
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }
@@ -156,86 +184,105 @@ export const Categorias = () => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [])
 
+    const dataColumns = useMemo(() => [
+        { 
+            data: 'nombre', 
+            title: 'Categoría' 
+        },
+        { 
+            data: 'sku_prefix', 
+            title: 'Prefijo SKU',
+            render: (data, type, row) => data ? `<code>${data}${row.separador || ''}</code>` : '<span class="text-muted">-</span>'
+        },
+        { 
+            data: 'descripcion', 
+            title: 'Descripción',
+            render: (data) => data || '<span class="text-muted">-</span>'
+        },
+        { 
+            data: 'cant_productos', 
+            title: 'Productos Asociados',
+            className: 'text-center',
+            render: (data, type, row) => {
+                const safeData = encodeURIComponent(JSON.stringify(row));
+                return `
+                    <button class="btn btn-sm btn-outline-secondary btn-view rounded-pill px-3 fw-bold" data-alldata="${safeData}" title="Ver Lista de Productos">
+                        ${data || 0}
+                    </button>
+                `;
+            }
+        },
+        {
+            data: null,
+            title: 'Acciones',
+            orderable: false,
+            className: 'text-center',
+            render: function (data, type, row) {
+                const isGeneral = row.id === 'general';
+                const safeData = encodeURIComponent(JSON.stringify(row));
+                
+                let menuItems = `
+                  <li>
+                    <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
+                      <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                    </a>
+                  </li>
+                `;
+
+                if (canEditAction) {
+                  menuItems += `
+                    <li>
+                      <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                        <i class="bi bi-pencil me-2 text-secondary"></i> Editar
+                      </a>
+                    </li>
+                  `;
+                }
+
+                if (canDeleteAction) {
+                  if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+                  menuItems += `
+                    <li>
+                      <a class="dropdown-item btn-delete text-danger ${isGeneral ? 'disabled' : ''}" href="#" data-id="${row.id}">
+                        <i class="bi bi-trash3 me-2"></i> Eliminar
+                      </a>
+                    </li>
+                  `;
+                }
+
+                return `
+                    <div class="dropdown">
+                      <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                        <i class="bi bi-three-dots-vertical"></i>
+                      </button>
+                      <ul class="dropdown-menu shadow-sm">
+                        ${menuItems}
+                      </ul>
+                    </div>
+                `;
+            }
+        }
+    ], [appConfig, activeUser, currentUser])
+
     return <>
-        <div className="mb-3">
-            <button className='btn btn-primary' onClick={() => {
-                setEditingId(null)
-                cleanForm()
-                handleShow()
-            }}>
-                <i className="bi bi-plus-circle me-2"></i>Nueva Categoría
-            </button>
-        </div>
+        {canCreate && (
+            <div className="mb-3">
+                <button className='btn btn-primary' onClick={() => {
+                    setEditingId(null)
+                    cleanForm()
+                    handleShow()
+                }}>
+                    <i className="bi bi-plus-circle me-2"></i>Nueva Categoría
+                </button>
+            </div>
+        )}
 
         <div ref={tableContainerRef} className="w-100">
             <CustomDataTable
                 tableId="dt-productos-categorias"
                 reloadKey={reloadTable}
                 data={dataInTable}
-                columns={[
-                    { 
-                        data: 'nombre', 
-                        title: 'Categoría' 
-                    },
-                    { 
-                        data: 'sku_prefix', 
-                        title: 'Prefijo SKU',
-                        render: (data, type, row) => data ? `<code>${data}${row.separador || ''}</code>` : '<span class="text-muted">-</span>'
-                    },
-                    { 
-                        data: 'descripcion', 
-                        title: 'Descripción',
-                        render: (data) => data || '<span class="text-muted">-</span>'
-                    },
-                    { 
-                        data: 'cant_productos', 
-                        title: 'Productos Asociados',
-                        className: 'text-center',
-                        render: (data, type, row) => {
-                            const safeData = encodeURIComponent(JSON.stringify(row));
-                            return `
-                                <button class="btn btn-sm btn-outline-secondary btn-view rounded-pill px-3 fw-bold" data-alldata="${safeData}" title="Ver Lista de Productos">
-                                    ${data || 0}
-                                </button>
-                            `;
-                        }
-                    },
-                    {
-                        data: null,
-                        title: 'Acciones',
-                        orderable: false,
-                        className: 'text-center',
-                        render: function (data, type, row) {
-                            const isGeneral = row.id === 'general';
-                            const safeData = encodeURIComponent(JSON.stringify(row));
-                            return `
-                                <div class="dropdown">
-                                  <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
-                                    <i class="bi bi-three-dots-vertical"></i>
-                                  </button>
-                                  <ul class="dropdown-menu shadow-sm">
-                                    <li>
-                                      <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
-                                        <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
-                                      </a>
-                                    </li>
-                                    <li>
-                                      <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                        <i class="bi bi-pencil me-2 text-secondary"></i> Editar
-                                      </a>
-                                    </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                      <a class="dropdown-item btn-delete text-danger ${isGeneral ? 'disabled' : ''}" href="#" data-id="${row.id}">
-                                        <i class="bi bi-trash3 me-2"></i> Eliminar
-                                      </a>
-                                    </li>
-                                  </ul>
-                                </div>
-                            `;
-                        }
-                    }
-                ]}
+                columns={dataColumns}
             />
         </div>
 

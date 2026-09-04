@@ -13,7 +13,7 @@ const checkPermission = (permission) => {
 export const registerCategoriaHandlers = () => {
 
     ipcMain.handle("get-categorias", () => {
-        if (!checkPermission("productos_ver") && !checkPermission("categorias_gestionar") && !checkPermission("ventas_crear")) return []
+        if (!checkPermission("categorias_ver") && !checkPermission("productos_ver") && !checkPermission("servicios_ver") && !checkPermission("ventas_crear")) return []
         try {
             const stmt = db.prepare(`
                 SELECT c.*, 
@@ -29,7 +29,7 @@ export const registerCategoriaHandlers = () => {
     })
 
     ipcMain.handle("add-categoria", (_, item) => {
-        if (!checkPermission("categorias_gestionar")) {
+        if (!checkPermission("categorias_crear")) {
             return { success: false, error: "No autorizado para agregar categorías estructurales." };
         }
         try {
@@ -48,7 +48,7 @@ export const registerCategoriaHandlers = () => {
     })
 
     ipcMain.handle("update-categoria", (_, item) => {
-        if (!checkPermission("categorias_gestionar")) {
+        if (!checkPermission("categorias_editar")) {
             return { success: false, error: "No autorizado para alterar esquemas de categorías." };
         }
         try {
@@ -67,7 +67,7 @@ export const registerCategoriaHandlers = () => {
     })
 
     ipcMain.handle("delete-categoria", (_, id) => {
-        if (!checkPermission("categorias_gestionar")) {
+        if (!checkPermission("categorias_eliminar")) {
             return { success: false, error: "No autorizado." }
         }
         try {
@@ -90,6 +90,7 @@ export const registerCategoriaHandlers = () => {
     })
 
     ipcMain.handle("get-productos-por-categoria", (_, categoriaId) => {
+        if (!checkPermission("categorias_ver") && !checkPermission("productos_ver")) return []
         try {
             const stmt = db.prepare(`
                 SELECT id, ref_name, sku, precio, stock, min_stock, status, tipo

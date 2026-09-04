@@ -152,7 +152,7 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("get-servicios-paginados", (_, dtParams) => {
-    if (!checkPermission("productos_ver")) {
+    if (!checkPermission("servicios_ver")) {
         return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" };
     }
     try {
@@ -209,7 +209,7 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("get-servicios", () => {
-    if (!checkPermission("productos_ver")) return [];
+    if (!checkPermission("servicios_ver")) return [];
     try {
       const stmt = db.prepare(`SELECT * FROM producto WHERE status > 0 AND tipo = 'servicio'`)
       return stmt.all()
@@ -220,7 +220,7 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("get-allProductos", () => {
-    if (!checkPermission("productos_ver") && !checkPermission("ventas_crear")) return [];
+    if (!checkPermission("productos_ver") && !checkPermission("servicios_ver") && !checkPermission("ventas_crear")) return [];
     try {
       const stmt = db.prepare(`
         SELECT p.*, c.sku_prefix as cat_prefix, c.separador as cat_separador
@@ -237,9 +237,14 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("add-producto", (_, item) => {
-    if (!checkPermission("productos_crear")) {
-        return { success: false, error: "No tienes los permisos requeridos para registrar nuevos ítems en el catálogo." };
+    const tipoItem = item.tipo || 'producto';
+
+    if (tipoItem === 'servicio' && !checkPermission("servicios_crear")) {
+        return { success: false, error: "No tienes permisos para crear servicios." };
+    } else if (tipoItem === 'producto' && !checkPermission("productos_crear")) {
+        return { success: false, error: "No tienes permisos para crear productos." };
     }
+
     const transaction = db.transaction((data) => {
       const id = uuidv4()
       const now = new Date().toISOString()
@@ -298,15 +303,20 @@ export const registerProductoHandlers = () => {
       logger.success('PRODUCTOS', `Nuevo ${item.tipo || 'producto'} creado: ${item.ref_name}`)
       return { success: true, id }
     } catch (error) {
-      logger.error('PRODUCTOS', `Error al intentar crear el producto: ${item.ref_name}`, error)
+      logger.error('PRODUCTOS', `Error al intentar crear el producto/servicio: ${item.ref_name}`, error)
       return { success: false, error: error.message }
     }
   })
 
   ipcMain.handle("update-producto", (_, item) => {
-    if (!checkPermission("productos_editar")) {
-        return { success: false, error: "No tienes los permisos requeridos para actualizar registros de este catálogo." };
+    const tipoItem = item.tipo || 'producto';
+
+    if (tipoItem === 'servicio' && !checkPermission("servicios_editar")) {
+        return { success: false, error: "No tienes permisos para modificar servicios." };
+    } else if (tipoItem === 'producto' && !checkPermission("productos_editar")) {
+        return { success: false, error: "No tienes permisos para modificar productos." };
     }
+
     const transaction = db.transaction((data) => {
       const now = new Date().toISOString()
       const status = data.status > 0 && data.status <= 2 ? data.status : 1
@@ -344,19 +354,25 @@ export const registerProductoHandlers = () => {
 
     try {
       transaction(item)
-      logger.success('PRODUCTOS', `Producto actualizado: ${item.ref_name}`)
+      logger.success('PRODUCTOS', `Registro actualizado: ${item.ref_name}`)
       return { success: true }
     } catch (error) {
-      logger.error('PRODUCTOS', `Error al intentar actualizar el producto (ID: ${item.id})`, error)
+      logger.error('PRODUCTOS', `Error al intentar actualizar el registro (ID: ${item.id})`, error)
       return { success: false, error: error.message }
     }
   })
 
   ipcMain.handle("delete-producto", (_, item) => {
-    if (!checkPermission("productos_editar")) {
-        return { success: false, error: "No tienes los privilegios requeridos para eliminar registros del inventario." };
-    }
     try {
+      const prodData = db.prepare("SELECT tipo FROM producto WHERE id = ?").get(item);
+      if (!prodData) return { success: false, error: "Registro no encontrado en la base de datos." };
+
+      if (prodData.tipo === 'servicio' && !checkPermission("servicios_eliminar")) {
+          return { success: false, error: "No tienes los privilegios requeridos para eliminar servicios." };
+      } else if (prodData.tipo === 'producto' && !checkPermission("productos_eliminar")) {
+          return { success: false, error: "No tienes los privilegios requeridos para eliminar productos." };
+      }
+
       const now = new Date().toISOString()
       const user = global.currentUserSession?.username || 'system'
       const info = db.prepare(`
@@ -365,7 +381,7 @@ export const registerProductoHandlers = () => {
 
       return { success: true, changes: info.changes }
     } catch (error) {
-      logger.error('PRODUCTOS', `Error al intentar eliminar el producto (ID: ${item})`, error)
+      logger.error('PRODUCTOS', `Error al intentar eliminar el registro (ID: ${item})`, error)
       return { success: false, error: error.message }
     }
   })
