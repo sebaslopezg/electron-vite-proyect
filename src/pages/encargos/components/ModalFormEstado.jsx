@@ -31,7 +31,7 @@ export const ModalFormEstado = ({
     updatePermiso,
     removeAsignacion
 }) => {
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>{editingId ? 'Editar Estado' : 'Nuevo Estado'}</Modal.Title>
@@ -228,5 +228,5 @@ export const ModalFormEstado = ({
                 </Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

@@ -12,6 +12,9 @@ import { ProductoDetalles } from '../productos/components/ProductoDetalles'
 import { inventarioService } from '../../services/inventarioService'
 
 export const Inventario = ({ currentUser }) => {
+    // Estado local para garantizar que siempre tengamos la sesión cargada
+    const [activeUser, setActiveUser] = useState(currentUser)
+
     const [show, setShow] = useState(false)
     const [showDetalles, setShowDetalles] = useState(false)
     const [selectedProduct, setSelectedProduct] = useState(null)
@@ -48,11 +51,28 @@ export const Inventario = ({ currentUser }) => {
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
+    // Garantizamos la carga de la sesión
+    useEffect(() => {
+        if (currentUser) {
+            setActiveUser(currentUser)
+        } else if (window.api && window.api.getCurrentUser) {
+            window.api.getCurrentUser().then(res => {
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            })
+        }
+    }, [currentUser])
+
     const hasPermission = (permissionKey) => {
-        if (!currentUser) return false
-        if (currentUser.permisos?.includes('ALL')) return true
-        return currentUser.permisos?.includes(permissionKey)
+        const u = activeUser || currentUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
     }
+
+    const canIncrease = hasPermission('inventario_incrementar');
+    const canDecrease = hasPermission('inventario_decrementar');
 
     const loadConfig = async () => {
         const configData = await inventarioService.getConfiguracion()
@@ -352,24 +372,31 @@ export const Inventario = ({ currentUser }) => {
                                 data: null, title: 'Acciones', orderable: false, className: 'text-center',
                                 render: function (data, type, row) {
                                     const safeData = encodeURIComponent(JSON.stringify(row));
-                                    const canAdjust = hasPermission('inventario_ajustar');
                                     
                                     let menuItems = '';
                                     
-                                    if (canAdjust) {
+                                    if (canIncrease) {
                                         menuItems += `
                                             <li>
                                                 <a class="dropdown-item btn-increase" href="#" data-alldata="${safeData}">
                                                     <i class="bi bi-plus-lg me-2 text-success"></i> Aumentar Stock
                                                 </a>
                                             </li>
+                                        `;
+                                    }
+                                    
+                                    if (canDecrease) {
+                                        menuItems += `
                                             <li>
                                                 <a class="dropdown-item btn-decrease" href="#" data-alldata="${safeData}">
                                                     <i class="bi bi-dash-lg me-2 text-warning"></i> Disminuir Stock
                                                 </a>
                                             </li>
-                                            <li><hr class="dropdown-divider"></li>
                                         `;
+                                    }
+
+                                    if (canIncrease || canDecrease) {
+                                        menuItems += `<li><hr class="dropdown-divider"></li>`;
                                     }
                                     
                                     menuItems += `

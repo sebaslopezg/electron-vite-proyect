@@ -5,7 +5,6 @@ import {
     Col, 
     Form, 
     FormGroup, 
-    Modal, 
     Row,
     InputGroup,
     Table
@@ -24,7 +23,8 @@ const safeParse = (str) => {
     }
 }
 
-export const Estados = () => {
+export const Estados = ({ currentUser }) => {
+    const [activeUser, setActiveUser] = useState(currentUser)
     const [show, setShow] = useState(false)
     const [reloadTable, setReloadTable] = useState(0)
     
@@ -58,6 +58,29 @@ export const Estados = () => {
 
     const [editingId, setEditingId] = useState(null)
 
+    useEffect(() => {
+        if (currentUser) {
+            setActiveUser(currentUser)
+        } else if (window.api && window.api.getCurrentUser) {
+            window.api.getCurrentUser().then(res => {
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            })
+        }
+    }, [currentUser])
+
+    const hasPermission = (permissionKey) => {
+        const u = activeUser || currentUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
+    }
+
+    const canCreate = hasPermission('estados_crear');
+    const canEditAction = hasPermission('estados_editar');
+    const canDeleteAction = hasPermission('estados_eliminar');
+
     const loadData = async () => {
         const data = await encargosService.getEstados()
         setItems(Array.isArray(data) ? data : [])
@@ -71,38 +94,25 @@ export const Estados = () => {
         } catch (error) {}
 
         try {
-            if (window.api.getUsuarios) {
-                const usersResponse = await window.api.getUsuarios()
-                let arrUsers = []
-                if (Array.isArray(usersResponse)) arrUsers = usersResponse
-                else if (usersResponse && typeof usersResponse === 'object') {
-                    arrUsers = usersResponse.data || usersResponse.usuarios || Object.values(usersResponse)
-                }
-                if (Array.isArray(arrUsers)) {
-                    setUsuariosDB(arrUsers);
-                    setUsuariosForBuscador(arrUsers.map(u => ({
-                        id: u.username || u.usuario || u.nombre_completo || u.id,
-                        nombre: u.nombre_completo || u.nombre || u.username
-                    })))
-                }
+            const arrUsers = await encargosService.getUsuariosAsignacion();
+            if (Array.isArray(arrUsers)) {
+                setUsuariosDB(arrUsers);
+                setUsuariosForBuscador(arrUsers.map(u => ({
+                    id: String(u.username || u.usuario || u.nombre_completo || u.id || ''),
+                    nombre: String(u.nombre_completo || u.nombre || u.username || 'Usuario sin nombre')
+                })));
             }
-            if (window.api.getRoles) {
-                const rolesResponse = await window.api.getRoles()
-                let arrRoles = []
-                if (Array.isArray(rolesResponse)) arrRoles = rolesResponse
-                else if (rolesResponse && typeof rolesResponse === 'object') {
-                    arrRoles = rolesResponse.data || rolesResponse.roles || Object.values(rolesResponse)
-                }
-                if (Array.isArray(arrRoles)) {
-                    setRolesDB(arrRoles)
-                    setRolesForBuscador(arrRoles.map(r => ({
-                        id: r.nombre,
-                        nombre: r.nombre
-                    })))
-                }
+
+            const arrRoles = await encargosService.getRolesAsignacion();
+            if (Array.isArray(arrRoles)) {
+                setRolesDB(arrRoles);
+                setRolesForBuscador(arrRoles.map(r => ({
+                    id: String(r.nombre || ''),
+                    nombre: String(r.nombre || 'Rol sin nombre')
+                })));
             }
         } catch (e) { 
-            console.error("No se pudieron cargar catálogos", e) 
+            console.error("No se pudieron cargar catálogos de asignación", e) 
         }
 
         setReloadTable(prev => prev + 1)
@@ -130,7 +140,7 @@ export const Estados = () => {
 
     const isUserValid = useMemo(() => {
         if (!newUserItem) return false
-        const search = newUserItem.trim().toLowerCase()
+        const search = String(newUserItem).trim().toLowerCase()
         return usuariosDB.some(u => 
             (u.nombre_completo || u.nombre || '').toLowerCase() === search || 
             (u.username || u.usuario || '').toLowerCase() === search
@@ -139,14 +149,14 @@ export const Estados = () => {
 
     const isRoleValid = useMemo(() => {
         if (!newRoleItem) return false
-        const search = newRoleItem.trim().toLowerCase()
+        const search = String(newRoleItem).trim().toLowerCase()
         return rolesDB.some(r => (r.nombre || '').toLowerCase() === search)
     }, [newRoleItem, rolesDB])
 
 
     const handleAddAsignacion = (tipo) => {
         if (tipo === 'usuario' && isUserValid) {
-            const search = newUserItem.trim().toLowerCase()
+            const search = String(newUserItem).trim().toLowerCase()
             const userObj = usuariosDB.find(u => 
                 (u.nombre_completo || u.nombre || '').toLowerCase() === search || 
                 (u.username || u.usuario || '').toLowerCase() === search
@@ -154,7 +164,7 @@ export const Estados = () => {
             
             if (!userObj) return
 
-            const nameToSave = userObj.nombre_completo || userObj.nombre || userObj.username
+            const nameToSave = userObj.nombre_completo || userObj.nombre || userObj.username || 'Usuario Desconocido'
 
             if (asignacionesUsuarios.some(u => u.nombre.toLowerCase() === nameToSave.toLowerCase())) {
                 return Swal.fire('Aviso', 'Este usuario ya está en la lista', 'info')
@@ -169,17 +179,19 @@ export const Estados = () => {
             setNewUserItem('')
 
         } else if (tipo === 'rol' && isRoleValid) {
-            const search = newRoleItem.trim().toLowerCase()
+            const search = String(newRoleItem).trim().toLowerCase()
             const rolObj = rolesDB.find(r => (r.nombre || '').toLowerCase() === search)
             
             if (!rolObj) return
 
-            if (asignacionesRoles.some(r => r.nombre.toLowerCase() === rolObj.nombre.toLowerCase())) {
+            const roleName = rolObj.nombre || 'Rol Desconocido'
+
+            if (asignacionesRoles.some(r => r.nombre.toLowerCase() === roleName.toLowerCase())) {
                 return Swal.fire('Aviso', 'Este rol ya está en la lista', 'info')
             }
             
             setAsignacionesRoles([...asignacionesRoles, {
-                nombre: rolObj.nombre,
+                nombre: roleName,
                 can_assign: true,
                 can_modify: true
             }])
@@ -301,101 +313,120 @@ export const Estados = () => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [])
 
+    const dataColumns = useMemo(() => [
+        {
+            data: 'titulo',
+            title: 'Título',
+            render: (data, type, row) => {
+                let textColor = '#ffffff'
+                if (row.color) {
+                    const hex = row.color.replace('#', '')
+                    const r = parseInt(hex.substr(0, 2), 16)
+                    const g = parseInt(hex.substr(2, 2), 16)
+                    const b = parseInt(hex.substr(4, 2), 16)
+                    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+                    textColor = (yiq >= 128) ? '#000000' : '#ffffff'
+                }
+                
+                const iconClass = row.icon_data && row.icon_data.startsWith('bi-') 
+                    ? `bi ${row.icon_data}` 
+                    : (row.icon_data || 'bi bi-tag-fill')
+
+                return `
+                    <span class="badge" style="background-color: ${row.color || '#6c757d'}; color: ${textColor}; font-size: 13px;">
+                        <i class="${iconClass} me-1"></i> ${data}
+                    </span>
+                `
+            }
+        },
+        { data: 'descripcion', title: 'Descripción' },
+        {
+            data: null,
+            title: 'Accesibilidad',
+            render: (data, type, row) => {
+                if (alcancePolitica === 'usuario' && row.usuario_asignado) {
+                    const arr = safeParse(row.usuario_asignado)
+                    const names = arr.map(u => u.nombre).join(', ')
+                    return `<span title="${names}"> ${arr.length} Usuario(s)</span>`
+                }
+                if (alcancePolitica === 'rol' && row.rol_asignado) {
+                    const arr = safeParse(row.rol_asignado)
+                    const names = arr.map(r => r.nombre).join(', ')
+                    return `<span title="${names}"> ${arr.length} Rol(es)</span>`
+                }
+                return `<span> Global</span>`
+            }
+        },
+        {
+            data: 'allow_calendar',
+            title: 'En calendario',
+            render: (data) => `${Number(data) > 0 ? 'Si' : 'No'}`
+        },
+        {
+            data: null,
+            title: 'Acciones',
+            orderable: false,
+            className: 'text-center',
+            render: function (data, type, row) {
+                const safeData = encodeURIComponent(JSON.stringify(row));
+                let menuItems = '';
+
+                if (canEditAction) {
+                    menuItems += `
+                        <li>
+                            <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                <i class="bi bi-pencil me-2 text-primary"></i> Editar
+                            </a>
+                        </li>
+                    `;
+                }
+
+                if (canDeleteAction) {
+                    if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+                    menuItems += `
+                        <li>
+                            <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
+                                <i class="bi bi-trash3 me-2"></i> Eliminar
+                            </button>
+                        </li>
+                    `;
+                }
+
+                if (!menuItems) return '<span class="text-muted small">Sin acciones</span>';
+
+                return `
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu shadow-sm">
+                            ${menuItems}
+                        </ul>
+                    </div>
+                `
+            }
+        }
+    ], [alcancePolitica, activeUser, currentUser])
+
     return <>
-        <div className="mb-3">
-            <button className='btn btn-primary' onClick={() => {
-                setEditingId(null)
-                cleanForm()
-                handleShow()
-            }}>
-                Nuevo Estado
-            </button>
-        </div>
+        {canCreate && (
+            <div className="mb-3">
+                <button className='btn btn-primary' onClick={() => {
+                    setEditingId(null)
+                    cleanForm()
+                    handleShow()
+                }}>
+                    Nuevo Estado
+                </button>
+            </div>
+        )}
 
         <div ref={tableContainerRef} className="w-100 overflow-visible">
             <CustomDataTable
                 tableId="dt-encargos-estados"
                 reloadKey={reloadTable}
                 data={dataInTable}
-                columns={[
-                    {
-                        data: 'titulo',
-                        title: 'Título',
-                        render: (data, type, row) => {
-                            let textColor = '#ffffff'
-                            if (row.color) {
-                                const hex = row.color.replace('#', '')
-                                const r = parseInt(hex.substr(0, 2), 16)
-                                const g = parseInt(hex.substr(2, 2), 16)
-                                const b = parseInt(hex.substr(4, 2), 16)
-                                const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
-                                textColor = (yiq >= 128) ? '#000000' : '#ffffff'
-                            }
-                            
-                            const iconClass = row.icon_data && row.icon_data.startsWith('bi-') 
-                                ? `bi ${row.icon_data}` 
-                                : (row.icon_data || 'bi bi-tag-fill')
-
-                            return `
-                                <span class="badge" style="background-color: ${row.color || '#6c757d'}; color: ${textColor}; font-size: 13px;">
-                                    <i class="${iconClass} me-1"></i> ${data}
-                                </span>
-                            `
-                        }
-                    },
-                    { data: 'descripcion', title: 'Descripción' },
-                    {
-                        data: null,
-                        title: 'Accesibilidad',
-                        render: (data, type, row) => {
-                            if (alcancePolitica === 'usuario' && row.usuario_asignado) {
-                                const arr = safeParse(row.usuario_asignado)
-                                const names = arr.map(u => u.nombre).join(', ')
-                                return `<span title="${names}"> ${arr.length} Usuario(s)</span>`
-                            }
-                            if (alcancePolitica === 'rol' && row.rol_asignado) {
-                                const arr = safeParse(row.rol_asignado)
-                                const names = arr.map(r => r.nombre).join(', ')
-                                return `<span title="${names}"> ${arr.length} Rol(es)</span>`
-                            }
-                            return `<span> Global</span>`
-                        }
-                    },
-                    {
-                        data: 'allow_calendar',
-                        title: 'En calendario',
-                        render: (data) => `${Number(data) > 0 ? 'Si' : 'No'}`
-                    },
-                    {
-                        data: null,
-                        title: 'Acciones',
-                        orderable: false,
-                        className: 'text-center',
-                        render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row))
-                            return `
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu shadow-sm">
-                                        <li>
-                                            <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                                <i class="bi bi-pencil me-2 text-primary"></i> Editar
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
-                                                <i class="bi bi-trash3 me-2"></i> Eliminar
-                                            </button>
-                                        </li>
-                                    </ul>
-                                </div>
-                            `
-                        }
-                    }
-                ]}
+                columns={dataColumns}
             />
         </div>
 

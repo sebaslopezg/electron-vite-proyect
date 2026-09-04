@@ -20,7 +20,7 @@ const Toast = Swal.mixin({
     timerProgressBar: true
 })
 
-export const Encargos = () => {
+export const Encargos = ({ currentUser: initialUser }) => {
     const [searchParams, setSearchParams] = useSearchParams()
 
     const [show, setShow] = useState(false)
@@ -36,6 +36,32 @@ export const Encargos = () => {
     const [showPreview, setShowPreview] = useState(false)
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+
+    // Manejo robusto de la sesión
+    const [currentUser, setCurrentUser] = useState(initialUser)
+
+    useEffect(() => {
+        if (initialUser) {
+            setCurrentUser(initialUser)
+        } else if (window.api && window.api.getCurrentUser) {
+            window.api.getCurrentUser().then(res => {
+                if (res.success && res.data) {
+                    setCurrentUser(res.data)
+                }
+            })
+        }
+    }, [initialUser])
+
+    const hasPermission = (permissionKey) => {
+        const u = currentUser || initialUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
+    }
+
+    const canCreate = hasPermission('encargos_crear');
+    const canEditAction = hasPermission('encargos_editar');
+    const canDeleteAction = hasPermission('encargos_eliminar');
 
     const handleClose = () => setShow(false) || setShowInfo(false)
     const handleShow = () => setShow(true)
@@ -68,7 +94,6 @@ export const Encargos = () => {
     const [encargoSel, setEncargoSel] = useState([])
     const [historialEncargo, setHistorialEncargo] = useState([])
 
-    const [currentUser, setCurrentUser] = useState(null)
     const [alcancePolitica, setAlcancePolitica] = useState('global')
 
     const [busquedaFactura, setBusquedaFactura] = useState('')
@@ -96,9 +121,6 @@ export const Encargos = () => {
         setDataInTable(data)
 
         try {
-            const userRes = await window.api.getCurrentUser()
-            if (userRes?.success) setCurrentUser(userRes.data)
-
             const settings = await window.api.getEncargosSettings()
             if (settings && settings.alcance_estados) {
                 setAlcancePolitica(settings.alcance_estados)
@@ -311,7 +333,6 @@ export const Encargos = () => {
                 handleShowInfo()
             }
 
-            // Capturamos el clic del nuevo botón del historial
             const historyBtn = e.target.closest('.btn-history')
             if (historyBtn) {
                 e.preventDefault()
@@ -382,11 +403,13 @@ export const Encargos = () => {
     }
 
     return <>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-            <Button variant="primary" onClick={() => { cleanForm(); setEditingId(null); handleShow(); }}>
-                <i className="bi bi-plus-circle me-2"></i>Nuevo Encargo
-            </Button>
-        </div>
+        {canCreate && (
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <Button variant="primary" onClick={() => { cleanForm(); setEditingId(null); handleShow(); }}>
+                    <i className="bi bi-plus-circle me-2"></i>Nuevo Encargo
+                </Button>
+            </div>
+        )}
 
         <div ref={tableContainerRef} className="w-100" style={{ overflow: 'visible' }}>
             <DataTableComponent
@@ -438,9 +461,11 @@ export const Encargos = () => {
                                 const formattedDate = formatToLocalString(row.fecha_entrega);
                                 return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`;
                             } else {
-                                return `<button class="btn btn-sm btn-primary btn-edit" data-id="${row.id}" data-alldata="${safeData}">
-                                            Agendar
-                                        </button>`;
+                                if (canEditAction) {
+                                    return `<button class="btn btn-sm btn-primary btn-edit" data-id="${row.id}" data-alldata="${safeData}">Agendar</button>`;
+                                } else {
+                                    return `<span class="badge bg-secondary">Sin agendar</span>`;
+                                }
                             }
                         }
                     },
@@ -451,33 +476,49 @@ export const Encargos = () => {
                         className: 'text-center',
                         render: function (data, type, row) {
                             const safeData = encodeURIComponent(JSON.stringify(row));
+                            let menuItems = '';
+
+                            if (canEditAction) {
+                                menuItems += `
+                                    <li>
+                                        <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                            <i class="bi bi-pencil me-2 text-primary"></i> Editar Encargo
+                                        </a>
+                                    </li>
+                                `;
+                            }
+
+                            menuItems += `
+                                <li>
+                                    <a class="dropdown-item btn-info" href="#" data-alldata="${safeData}">
+                                        <i class="bi bi-eye me-2 text-info"></i> Ver Detalles
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item btn-history" href="#" data-alldata="${safeData}">
+                                        <i class="bi bi-clock-history me-2 text-secondary"></i> Historial de Estados
+                                    </a>
+                                </li>
+                            `;
+
+                            if (canDeleteAction) {
+                                menuItems += `
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
+                                            <i class="bi bi-trash3 me-2"></i> Eliminar
+                                        </button>
+                                    </li>
+                                `;
+                            }
+
                             return `
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
                                         <i class="bi bi-three-dots-vertical"></i>
                                     </button>
                                     <ul class="dropdown-menu shadow-sm">
-                                        <li>
-                                            <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                                <i class="bi bi-pencil me-2 text-primary"></i> Editar Encargo
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item btn-info" href="#" data-alldata="${safeData}">
-                                                <i class="bi bi-eye me-2 text-info"></i> Ver Detalles
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item btn-history" href="#" data-alldata="${safeData}">
-                                                <i class="bi bi-clock-history me-2 text-secondary"></i> Historial de Estados
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
-                                                <i class="bi bi-trash3 me-2"></i> Eliminar
-                                            </button>
-                                        </li>
+                                        ${menuItems}
                                     </ul>
                                 </div>
                             `

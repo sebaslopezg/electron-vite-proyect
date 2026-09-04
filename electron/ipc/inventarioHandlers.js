@@ -13,7 +13,7 @@ const checkPermission = (permission) => {
 export const registerInventarioHandler = () => {
 
     ipcMain.handle("get-inventario", () => {
-        if (!checkPermission("inventario_ajustar") && !checkPermission("productos_ver")) {
+        if (!checkPermission("inventario_ver") && !checkPermission("productos_ver")) {
             return [];
         }
         try {
@@ -36,7 +36,7 @@ export const registerInventarioHandler = () => {
     })
 
     ipcMain.handle("get-inventario-paginados", (_, dtParams) => {
-        if (!checkPermission("inventario_ajustar") && !checkPermission("productos_ver")) {
+        if (!checkPermission("inventario_ver") && !checkPermission("productos_ver")) {
             return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], totalStock: 0 };
         }
         try {
@@ -118,8 +118,11 @@ export const registerInventarioHandler = () => {
     })
 
     ipcMain.handle("set-inventario", (_, item) => {
-        if (!checkPermission("inventario_ajustar")) {
-            return { success: false, error: "No tienes los permisos de rol requeridos para alterar existencias físicamente." };
+        if (item.type === 'ingreso' && !checkPermission("inventario_incrementar")) {
+            return { success: false, error: "No tienes los permisos de rol requeridos para ingresar existencias físicamente." };
+        }
+        if (item.type === 'egreso' && !checkPermission("inventario_decrementar")) {
+            return { success: false, error: "No tienes los permisos de rol requeridos para retirar existencias físicamente." };
         }
 
         const transaction = db.transaction((item) => {
@@ -204,7 +207,7 @@ export const registerInventarioHandler = () => {
     })
 
     ipcMain.handle("get-inventario-history", (_, productoId) => {
-        if (!checkPermission("inventario_ajustar") && !checkPermission("productos_ver")) return [];
+        if (!checkPermission("inventario_ver") && !checkPermission("productos_ver")) return [];
         try {
             const stmt = db.prepare(`
                 SELECT i.*, p.ref_name, p.sku
@@ -220,7 +223,7 @@ export const registerInventarioHandler = () => {
     })
 
     ipcMain.handle("get-inventario-history-paginados", (_, dtParams) => {
-        if (!checkPermission("inventario_ajustar") && !checkPermission("productos_ver")) {
+        if (!checkPermission("inventario_ver") && !checkPermission("productos_ver")) {
             return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] };
         }
         try {

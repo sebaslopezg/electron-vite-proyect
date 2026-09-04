@@ -3,6 +3,13 @@ import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession;
+    if (!user) return false;
+    if (user.permisos?.includes("ALL")) return true;
+    return user.permisos?.includes(permission);
+}
+
 export const registerEncargosHandlers = () => {
     
     try {
@@ -59,6 +66,7 @@ export const registerEncargosHandlers = () => {
     }
 
     ipcMain.handle("get-encargo-history", (_, encargoId) => {
+        if (!checkPermission("encargos_ver")) return { success: false, error: "No autorizado." };
         try {
             const stmt = db.prepare(`
                 SELECT h.*, 
@@ -88,6 +96,9 @@ export const registerEncargosHandlers = () => {
     })
 
     ipcMain.handle("save-encargos-settings", (_, key, value) => {
+        if (!checkPermission("encargos_config_estados")) {
+            return { success: false, error: "No autorizado para configurar el alcance de estados." };
+        }
         try {
             db.prepare("INSERT OR REPLACE INTO encargos_settings (key, value) VALUES (?, ?)").run(key, value)
             return { success: true }
@@ -106,6 +117,9 @@ export const registerEncargosHandlers = () => {
     })
 
     ipcMain.handle("save-encargos-campos", (_, campos) => {
+        if (!checkPermission("encargos_config_campos")) {
+            return { success: false, error: "No autorizado para modificar campos dinámicos." };
+        }
         try {
             const transaction = db.transaction(() => {
                 db.prepare("DELETE FROM encargos_campos").run()
@@ -124,6 +138,7 @@ export const registerEncargosHandlers = () => {
     })
 
     ipcMain.handle("get-encargos", () => {
+        if (!checkPermission("encargos_ver")) return [];
         try {
             const stmt = db.prepare(`
                 SELECT en.id,
@@ -158,6 +173,9 @@ export const registerEncargosHandlers = () => {
     })
 
     ipcMain.handle("add-encargo", (_, item) => {
+        if (!checkPermission("encargos_crear")) {
+            return { success: false, error: "No autorizado para registrar nuevos encargos." };
+        }
         try {
             const id = uuidv4()
             const now = new Date().toISOString()
@@ -217,6 +235,9 @@ export const registerEncargosHandlers = () => {
     })
 
     ipcMain.handle("update-encargo", (_, item) => {
+        if (!checkPermission("encargos_editar")) {
+            return { success: false, error: "No autorizado para modificar encargos." };
+        }
         try {
             const now = new Date().toISOString()
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
@@ -269,6 +290,9 @@ export const registerEncargosHandlers = () => {
     })
 
     ipcMain.handle("delete-encargo", (_, item) => {
+        if (!checkPermission("encargos_eliminar")) {
+            return { success: false, error: "No autorizado para eliminar encargos." };
+        }
         try {
             const now = new Date().toISOString()
             const stmt = db.prepare(`UPDATE encargos SET status = 0, date_modify = @date_modify, modify_by = @modify_by WHERE id = @id`)

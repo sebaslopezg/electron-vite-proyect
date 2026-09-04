@@ -171,5 +171,27 @@ export const encargosService = {
     saveEncargosCampos: async (payload) => {
         if (isElectron()) return await window.api.saveEncargosCampos(payload)
         return { success: false }
+    },
+
+    getUsuariosAsignacion: async () => {
+        if (isElectron()) {
+            return await window.api.getEstadosUsuarios();
+        } else {
+            try {
+                const response = await api.get('/encargos/estados/usuarios');
+                return response.data.data || response.data || [];
+            } catch (e) { return []; }
+        }
+    },
+
+    getRolesAsignacion: async () => {
+        if (isElectron()) {
+            return await window.api.getEstadosRoles();
+        } else {
+            try {
+                const response = await api.get('/encargos/estados/roles');
+                return response.data.data || response.data || [];
+            } catch (e) { return []; }
+        }
     }
 }

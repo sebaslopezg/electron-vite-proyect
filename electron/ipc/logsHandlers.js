@@ -15,7 +15,7 @@ export const registerLogsHandlers = () => {
     })
 
     ipcMain.handle("clear-system-logs", () => {
-        if (!checkPermission("ver_logs")) return { success: false, error: "No autorizado" }
+        if (!checkPermission("logs_vaciar")) return { success: false, error: "No tienes los permisos requeridos para vaciar el historial de registros del sistema." }
         try {
             db.prepare(`DELETE FROM system_logs`).run()
             logger.warning('SISTEMA', 'La tabla de logs del sistema fue vaciada por un administrador.')

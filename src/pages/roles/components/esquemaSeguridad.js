@@ -19,11 +19,11 @@ export const ESQUEMA_SEGURIDAD = [
                     },
                     { 
                         id: 'ventas_descargar_pdf', 
-                        label: 'Permitir descargar facturas en PDF' 
+                        label: 'Descargar en PDF' 
                     },
                     { 
                         id: 'ventas_descargar_excel', 
-                        label: 'Permitir exportar facturas a Excel' 
+                        label: 'Exportar facturas a Excel' 
                     }
                 ] 
             }, 
@@ -33,15 +33,15 @@ export const ESQUEMA_SEGURIDAD = [
                 permisos_hijos: [
                     { 
                         id: 'reportes_imprimir', 
-                        label: 'Permitir imprimir reportes' 
+                        label: 'Imprimir reportes' 
                     },
                     { 
                         id: 'reportes_descargar_pdf', 
-                        label: 'Permitir descargar PDF' 
+                        label: 'Descargar PDF' 
                     },
                     { 
                         id: 'reportes_descargar_excel', 
-                        label: 'Permitir descargar Excel' 
+                        label: 'Exportar a Excel' 
                     }
                 ]
             }, 
@@ -51,11 +51,11 @@ export const ESQUEMA_SEGURIDAD = [
                 permisos_hijos: [
                     { 
                         id: 'notas_credito_crear', 
-                        label: 'Permitir emitir Notas Crédito (Devoluciones/Anulaciones)' 
+                        label: 'Emitir Notas Crédito' 
                     },
                     { 
                         id: 'notas_debito_crear', 
-                        label: 'Permitir emitir Notas Débito (Cobros adicionales)' 
+                        label: 'Emitir Notas Débito' 
                     }
                 ] 
             }, 
@@ -208,8 +208,12 @@ export const ESQUEMA_SEGURIDAD = [
                 label: 'Ver inventario' 
             }, 
             { 
-                id: 'inventario_ajustar', 
-                label: 'Realizar ajustes manuales directos sobre el stock' 
+                id: 'inventario_incrementar', 
+                label: 'Incrementar Stock' 
+            },
+            { 
+                id: 'inventario_decrementar', 
+                label: 'Decrementar Stock' 
             }
         ] 
     },
@@ -292,12 +296,66 @@ export const ESQUEMA_SEGURIDAD = [
         path: '/encargos', 
         submodulos: [
             { 
-                id: 'encargos_ver', 
-                label: 'Ver encargos' 
-            }, 
+                id: 'encargos_menu', 
+                label: 'Encargos',
+                permisos_hijos: [
+                    { 
+                        id: 'encargos_ver', 
+                        label: 'Ver' 
+                    },
+                    { 
+                        id: 'encargos_crear', 
+                        label: 'Crear' 
+                    },
+                    { 
+                        id: 'encargos_editar', 
+                        label: 'Modificar' 
+                    },
+                    { 
+                        id: 'encargos_eliminar', 
+                        label: 'Eliminar' 
+                    }
+                ]
+            },
+            {
+                id: 'encargos_calendario',
+                label: 'Ver calendario'
+            },
             { 
-                id: 'encargos_gestionar', 
-                label: 'Gestionar encargos' 
+                id: 'estados_menu', 
+                label: 'Estados',
+                permisos_hijos: [
+                    { 
+                        id: 'estados_ver', 
+                        label: 'Ver' 
+                    },
+                    { 
+                        id: 'estados_crear', 
+                        label: 'Crear' 
+                    },
+                    { 
+                        id: 'estados_editar', 
+                        label: 'Modificar' 
+                    },
+                    { 
+                        id: 'estados_eliminar', 
+                        label: 'Eliminar' 
+                    }
+                ]
+            },
+            {
+                id: 'encargos_configuracion',
+                label: 'Configuración',
+                permisos_hijos: [
+                    {
+                        id: 'encargos_config_estados',
+                        label: 'Configurar Estados'
+                    },
+                    {
+                        id: 'encargos_config_campos',
+                        label: 'Editar campos Dinámicos'
+                    }
+                ]
             }
         ] 
     },
@@ -433,7 +491,13 @@ export const ESQUEMA_SEGURIDAD = [
             }, 
             { 
                 id: 'ver_logs', 
-                label: 'Ver logs' 
+                label: 'Ver logs',
+                permisos_hijos: [
+                    {
+                        id: 'logs_vaciar',
+                        label: 'Vaciar logs'
+                    }
+                ]
             }, 
             { 
                 id: 'manejo_datos', 

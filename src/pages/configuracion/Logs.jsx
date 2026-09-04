@@ -4,7 +4,8 @@ import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
 import { ModalVerLog } from './components/ModalVerLog'
 
-export const Logs = () => {
+export const Logs = ({ currentUser }) => {
+    const [activeUser, setActiveUser] = useState(currentUser)
     const [logs, setLogs] = useState([])
     const [reloadKey, setReloadKey] = useState(0)
 
@@ -17,6 +18,27 @@ export const Logs = () => {
     const [selectedLog, setSelectedLog] = useState(null)
 
     const tableContainerRef = useRef(null)
+
+    useEffect(() => {
+        if (currentUser) {
+            setActiveUser(currentUser)
+        } else if (window.api && window.api.getCurrentUser) {
+            window.api.getCurrentUser().then(res => {
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            })
+        }
+    }, [currentUser])
+
+    const hasPermission = (permissionKey) => {
+        const u = activeUser || currentUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
+    }
+
+    const canClearLogs = hasPermission('logs_vaciar');
 
     const loadLogs = async () => {
         const data = await window.api.getSystemLogs(2000)
@@ -163,9 +185,11 @@ export const Logs = () => {
                 <Button variant="outline-primary" size="sm" className="me-2" onClick={() => setReloadKey(prev => prev + 1)}>
                     <i className="bi bi-arrow-clockwise me-1"></i> Refrescar
                 </Button>
-                <Button variant="outline-danger" size="sm" onClick={handleClearLogs}>
-                    <i className="bi bi-trash3 me-1"></i> Vaciar Historial
-                </Button>
+                {canClearLogs && (
+                    <Button variant="outline-danger" size="sm" onClick={handleClearLogs}>
+                        <i className="bi bi-trash3 me-1"></i> Vaciar Historial
+                    </Button>
+                )}
             </div>
         </div>
 

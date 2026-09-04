@@ -1,10 +1,39 @@
 import { ipcMain } from "electron"
-import db from "../database/index.js"
+import db, { appDb } from "../database/index.js"
 import { v4 as uuidv4 } from "uuid"
 import { logger } from "../utils/logger.js"
 
+const checkPermission = (permission) => {
+    const user = global.currentUserSession;
+    if (!user) return false;
+    if (user.permisos?.includes("ALL")) return true;
+    return user.permisos?.includes(permission);
+}
+
 export const registerEstadoHandlers = () => {
+
+    ipcMain.handle("get-estados-usuarios", () => {
+        if (!checkPermission("estados_crear") && !checkPermission("estados_editar")) return [];
+        try {
+            return appDb.prepare("SELECT id, username, nombre_completo, foto_perfil FROM usuarios WHERE status = 1").all();
+        } catch (error) {
+            logger.error('ESTADOS_ENCARGO', "Error obteniendo usuarios asignables", error);
+            return [];
+        }
+    });
+
+    ipcMain.handle("get-estados-roles", () => {
+        if (!checkPermission("estados_crear") && !checkPermission("estados_editar")) return [];
+        try {
+            return appDb.prepare("SELECT id, nombre FROM roles").all();
+        } catch (error) {
+            logger.error('ESTADOS_ENCARGO', "Error obteniendo roles asignables", error);
+            return [];
+        }
+    });
+
     ipcMain.handle("get-estados", () => {
+        if (!checkPermission("estados_ver") && !checkPermission("encargos_ver") && !checkPermission("encargos_crear")) return [];
         try {
             const stmt = db.prepare("SELECT * FROM estadoEncargo WHERE status > 0")
             return stmt.all()
@@ -15,6 +44,9 @@ export const registerEstadoHandlers = () => {
     })
 
     ipcMain.handle("add-estado", (_, item) => {
+        if (!checkPermission("estados_crear")) {
+            return { success: false, error: "No autorizado para registrar nuevos estados." };
+        }
         try {
             const now = new Date().toISOString()
             const status = 1
@@ -65,6 +97,9 @@ export const registerEstadoHandlers = () => {
     })
 
     ipcMain.handle("update-estado", (_, item) => {
+        if (!checkPermission("estados_editar")) {
+            return { success: false, error: "No autorizado para modificar los estados de encargos." };
+        }
         try {
             const now = new Date().toISOString()
             const defaultStatus = 1
@@ -100,6 +135,9 @@ export const registerEstadoHandlers = () => {
     })
 
     ipcMain.handle("delete-estado", (_, item) => {
+        if (!checkPermission("estados_eliminar")) {
+            return { success: false, error: "No autorizado para eliminar los estados." };
+        }
         try {
             const now = new Date().toISOString()
             const stmt = db.prepare(`

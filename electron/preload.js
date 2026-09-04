@@ -46,7 +46,7 @@ contextBridge.exposeInMainWorld("api", {
   updateProducto: (item) => ipcRenderer.invoke("update-producto", item),
   deleteProducto: (item) => ipcRenderer.invoke("delete-producto", item),
 
-// encargos
+  // encargos
   getEncargos: () => ipcRenderer.invoke("get-encargos"),
   addEncargo: (item) => ipcRenderer.invoke("add-encargo", item),
   updateEncargo: (item) => ipcRenderer.invoke("update-encargo", item),
@@ -62,6 +62,8 @@ contextBridge.exposeInMainWorld("api", {
   addEstado: (item) => ipcRenderer.invoke("add-estado", item),
   updateEstado: (item) => ipcRenderer.invoke("update-estado", item),
   deleteEstado: (item) => ipcRenderer.invoke("delete-estado", item),
+  getEstadosUsuarios: () => ipcRenderer.invoke("get-estados-usuarios"),
+  getEstadosRoles: () => ipcRenderer.invoke("get-estados-roles"),
 
   // clientes
   getClientes: () => ipcRenderer.invoke("get-clientes"),
@@ -159,7 +161,7 @@ contextBridge.exposeInMainWorld("api", {
   updateSubcategoria: (item) => ipcRenderer.invoke("update-subcategoria", item),
   deleteSubcategoria: (id) => ipcRenderer.invoke("delete-subcategoria", id),
 
-// usuarios
+  // usuarios
   getUsuarios: () => ipcRenderer.invoke("get-usuarios"),
   addUsuario: (data) => ipcRenderer.invoke("add-usuario", data),
   updateUsuario: (data) => ipcRenderer.invoke("update-usuario", data),
