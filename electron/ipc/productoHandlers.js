@@ -237,7 +237,7 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("add-producto", (_, item) => {
-    if (!checkPermission("productos_gestionar")) {
+    if (!checkPermission("productos_crear")) {
         return { success: false, error: "No tienes los permisos requeridos para registrar nuevos ítems en el catálogo." };
     }
     const transaction = db.transaction((data) => {
@@ -304,7 +304,7 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("update-producto", (_, item) => {
-    if (!checkPermission("productos_gestionar")) {
+    if (!checkPermission("productos_editar")) {
         return { success: false, error: "No tienes los permisos requeridos para actualizar registros de este catálogo." };
     }
     const transaction = db.transaction((data) => {
@@ -353,7 +353,7 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("delete-producto", (_, item) => {
-    if (!checkPermission("productos_gestionar")) {
+    if (!checkPermission("productos_editar")) {
         return { success: false, error: "No tienes los privilegios requeridos para eliminar registros del inventario." };
     }
     try {

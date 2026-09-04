@@ -31,7 +31,10 @@ const getLocalDatetime = (startOfDay = true) => {
     return `${year}-${month}-${day}T${time}`
 }
 
-export const Reportes = () => {
+export const Reportes = ({ currentUser }) => {
+    // Estado local para garantizar que siempre tengamos la sesión cargada
+    const [activeUser, setActiveUser] = useState(currentUser)
+
     const [startDate, setStartDate] = useState(() => getLocalDatetime(true))
     const [endDate, setEndDate] = useState(() => getLocalDatetime(false))
 
@@ -48,6 +51,30 @@ export const Reportes = () => {
     const [notasFactura, setNotasFactura] = useState([])
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+
+    useEffect(() => {
+        const fetchSession = async () => {
+            if (window.api && window.api.getCurrentUser) {
+                const res = await window.api.getCurrentUser()
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            }
+        }
+        if (!currentUser) fetchSession()
+        else setActiveUser(currentUser)
+    }, [currentUser])
+
+    const hasPermission = (permissionKey) => {
+        const userToEvaluate = activeUser || currentUser;
+        if (!userToEvaluate) return false;
+        if (userToEvaluate.permisos?.includes('ALL')) return true;
+        return userToEvaluate.permisos?.includes(permissionKey);
+    }
+
+    const canPrint = hasPermission('reportes_imprimir')
+    const canDownloadPDF = hasPermission('reportes_descargar_pdf')
+    const canDownloadExcel = hasPermission('reportes_descargar_excel')
 
     useEffect(() => {
         const loadConfig = async () => {
@@ -309,17 +336,23 @@ export const Reportes = () => {
     return <>
         <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-3">
             <div>
-                <Button variant="primary" className="me-2" onClick={() => setShowPreview(true)} disabled={transacciones.length === 0}>
-                    <i className="bi bi-printer me-2"></i> Imprimir
-                </Button>
+                {canPrint && (
+                    <Button variant="primary" className="me-2" onClick={() => setShowPreview(true)} disabled={transacciones.length === 0}>
+                        <i className="bi bi-printer me-2"></i> Imprimir
+                    </Button>
+                )}
             </div>
             <div className="d-flex gap-2">
-                <Button variant="outline-danger" onClick={handleExportPDF} disabled={transacciones.length === 0}>
-                    <i className="bi bi-file-earmark-pdf me-2"></i> Exportar PDF
-                </Button>
-                <Button variant="outline-success" onClick={handleExportExcel} disabled={transacciones.length === 0}>
-                    <i className="bi bi-file-earmark-excel me-2"></i> Exportar Excel
-                </Button>
+                {canDownloadPDF && (
+                    <Button variant="outline-danger" onClick={handleExportPDF} disabled={transacciones.length === 0}>
+                        <i className="bi bi-file-earmark-pdf me-2"></i> Exportar PDF
+                    </Button>
+                )}
+                {canDownloadExcel && (
+                    <Button variant="outline-success" onClick={handleExportExcel} disabled={transacciones.length === 0}>
+                        <i className="bi bi-file-earmark-excel me-2"></i> Exportar Excel
+                    </Button>
+                )}
             </div>
         </div>
 
@@ -401,6 +434,7 @@ export const Reportes = () => {
             notasFactura={notasFactura}
             handlePrepararImpresion={handlePrepararImpresionFactura}
             appConfig={appConfig}
+            canPrint={hasPermission('ventas_imprimir')}
         />
 
         <ImpresorFactura 

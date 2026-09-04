@@ -29,15 +29,53 @@ export const ESQUEMA_SEGURIDAD = [
             }, 
             { 
                 id: 'reportes_ver', 
-                label: 'Reportes y Métricas' 
+                label: 'Reportes y Métricas',
+                permisos_hijos: [
+                    { 
+                        id: 'reportes_imprimir', 
+                        label: 'Permitir imprimir reportes' 
+                    },
+                    { 
+                        id: 'reportes_descargar_pdf', 
+                        label: 'Permitir descargar PDF' 
+                    },
+                    { 
+                        id: 'reportes_descargar_excel', 
+                        label: 'Permitir descargar Excel' 
+                    }
+                ]
             }, 
             { 
                 id: 'notas_gestionar', 
-                label: 'Gestión de Notas de Ajuste (Crédito y Débito)' 
+                label: 'Gestión de Notas de Ajuste (Crédito y Débito)',
+                permisos_hijos: [
+                    { 
+                        id: 'notas_credito_crear', 
+                        label: 'Permitir emitir Notas Crédito (Devoluciones/Anulaciones)' 
+                    },
+                    { 
+                        id: 'notas_debito_crear', 
+                        label: 'Permitir emitir Notas Débito (Cobros adicionales)' 
+                    }
+                ] 
             }, 
             { 
                 id: 'ventas_configurar', 
-                label: 'Configurar módulo' 
+                label: 'Configurar módulo',
+                permisos_hijos: [
+                    { 
+                        id: 'ventas_configurar_almacen', 
+                        label: 'Editar datos del almacen' 
+                    },
+                    { 
+                        id: 'ventas_configurar_facturacion', 
+                        label: 'Editar datos de facturacion y notas' 
+                    },
+                    { 
+                        id: 'ventas_configurar_metodos_pago', 
+                        label: 'Administrar métodos de pago' 
+                    }
+                ] 
             }
         ] 
     },
@@ -48,12 +86,22 @@ export const ESQUEMA_SEGURIDAD = [
         path: '/productos', 
         submodulos: [
             { 
-                id: 'productos_ver', 
-                label: 'Ver productos' 
-            }, 
-            { 
-                id: 'productos_gestionar', 
-                label: 'Crear, actualizar o eliminar registros del catálogo' 
+                id: 'productos_menu', 
+                label: 'Productos',
+                permisos_hijos: [
+                    { 
+                        id: 'productos_ver', 
+                        label: 'Ver' 
+                    },
+                    { 
+                        id: 'productos_crear', 
+                        label: 'Crear' 
+                    },
+                    { 
+                        id: 'productos_editar', 
+                        label: 'Modificar' 
+                    }
+                ]
             }, 
             { 
                 id: 'categorias_gestionar', 

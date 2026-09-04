@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import ProductModal from './components/ProductoModal'
@@ -18,9 +18,12 @@ const Toast = Swal.mixin({
     }
 })
 
-export const Productos = () => {
+export const Productos = ({ currentUser }) => {
   const [show, setShow] = useState(false)
   const [showDetalles, setShowDetalles] = useState(false)
+
+  // 1. Estado local para garantizar la persistencia de sesión
+  const [activeUser, setActiveUser] = useState(currentUser)
 
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
@@ -58,6 +61,30 @@ export const Productos = () => {
   const [prodSel, setProdSel] = useState(null)
   
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+
+  // 2. Garantizamos la carga de la sesión
+  useEffect(() => {
+      if (currentUser) {
+          setActiveUser(currentUser)
+      } else if (window.api && window.api.getCurrentUser) {
+          window.api.getCurrentUser().then(res => {
+              if (res.success && res.data) {
+                  setActiveUser(res.data)
+              }
+          })
+      }
+  }, [currentUser])
+
+  // 3. Validador de permisos dinámico
+  const hasPermission = (permissionKey) => {
+      const u = activeUser || currentUser;
+      if (!u) return false;
+      if (u.permisos?.includes('ALL')) return true;
+      return u.permisos?.includes(permissionKey);
+  }
+
+  const canCreate = hasPermission('productos_crear');
+  const canEdit = hasPermission('productos_editar');
 
   const loadConfig = async () => {
     const configData = await productosService.getConfiguracion()
@@ -211,88 +238,103 @@ export const Productos = () => {
     }
   }
 
-  return <>
-    <div className="mb-3">
-        <button className='btn btn-primary' onClick={() => {
-          setEditingId(null)
-          cleanForm()
-          handleShow()
-        }}>
-          <i className="bi bi-plus-circle me-2"></i>Nuevo Producto
-        </button>
-    </div>
+  const dataColumns = useMemo(() => [
+    {
+      data: 'ref_name',
+      title: 'Nombre Referencia'
+    },
+    { 
+      data: 'sku', title: 'SKU', 
+      render: (data, type, row) => {
+        if (!data) return '-';
+        const safeData = encodeURIComponent(JSON.stringify(row));
+        return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${data.toUpperCase()}</a>`;
+      }
+    },
+    { 
+      data: 'categoria_nombre', 
+      title: 'Categoría', 
+      render: (data) => data || 'General' 
+    },
+    { 
+      data: 'stock', 
+      title: 'Stock', 
+      render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` 
+    },
+    { 
+      data: 'precio', 
+      title: 'Precio', 
+      render: (data) => renderCurrency(data) 
+    },
+    { 
+      data: 'status', 
+      title: 'Estado', 
+      render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` 
+    },
+    {
+      data: null, title: 'Acciones', orderable: false, className: 'text-center',
+      render: function (data, type, row) {
+        const safeData = encodeURIComponent(JSON.stringify(row))
+        const canEditAction = hasPermission('productos_editar');
 
-    <div ref={tableContainerRef} className="w-100">
+        let menuItems = `
+          <li>
+            <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
+              <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+            </a>
+          </li>
+        `;
+
+        if (canEditAction) {
+          menuItems += `
+            <li>
+              <a class="dropdown-item btn-edit" href="#" data-id="${row.id}" data-alldata="${safeData}">
+                <i class="bi bi-pencil me-2 text-primary"></i> Editar
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
+                <i class="bi bi-trash3 me-2"></i> Eliminar
+              </a>
+            </li>
+          `;
+        }
+
+        return `
+          <div class="dropdown">
+            <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+              <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu shadow-sm">
+              ${menuItems}
+            </ul>
+          </div>
+        `
+      }
+    }
+  ], [appConfig, activeUser, currentUser])
+
+  return <>
+    {canCreate && (
+      <div className="mb-3">
+          <button className='btn btn-primary' onClick={() => {
+            setEditingId(null)
+            cleanForm()
+            handleShow()
+          }}>
+            <i className="bi bi-plus-circle me-2"></i>Nuevo Producto
+          </button>
+      </div>
+    )}
+
+    <div ref={tableContainerRef} className="w-100" style={{ overflow: 'visible' }}>
       <CustomDataTable
         tableId="dt-productos-catalogo"
         key={`productos-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
         reloadKey={reloadTable}
         ajaxData={(params) => productosService.getProductosPaginados(params)}
-        columns={[
-          {
-            data: 'ref_name',
-            title: 'Nombre Referencia'
-          },
-          { 
-            data: 'sku', title: 'SKU', 
-            render: (data, type, row) => {
-              if (!data) return '-';
-              const safeData = encodeURIComponent(JSON.stringify(row));
-              return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${data.toUpperCase()}</a>`;
-            }
-          },
-          { 
-            data: 'categoria_nombre', 
-            title: 'Categoría', 
-            render: (data) => data || 'General' 
-          },
-          { 
-            data: 'stock', 
-            title: 'Stock', 
-            render: (data, type, row) => `<span class="badge bg-${data <= row.min_stock ? 'danger' : 'success'}">${data}</span>` 
-          },
-          { 
-            data: 'precio', 
-            title: 'Precio', 
-            render: (data) => renderCurrency(data) 
-          },
-          { 
-            data: 'status', 
-            title: 'Estado', 
-            render: (data) => `<span class="badge ${data === 1 ? 'bg-success' : 'bg-danger'}">${data === 1 ? 'Activo' : 'Inactivo'}</span>` 
-          },
-          {
-            data: null, title: 'Acciones', orderable: false, className: 'text-center',
-            render: function (data, type, row) {
-              const safeData = encodeURIComponent(JSON.stringify(row))
-              return `
-                <div class="dropdown">
-                  <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
-                    <i class="bi bi-three-dots-vertical"></i>
-                  </button>
-                  <ul class="dropdown-menu shadow-sm">
-                    <li>
-                      <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
-                        <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
-                      </a>
-                    </li>
-                    <li>
-                      <a class="dropdown-item btn-edit" href="#" data-id="${row.id}" data-alldata="${safeData}">
-                        <i class="bi bi-pencil me-2 text-secondary"></i> Editar
-                      </a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                      <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
-                        <i class="bi bi-trash3 me-2"></i> Eliminar
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              `
-            }
-          }
-        ]}
+        columns={dataColumns}
       />
     </div>
 

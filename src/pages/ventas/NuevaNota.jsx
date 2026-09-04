@@ -17,7 +17,7 @@ const Toast = Swal.mixin({
     }
 })
 
-export const NuevaNota = ({ onBack, onSuccess }) => {
+export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }) => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const loadConfig = async () => {
@@ -36,9 +36,11 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
 
     useEffect(() => { loadConfig() }, [])
 
+    const valorInicialTipo = canCrearCredito ? 'Crédito' : (canCrearDebito ? 'Débito' : '')
+
     const [formData, setFormData] = useState({
-        tipo_nota: 'Crédito',
-        motivo_dian: 'Devolución de parte de los bienes',
+        tipo_nota: valorInicialTipo,
+        motivo_dian: valorInicialTipo === 'Crédito' ? 'Devolución de parte de los bienes' : 'Intereses',
         numero_factura_origen: '',
         observaciones: '',
         afecta_inventario: true
@@ -73,7 +75,16 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target
-        setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value })
+        
+        if (name === 'tipo_nota') {
+            setFormData({ 
+                ...formData, 
+                [name]: value,
+                motivo_dian: value === 'Crédito' ? motivosCredito[0] : motivosDebito[0]
+            })
+        } else {
+            setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value })
+        }
     }
 
     const handleSearchFactura = async () => {
@@ -226,8 +237,8 @@ export const NuevaNota = ({ onBack, onSuccess }) => {
                         <div className="col-md-3">
                             <label className="form-label fw-bold">Tipo de Nota</label>
                             <select className="form-select" name="tipo_nota" value={formData.tipo_nota} onChange={handleChange}>
-                                <option value="Crédito">Nota Crédito (Resta)</option>
-                                <option value="Débito">Nota Débito (Suma)</option>
+                                {canCrearCredito && <option value="Crédito">Nota Crédito (Resta)</option>}
+                                {canCrearDebito && <option value="Débito">Nota Débito (Suma)</option>}
                             </select>
                         </div>
                         <div className="col-md-3">

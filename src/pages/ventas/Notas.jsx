@@ -22,7 +22,10 @@ const Toast = Swal.mixin({
     }
 })
 
-export const Notas = () => {
+export const Notas = ({ currentUser }) => {
+    // 1. Estado local para garantizar que siempre tengamos la sesión cargada
+    const [activeUser, setActiveUser] = useState(currentUser)
+
     const [notasData, setNotasData] = useState([])
     const [showForm, setShowForm] = useState(false) 
 
@@ -41,6 +44,30 @@ export const Notas = () => {
     const [notasFacturaList, setNotasFacturaList] = useState([])
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+
+    useEffect(() => {
+        if (currentUser) {
+            setActiveUser(currentUser)
+        } else if (window.api && window.api.getCurrentUser) {
+            window.api.getCurrentUser().then(res => {
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            })
+        }
+    }, [currentUser])
+
+    const hasPermission = (permissionKey) => {
+        const u = activeUser || currentUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
+    }
+
+    const canCrearCredito = hasPermission('notas_credito_crear');
+    const canCrearDebito = hasPermission('notas_debito_crear');
+    
+    const canCreateAnyNota = canCrearCredito || canCrearDebito;
 
     const loadConfig = async () => {
         const configData = await ventasService.getConfiguracion()
@@ -183,10 +210,6 @@ export const Notas = () => {
         setShowImpresorFactura(true);
     }
 
-    // ==========================================
-    // MÉTODOS DE EXPORTACIÓN (GENERAL E INDIVIDUAL)
-    // ==========================================
-
     const handleExportAllExcel = () => {
         if (notasData.length === 0) return Swal.fire('Error', 'No hay notas para exportar', 'warning')
 
@@ -305,6 +328,8 @@ export const Notas = () => {
                 setShowForm(false)
                 loadNotas() 
             }} 
+            canCrearCredito={canCrearCredito}
+            canCrearDebito={canCrearDebito}
         />
     }
 
@@ -319,9 +344,11 @@ export const Notas = () => {
                     <button className="btn btn-outline-success" onClick={handleExportAllExcel} disabled={notasData.length === 0} title="Exportar Todo a Excel">
                         <i className="bi bi-file-earmark-excel"></i>
                     </button>
-                    <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-                        <i className="bi bi-plus-circle me-2"></i>Nueva Nota
-                    </button>
+                    {canCreateAnyNota && (
+                        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+                            <i className="bi bi-plus-circle me-2"></i>Nueva Nota
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -337,7 +364,6 @@ export const Notas = () => {
                             render: (data, type, row) => {
                                 const safeData = encodeURIComponent(JSON.stringify(row));
                                 const numVisual = `${row.prefijo || 'NC'}-${row.numero_nota}`;
-                                // Retorna un enlace 'a' en lugar de 'strong'
                                 return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${numVisual}</a>`;
                             }
                         },

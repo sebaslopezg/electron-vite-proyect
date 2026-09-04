@@ -16,7 +16,7 @@ const Toast = Swal.mixin({
     }
 })
 
-export const Configuracion = ({ data, onReload }) => {
+export const Configuracion = ({ data, onReload, currentUser }) => {
 
     const [form, setForm] = useState({
         id:'',
@@ -42,6 +42,33 @@ export const Configuracion = ({ data, onReload }) => {
     const [showModalMetodos, setShowModalMetodos] = useState(false)
     const [metodosList, setMetodosList] = useState([])
     const [nuevoMetodo, setNuevoMetodo] = useState('')
+    
+    const [activeUser, setActiveUser] = useState(currentUser)
+
+    useEffect(() => {
+        if (currentUser) {
+            setActiveUser(currentUser)
+        } else if (window.api && window.api.getCurrentUser) {
+            window.api.getCurrentUser().then(res => {
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            })
+        }
+    }, [currentUser])
+
+    const hasPermission = (permissionKey) => {
+        const u = activeUser || currentUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
+    }
+
+    const canEditAlmacen = hasPermission('ventas_configurar_almacen');
+    const canEditFacturacion = hasPermission('ventas_configurar_facturacion');
+    const canManageMetodos = hasPermission('ventas_configurar_metodos_pago');
+
+    const isFormDisabled = !canEditAlmacen && !canEditFacturacion
 
     useEffect(() => {
         if (data) {
@@ -140,14 +167,16 @@ export const Configuracion = ({ data, onReload }) => {
     return <>
         <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="card-title m-0"><i className="bi bi-shop me-2 text-primary"></i>Datos del Almacén</h5>
-            <Button variant="outline-primary" size="sm" onClick={handleOpenMetodos}>
-                <i className="bi bi-credit-card me-2"></i>Administrar Métodos de Pago
-            </Button>
+            {canManageMetodos && (
+                <Button variant="outline-primary" size="sm" onClick={handleOpenMetodos}>
+                    <i className="bi bi-credit-card me-2"></i>Administrar Métodos de Pago
+                </Button>
+            )}
         </div>
                                                 
         <Form onSubmit={handleSubmit}>
             
-            <div className="bg-light p-3 rounded mb-4 border">
+            <div className={`bg-light p-3 rounded mb-4 border ${!canEditAlmacen ? 'opacity-75' : ''}`}>
                 <Card.Body className="d-flex align-items-center">
                     <div className="me-4" style={{ 
                             width: '120px', 
@@ -177,12 +206,13 @@ export const Configuracion = ({ data, onReload }) => {
                                 className="d-none" 
                                 ref={fileInputRef}
                                 onChange={handleImageUpload}
+                                disabled={!canEditAlmacen}
                             />
-                            <Button variant="outline-primary" size="sm" className="me-2" onClick={() => fileInputRef.current.click()}>
+                            <Button variant="outline-primary" size="sm" className="me-2" onClick={() => fileInputRef.current.click()} disabled={!canEditAlmacen}>
                                 <i className="bi bi-upload me-1"></i> Subir Imagen
                             </Button>
                             {form.logo_almacen && (
-                                <Button variant="outline-danger" size="sm" onClick={() => setForm({...form, logo_almacen: ''})}>
+                                <Button variant="outline-danger" size="sm" onClick={() => setForm({...form, logo_almacen: ''})} disabled={!canEditAlmacen}>
                                     <i className="bi bi-trash"></i>
                                 </Button>
                             )}
@@ -196,13 +226,14 @@ export const Configuracion = ({ data, onReload }) => {
                                 checked={form.imprimir_logo_pos}
                                 onChange={(e) => setForm({ ...form, imprimir_logo_pos: e.target.checked })}
                                 className="fw-bold text-secondary mt-2"
+                                disabled={!canEditAlmacen}
                             />
                         )}
                     </div>
                 </Card.Body>
             </div>
 
-            <Row>
+            <Row className={!canEditAlmacen ? 'opacity-75' : ''}>
                 <Col md={6}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="almacenNombre" className="fw-bold">Nombre del almacen</Form.Label>
@@ -213,6 +244,7 @@ export const Configuracion = ({ data, onReload }) => {
                             type="text"
                             placeholder="Nombre de mi almacen"
                             required
+                            disabled={!canEditAlmacen}
                         />
                     </Form.Group>
                 </Col>
@@ -227,12 +259,13 @@ export const Configuracion = ({ data, onReload }) => {
                             type="text"
                             placeholder="Nit de mi almacen"
                             required
+                            disabled={!canEditAlmacen}
                         />
                     </Form.Group>
                 </Col>
             </Row>
 
-            <Row>
+            <Row className={!canEditAlmacen ? 'opacity-75' : ''}>
                 <Col md={6}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="almacenDireccion" className="fw-bold">Dirección</Form.Label>
@@ -243,6 +276,7 @@ export const Configuracion = ({ data, onReload }) => {
                             type="text"
                             placeholder="Direccion e.j Calle ejemplo #1 - 1"
                             required
+                            disabled={!canEditAlmacen}
                         />
                     </Form.Group>
                 </Col>
@@ -257,11 +291,12 @@ export const Configuracion = ({ data, onReload }) => {
                             type="text"
                             placeholder="Telefono o celular de mi almacen"
                             required
+                            disabled={!canEditAlmacen}
                         />
                     </Form.Group>
                 </Col>
             </Row>
-            <Row>
+            <Row className={!canEditAlmacen ? 'opacity-75' : ''}>
                 <Col md={6}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="almacenEmail" className="fw-bold">Correo Electrónico (Email)</Form.Label>
@@ -271,6 +306,7 @@ export const Configuracion = ({ data, onReload }) => {
                             onChange={(e) => setForm({ ...form, email_almacen: e.target.value })}
                             type="email"
                             placeholder="contacto@mialmacen.com"
+                            disabled={!canEditAlmacen}
                         />
                     </Form.Group>
                 </Col>
@@ -279,7 +315,7 @@ export const Configuracion = ({ data, onReload }) => {
             <hr className="my-4" />
             <h5 className="card-title"><i className="bi bi-receipt me-2 text-primary"></i>Datos de Facturación y Notas</h5>
 
-            <Row>
+            <Row className={!canEditFacturacion ? 'opacity-75' : ''}>
                 <Col md={4}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="almacenDocName" className="fw-bold">Nombre del Documento</Form.Label>
@@ -290,6 +326,7 @@ export const Configuracion = ({ data, onReload }) => {
                             type="text"
                             placeholder="Ej. Factura de Venta POS"
                             required
+                            disabled={!canEditFacturacion}
                         />
                     </Form.Group>
                 </Col>
@@ -303,6 +340,7 @@ export const Configuracion = ({ data, onReload }) => {
                             onChange={(e) => setForm({ ...form, resolucionDian: e.target.value })}
                             type="text"
                             placeholder="Resolución DIAN..."
+                            disabled={!canEditFacturacion}
                         />
                     </Form.Group>
                 </Col>
@@ -317,6 +355,7 @@ export const Configuracion = ({ data, onReload }) => {
                             type="text"
                             placeholder="Ej. F"
                             required
+                            disabled={!canEditFacturacion}
                         />
                     </Form.Group>
                 </Col>
@@ -330,12 +369,13 @@ export const Configuracion = ({ data, onReload }) => {
                             type="text"
                             placeholder="Ej. -"
                             maxLength="3"
+                            disabled={!canEditFacturacion}
                         />
                     </Form.Group>
                 </Col>
             </Row>
 
-            <Row>
+            <Row className={!canEditFacturacion ? 'opacity-75' : ''}>
                 <Col md={3}>
                     <Form.Group className="mb-3">
                         <Form.Label htmlFor="almacenConsecutivo" className="fw-bold">Consecutivo Factura</Form.Label>
@@ -345,6 +385,7 @@ export const Configuracion = ({ data, onReload }) => {
                             onChange={(e) => setForm({ ...form, consecutivo: e.target.value })}
                             type="number"
                             required
+                            disabled={!canEditFacturacion}
                         />
                         <Form.Text className="text-muted">Próxima factura: {form.prefijo}{form.separador}{parseInt(form.consecutivo || 0) + 1}</Form.Text>
                     </Form.Group>
@@ -359,6 +400,7 @@ export const Configuracion = ({ data, onReload }) => {
                             onChange={(e) => setForm({ ...form, consecutivo_nota: e.target.value })}
                             type="number"
                             required
+                            disabled={!canEditFacturacion}
                         />
                     </Form.Group>
                 </Col>
@@ -372,12 +414,13 @@ export const Configuracion = ({ data, onReload }) => {
                             onChange={(e) => setForm({ ...form, consecutivo_nota_debito: e.target.value })}
                             type="number"
                             required
+                            disabled={!canEditFacturacion}
                         />
                     </Form.Group>
                 </Col>
             </Row>
 
-            <Row>
+            <Row className={!canEditFacturacion ? 'opacity-75' : ''}>
                 <Col md={12}>
                     <Form.Group className="mb-4">
                         <Form.Label htmlFor="footerFactura" className="fw-bold">Texto Pie de Página (Footer)</Form.Label>
@@ -388,6 +431,7 @@ export const Configuracion = ({ data, onReload }) => {
                             value={form.footer_factura}
                             onChange={(e) => setForm({ ...form, footer_factura: e.target.value })}
                             placeholder="Ej. Esta factura se asimila en todos sus efectos legales a una letra de cambio..."
+                            disabled={!canEditFacturacion}
                         />
                         <Form.Text className="text-muted">Este texto aparecerá al final de todos los recibos y facturas impresas.</Form.Text>
                     </Form.Group>
@@ -395,8 +439,8 @@ export const Configuracion = ({ data, onReload }) => {
             </Row>
 
             <div className="d-grid mt-3 border-top pt-4">
-                <Button variant="primary" size="lg" type="submit">
-                    Guardar Configuración
+                <Button variant="primary" size="lg" type="submit" disabled={isFormDisabled}>
+                    {isFormDisabled ? 'Sin permisos para guardar' : 'Guardar Configuración'}
                 </Button>
             </div>
         </Form>
