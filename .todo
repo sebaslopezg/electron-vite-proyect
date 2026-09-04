@@ -4,11 +4,6 @@
 
  ### Modulo Encargos:
  - > Habilitar cuadro de firma para que un usuario tenga que cambiar un estado.  
- - > solucionar error cuando un usuario no admin modifica encargos, se vuelve la pantalla en blanco
- - > separar modal de encargos de archivo principal de encargos
-
- ## Permisos:
- - Repasar todos los modulos y actualizar sus permisos.
 
  ### Otros:
  - Permitir agregar mas metodos de pago en una factura.
