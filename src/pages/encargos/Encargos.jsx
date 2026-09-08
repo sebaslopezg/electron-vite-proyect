@@ -37,7 +37,6 @@ export const Encargos = ({ currentUser: initialUser }) => {
     const [abiertoDesdeDetalles, setAbiertoDesdeDetalles] = useState(false)
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
-    // Manejo robusto de la sesión
     const [currentUser, setCurrentUser] = useState(initialUser)
 
     useEffect(() => {
@@ -306,6 +305,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
             const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
                 e.preventDefault()
+                e.stopPropagation()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -327,6 +327,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
             const infoBtn = e.target.closest('.btn-info')
             if (infoBtn) {
                 e.preventDefault()
+                e.stopPropagation()
                 const rawData = decodeURIComponent(infoBtn.dataset.alldata)
                 const item = JSON.parse(rawData)
                 handleInfo(item)
@@ -336,6 +337,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
             const historyBtn = e.target.closest('.btn-history')
             if (historyBtn) {
                 e.preventDefault()
+                e.stopPropagation()
                 try {
                     const rawData = decodeURIComponent(historyBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -348,7 +350,15 @@ export const Encargos = ({ currentUser: initialUser }) => {
             const btnFactura = e.target.closest('.btn-ver-factura')
             if (btnFactura) {
                 e.preventDefault()
+                e.stopPropagation()
                 handleVerFactura(btnFactura.dataset.fullnum)
+            }
+
+            const delBtn = e.target.closest('.btn-delete')
+            if (delBtn) {
+                e.preventDefault()
+                e.stopPropagation()
+                handleDelete(delBtn.dataset.id)
             }
         }
 
@@ -482,7 +492,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
                                 menuItems += `
                                     <li>
                                         <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                            <i class="bi bi-pencil me-2 text-primary"></i> Editar Encargo
+                                            <i class="bi bi-pencil me-2 text-secondary"></i> Editar Encargo
                                         </a>
                                     </li>
                                 `;
@@ -491,7 +501,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
                             menuItems += `
                                 <li>
                                     <a class="dropdown-item btn-info" href="#" data-alldata="${safeData}">
-                                        <i class="bi bi-eye me-2 text-info"></i> Ver Detalles
+                                        <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                                     </a>
                                 </li>
                                 <li>

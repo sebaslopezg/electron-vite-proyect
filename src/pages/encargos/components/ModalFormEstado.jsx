@@ -36,7 +36,7 @@ export const ModalFormEstado = ({
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>{editingId ? 'Editar Estado' : 'Nuevo Estado'}</Modal.Title>
             </Modal.Header>
-            <Modal.Body className="p-4" style={{ overflow: 'visible' }}>
+            <Modal.Body className="p-4">
                 <Form onSubmit={handleSubmit} id="estadoForm">
                     <Row>
                         <Col md={8}>
@@ -224,7 +224,7 @@ export const ModalFormEstado = ({
             <Modal.Footer className="bg-light border-top">
                 <Button variant="secondary" onClick={handleClose}>Cerrar</Button>
                 <Button variant="primary" type="submit" form="estadoForm">
-                    <i className="bi bi-save me-1"></i> Guardar Estado
+                    Guardar Estado
                 </Button>
             </Modal.Footer>
         </Modal>

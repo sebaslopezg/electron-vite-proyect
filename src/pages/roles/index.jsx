@@ -123,17 +123,17 @@ export const Roles = ({ currentUser }) => {
                     menuItems += `
                         <li>
                             <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                <i class="bi ${row.is_system ? 'bi-eye text-info' : 'bi-pencil text-primary'} me-2"></i> ${row.is_system ? 'Ver Detalles' : 'Editar Rol'}
+                                <i class="bi ${row.is_system ? 'bi-eye text-secondary' : 'bi-pencil text-secondary'} me-2"></i> ${row.is_system ? 'Ver Detalles' : 'Editar Rol'}
                             </a>
                         </li>
                     `
                 }
 
-                if (canDelete) {
+                if (canDelete && !row.is_system) {
                     if (canEdit) menuItems += `<li><hr class="dropdown-divider"></li>`
                     menuItems += `
                         <li>
-                            <button class="dropdown-item text-danger btn-delete" data-id="${row.id}" ${row.is_system ? 'disabled' : ''}>
+                            <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
                                 <i class="bi bi-trash3 me-2"></i> Eliminar
                             </button>
                         </li>

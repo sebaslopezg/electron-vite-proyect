@@ -7,17 +7,35 @@ import { ConfiguracionEncargos } from "./Configuracion"
 export const IndexEncargos = ({ currentUser }) => {
   const [activeUser, setActiveUser] = useState(currentUser)
   const [activeTab, setActiveTab] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-      if (currentUser) {
-          setActiveUser(currentUser)
-      } else if (window.api && window.api.getCurrentUser) {
-          window.api.getCurrentUser().then(res => {
-              if (res.success && res.data) {
-                  setActiveUser(res.data)
+      let isMounted = true;
+      const fetchUser = async () => {
+          if (currentUser) {
+              if (isMounted) {
+                  setActiveUser(currentUser)
+                  setIsLoading(false)
               }
-          })
+          } else if (window.api && window.api.getCurrentUser) {
+              try {
+                  const res = await window.api.getCurrentUser()
+                  if (isMounted) {
+                      if (res.success && res.data) {
+                          setActiveUser(res.data)
+                      }
+                      setIsLoading(false)
+                  }
+              } catch (error) {
+                  if (isMounted) setIsLoading(false)
+              }
+          } else {
+              if (isMounted) setIsLoading(false)
+          }
       }
+      
+      fetchUser()
+      return () => { isMounted = false }
   }, [currentUser])
 
   const hasPermission = (permissionKey) => {
@@ -59,10 +77,22 @@ export const IndexEncargos = ({ currentUser }) => {
   ].filter(tab => hasPermission(tab.permission))
 
   useEffect(() => {
-      if (tabsDisponibles.length > 0 && !activeTab) {
+      if (tabsDisponibles.length > 0 && !activeTab && !isLoading) {
           setActiveTab(tabsDisponibles[0].id)
       }
-  }, [activeUser, currentUser, tabsDisponibles, activeTab])
+  }, [activeUser, currentUser, tabsDisponibles, activeTab, isLoading])
+
+  if (isLoading) {
+      return (
+          <div className="d-flex align-items-center justify-content-center w-100" style={{ minHeight: '60vh' }}>
+              <div className="text-center animate__animated animate__fadeIn">
+                  <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}></div>
+                  <h5 className="text-muted fw-bold">Cargando Encargos...</h5>
+                  <p className="text-muted small">Verificando permisos y accesos</p>
+              </div>
+          </div>
+      )
+  }
 
   if (tabsDisponibles.length === 0) {
       return (
@@ -80,7 +110,7 @@ export const IndexEncargos = ({ currentUser }) => {
       <div className="pagetitle">
         <h1><i className="bi bi-calendar-event"></i> Encargos</h1>
       </div>
-      <div className="card">
+      <div className="card shadow-sm border-0">
         <div className="card-body">
           <ul
             className="nav nav-tabs nav-tabs-bordered mt-3"
@@ -90,7 +120,7 @@ export const IndexEncargos = ({ currentUser }) => {
             {tabsDisponibles.map(tab => (
                 <li className="nav-item" role="presentation" key={tab.id}>
                     <button
-                        className={`nav-link ${activeTab === tab.id ? 'active' : ''}`}
+                        className={`nav-link ${activeTab === tab.id ? 'active text-primary' : 'text-secondary'}`}
                         onClick={() => setActiveTab(tab.id)}
                         type="button"
                         role="tab"

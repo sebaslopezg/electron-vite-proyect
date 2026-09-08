@@ -27,6 +27,7 @@ export const Estados = ({ currentUser }) => {
     const [activeUser, setActiveUser] = useState(currentUser)
     const [show, setShow] = useState(false)
     const [reloadTable, setReloadTable] = useState(0)
+    const [isInitialLoad, setIsInitialLoad] = useState(true)
     
     const [alcancePolitica, setAlcancePolitica] = useState('global')
 
@@ -59,15 +60,17 @@ export const Estados = ({ currentUser }) => {
     const [editingId, setEditingId] = useState(null)
 
     useEffect(() => {
+        let isMounted = true;
         if (currentUser) {
-            setActiveUser(currentUser)
+            if (isMounted) setActiveUser(currentUser)
         } else if (window.api && window.api.getCurrentUser) {
             window.api.getCurrentUser().then(res => {
-                if (res.success && res.data) {
+                if (res.success && res.data && isMounted) {
                     setActiveUser(res.data)
                 }
             })
         }
+        return () => { isMounted = false }
     }, [currentUser])
 
     const hasPermission = (permissionKey) => {
@@ -115,6 +118,7 @@ export const Estados = ({ currentUser }) => {
             console.error("No se pudieron cargar catálogos de asignación", e) 
         }
 
+        setIsInitialLoad(false)
         setReloadTable(prev => prev + 1)
     }
 
@@ -274,6 +278,7 @@ export const Estados = ({ currentUser }) => {
 
     const tableContainerRef = useRef(null)
 
+    // Agregamos isInitialLoad como dependencia para asegurar la asociación del listener
     useEffect(() => {
         const container = tableContainerRef.current
         if (!container) return
@@ -282,6 +287,7 @@ export const Estados = ({ currentUser }) => {
             const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
                 e.preventDefault()
+                e.stopPropagation()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -305,13 +311,14 @@ export const Estados = ({ currentUser }) => {
             const delBtn = e.target.closest('.btn-delete')
             if (delBtn) {
                 e.preventDefault()
+                e.stopPropagation()
                 handleDelete(delBtn.dataset.id)
             }
         }
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [isInitialLoad]) 
 
     const dataColumns = useMemo(() => [
         {
@@ -375,7 +382,7 @@ export const Estados = ({ currentUser }) => {
                     menuItems += `
                         <li>
                             <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                <i class="bi bi-pencil me-2 text-primary"></i> Editar
+                                <i class="bi bi-pencil me-2 text-secondary"></i> Editar
                             </a>
                         </li>
                     `;
@@ -408,9 +415,20 @@ export const Estados = ({ currentUser }) => {
         }
     ], [alcancePolitica, activeUser, currentUser])
 
+    if (isInitialLoad) {
+        return (
+            <div className="d-flex align-items-center justify-content-center w-100" style={{ minHeight: '40vh' }}>
+                <div className="text-center animate__animated animate__fadeIn">
+                    <div className="spinner-border text-primary mb-2" role="status"></div>
+                    <p className="text-muted small fw-bold">Cargando estados y configuraciones...</p>
+                </div>
+            </div>
+        )
+    }
+
     return <>
         {canCreate && (
-            <div className="mb-3">
+            <div className="mb-3 animate__animated animate__fadeIn">
                 <button className='btn btn-primary' onClick={() => {
                     setEditingId(null)
                     cleanForm()
@@ -421,7 +439,7 @@ export const Estados = ({ currentUser }) => {
             </div>
         )}
 
-        <div ref={tableContainerRef} className="w-100 overflow-visible">
+        <div ref={tableContainerRef} className="w-100 overflow-visible animate__animated animate__fadeIn">
             <CustomDataTable
                 tableId="dt-encargos-estados"
                 reloadKey={reloadTable}

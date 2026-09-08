@@ -173,17 +173,17 @@ export const Usuarios = ({ currentUser }) => {
                     menuItems += `
                         <li>
                             <a class="dropdown-item btn-edit" href="#" data-id="${r.id}" data-alldata="${safeData}">
-                                <i class="bi bi-pencil me-2 text-primary"></i> Editar Usuario
+                                <i class="bi bi-pencil me-2 text-secondary"></i> Editar Usuario
                             </a>
                         </li>
                     `
                 }
 
-                if (canDelete) {
+                if (canDelete && r.username !== 'admin') {
                     if (canEdit) menuItems += `<li><hr class="dropdown-divider"></li>`
                     menuItems += `
                         <li>
-                            <button class="dropdown-item text-danger btn-delete" data-id="${r.id}" ${r.username === 'admin' ? 'disabled' : ''}>
+                            <button class="dropdown-item text-danger btn-delete" data-id="${r.id}">
                                 <i class="bi bi-trash3 me-2"></i> Eliminar
                             </button>
                         </li>

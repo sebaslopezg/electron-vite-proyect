@@ -290,7 +290,7 @@ export const Productos = ({ currentUser }) => {
           menuItems += `
             <li>
               <a class="dropdown-item btn-edit" href="#" data-id="${row.id}" data-alldata="${safeData}">
-                <i class="bi bi-pencil me-2 text-primary"></i> Editar
+                <i class="bi bi-pencil me-2 text-secondary"></i> Editar
               </a>
             </li>
           `;

@@ -119,7 +119,7 @@ export const General = () => {
                         </Col>
                     </Row>
 
-                    <Button variant="primary" type="submit" size="lg" className="mt-3">
+                    <Button variant="primary" type="submit" className="mt-3">
                         Guardar Cambios
                     </Button>
                 </Col>

@@ -216,18 +216,16 @@ export const Datos = ({ currentUser }) => {
                     `;
                 }
 
-                // Opción Información BD
                 if (canViewInfo) {
                     menuOptions += `
                         <li>
                             <a class="dropdown-item btn-info-profile" href="#" data-alldata="${safeData}">
-                                <i class="bi bi-info-circle me-2 text-info"></i> Info Base de Datos
+                                <i class="bi bi-info-circle me-2 text-secondary"></i> Info Base de Datos
                             </a>
                         </li>
                     `;
                 }
 
-                // Opción Eliminar
                 if (canDelete) {
                     if (isMain || isActive) {
                         menuOptions += ``;
@@ -243,7 +241,6 @@ export const Datos = ({ currentUser }) => {
                     }
                 }
 
-                // Si no hay opciones permitidas, retornar vacío o un botón desactivado
                 if (!menuOptions) {
                     return `<span class="text-muted small fst-italic">Sin permisos</span>`;
                 }
