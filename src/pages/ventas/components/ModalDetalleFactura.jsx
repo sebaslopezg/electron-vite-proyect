@@ -28,6 +28,8 @@ export const ModalDetalleFactura = ({
         return 'bg-primary'
     }
 
+    const pagosArray = facturaSeleccionada?.pagos_multiples ? JSON.parse(facturaSeleccionada.pagos_multiples) : []
+
     return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
@@ -52,21 +54,36 @@ export const ModalDetalleFactura = ({
                                 <p className="mb-0"><span className="text-muted">Documento:</span> <strong>{facturaSeleccionada.documento_cliente}</strong></p>
                             </Col>
                             <Col md={6} className="text-end border-start">
-                                <p className="mb-2">
-                                    <span className="text-muted">Estado del Pago:</span>{' '}
+                                <div className="mb-2">
+                                    <span className="text-muted me-2">Estado del Pago:</span>
                                     <span className={`badge ${getBadgeClassPago(facturaSeleccionada)} text-capitalize  shadow-sm`}>
                                         {facturaSeleccionada.tipo_pago}
                                     </span>
-                                </p>
-                                <p className="mb-1">
-                                    <span className="text-muted">Método:</span> <span className="badge bg-secondary text-capitalize">{facturaSeleccionada.metodo_pago}</span>
-                                </p>
-                                <p className="mb-0">
+                                </div>
+                                
+                                <div className="mb-2">
+                                    <span className="text-muted me-2">Método(s):</span>
+                                    {pagosArray.length > 0 ? (
+                                        <div className="d-flex flex-column align-items-end mt-1 gap-1">
+                                        {pagosArray.map((p, i) => (
+                                            <span key={i} className="badge bg-secondary shadow-sm me-1">
+                                                {p.metodo}
+                                            </span>
+                                        ))}
+                                        </div>
+                                    ) : (
+                                        <span className="badge bg-secondary text-capitalize shadow-sm">
+                                            {facturaSeleccionada.metodo_pago}
+                                        </span>
+                                    )}
+                                </div>
+                                
+                                <div className="mb-0">
                                     <span className="text-muted">Deuda Pendiente:</span>{' '}
                                     <span className={facturaSeleccionada.saldo_pendiente > 0 ? 'text-danger fw-bold fs-5 ms-1' : 'text-success fw-bold fs-5 ms-1'}>
                                         {_formatCurrency(facturaSeleccionada.saldo_pendiente)}
                                     </span>
-                                </p>
+                                </div>
                             </Col>
                         </Row>
                     </div>
@@ -114,9 +131,30 @@ export const ModalDetalleFactura = ({
                 )}
 
                 {facturaSeleccionada && (
-                    <Row className="mt-4 justify-content-end">
+                    <Row className="mt-4 align-items-stretch">
                         <Col md={6}>
-                            <div className="p-2 rounded border border-secondary border-opacity-25">
+                            <div className="p-2 rounded border border-secondary border-opacity-25 h-100">
+                                <table className="table table-sm table-borderless m-0">
+                                    <tbody>
+                                        {pagosArray.length > 0 ? (
+                                            pagosArray.map((p, i) => (
+                                                <tr key={i}>
+                                                    <td className="text-muted">{p.metodo}</td>
+                                                    <td className="fw-bold text-end">{_formatCurrency(p.monto || 0)}</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td className="text-muted">{facturaSeleccionada.metodo_pago}</td>
+                                                <td className="fw-bold text-end">{_formatCurrency(facturaSeleccionada.total_recibido || 0)}</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Col>
+                        <Col md={6}>
+                            <div className="p-2 rounded border border-secondary border-opacity-25 h-100">
                                 <table className="table table-sm table-borderless m-0 text-end">
                                     <tbody>
                                         <tr><td className="text-muted">Subtotal:</td><td className="fw-bold">{_formatCurrency(facturaSeleccionada.subtotal)}</td></tr>

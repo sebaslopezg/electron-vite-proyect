@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import { BaseImpresor } from '../../../components/BaseImpresor'
-import { getCurrencySymbol, formatCurrency } from '../../../utils/currencies'
+import { formatCurrency } from '../../../utils/currencies'
 import { ventasService } from '../../../services/ventasService'
 
 export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf, textoVolver }) => {
@@ -36,6 +36,8 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
     const totalRecibidoReal = factura.total_recibido_original ?? factura.total_recibido
     const saldoPendienteReal = factura.saldo_pendiente_original ?? factura.saldo_pendiente
 
+    const pagosArray = factura.pagos_multiples ? JSON.parse(factura.pagos_multiples) : []
+
     const PosTemplate = () => (
         <div className="formato-pos text-black">
             <div className="text-center mb-2">
@@ -59,7 +61,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 })}</div>
             </div>
 
-            <div className="mb-2">
+            <div className="mb-2 border-bottom border-dark pb-2">
                 <div><strong>Cliente:</strong> {factura.nombre_cliente}</div>
                 <div><strong>CC/NIT:</strong> {factura.documento_cliente}</div>
             </div>
@@ -90,10 +92,28 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 <h6 className="fw-bold mt-1 fs-6">TOTAL: {renderCurrency(factura.total_factura)}</h6>
             </div>
 
-            <div className="mt-2">
-                <div className="text-capitalize"><strong>Pago:</strong> {factura.tipo_pago} ({factura.metodo_pago})</div>
-                <div>Recibido: {renderCurrency(totalRecibidoReal)}</div>
-                <div>Cambio/Saldo: {renderCurrency(saldoPendienteReal)}</div>
+            <div className="mt-2 text-start pb-2">
+                <div className="text-capitalize mb-1"><strong>Estado Pago:</strong> {factura.tipo_pago}</div>
+                <div className="fw-bold">Métodos de Pago:</div>
+                <div className="ps-2">
+                    {pagosArray.length > 0 ? (
+                        pagosArray.map((p, i) => (
+                            <div key={i} className="d-flex justify-content-between">
+                                <span>{p.metodo}:</span>
+                                <span>{renderCurrency(p.monto || 0)}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="d-flex justify-content-between">
+                            <span>{factura.metodo_pago}:</span>
+                            <span>{renderCurrency(totalRecibidoReal || 0)}</span>
+                        </div>
+                    )}
+                </div>
+                <div className="d-flex justify-content-between mt-1 fw-bold">
+                    <span>Cambio/Saldo:</span>
+                    <span>{renderCurrency(saldoPendienteReal)}</span>
+                </div>
             </div>
 
             {factura.observaciones && (
@@ -137,9 +157,8 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 <div className="card-body py-2">
                     <Row>
                         <Col sm={5}><strong>Cliente:</strong> {factura.nombre_cliente}</Col>
-                        <Col sm={3}><strong>CC/NIT:</strong> {factura.documento_cliente}</Col>
-                        <Col sm={2}><strong>Tipo:</strong> <span className="text-capitalize">{factura.tipo_pago}</span></Col>
-                        <Col sm={2}><strong>Método:</strong> <span className="text-capitalize">{factura.metodo_pago}</span></Col>
+                        <Col sm={4}><strong>CC/NIT:</strong> {factura.documento_cliente}</Col>
+                        <Col sm={3}><strong>Estado:</strong> <span className="text-capitalize">{factura.tipo_pago}</span></Col>
                     </Row>
                 </div>
             </div>
@@ -167,23 +186,44 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 </tbody>
             </table>
 
-            <Row className="justify-content-end">
+            <Row className="justify-content-between align-items-end">
+                <Col sm={6}>
+                    <div className="border border-dark p-3 rounded">
+                        <h6 className="fw-bold mb-2 text-uppercase" style={{ fontSize: '0.9rem' }}>Detalle de Pagos Recibidos:</h6>
+                        <table className="table table-sm table-borderless mb-0">
+                            <tbody>
+                                {pagosArray.length > 0 ? (
+                                    pagosArray.map((p, i) => (
+                                        <tr key={i}>
+                                            <td className="py-1 ps-0 text-capitalize">{p.metodo}</td>
+                                            <td className="py-1 pe-0 text-end fw-bold">{renderCurrency(p.monto || 0)}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td className="py-1 ps-0 text-capitalize">{factura.metodo_pago}</td>
+                                        <td className="py-1 pe-0 text-end fw-bold">{renderCurrency(totalRecibidoReal || 0)}</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </Col>
                 <Col sm={5}>
-                    <table className="table table-sm table-borderless text-end fs-6">
+                    <table className="table table-sm table-borderless text-end fs-6 mb-0">
                         <tbody>
                             <tr><td><strong>Subtotal:</strong></td><td>{renderCurrency(factura.subtotal)}</td></tr>
                             {factura.descuento > 0 && <tr><td><strong>Descuento:</strong></td><td className="text-danger">-{renderCurrency(factura.descuento)}</td></tr>}
                             <tr><td><strong>IVA:</strong></td><td>{renderCurrency(factura.iva)}</td></tr>
-                            <tr className="border-top border-dark border-2"><td className="fs-5"><strong>Total:</strong></td><td className="fs-5 fw-bold">{renderCurrency(factura.total_factura)}</td></tr>
-                            <tr><td><strong className="text-muted fs-6">Recibido:</strong></td><td className="text-muted fs-6">{renderCurrency(totalRecibidoReal)}</td></tr>
-                            <tr><td><strong className="text-muted fs-6">Saldo/Cambio:</strong></td><td className="text-muted fs-6">{renderCurrency(saldoPendienteReal)}</td></tr>
+                            <tr className="border-top border-dark border-2"><td className="fs-5 pt-2"><strong>Total:</strong></td><td className="fs-5 fw-bold pt-2">{renderCurrency(factura.total_factura)}</td></tr>
+                            <tr><td><strong className="text-muted fs-6">Cambio / Saldo:</strong></td><td className="text-muted fs-6">{renderCurrency(saldoPendienteReal)}</td></tr>
                         </tbody>
                     </table>
                 </Col>
             </Row>
 
             {factura.observaciones && (
-                <div className="mt-4 p-2 bg-light border rounded text-start">
+                <div className="mt-4 p-2 border border-dark rounded text-start">
                     <strong>Observaciones:</strong>
                     <p className="mb-0 small">{factura.observaciones}</p>
                 </div>

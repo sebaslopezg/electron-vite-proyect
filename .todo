@@ -7,7 +7,6 @@
 
  ### Otros:
  - Permitir agregar mas metodos de pago en una factura.
- - Modificar cache para que se guarde en DB y no en localstorage, ya que se borra. (o corregir el local storage)
  - Agregar cartera con sistecredito y addi, el cliente no debe al almacen, si no que sea addi para controlar los pagos factoring
 
  - Guardar en localstorage o cookies los estados de venta en caso de que se cierre el programa, hacer lo mismo con las modales y otros procesos largos

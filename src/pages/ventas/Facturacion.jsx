@@ -44,10 +44,11 @@ export const Facturacion = () => {
   const [esPorcentaje, setEsPorcentaje] = useState(draft.esPorcentaje ?? true)
   
   const [tipoPago, setTipoPago] = useState(draft.tipoPago || 'contado')
-  const [metodoPago, setMetodoPago] = useState(draft.metodoPago || 'Efectivo')
   const [cuotas, setCuotas] = useState(draft.cuotas || 1)
-  const [totalRecibido, setTotalRecibido] = useState(draft.totalRecibido || '')
   const [observaciones, setObservaciones] = useState(draft.observaciones || '')
+
+  // Lista dinámica de pagos para permitir múltiples métodos simultáneamente
+  const [pagos, setPagos] = useState(draft.pagos || [{ metodo: 'Efectivo', monto: '' }])
 
   const [listaMetodosPago, setListaMetodosPago] = useState([])
   
@@ -75,7 +76,8 @@ export const Facturacion = () => {
   const [currentUser, setCurrentUser] = useState(null)
 
   useEffect(() => {
-    if (carrito.length === 0 && !cliente && !totalRecibido && !observaciones) {
+    // Si todo está vacío, no guardamos borrador para no ocupar espacio basura
+    if (carrito.length === 0 && !cliente && pagos.every(p => !p.monto) && !observaciones) {
       localStorage.removeItem(DRAFT_KEY)
       return
     }
@@ -86,13 +88,12 @@ export const Facturacion = () => {
       descuento, 
       esPorcentaje, 
       tipoPago, 
-      metodoPago, 
+      pagos, 
       cuotas, 
-      totalRecibido, 
       observaciones
     }
     localStorage.setItem(DRAFT_KEY, JSON.stringify(currentDraft))
-  }, [carrito, cliente, descuento, esPorcentaje, tipoPago, metodoPago, cuotas, totalRecibido, observaciones])
+  }, [carrito, cliente, descuento, esPorcentaje, tipoPago, pagos, cuotas, observaciones])
 
   const hasPermission = (permissionKey) => {
     if (!currentUser) return false
@@ -118,9 +119,12 @@ export const Facturacion = () => {
     const metodos = await ventasService.getMetodosPago()
     setListaMetodosPago(metodos || [])
     
-    setMetodoPago(prev => {
-      if (!prev && metodos && metodos.length > 0) return metodos[0].nombre
-      return prev || 'Efectivo'
+    // Asignamos el método por defecto si los pagos aún no tienen uno asignado
+    setPagos(prev => {
+      if (prev.length === 1 && (!prev[0].metodo || prev[0].metodo === 'Efectivo') && metodos && metodos.length > 0) {
+        return [{ ...prev[0], metodo: metodos[0].nombre }]
+      }
+      return prev
     })
   }
 
@@ -157,6 +161,24 @@ export const Facturacion = () => {
     return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
   }
 
+  const addPago = () => {
+    setPagos([...pagos, { metodo: listaMetodosPago.length > 0 ? listaMetodosPago[0].nombre : 'Efectivo', monto: '' }])
+  }
+
+  const removePago = (index) => {
+    const nuevosPagos = [...pagos]
+    nuevosPagos.splice(index, 1)
+    setPagos(nuevosPagos)
+  }
+
+  const updatePago = (index, campo, valor) => {
+    const nuevosPagos = [...pagos]
+    nuevosPagos[index][campo] = valor
+    setPagos(nuevosPagos)
+  }
+
+  const recibidoNum = pagos.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0)
+
   const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
   const valorDescuento = esPorcentaje ? subtotal * (descuento / 100) : descuento
 
@@ -177,7 +199,6 @@ export const Facturacion = () => {
   const subtotalNeto = resumen.subtotal - resumen.totalDescuentos
   const ivaTotal = resumen.totalIva
   const totalFinal = resumen.totalFinal
-  const recibidoNum = parseFloat(totalRecibido) || 0
   const cambio = recibidoNum >= totalFinal ? recibidoNum - totalFinal : 0
   const saldoPendiente = recibidoNum < totalFinal ? totalFinal - recibidoNum : 0
 
@@ -388,8 +409,8 @@ export const Facturacion = () => {
 
   const vaciarCarrito = () => {
     Swal.fire({
-      title: '¿Vaciar?',
-      text: "Se eliminarán todos los productos de la preventa.",
+      title: '¿Reiniciar Módulo?',
+      text: "Se vaciarán todos los productos, clientes y pagos ingresados.",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
@@ -399,7 +420,7 @@ export const Facturacion = () => {
     }).then((result) => {
       if (result.isConfirmed) {
         cleanForm();
-        Toast.fire({ icon: 'info', title: 'Preventa limpia' })
+        Toast.fire({ icon: 'info', title: 'Facturación limpia' })
       }
     })
   }
@@ -483,6 +504,8 @@ export const Facturacion = () => {
       }
     }
 
+    const metodosUtilizados = pagos.map(p => p.metodo).filter(Boolean).join(', ')
+
     const data = {
       maestro: {
         nombre_cliente: cliente?.nombre, 
@@ -493,7 +516,8 @@ export const Facturacion = () => {
         total_recibido: recibidoNum, 
         saldo_pendiente: saldoPendiente,
         tipo_pago: tipoPago, 
-        metodo_pago: metodoPago,
+        metodo_pago: metodosUtilizados || 'Efectivo',
+        pagos_multiples: JSON.stringify(pagos),
         moneda: appConfig.moneda, 
         formato_numero: appConfig.formato_numero,
         observaciones: observaciones
@@ -518,7 +542,7 @@ export const Facturacion = () => {
           total_recibido: recibidoNum, 
           saldo_pendiente: saldoPendiente, 
           tipo_pago: tipoPago, 
-          metodo_pago: metodoPago,
+          metodo_pago: metodosUtilizados || 'Efectivo',
           moneda: appConfig.moneda, 
           formato_numero: appConfig.formato_numero,
           observaciones: observaciones
@@ -551,9 +575,8 @@ export const Facturacion = () => {
     setCliente(null)
     setDescuento(0)
     setEsPorcentaje(true)
-    setTotalRecibido('')
+    setPagos([{ metodo: listaMetodosPago.length > 0 ? listaMetodosPago[0].nombre : 'Efectivo', monto: '' }])
     setTipoPago('contado')
-    setMetodoPago(listaMetodosPago.length > 0 ? listaMetodosPago[0].nombre : 'Efectivo')
     setCuotas(1)
     setObservaciones('')
     setSkuInput('')
@@ -727,10 +750,9 @@ export const Facturacion = () => {
             variant="outline-danger"
             size="sm"
             onClick={vaciarCarrito}
-            disabled={carrito.length === 0}
           >
             <i className="bi bi-trash3 me-1"></i>
-            Vaciar
+            Vaciar Formulario
           </Button>
         </div>
 
@@ -875,18 +897,62 @@ export const Facturacion = () => {
               <span className="h5 text-primary">{renderCurrency(totalFinal)}</span>
             </div>
 
-            <Form.Group className="mb-3 bg-light p-2 rounded">
-              <Form.Label className="fw-bold"><small>Dinero Recibido</small></Form.Label>
-              <InputGroup size="sm">
-                <InputGroup.Text>{getCurrencySymbol(appConfig.moneda)}</InputGroup.Text>
-                <Form.Control
-                  type="number"
-                  min="0"
-                  value={totalRecibido}
-                  onChange={(e) => setTotalRecibido(e.target.value)}
-                />
-              </InputGroup>
-            </Form.Group>
+            <Row className="mb-2">
+                <Col xs={12}>
+                    <Form.Group className="mb-2">
+                    <Form.Label><small className="fw-bold">Tipo de Facturación</small></Form.Label>
+                    <Form.Select size="sm" value={tipoPago} onChange={(e) => setTipoPago(e.target.value)}>
+                        <option value="contado">Venta de Contado</option>
+                        <option value="credito">Venta a Crédito / Con Saldo Pendiente</option>
+                    </Form.Select>
+                    </Form.Group>
+                </Col>
+            </Row>
+
+            <div className="mb-3">
+                <Form.Label className="fw-bold d-block"><small>Métodos de Pago</small></Form.Label>
+                
+                {pagos.map((pago, index) => (
+                    <div key={index} className="p-2 mb-2 bg-white border rounded shadow-sm">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="small text-muted fw-bold">Método {index + 1}</span>
+                            {pagos.length > 1 && (
+                                <Button variant="link" size="sm" className="text-danger p-0 text-decoration-none" onClick={() => removePago(index)}>
+                                    <i className="bi bi-trash"></i>
+                                </Button>
+                            )}
+                        </div>
+                        <Form.Select 
+                            size="sm" 
+                            className="mb-2"
+                            value={pago.metodo} 
+                            onChange={(e) => updatePago(index, 'metodo', e.target.value)}
+                        >
+                            {listaMetodosPago.length === 0 && <option value="Efectivo">Efectivo</option>}
+                            {listaMetodosPago.map(m => (
+                                <option key={m.id} value={m.nombre}>{m.nombre}</option>
+                            ))}
+                        </Form.Select>
+                        
+                        <InputGroup size="sm">
+                            <InputGroup.Text className="text-muted px-2"><small>{getCurrencySymbol(appConfig.moneda)}</small></InputGroup.Text>
+                            <Form.Control
+                                type="number"
+                                min="0"
+                                placeholder="Monto a recibir"
+                                value={pago.monto}
+                                onChange={(e) => updatePago(index, 'monto', e.target.value)}
+                            />
+                        </InputGroup>
+                    </div>
+                ))}
+                
+                <div className="text-center mt-2">
+                    <Button variant="link" size="sm" className="text-decoration-none p-0 fw-bold" onClick={addPago}>
+                        <i className="bi bi-plus-circle me-1"></i> Añadir método de pago
+                    </Button>
+                </div>
+            </div>
 
             {recibidoNum > totalFinal && (
               <div className="d-flex justify-content-between mb-3 text-success">
@@ -913,29 +979,6 @@ export const Facturacion = () => {
                 onChange={(e) => setObservaciones(e.target.value)}
               />
             </Form.Group>
-
-            <Row className="mb-2">
-                <Col xs={6}>
-                    <Form.Group className="mb-3">
-                    <Form.Label><small className="fw-bold">Tipo de Pago</small></Form.Label>
-                    <Form.Select size="sm" value={tipoPago} onChange={(e) => setTipoPago(e.target.value)}>
-                        <option value="contado">Contado</option>
-                        <option value="credito">Crédito</option>
-                    </Form.Select>
-                    </Form.Group>
-                </Col>
-                <Col xs={6}>
-                  <Form.Group className="mb-3">
-                  <Form.Label><small className="fw-bold">Método</small></Form.Label>
-                  <Form.Select size="sm" value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}>
-                    {listaMetodosPago.length === 0 && <option value="Efectivo">Efectivo</option>}
-                    {listaMetodosPago.map(m => (
-                      <option key={m.id} value={m.nombre}>{m.nombre}</option>
-                    ))}
-                  </Form.Select>
-                  </Form.Group>
-                </Col>
-            </Row>
 
             {tipoPago === 'credito' && (
               <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">

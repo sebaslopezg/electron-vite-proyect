@@ -32,7 +32,6 @@ const getLocalDatetime = (startOfDay = true) => {
 }
 
 export const Reportes = ({ currentUser }) => {
-    // Estado local para garantizar que siempre tengamos la sesión cargada
     const [activeUser, setActiveUser] = useState(currentUser)
 
     const [startDate, setStartDate] = useState(() => getLocalDatetime(true))
@@ -186,12 +185,35 @@ export const Reportes = ({ currentUser }) => {
                 acc.ingresoTotalCaja += (t.valor || 0)
             } 
             else if (t.tipo_transaccion === 'venta') {
-                const ingresoReal = (t.total_factura || 0) - (t.saldo_pendiente || 0)
+                let ingresoReal = (t.total_factura || 0) - (t.saldo_pendiente || 0)
                 
                 if (ingresoReal > 0) {
-                    const metodo = t.metodo_pago || 'Contado'
-                    if (!acc.metodos[metodo]) acc.metodos[metodo] = 0
-                    acc.metodos[metodo] += ingresoReal
+                    if (t.pagos_multiples) {
+                        try {
+                            const pagos = JSON.parse(t.pagos_multiples)
+                            let faltaRepartir = ingresoReal;
+                            pagos.forEach(p => {
+                                if (faltaRepartir <= 0) return
+                                let mnt = parseFloat(p.monto) || 0
+                                if (mnt > faltaRepartir) mnt = faltaRepartir
+                                
+                                if (mnt > 0) {
+                                    const met = p.metodo || 'Contado'
+                                    if (!acc.metodos[met]) acc.metodos[met] = 0
+                                    acc.metodos[met] += mnt
+                                    faltaRepartir -= mnt
+                                }
+                            })
+                        } catch (e) {
+                            const metodo = t.metodo_pago || 'Contado'
+                            if (!acc.metodos[metodo]) acc.metodos[metodo] = 0
+                            acc.metodos[metodo] += ingresoReal
+                        }
+                    } else {
+                        const metodo = t.metodo_pago || 'Contado'
+                        if (!acc.metodos[metodo]) acc.metodos[metodo] = 0
+                        acc.metodos[metodo] += ingresoReal
+                    }
                     
                     acc.ingresoTotalCaja += ingresoReal
                 }
@@ -307,7 +329,21 @@ export const Reportes = ({ currentUser }) => {
                 if (row.tipo_pago === 'credito') {
                     return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-warning text-warning text-dark">Crédito</span>`
                 }
-                return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-primary text-primary">${row.metodo_pago || 'Contado'}</span>`
+                
+                let badges = `<span class="badge bg-primary me-1">Venta</span>`
+                if (row.pagos_multiples) {
+                    try {
+                        const pagosArray = JSON.parse(row.pagos_multiples)
+                        pagosArray.forEach(p => {
+                            if (parseFloat(p.monto) > 0) {
+                                badges += ` <span class="badge border border-primary text-primary mx-1" title="${p.metodo}: ${_formatCurrency(p.monto)}">${p.metodo}</span>`
+                            }
+                        })
+                        return badges
+                    } catch(e) {}
+                }
+                
+                return badges + ` <span class="badge border border-primary text-primary mx-1">${row.metodo_pago || 'Contado'}</span>`
             }
         },
         { 
