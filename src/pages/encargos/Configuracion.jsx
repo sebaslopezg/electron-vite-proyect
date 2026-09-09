@@ -12,9 +12,9 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
     useEffect(() => {
         if (currentUser) {
             setActiveUser(currentUser)
-        } else if (window.api && window.api.getCurrentUser) {
-            window.api.getCurrentUser().then(res => {
-                if (res.success && res.data) {
+        } else {
+            encargosService.getCurrentUser().then(res => {
+                if (res && res.success && res.data) {
                     setActiveUser(res.data)
                 }
             })
@@ -38,7 +38,7 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
         setCampos(data || [])
 
         try {
-            const settings = await window.api.getEncargosSettings()
+            const settings = await encargosService.getEncargosSettings()
             if (settings && settings.alcance_estados) {
                 setAlcanceEstados(settings.alcance_estados)
             }
@@ -80,7 +80,7 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
         }
 
         if (canEditEstados) {
-            resultSettings = await window.api.saveEncargosSettings('alcance_estados', alcanceEstados)
+            resultSettings = await encargosService.saveEncargosSettings('alcance_estados', alcanceEstados)
         }
 
         if (resultCampos.success && resultSettings.success) {

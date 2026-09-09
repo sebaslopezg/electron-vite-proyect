@@ -91,11 +91,9 @@ export const Calendario = () => {
     const encargo = info.event.extendedProps
     setEncargoSel(encargo)
     
-    if (window.api.getEncargoHistory) {
-        const historyRes = await window.api.getEncargoHistory(encargo.id)
-        if (historyRes.success) {
-            setHistorialEncargo(historyRes.data)
-        }
+    const historyRes = await encargosService.getEncargoHistory(encargo.id)
+    if (historyRes && historyRes.success) {
+        setHistorialEncargo(historyRes.data)
     }
     
     handleShow()

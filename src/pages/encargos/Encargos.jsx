@@ -42,9 +42,9 @@ export const Encargos = ({ currentUser: initialUser }) => {
     useEffect(() => {
         if (initialUser) {
             setCurrentUser(initialUser)
-        } else if (window.api && window.api.getCurrentUser) {
-            window.api.getCurrentUser().then(res => {
-                if (res.success && res.data) {
+        } else {
+            encargosService.getCurrentUser().then(res => {
+                if (res && res.success && res.data) {
                     setCurrentUser(res.data)
                 }
             })
@@ -120,7 +120,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
         setDataInTable(data)
 
         try {
-            const settings = await window.api.getEncargosSettings()
+            const settings = await encargosService.getEncargosSettings()
             if (settings && settings.alcance_estados) {
                 setAlcancePolitica(settings.alcance_estados)
             }
@@ -245,11 +245,9 @@ export const Encargos = ({ currentUser: initialUser }) => {
 
     const handleInfo = async (item) => {
         setEncargoSel(item)
-        if (window.api.getEncargoHistory) {
-            const historyRes = await window.api.getEncargoHistory(item.id);
-            if (historyRes.success) {
-                setHistorialEncargo(historyRes.data);
-            }
+        const historyRes = await encargosService.getEncargoHistory(item.id);
+        if (historyRes && historyRes.success) {
+            setHistorialEncargo(historyRes.data);
         }
     }
 

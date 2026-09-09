@@ -63,9 +63,9 @@ export const Estados = ({ currentUser }) => {
         let isMounted = true;
         if (currentUser) {
             if (isMounted) setActiveUser(currentUser)
-        } else if (window.api && window.api.getCurrentUser) {
-            window.api.getCurrentUser().then(res => {
-                if (res.success && res.data && isMounted) {
+        } else {
+            encargosService.getCurrentUser().then(res => {
+                if (res && res.success && res.data && isMounted) {
                     setActiveUser(res.data)
                 }
             })
@@ -90,7 +90,7 @@ export const Estados = ({ currentUser }) => {
         setDataInTable(Array.isArray(data) ? data : [])
         
         try {
-            const settings = await window.api.getEncargosSettings()
+            const settings = await encargosService.getEncargosSettings()
             if (settings && settings.alcance_estados) {
                 setAlcancePolitica(settings.alcance_estados)
             }
@@ -118,8 +118,13 @@ export const Estados = ({ currentUser }) => {
             console.error("No se pudieron cargar catálogos de asignación", e) 
         }
 
-        setIsInitialLoad(false)
         setReloadTable(prev => prev + 1)
+        
+        if (isInitialLoad) {
+            setTimeout(() => {
+                setIsInitialLoad(false)
+            }, 300)
+        }
     }
 
     const cleanForm = () => {
@@ -278,13 +283,12 @@ export const Estados = ({ currentUser }) => {
 
     const tableContainerRef = useRef(null)
 
-    // Agregamos isInitialLoad como dependencia para asegurar la asociación del listener
     useEffect(() => {
         const container = tableContainerRef.current
         if (!container) return
 
         const handleTableClick = (e) => {
-            const editBtn = e.target.closest('.btn-edit')
+            const editBtn = e.target.closest('.btn-edit-estado')
             if (editBtn) {
                 e.preventDefault()
                 e.stopPropagation()
@@ -308,7 +312,7 @@ export const Estados = ({ currentUser }) => {
                 } catch (err) { console.error("Error leyendo datos", err) }
             }
 
-            const delBtn = e.target.closest('.btn-delete')
+            const delBtn = e.target.closest('.btn-delete-estado')
             if (delBtn) {
                 e.preventDefault()
                 e.stopPropagation()
@@ -381,9 +385,9 @@ export const Estados = ({ currentUser }) => {
                 if (canEditAction) {
                     menuItems += `
                         <li>
-                            <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                <i class="bi bi-pencil me-2 text-secondary"></i> Editar
-                            </a>
+                            <button class="dropdown-item btn-edit-estado w-100 text-start" data-alldata="${safeData}">
+                                <i class="bi bi-pencil me-2 text-primary"></i> Editar
+                            </button>
                         </li>
                     `;
                 }
@@ -392,7 +396,7 @@ export const Estados = ({ currentUser }) => {
                     if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
                     menuItems += `
                         <li>
-                            <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
+                            <button class="dropdown-item text-danger btn-delete-estado w-100 text-start" data-id="${row.id}">
                                 <i class="bi bi-trash3 me-2"></i> Eliminar
                             </button>
                         </li>
@@ -415,37 +419,41 @@ export const Estados = ({ currentUser }) => {
         }
     ], [alcancePolitica, activeUser, currentUser])
 
-    if (isInitialLoad) {
-        return (
-            <div className="d-flex align-items-center justify-content-center w-100" style={{ minHeight: '40vh' }}>
-                <div className="text-center animate__animated animate__fadeIn">
-                    <div className="spinner-border text-primary mb-2" role="status"></div>
-                    <p className="text-muted small fw-bold">Cargando estados y configuraciones...</p>
+    return <>
+        <div className="position-relative" style={{ minHeight: isInitialLoad ? '40vh' : 'auto' }}>
+            
+            {isInitialLoad && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="text-center animate__animated animate__fadeIn">
+                        <div className="spinner-border text-primary mb-3" role="status" style={{ width: '2.5rem', height: '2.5rem' }}></div>
+                        <h6 className="text-muted fw-bold">Cargando Estados...</h6>
+                        <p className="text-muted small">Preparando la tabla de datos</p>
+                    </div>
+                </div>
+            )}
+
+            <div style={{ opacity: isInitialLoad ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isInitialLoad ? 'none' : 'auto' }}>
+                {canCreate && (
+                    <div className="mb-3">
+                        <button className='btn btn-primary' onClick={() => {
+                            setEditingId(null)
+                            cleanForm()
+                            handleShow()
+                        }}>
+                            Nuevo Estado
+                        </button>
+                    </div>
+                )}
+
+                <div ref={tableContainerRef} className="w-100 overflow-visible">
+                    <CustomDataTable
+                        tableId="dt-encargos-estados"
+                        reloadKey={reloadTable}
+                        data={dataInTable}
+                        columns={dataColumns}
+                    />
                 </div>
             </div>
-        )
-    }
-
-    return <>
-        {canCreate && (
-            <div className="mb-3 animate__animated animate__fadeIn">
-                <button className='btn btn-primary' onClick={() => {
-                    setEditingId(null)
-                    cleanForm()
-                    handleShow()
-                }}>
-                    Nuevo Estado
-                </button>
-            </div>
-        )}
-
-        <div ref={tableContainerRef} className="w-100 overflow-visible animate__animated animate__fadeIn">
-            <CustomDataTable
-                tableId="dt-encargos-estados"
-                reloadKey={reloadTable}
-                data={dataInTable}
-                columns={dataColumns}
-            />
         </div>
 
         <ModalFormEstado 

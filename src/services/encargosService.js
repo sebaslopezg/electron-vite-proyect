@@ -1,8 +1,49 @@
-const api = ''
+const api = '' // Instancia de Axios o fetch a configurar posteriormente
 
 const isElectron = () => typeof window !== 'undefined' && window.api !== undefined
 
 export const encargosService = {
+    getCurrentUser: async () => {
+        if (isElectron()) return await window.api.getCurrentUser()
+        try {
+            // Endpoint web simulado
+            const response = await api.get('/auth/me')
+            return response.data || { success: false }
+        } catch (error) {
+            return { success: false, error: error.message }
+        }
+    },
+
+    getEncargosSettings: async () => {
+        if (isElectron()) return await window.api.getEncargosSettings()
+        try {
+            const response = await api.get('/encargos/settings')
+            return response.data.data || response.data || {}
+        } catch (error) {
+            return {}
+        }
+    },
+
+    saveEncargosSettings: async (key, value) => {
+        if (isElectron()) return await window.api.saveEncargosSettings(key, value)
+        try {
+            const response = await api.post('/encargos/settings', { key, value })
+            return { success: true, ...response.data }
+        } catch (error) {
+            return { success: false, error: error.message }
+        }
+    },
+
+    getEncargoHistory: async (id) => {
+        if (isElectron()) return await window.api.getEncargoHistory(id)
+        try {
+            const response = await api.get(`/encargos/${id}/historial`)
+            return response.data || { success: true, data: [] }
+        } catch (error) {
+            return { success: false, error: error.message }
+        }
+    },
+
     getConfiguracion: async () => {
         if (isElectron()) {
             return await window.api.getConfiguracion()
@@ -165,12 +206,18 @@ export const encargosService = {
 
     getEncargosCampos: async () => {
         if (isElectron()) return await window.api.getEncargosCampos()
-        return []
+        try {
+            const res = await api.get('/encargos/campos')
+            return res.data.data || res.data || []
+        } catch { return [] }
     },
     
     saveEncargosCampos: async (payload) => {
         if (isElectron()) return await window.api.saveEncargosCampos(payload)
-        return { success: false }
+        try {
+            const res = await api.post('/encargos/campos', payload)
+            return { success: true, ...res.data }
+        } catch (e) { return { success: false, error: e.message } }
     },
 
     getUsuariosAsignacion: async () => {

@@ -1,6 +1,6 @@
 import { ipcMain } from "electron"
 import { v4 as uuidv4 } from "uuid"
-import db, { appDb } from "../database/index.js" // Importamos ambas BD
+import db, { appDb } from "../database/index.js"
 import { execSync } from "child_process"
 import crypto from "crypto"
 import os from "os"
@@ -15,40 +15,46 @@ const getHardwareId = () => {
     try {
         if (process.platform === 'win32') {
             try {
-                // Se agrega stdio ignore para evitar que advertencias de consola bloqueen la ejecución
-                hwid = execSync('powershell.exe -NoProfile -Command "(Get-CimInstance -Class Win32_ComputerSystem).UUID"', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim()
-                logs.push(`[Capa 1 - Win32] PowerShell ejecutado con éxito. Resultado: ${hwid}`);
+                hwid = execSync('powershell.exe -NoProfile -Command "(Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography).MachineGuid"', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+                logs.push(`[Capa 1 - Win32] MachineGuid extraído con éxito. Resultado: ${hwid}`);
             } catch (e) {
                 logs.push(`[Capa 1 - Win32] Error PowerShell: ${e.message}`);
-                const output = execSync('wmic csproduct get uuid', { stdio: ['pipe', 'pipe', 'ignore'] }).toString()
-                const lines = output.split('\n')
-                hwid = lines[1] ? lines[1].trim() : ''
-                logs.push(`[Capa 1 - Win32] WMIC ejecutado. Resultado: ${hwid}`);
+                const output = execSync('reg query HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography /v MachineGuid', { stdio: ['pipe', 'pipe', 'ignore'] }).toString();
+                const match = output.match(/([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})/);
+                if (match) hwid = match[1].trim();
             }
         } else if (process.platform === 'darwin') {
             hwid = execSync("ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformUUID/ { print $4 }'", { stdio: ['pipe', 'pipe', 'ignore'] }).toString().replace(/"/g, "").trim()
             logs.push(`[Capa 1 - Darwin] Comando IOReg ejecutado. Resultado: ${hwid}`);
         } else {
-            hwid = execSync('cat /etc/machine-id', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim()
+            try {
+                hwid = execSync('cat /etc/machine-id', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim()
+            } catch {
+                hwid = execSync('cat /var/lib/dbus/machine-id', { stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim()
+            }
             logs.push(`[Capa 1 - Linux] Archivo machine-id leído. Resultado: ${hwid}`);
         }
 
-        if (!hwid || hwid.includes('FFFFFFFF-FFFF') || hwid.length < 10) {
-            throw new Error(`El HWID extraído es inválido o genérico de fábrica (${hwid}).`);
+        if (!hwid || hwid.length < 10 || hwid.includes('FFFFFFFF')) {
+            throw new Error(`El identificador base extraído es genérico o inválido (${hwid}).`);
         }
 
-        return { hwid, logs };
+        return { hwid: hwid.toUpperCase(), logs };
 
     } catch (e) {
         logs.push(`[Capa 1 Fallida] Motivo: ${e.message}`);
         
         try {
+            const userInfo = os.userInfo().username || 'user';
             const interfaces = os.networkInterfaces()
-            logs.push(`[Capa 2] Interfaces de red detectadas: ${Object.keys(interfaces).join(', ')}`);
             
-            // Recolectar todas las MAC válidas del sistema
             const validMacs = [];
             for (const key in interfaces) {
+                const nameLower = key.toLowerCase();
+                if (nameLower.includes('veth') || nameLower.includes('docker') || nameLower.includes('vmware') || nameLower.includes('virtual') || nameLower.includes('hyper') || nameLower.includes('vpn')) {
+                    continue;
+                }
+
                 for (const net of interfaces[key]) {
                     if (!net.internal && net.mac && net.mac !== '00:00:00:00:00:00') {
                         validMacs.push(net.mac);
@@ -60,21 +66,21 @@ const getHardwareId = () => {
                 validMacs.sort()
                 const selectedMac = validMacs[0]
 
-                const fallbackStr = `${os.hostname()}-${selectedMac}`;
+                const fallbackStr = `${os.hostname()}-${userInfo}-${selectedMac}`;
                 const macHwid = crypto.createHash('sha256').update(fallbackStr).digest('hex').substring(0, 32).toUpperCase();
                 
-                logs.push(`[Capa 2 Exitosa] Se usó la MAC más estable: ${selectedMac}.`);
+                logs.push(`[Capa 2 Exitosa] Se usó MAC física controlada: ${selectedMac}.`);
                 return { hwid: macHwid, logs }
             }
             
-            logs.push(`[Capa 2 Fallida] No se encontró ninguna interfaz de red con una MAC válida (No virtual).`);
+            logs.push(`[Capa 2 Fallida] No se encontró ninguna interfaz de red válida.`);
         } catch (errFallback) {
-            logs.push(`[Capa 2 Fallida] Error en módulo 'os': ${errFallback.message}`);
+            logs.push(`[Capa 2 Fallida] Error en fallback de red: ${errFallback.message}`);
         }
         
-        const absoluteFallback = os.hostname() || 'UNKNOWN-PC';
-        const finalHwid = 'GEN-HWID-' + crypto.createHash('md5').update(absoluteFallback).digest('hex').toUpperCase();
-        logs.push(`[Capa 3 Exitosa] Se aplicó último recurso con nombre de equipo: ${absoluteFallback}.`);
+        const absoluteFallback = os.hostname() + '-' + os.release() + '-' + os.arch();
+        const finalHwid = 'GEN-' + crypto.createHash('sha256').update(absoluteFallback).digest('hex').substring(0, 28).toUpperCase();
+        logs.push(`[Capa 3 Exitosa] Identidad enlazada al nombre estático del host.`);
         
         return { hwid: finalHwid, logs };
     }
@@ -132,7 +138,6 @@ export const registerActivationHandlers = () => {
                 } catch (migrationError) {
                 }
             }
-            // ---------------------------------------------------
 
             if (!license || license.activado !== 1) {
                 return { success: true, activated: false, hardwareId: hwid }

@@ -3,6 +3,7 @@ import { Calendario } from "./Calendario"
 import { Encargos } from "./Encargos"
 import { Estados } from "./Estados"
 import { ConfiguracionEncargos } from "./Configuracion"
+import { encargosService } from "../../services/encargosService"
 
 export const IndexEncargos = ({ currentUser }) => {
   const [activeUser, setActiveUser] = useState(currentUser)
@@ -17,11 +18,11 @@ export const IndexEncargos = ({ currentUser }) => {
                   setActiveUser(currentUser)
                   setIsLoading(false)
               }
-          } else if (window.api && window.api.getCurrentUser) {
+          } else {
               try {
-                  const res = await window.api.getCurrentUser()
+                  const res = await encargosService.getCurrentUser()
                   if (isMounted) {
-                      if (res.success && res.data) {
+                      if (res && res.success && res.data) {
                           setActiveUser(res.data)
                       }
                       setIsLoading(false)
@@ -29,8 +30,6 @@ export const IndexEncargos = ({ currentUser }) => {
               } catch (error) {
                   if (isMounted) setIsLoading(false)
               }
-          } else {
-              if (isMounted) setIsLoading(false)
           }
       }
       

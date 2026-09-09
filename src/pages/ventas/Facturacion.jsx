@@ -21,26 +21,42 @@ const Toast = Swal.mixin({
     }
 })
 
+const DRAFT_KEY = 'ventas_draft_invoice'
+
+const getInitialDraft = () => {
+  try {
+    const saved = localStorage.getItem(DRAFT_KEY)
+    return saved ? JSON.parse(saved) : {}
+  } catch (e) {
+    return {}
+  }
+}
+
 export const Facturacion = () => {
+  const draft = getInitialDraft()
+
   const [productos, setProductos] = useState([])
   const [clientes, setClientes] = useState([])
-  const [carrito, setCarrito] = useState([])
-  const [show, setShow] = useState(false)
-  const [showTerceroModal, setShowTerceroModal] = useState(false)
-  const [cliente, setCliente] = useState(null)
-  const [modalData, setModalData] = useState({ title: '', columns: [], type: '' })
-  const [descuento, setDescuento] = useState(0)
-  const [esPorcentaje, setEsPorcentaje] = useState(true)
   
-  const [tipoPago, setTipoPago] = useState('contado')
-  const [metodoPago, setMetodoPago] = useState('Efectivo')
+  const [carrito, setCarrito] = useState(draft.carrito || [])
+  const [cliente, setCliente] = useState(draft.cliente || null)
+  const [descuento, setDescuento] = useState(draft.descuento || 0)
+  const [esPorcentaje, setEsPorcentaje] = useState(draft.esPorcentaje ?? true)
+  
+  const [tipoPago, setTipoPago] = useState(draft.tipoPago || 'contado')
+  const [metodoPago, setMetodoPago] = useState(draft.metodoPago || 'Efectivo')
+  const [cuotas, setCuotas] = useState(draft.cuotas || 1)
+  const [totalRecibido, setTotalRecibido] = useState(draft.totalRecibido || '')
+  const [observaciones, setObservaciones] = useState(draft.observaciones || '')
+
   const [listaMetodosPago, setListaMetodosPago] = useState([])
   
-  const [cuotas, setCuotas] = useState(1)
-  const [totalRecibido, setTotalRecibido] = useState('')
+  const [show, setShow] = useState(false)
+  const [showTerceroModal, setShowTerceroModal] = useState(false)
+  const [modalData, setModalData] = useState({ title: '', columns: [], type: '' })
+  
   const [skuInput, setSkuInput] = useState('')
   const [docInput, setDocInput] = useState('')
-  const [observaciones, setObservaciones] = useState('')
 
   const [showPreviewImpresion, setShowPreviewImpresion] = useState(false)
   const [facturaParaImprimir, setFacturaParaImprimir] = useState(null)
@@ -58,10 +74,30 @@ export const Facturacion = () => {
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
   const [currentUser, setCurrentUser] = useState(null)
 
+  useEffect(() => {
+    if (carrito.length === 0 && !cliente && !totalRecibido && !observaciones) {
+      localStorage.removeItem(DRAFT_KEY)
+      return
+    }
+
+    const currentDraft = {
+      carrito, 
+      cliente, 
+      descuento, 
+      esPorcentaje, 
+      tipoPago, 
+      metodoPago, 
+      cuotas, 
+      totalRecibido, 
+      observaciones
+    }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(currentDraft))
+  }, [carrito, cliente, descuento, esPorcentaje, tipoPago, metodoPago, cuotas, totalRecibido, observaciones])
+
   const hasPermission = (permissionKey) => {
-      if (!currentUser) return false
-      if (currentUser.permisos?.includes('ALL')) return true
-      return currentUser.permisos?.includes(permissionKey)
+    if (!currentUser) return false
+    if (currentUser.permisos?.includes('ALL')) return true
+    return currentUser.permisos?.includes(permissionKey)
   }
 
   const loadConfig = async () => {
@@ -81,13 +117,17 @@ export const Facturacion = () => {
   const loadMetodosDePago = async () => {
     const metodos = await ventasService.getMetodosPago()
     setListaMetodosPago(metodos || [])
-    if (metodos && metodos.length > 0) setMetodoPago(metodos[0].nombre)
+    
+    setMetodoPago(prev => {
+      if (!prev && metodos && metodos.length > 0) return metodos[0].nombre
+      return prev || 'Efectivo'
+    })
   }
 
   const loadInitialData = async () => {
     if (window.api && window.api.getCurrentUser) {
-        const userRes = await window.api.getCurrentUser()
-        if (userRes?.success) setCurrentUser(userRes.data)
+      const userRes = await window.api.getCurrentUser()
+      if (userRes?.success) setCurrentUser(userRes.data)
     }
 
     const prods = await ventasService.getAllProductos()
@@ -108,8 +148,8 @@ export const Facturacion = () => {
     window.addEventListener('config-actualizada', loadConfig)
     window.addEventListener('metodos-pago-actualizados', loadMetodosDePago)
     return () => {
-        window.removeEventListener('config-actualizada', loadConfig)
-        window.removeEventListener('metodos-pago-actualizados', loadMetodosDePago)
+      window.removeEventListener('config-actualizada', loadConfig)
+      window.removeEventListener('metodos-pago-actualizados', loadMetodosDePago)
     }
   }, [])
 
@@ -498,7 +538,7 @@ export const Facturacion = () => {
           }
           
           loadInitialData()
-          cleanForm()
+          cleanForm() 
           window.dispatchEvent(new CustomEvent('factura-creada'))
       })
     } else {
@@ -507,11 +547,18 @@ export const Facturacion = () => {
   }
 
   const cleanForm = () => {
-    setCarrito([]); setCliente(null); setDescuento(0)
+    setCarrito([])
+    setCliente(null)
+    setDescuento(0)
+    setEsPorcentaje(true)
     setTotalRecibido('')
     setTipoPago('contado')
-    setMetodoPago('Efectivo')
+    setMetodoPago(listaMetodosPago.length > 0 ? listaMetodosPago[0].nombre : 'Efectivo')
+    setCuotas(1)
     setObservaciones('')
+    setSkuInput('')
+    setDocInput('')
+    localStorage.removeItem(DRAFT_KEY)
   }
 
   const updateQuantity = (id, delta, isEncargo) => {
@@ -683,7 +730,7 @@ export const Facturacion = () => {
             disabled={carrito.length === 0}
           >
             <i className="bi bi-trash3 me-1"></i>
-            Vaciar Carrito
+            Vaciar
           </Button>
         </div>
 
