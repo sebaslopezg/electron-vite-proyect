@@ -17,6 +17,11 @@ export const registerAlmacenConfigHandlers = () => {
         logger.info('SISTEMA', 'Migración exitosa: Columna "status" inyectada en la tabla metodos_pago.');
     } catch (error) {}
 
+    try {
+        db.exec("ALTER TABLE metodos_pago ADD COLUMN orden INTEGER DEFAULT 0;");
+        logger.info('SISTEMA', 'Migración exitosa: Columna "orden" inyectada en la tabla metodos_pago.');
+    } catch (error) {}
+
     ipcMain.handle("getAll-almacenConf", () => {
         try {
             const stmt = db.prepare("SELECT * FROM almacen_conf WHERE status > 0")
@@ -75,7 +80,7 @@ export const registerAlmacenConfigHandlers = () => {
 
     ipcMain.handle("get-metodos-pago", () => {
         try {
-            return db.prepare("SELECT * FROM metodos_pago WHERE status > 0 ORDER BY nombre ASC").all()
+            return db.prepare("SELECT * FROM metodos_pago WHERE status > 0 ORDER BY orden ASC, nombre ASC").all()
         } catch (error) {
             logger.error('METODOS_PAGO', "Error obteniendo la lista de métodos de pago", error)
             return []
@@ -88,7 +93,10 @@ export const registerAlmacenConfigHandlers = () => {
         }
         try {
             const id = uuidv4()
-            db.prepare("INSERT INTO metodos_pago (id, nombre, status) VALUES (?, ?, 1)").run(id, nombre)
+            const maxOrderRow = db.prepare("SELECT MAX(orden) as maxOrden FROM metodos_pago WHERE status > 0").get();
+            const nextOrder = (maxOrderRow.maxOrden || 0) + 1;
+
+            db.prepare("INSERT INTO metodos_pago (id, nombre, status, orden) VALUES (?, ?, 1, ?)").run(id, nombre, nextOrder)
             logger.success('METODOS_PAGO', `Nuevo método de pago agregado: ${nombre}`)
             return { success: true, id, nombre }
         } catch (error) {
@@ -124,6 +132,26 @@ export const registerAlmacenConfigHandlers = () => {
             return { success: true }
         } catch (error) {
             logger.error('METODOS_PAGO', `Error al aplicar Soft Delete al método de pago ID: ${id}`, error)
+            return { success: false, error: error.message }
+        }
+    })
+
+    ipcMain.handle("reorder-metodos-pago", (_, ordenData) => {
+        if (!checkPermission("ventas_configurar")) {
+            return { success: false, error: "No autorizado." }
+        }
+        try {
+            const updateStmt = db.prepare("UPDATE metodos_pago SET orden = ? WHERE id = ?");
+            const transaction = db.transaction((data) => {
+                for (const item of data) {
+                    updateStmt.run(item.orden, item.id);
+                }
+            });
+            transaction(ordenData);
+            logger.success('METODOS_PAGO', 'El orden de los métodos de pago fue actualizado correctamente.');
+            return { success: true }
+        } catch (error) {
+            logger.error('METODOS_PAGO', "Error al reordenar los métodos de pago.", error)
             return { success: false, error: error.message }
         }
     })

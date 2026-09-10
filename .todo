@@ -2,14 +2,14 @@
 
  ## Modificaciones Prioritarias:
 
+ ### PRIORITARIO
+ - Separar cantidades de inventario del modulo de productos, hacer que esto se gestione en la tabla de inventario y no en la de productos
+
  ### Modulo Encargos:
  - > Habilitar cuadro de firma para que un usuario tenga que cambiar un estado.  
 
  ### Otros:
- - Permitir agregar mas metodos de pago en una factura.
  - Agregar cartera con sistecredito y addi, el cliente no debe al almacen, si no que sea addi para controlar los pagos factoring
-
- - Guardar en localstorage o cookies los estados de venta en caso de que se cierre el programa, hacer lo mismo con las modales y otros procesos largos
 
  - Avanzar con la implementacion de los botones excel y pdf en todas las vistas
 
@@ -20,7 +20,6 @@
  - Crear modulo de servicios (sacar pestaña servicios de productos)
 
  ## No prioritario
- - permitir cambiar de posicion las opciones de metodo de pago en el menu desplegable
  - organizar preload.js porque esta muy largo
  - integrar todos los try catch de las tablas en los campos normales para limpiar todos los archivos de tablas.
  - Revisar swal en todas las interacciones con los forms

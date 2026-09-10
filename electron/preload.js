@@ -104,6 +104,7 @@ contextBridge.exposeInMainWorld("api", {
   getAllConfAlmacen: () => ipcRenderer.invoke("getAll-almacenConf"),
   getOneConfAlmacen: (id) => ipcRenderer.invoke("get-almacenConf", id),
   updateConfAlmacen: (item) => ipcRenderer.invoke("update-almacenConf", item),
+  reorderMetodosPago: (ordenData) => ipcRenderer.invoke("reorder-metodos-pago", ordenData),
 
   getMetodosPago: () => ipcRenderer.invoke('get-metodos-pago'),
   addMetodoPago: (nombre) => ipcRenderer.invoke('add-metodo-pago', nombre),

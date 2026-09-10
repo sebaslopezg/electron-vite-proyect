@@ -74,6 +74,13 @@ export const ventasService = {
             return response.data;
         }
     },
+    reorderMetodosPago: async (ordenData) => {
+        if (isElectron()) return await window.api.reorderMetodosPago(ordenData)
+        try {
+            const res = await api.put('/ventas/metodos/reorder', { orden: ordenData })
+            return res.data
+        } catch (e) { return { success: false, error: e.message } }
+    },
     // ─── CONFIGURACIÓN GLOBAL ────────────────────────────────
     getConfiguracion: async () => {
         if (isElectron()) {
