@@ -40,7 +40,7 @@ export const Ventas = ({ currentUser }) => {
             label: 'Facturación',
             icon:'bi bi-receipt',
             permission: 'ventas_crear',
-            component: <Facturacion />
+            component: <Facturacion currentUser={currentUser} />
         },
         {
             id: 'verFacturas',
@@ -54,21 +54,21 @@ export const Ventas = ({ currentUser }) => {
             label: 'Reportes',
             icon:'bi bi-clipboard',
             permission: 'reportes_ver',
-            component: <Reportes />
+            component: <Reportes currentUser={currentUser} />
         },
         {
             id: 'notas',
             label: 'Nota Crédito/Débito',
             icon:'bi bi-journal',
             permission: 'notas_gestionar',
-            component: <Notas />
+            component: <Notas currentUser={currentUser} />
         },
         {
             id: 'config',
             label: 'Configurar',
             icon:'bi bi-gear',
             permission: 'ventas_configurar',
-            component: <Configuracion data={almacenData} onReload={loadAlmacenConf} />
+            component: <Configuracion data={almacenData} onReload={loadAlmacenConf} currentUser={currentUser} />
         }
     ].filter(tab => hasPermission(tab.permission))
 

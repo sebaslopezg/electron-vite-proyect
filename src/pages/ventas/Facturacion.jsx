@@ -32,7 +32,7 @@ const getInitialDraft = () => {
   }
 }
 
-export const Facturacion = () => {
+export const Facturacion = ({ currentUser: initialUser }) => {
   const draft = getInitialDraft()
 
   const [productos, setProductos] = useState([])
@@ -47,7 +47,6 @@ export const Facturacion = () => {
   const [cuotas, setCuotas] = useState(draft.cuotas || 1)
   const [observaciones, setObservaciones] = useState(draft.observaciones || '')
 
-  // Lista dinámica de pagos para permitir múltiples métodos simultáneamente
   const [pagos, setPagos] = useState(draft.pagos || [{ metodo: 'Efectivo', monto: '' }])
 
   const [listaMetodosPago, setListaMetodosPago] = useState([])
@@ -73,10 +72,13 @@ export const Facturacion = () => {
   const [filterTag, setFilterTag] = useState('')
 
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
-  const [currentUser, setCurrentUser] = useState(null)
+  const [currentUser, setCurrentUser] = useState(initialUser)
 
   useEffect(() => {
-    // Si todo está vacío, no guardamos borrador para no ocupar espacio basura
+    if (initialUser) setCurrentUser(initialUser)
+  }, [initialUser])
+
+  useEffect(() => {
     if (carrito.length === 0 && !cliente && pagos.every(p => !p.monto) && !observaciones) {
       localStorage.removeItem(DRAFT_KEY)
       return
@@ -119,7 +121,6 @@ export const Facturacion = () => {
     const metodos = await ventasService.getMetodosPago()
     setListaMetodosPago(metodos || [])
     
-    // Asignamos el método por defecto si los pagos aún no tienen uno asignado
     setPagos(prev => {
       if (prev.length === 1 && (!prev[0].metodo || prev[0].metodo === 'Efectivo') && metodos && metodos.length > 0) {
         return [{ ...prev[0], metodo: metodos[0].nombre }]
@@ -129,7 +130,7 @@ export const Facturacion = () => {
   }
 
   const loadInitialData = async () => {
-    if (window.api && window.api.getCurrentUser) {
+    if (!initialUser && window.api && window.api.getCurrentUser) {
       const userRes = await window.api.getCurrentUser()
       if (userRes?.success) setCurrentUser(userRes.data)
     }
