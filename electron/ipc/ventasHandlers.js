@@ -42,7 +42,7 @@ export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-maestro-paginados", (_, dtParams) => {
         if (!checkPermission("ventas_historial")) {
-            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" }
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" };
         }
         try {
             const limit = parseInt(dtParams.length, 10) || 10
@@ -130,22 +130,22 @@ export const registerVentasHandlers = () => {
             const detallesRaw = stmt.all(facturaId)
 
             const detalles = detallesRaw.map(d => {
-                let fullPrefix = d.cat_prefix || ''
-                let finalSeparator = d.cat_separador || ''
+                let fullPrefix = d.cat_prefix || ''; 
+                let finalSeparator = d.cat_separador || '';
                 
-                const subIds = d.subcategorias_ids_json ? JSON.parse(d.subcategorias_ids_json) : []
+                const subIds = d.subcategorias_ids_json ? JSON.parse(d.subcategorias_ids_json) : [];
                 
                 if (subIds.length > 0) {
-                    const placeholders = subIds.map(() => '?').join(',')
-                    const subs = db.prepare(`SELECT id, sku_prefix, separador FROM subcategoria WHERE id IN (${placeholders})`).all(...subIds)
+                    const placeholders = subIds.map(() => '?').join(',');
+                    const subs = db.prepare(`SELECT id, sku_prefix, separador FROM subcategoria WHERE id IN (${placeholders})`).all(...subIds);
                     
                     subIds.forEach(id => {
-                        const s = subs.find(sub => sub.id === id)
+                        const s = subs.find(sub => sub.id === id);
                         if (s && s.sku_prefix) {
                             if (fullPrefix) {
-                                fullPrefix += `${finalSeparator}${s.sku_prefix}`
+                                fullPrefix += `${finalSeparator}${s.sku_prefix}`;
                             } else {
-                                fullPrefix = s.sku_prefix
+                                fullPrefix = s.sku_prefix;
                             }
                             if (s.separador !== undefined && s.separador !== null) {
                                 finalSeparator = s.separador; 
@@ -154,12 +154,12 @@ export const registerVentasHandlers = () => {
                     });
                 }
                 
-                delete d.subcategorias_ids_json
-                delete d.cat_prefix
-                delete d.cat_separador
+                delete d.subcategorias_ids_json;
+                delete d.cat_prefix;
+                delete d.cat_separador;
 
-                return { ...d, sku_prefix: fullPrefix, separador: finalSeparator }
-            })
+                return { ...d, sku_prefix: fullPrefix, separador: finalSeparator };
+            });
 
             const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`)
             const notas = notasStmt.all(facturaId)
@@ -190,7 +190,7 @@ export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-reporte-ventas", (_, { startDate, endDate }) => {
         if (!checkPermission("reportes_ver")) {
-            return { success: false, error: "No autorizado para consultar reportes financieros de ventas." }
+            return { success: false, error: "No autorizado para consultar reportes financieros de ventas." };
         }
         try {
             let baseQueryVentas = `
@@ -203,15 +203,15 @@ export const registerVentasHandlers = () => {
                     AND n.motivo_dian COLLATE NOCASE LIKE '%anula%'
                 )
             `;
-            let queryParams = []
+            let queryParams = [];
 
             if (startDate) {
-                baseQueryVentas += " AND date(v.date_created) >= date(?)"
-                queryParams.push(startDate)
+                baseQueryVentas += " AND date(v.date_created) >= date(?)";
+                queryParams.push(startDate);
             }
             if (endDate) {
-                baseQueryVentas += " AND date(v.date_created) <= date(?)"
-                queryParams.push(endDate)
+                baseQueryVentas += " AND date(v.date_created) <= date(?)";
+                queryParams.push(endDate);
             }
 
             const queryVentas = `
@@ -219,20 +219,20 @@ export const registerVentasHandlers = () => {
                 (SELECT separador FROM almacen_conf LIMIT 1) AS separador
                 ${baseQueryVentas}
                 ORDER BY v.date_created ASC
-            `
+            `;
             
-            const dataVentas = db.prepare(queryVentas).all(...queryParams)
+            const dataVentas = db.prepare(queryVentas).all(...queryParams);
 
-            let abonosWhere = `WHERE 1=1`
-            let abonosParams = []
+            let abonosWhere = `WHERE 1=1`;
+            let abonosParams = [];
 
             if (startDate) {
-                abonosWhere += " AND date(a.date_created) >= date(?)"
-                abonosParams.push(startDate)
+                abonosWhere += " AND date(a.date_created) >= date(?)";
+                abonosParams.push(startDate);
             }
             if (endDate) {
-                abonosWhere += " AND date(a.date_created) <= date(?)"
-                abonosParams.push(endDate)
+                abonosWhere += " AND date(a.date_created) <= date(?)";
+                abonosParams.push(endDate);
             }
 
             const queryAbonos = `
@@ -342,10 +342,18 @@ export const registerVentasHandlers = () => {
                     db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.id)
 
                     const insertInventario = db.prepare(`
-                    INSERT INTO inventario (id, producto_id, tipo_movimiento, modulo_movimiento, cantidad, stock_anterior, stock_nuevo, fecha)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO inventario (
+                        id, producto_id, tipo_movimiento, modulo_movimiento, cantidad, 
+                        stock_anterior, stock_nuevo, fecha, usuario, notas
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `)
-                    insertInventario.run(uuidv4(), item.id, 'SALIDA', 'VENTA', item.cantidad, stockAnterior, stockNuevo, now)
+                    const numF = `${prefijoFactura}${config.separador || ''}${nuevoNumeroFactura}`;
+                    const htmlNota = `Venta <a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura-global" data-fullnum="${numF}">Factura ${numF}</a>`;
+                    
+                    insertInventario.run(
+                        uuidv4(), item.id, 'SALIDA', 'VENTA', item.cantidad, 
+                        stockAnterior, stockNuevo, now, currentUser, htmlNota
+                    )
                 } else if (item.isEncargo === '1') {
                     try {
                         const prevNum = db.prepare('SELECT COUNT(*) as count FROM encargos').get()
@@ -415,10 +423,10 @@ export const registerVentasHandlers = () => {
 
                     if (montoFaltantePorRegistrar > 0 && pagosMultiplesArray.length > 0) {
                         for (const p of pagosMultiplesArray) {
-                            if (montoFaltantePorRegistrar <= 0) break
-                            let montoAAplicar = parseFloat(p.monto) || 0
+                            if (montoFaltantePorRegistrar <= 0) break;
+                            let montoAAplicar = parseFloat(p.monto) || 0;
                             if (montoAAplicar > montoFaltantePorRegistrar) {
-                                montoAAplicar = montoFaltantePorRegistrar
+                                montoAAplicar = montoFaltantePorRegistrar;
                             }
                             if (montoAAplicar > 0) {
                                 const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(p.metodo);

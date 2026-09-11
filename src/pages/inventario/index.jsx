@@ -10,9 +10,11 @@ import { ModalAjusteStock } from './components/ModalAjusteStock'
 import { ModalHistorialInventario } from './components/ModalHistorialInventario'
 import { ProductoDetalles } from '../productos/components/ProductoDetalles'
 import { inventarioService } from '../../services/inventarioService'
+import { ventasService } from '../../services/ventasService'
+import { ModalDetalleFactura } from '../ventas/components/ModalDetalleFactura'
+import { ImpresorFactura } from '../ventas/components/ImpresorFactura'
 
 export const Inventario = ({ currentUser }) => {
-    // Estado local para garantizar que siempre tengamos la sesión cargada
     const [activeUser, setActiveUser] = useState(currentUser)
 
     const [show, setShow] = useState(false)
@@ -20,6 +22,14 @@ export const Inventario = ({ currentUser }) => {
     const [selectedProduct, setSelectedProduct] = useState(null)
     const [prodSel, setProdSel] = useState(null)
     const [reloadTable, setReloadTable] = useState(0)
+
+    // Estados para la Modal Global de Facturas
+    const [showModalFactura, setShowModalFactura] = useState(false)
+    const [showImpresorFactura, setShowImpresorFactura] = useState(false)
+    const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
+    const [detalleFacturaData, setDetalleFacturaData] = useState([])
+    const [notasFactura, setNotasFactura] = useState([])
+    const [almacenConfFactura, setAlmacenConfFactura] = useState(null)
 
     const [categoriasList, setCategoriasList] = useState([])
     const [subcategoriasTotales, setSubcategoriasTotales] = useState([])
@@ -38,7 +48,7 @@ export const Inventario = ({ currentUser }) => {
         localStorage.setItem('inv_filtro_etiqueta', filterTag)
     }, [filterCategory, filterSubcategory, filterTag])
 
-    const [form, setForm] = useState({ cantidad: '', type: '' })
+    const [form, setForm] = useState({ cantidad: '', type: '', notes: '' })
     const [modalInfo, setModalInfo] = useState({ 
         title: 'Revision', 
         description: 'Ingrese la cantidad', 
@@ -51,7 +61,26 @@ export const Inventario = ({ currentUser }) => {
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
-    // Garantizamos la carga de la sesión
+    // Manejo automático de capas (z-index) para múltiples modales superpuestos
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            const modals = document.querySelectorAll('.modal.show');
+            const backdrops = document.querySelectorAll('.modal-backdrop.show');
+            
+            if (modals.length > 1) {
+                let baseZIndex = 1050;
+                backdrops.forEach((bg, index) => {
+                    bg.style.setProperty('z-index', `${baseZIndex + (index * 10)}`, 'important');
+                });
+                modals.forEach((modal, index) => {
+                    modal.style.setProperty('z-index', `${baseZIndex + 5 + (index * 10)}`, 'important');
+                });
+            }
+        }, 150);
+
+        return () => clearTimeout(timer);
+    }, [show, showHistory, showDetalles, showModalFactura, showImpresorFactura]);
+
     useEffect(() => {
         if (currentUser) {
             setActiveUser(currentUser)
@@ -95,7 +124,7 @@ export const Inventario = ({ currentUser }) => {
     const handleClose = () => {
         setShow(false)
         setSelectedProduct(null)
-        setForm({ cantidad: '', type: '' })
+        setForm({ cantidad: '', type: '', notes: '' })
     }
 
     const handleShow = () => setShow(true)
@@ -150,7 +179,7 @@ export const Inventario = ({ currentUser }) => {
             description: 'Ingrese la cantidad a sumar:', 
             increase: true 
         })
-        setForm({ cantidad: '', type: 'ingreso' })
+        setForm({ cantidad: '', type: 'ingreso', notes: '' })
         handleShow()
     }
 
@@ -162,7 +191,8 @@ export const Inventario = ({ currentUser }) => {
             increase: false })
         setForm({ 
             cantidad: '', 
-            type: 'egreso' 
+            type: 'egreso',
+            notes: '' 
         })
         handleShow()
     }
@@ -182,7 +212,7 @@ export const Inventario = ({ currentUser }) => {
                 amount: parseFloat(form.cantidad),
                 type: form.type,
                 usuario: currentUser?.username || 'system',
-                notes: 'Ajuste manual desde módulo de inventario' 
+                notes: form.notes || 'Ajuste manual desde módulo de inventario' 
             })
 
             if (result.success) {
@@ -203,6 +233,28 @@ export const Inventario = ({ currentUser }) => {
         setHistoryTitle(`Historial - ${row.ref_name}`)
         setHistoryProductId(row.id)
         setShowHistory(true)
+    }
+
+    // Funciones del Modal de Factura Global
+    const handleVerFactura = async (numFactura) => {
+        const result = await ventasService.searchFactura(numFactura)
+        if (result.success) {
+            setFacturaSeleccionada(result.maestro)
+            const det = await ventasService.getDetalleFactura(result.maestro.id)
+            if (det.success) {
+                setDetalleFacturaData(det.data || [])
+                setNotasFactura(det.notes || [])
+                setAlmacenConfFactura(det.configuracion || null)
+                setShowModalFactura(true)
+            }
+        } else {
+            Swal.fire('Error', 'La factura no existe o fue eliminada', 'error')
+        }
+    }
+
+    const handlePrepararImpresionFactura = () => {
+        setShowModalFactura(false)
+        setShowImpresorFactura(true)
     }
 
     const tableContainerRef = useRef(null);
@@ -441,6 +493,7 @@ export const Inventario = ({ currentUser }) => {
             historyProductId={historyProductId}
             historyTitle={historyTitle}
             appConfig={appConfig}
+            onVerFactura={handleVerFactura}
         />
 
         <ProductoDetalles 
@@ -448,6 +501,26 @@ export const Inventario = ({ currentUser }) => {
             handleClose={handleCloseDetalles}
             productoData={prodSel}
             appConfig={appConfig}
+        />
+
+        <ModalDetalleFactura 
+            show={showModalFactura}
+            handleClose={() => setShowModalFactura(false)}
+            facturaSeleccionada={facturaSeleccionada}
+            detalleData={detalleFacturaData}
+            notasFactura={notasFactura}
+            handlePrepararImpresion={handlePrepararImpresionFactura}
+            appConfig={appConfig}
+            canPrint={true}
+        />
+
+        <ImpresorFactura 
+            show={showImpresorFactura}
+            onClose={() => setShowImpresorFactura(false)}
+            factura={facturaSeleccionada}
+            detalles={detalleFacturaData}
+            almacenConf={almacenConfFactura}
+            textoVolver="Volver al Historial"
         />
     </>
 }

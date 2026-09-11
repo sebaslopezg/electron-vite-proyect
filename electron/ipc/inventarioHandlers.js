@@ -125,6 +125,10 @@ export const registerInventarioHandler = () => {
             return { success: false, error: "No tienes los permisos de rol requeridos para retirar existencias físicamente." };
         }
 
+        if (!item.notes || item.notes.trim() === '') {
+            return { success: false, error: "Es obligatorio proporcionar un motivo o descripción detallada para realizar el ajuste de inventario." };
+        }
+
         const transaction = db.transaction((item) => {
             const id = uuidv4()
             const now = new Date().toISOString()
@@ -183,7 +187,7 @@ export const registerInventarioHandler = () => {
                 stock_nuevo: stockNuevo,
                 fecha: now,
                 usuario: currentUser,
-                notes: item.notes || 'Ajuste manual de kárdex administrativo'
+                notes: item.notes.trim()
             })
 
             return {
@@ -198,7 +202,7 @@ export const registerInventarioHandler = () => {
 
         try {
             const result = transaction(item)
-            logger.success('INVENTARIO', `Ajuste de inventario realizado: ${item.type.toUpperCase()}`);
+            logger.success('INVENTARIO', `Ajuste de inventario realizado: ${item.type.toUpperCase()} - ${item.notes.trim()}`);
             return result
         } catch (error) {
             logger.error('INVENTARIO', "Error crítico en transacción de ajuste de inventario", error)
@@ -237,7 +241,7 @@ export const registerInventarioHandler = () => {
             const orderColIndex = dtParams.order?.[0]?.column || 0;
             const orderDir = dtParams.order?.[0]?.dir === 'asc' ? 'ASC' : 'DESC'; 
             
-            const columnsMap = ['fecha', 'tipo_movimiento', 'cantidad', 'stock_anterior', 'stock_nuevo', 'usuario', 'notes'];
+            const columnsMap = ['fecha', 'tipo_movimiento', 'cantidad', 'stock_anterior', 'stock_nuevo', 'usuario', 'notas'];
             let orderCol = columnsMap[orderColIndex] || 'fecha';
 
             let baseQuery = `FROM inventario WHERE producto_id = ?`;

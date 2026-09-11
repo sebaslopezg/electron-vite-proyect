@@ -4,7 +4,7 @@ import { ImpresorAbono } from './ImpresorAbono'
 import { formatCurrency } from '../../../utils/currencies'
 import { carteraService } from '../../../services/carteraService'
 
-export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentUser, onViewFactura }) => {
+export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentUser }) => {
     const tableAbonosRef = useRef(null)
     const [showPreview, setShowPreview] = useState(false)
     const [abonoSeleccionado, setAbonoSeleccionado] = useState(null)
@@ -21,31 +21,21 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
 
         const handleTableClick = (e) => {
             const btn = e.target.closest('.btn-print-abono')
-            if (btn && container.contains(btn)) {
-                try {
-                    const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
-                    setAbonoSeleccionado(item)
-                    setShowPreview(true)
-                } catch(err) { console.error(err) }
-            }
-
-            const btnVerFactura = e.target.closest('.btn-view-factura')
-            if (btnVerFactura && container.contains(btnVerFactura)) {
-                e.preventDefault()
-                try {
-                    const item = JSON.parse(decodeURIComponent(btnVerFactura.dataset.alldata))
-                    onViewFactura({ ...item, id: item.maestro_id });
-                } catch(err) { console.error(err) }
-            }
+            if (!btn || !container.contains(btn)) return
+            try {
+                const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
+                setAbonoSeleccionado(item)
+                setShowPreview(true)
+            } catch(err) { console.error(err) }
         }
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [currentUser, onViewFactura])
+    }, [currentUser])
 
     return <>
         <div className="animation-fade-in">
-            <div ref={tableAbonosRef} className="w-100">
+            <div ref={tableAbonosRef} className="w-100 overflow-hidden">
                 <DataTableComponent 
                     tableId="dt-cartera-historial-abonos"
                     key={`historial-${appConfig.moneda}-${appConfig.formato_numero}-${currentUser?.permisos?.length}`}
@@ -57,28 +47,8 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
                             render: (data) => new Date(data).toLocaleString(appConfig.formato_numero, { dateStyle: 'short', timeStyle: 'short' })
                         },
                         { 
-                            data: 'numero_factura', 
-                            title: 'Factura Pagada',
-                            render: (data, type, row) => {
-                                if (!data) return '-';
-                                
-                                const prefix = row.prefijo ? String(row.prefijo) : '';
-                                const separador = row.separador || almacenConf?.separador || '-';
-                                let numVal = String(data);
-                                
-                                if (prefix && numVal.startsWith(prefix)) {
-                                    numVal = numVal.substring(prefix.length);
-                                }
-                                
-                                if (numVal.startsWith(separador)) {
-                                    numVal = numVal.substring(separador.length);
-                                }
-                                
-                                const finalFactura = prefix ? `${prefix}${separador}${numVal}` : numVal;
-                                const safeData = encodeURIComponent(JSON.stringify(row));
-                                
-                                return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura" data-alldata="${safeData}">${finalFactura}</a>`;
-                            }
+                            data: null, title: 'Factura Pagada',
+                            render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
                         },
                         { data: 'nombre_cliente', title: 'Cliente' },
                         { 

@@ -115,13 +115,13 @@ export const inventarioService = {
 
             const mappedData = rawData.map(h => ({
                 id: h.id,
-                fecha: h.createdAt,
-                tipo_movimiento: h.type,
-                cantidad: h.amount,
-                stock_anterior: h.stockAnterior,
-                stock_nuevo: h.stockNuevo,
-                usuario: h.user?.username || h.userId || 'system',
-                notes: h.notes || ''
+                fecha: h.createdAt || h.fecha,
+                tipo_movimiento: h.type || h.tipo_movimiento,
+                cantidad: h.amount || h.cantidad,
+                stock_anterior: h.stockAnterior || h.stock_anterior,
+                stock_nuevo: h.stockNuevo || h.stock_nuevo,
+                usuario: h.user?.username || h.userId || h.usuario || 'system',
+                notas: h.notas || h.notes || ''
             }));
 
             return {
