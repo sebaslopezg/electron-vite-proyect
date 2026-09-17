@@ -81,7 +81,7 @@ export const registerTercerosHandlers = () => {
   ipcMain.handle("eliminar-tercero", async (event, id) => {
     if (!checkPermission("terceros_eliminar")) return { success: false, error: "No autorizado" }
     try {
-        db.prepare("UPDATE terceros SET estado = 0 WHERE id = ?").run(id)
+        db.prepare("UPDATE terceros SET estado = -1 WHERE id = ?").run(id)
         
         logger.success('TERCEROS', `Tercero con ID ${id} fue dado de baja lógicamente (Soft Delete)`)
         return { success: true }
@@ -96,11 +96,13 @@ export const registerTercerosHandlers = () => {
         return { draw: params.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
     }
     try {
-        const { start, length, search, soloClientes } = params
+        const { start, length, search, soloClientes, estado } = params
         const searchValue = search?.value || ''
         
-        let whereClause = "estado = 1"
-        let queryParams = []
+        const estadoFinal = estado !== undefined ? Number(estado) : 1;
+        
+        let whereClause = "estado = ?"
+        let queryParams = [estadoFinal]
         
         if (soloClientes) {
             whereClause += " AND es_cliente = 1"
@@ -112,7 +114,7 @@ export const registerTercerosHandlers = () => {
             queryParams.push(likeSearch, likeSearch, likeSearch, likeSearch)
         }
         
-        const totalQuery = db.prepare(`SELECT COUNT(*) as count FROM terceros WHERE estado = 1 ${soloClientes ? 'AND es_cliente = 1' : ''}`).get()
+        const totalQuery = db.prepare(`SELECT COUNT(*) as count FROM terceros WHERE estado = ? ${soloClientes ? 'AND es_cliente = 1' : ''}`).get(estadoFinal)
         const filteredQuery = db.prepare(`SELECT COUNT(*) as count FROM terceros WHERE ${whereClause}`).get(...queryParams)
         const dataQuery = db.prepare(`SELECT * FROM terceros WHERE ${whereClause} ORDER BY date_created DESC LIMIT ? OFFSET ?`).all(...queryParams, length, start)
         
