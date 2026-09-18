@@ -181,6 +181,7 @@ export const VerFacturas = ({ currentUser }) => {
 
             const btnPrint = e.target.closest('.btn-print-item')
             if (btnPrint) {
+                e.preventDefault()
                 try {
                     const item = JSON.parse(decodeURIComponent(btnPrint.dataset.alldata))
                     imprimirDirecto(item)
@@ -189,6 +190,7 @@ export const VerFacturas = ({ currentUser }) => {
 
             const btnExcel = e.target.closest('.btn-export-single-excel')
             if (btnExcel) {
+                e.preventDefault()
                 try {
                     const item = JSON.parse(decodeURIComponent(btnExcel.dataset.alldata))
                     handleExportSingleExcel(item)
@@ -197,6 +199,7 @@ export const VerFacturas = ({ currentUser }) => {
 
             const btnPDF = e.target.closest('.btn-export-single-pdf')
             if (btnPDF) {
+                e.preventDefault()
                 try {
                     const item = JSON.parse(decodeURIComponent(btnPDF.dataset.alldata))
                     handleExportSinglePDF(item)
@@ -206,7 +209,7 @@ export const VerFacturas = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [currentUser])
+    }, [currentUser, isLoading])
 
     const verDetalle = async (factura) => {
         setFacturaSeleccionada(factura)
@@ -356,83 +359,86 @@ export const VerFacturas = ({ currentUser }) => {
         }
     ], [appConfig, currentUser?.permisos])
 
-    if (isLoading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        )
-    }
-
     return <>
-        <div className="bg-light p-3 rounded mb-4 border">
-            <Row className="align-items-end">
-                <Col md={3}>
-                    <Form.Group>
-                        <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Desde Fecha/Hora:</small></Form.Label>
-                        <Form.Control type="datetime-local" size="sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                    </Form.Group>
-                </Col>
-                <Col md={3}>
-                    <Form.Group>
-                        <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Hasta Fecha/Hora:</small></Form.Label>
-                        <Form.Control type="datetime-local" size="sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                    </Form.Group>
-                </Col>
-                <Col md={6}>
-                    <div className="d-flex gap-2">
-                        <Button 
-                            variant="outline-secondary" size="sm"
-                            onClick={() => { setStartDate(''); setEndDate(''); }}
-                            disabled={!startDate && !endDate}
-                            title="Limpiar Filtros de Fecha"
-                        >
-                            <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
-                        </Button>
-                        
-                        {canDownloadPDF && (
-                            <Button 
-                                variant="outline-danger" size="sm" 
-                                onClick={handleExportAllPDF} 
-                                disabled={todasLasFacturas.length === 0}
-                                title="Exportar Todo a PDF"
-                            >
-                                <i className="bi bi-file-earmark-pdf"></i>
-                            </Button>
-                        )}
-                        
-                        {canDownloadExcel && (
-                            <Button 
-                                variant="outline-success" size="sm" 
-                                onClick={handleExportAllExcel} 
-                                disabled={todasLasFacturas.length === 0}
-                                title="Exportar Todo a Excel"
-                            >
-                                <i className="bi bi-file-earmark-excel"></i>
-                            </Button>
-                        )}
+        <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
+            
+            {isLoading && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
                     </div>
-                </Col>
-            </Row>
-        </div>
+                </div>
+            )}
 
-        <div ref={tableContainerRef}>
-            <div className="card-body p-3 w-100 overflow-visible">
-                <DataTableComponent
-                    tableId="dt-ver-facturas-maestro"
-                    key={`facturas-main-${appConfig.moneda}-${appConfig.formato_numero}-${startDate}-${endDate}-${reloadTable}`}
-                    reloadKey={reloadTable}
-                    ajaxData={async (params) => {
-                        params.startDate = startDate
-                        params.endDate = endDate
-                        const result = await ventasService.getFacturasPaginadas(params)
-                        setTodasLasFacturas(result.data || [])
-                        return result;
-                    }}
-                    columns={columnasTabla}
-                />
+            <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+                <div className="bg-light p-3 rounded mb-4 border">
+                    <Row className="align-items-end">
+                        <Col md={3}>
+                            <Form.Group>
+                                <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Desde Fecha/Hora:</small></Form.Label>
+                                <Form.Control type="datetime-local" size="sm" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                            </Form.Group>
+                        </Col>
+                        <Col md={3}>
+                            <Form.Group>
+                                <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Hasta Fecha/Hora:</small></Form.Label>
+                                <Form.Control type="datetime-local" size="sm" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                            </Form.Group>
+                        </Col>
+                        <Col md={6}>
+                            <div className="d-flex gap-2">
+                                <Button 
+                                    variant="outline-secondary" size="sm"
+                                    onClick={() => { setStartDate(''); setEndDate(''); }}
+                                    disabled={!startDate && !endDate}
+                                    title="Limpiar Filtros de Fecha"
+                                >
+                                    <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
+                                </Button>
+                                
+                                {canDownloadPDF && (
+                                    <Button 
+                                        variant="outline-danger" size="sm" 
+                                        onClick={handleExportAllPDF} 
+                                        disabled={todasLasFacturas.length === 0}
+                                        title="Exportar Todo a PDF"
+                                    >
+                                        <i className="bi bi-file-earmark-pdf"></i>
+                                    </Button>
+                                )}
+                                
+                                {canDownloadExcel && (
+                                    <Button 
+                                        variant="outline-success" size="sm" 
+                                        onClick={handleExportAllExcel} 
+                                        disabled={todasLasFacturas.length === 0}
+                                        title="Exportar Todo a Excel"
+                                    >
+                                        <i className="bi bi-file-earmark-excel"></i>
+                                    </Button>
+                                )}
+                            </div>
+                        </Col>
+                    </Row>
+                </div>
+
+                <div ref={tableContainerRef}>
+                    <div className="card-body p-3 w-100 overflow-visible">
+                        <DataTableComponent
+                            tableId="dt-ver-facturas-maestro"
+                            key={`facturas-main-${appConfig.moneda}-${appConfig.formato_numero}-${startDate}-${endDate}-${reloadTable}`}
+                            reloadKey={reloadTable}
+                            ajaxData={async (params) => {
+                                params.startDate = startDate
+                                params.endDate = endDate
+                                const result = await ventasService.getFacturasPaginadas(params)
+                                setTodasLasFacturas(result.data || [])
+                                return result;
+                            }}
+                            columns={columnasTabla}
+                        />
+                    </div>
+                </div>
             </div>
         </div>
 

@@ -124,10 +124,10 @@ export const Inventario = ({ currentUser }) => {
                 loadConfig()
             ]);
 
-            setIsLoading(false);
+            setIsLoading(false)
         }
 
-        initData();
+        initData()
 
         window.addEventListener('config-actualizada', loadConfig)
         return () => window.removeEventListener('config-actualizada', loadConfig)
@@ -264,7 +264,7 @@ export const Inventario = ({ currentUser }) => {
         setShowImpresorFactura(true)
     }
 
-    const tableContainerRef = useRef(null);
+    const tableContainerRef = useRef(null)
 
     useEffect(() => {
         const container = tableContainerRef.current
@@ -292,204 +292,207 @@ export const Inventario = ({ currentUser }) => {
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
         
-    }, [reloadTable, filterCategory, filterSubcategory, filterTag])
-
-    if (isLoading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        )
-    }
+    }, [reloadTable, filterCategory, filterSubcategory, filterTag, isLoading])
 
     return <>
         <div className="pagetitle">
             <h1><i className="bi bi-clipboard-check me-2"></i>Inventario</h1>
         </div>
 
-        <div className="card" style={{ overflow: 'visible' }}>
-            <div className="card-body pt-4" style={{ overflow: 'visible' }}>
-                
-                <div className="bg-light p-3 rounded mb-3 border" style={{ overflow: 'visible' }}>
-                    <Row className="g-3 align-items-end" style={{ overflow: 'visible' }}>
-                        <Col md={3}>
-                            <Form.Group>
-                                <Form.Label className="fw-bold text-secondary"><small>Categoría:</small></Form.Label>
-                                <BuscadorFiltros 
-                                    items={categoriasList}
-                                    value={filterCategory}
-                                    onChange={setFilterCategory}
-                                    placeholder="Todas las categorías..."
-                                />
-                            </Form.Group>
-                        </Col>
-
-                        <Col md={3} style={{ overflow: 'visible' }}>
-                            <Form.Group>
-                                <Form.Label className="fw-bold text-secondary"><small>Subcategoría:</small></Form.Label>
-                                <BuscadorFiltros 
-                                    items={subcategoriasFiltradas}
-                                    value={filterSubcategory}
-                                    onChange={setFilterSubcategory}
-                                    placeholder={filterCategory ? "Todas las subcategorías..." : "Selecciona categoría primero"}
-                                    disabled={!filterCategory}
-                                />
-                            </Form.Group>
-                        </Col>
-
-                        <Col md={3}>
-                            <Form.Group>
-                                <Form.Label className="fw-bold text-secondary"><small>Etiqueta:</small></Form.Label>
-                                <Form.Select size="sm" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
-                                    <option value="">Todas las etiquetas</option>
-                                    {etiquetasList.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-                                </Form.Select>
-                            </Form.Group>
-                        </Col>
-                        
-                        <Col md={3} className="text-end">
-                            <Button 
-                                variant="outline-danger" size="sm" className="w-100"
-                                onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterTag(''); }}
-                                disabled={!filterCategory && !filterSubcategory && !filterTag}
-                            >
-                                <i className="bi bi-x-circle me-1"></i> Limpiar Filtros
-                            </Button>
-                        </Col>
-                    </Row>
+        <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
+            
+            {isLoading && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                    </div>
                 </div>
+            )}
 
-                <Row className="mb-4 g-2">
-                    <Col xs={12} sm={4}>
-                        <Card className="shadow-sm border-0 border-start border-primary border-4 bg-light">
-                            <Card.Body className="p-2 px-3">
-                                <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-boxes me-1"></i>Stock Disponible</p>
-                                <h4 className="m-0 fw-bold text-dark">{metrics.totalStock.toLocaleString()} <span className="fs-6 text-muted font-weight-normal">uds</span></h4>
-                            </Card.Body>
-                        </Card>
-                    </Col>
-                    <Col xs={12} sm={4}>
-                        <Card className="shadow-sm border-0 border-start border-info border-4 bg-light">
-                            <Card.Body className="p-2 px-3">
-                                <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-tag-fill me-1"></i>Referencias Filtradas</p>
-                                <h4 className="m-0 fw-bold text-dark">{metrics.totalReferences.toLocaleString()} <span className="fs-6 text-muted font-weight-normal">ítems</span></h4>
-                            </Card.Body>
-                        </Card>
-                    </Col>
-                    <Col xs={12} sm={4}>
-                        <Card className="shadow-sm border-0 border-start border-warning border-4 bg-light">
-                            <Card.Body className="p-2 px-3">
-                                <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-calculator me-1"></i>Promedio Stock / Ref</p>
-                                <h4 className="m-0 fw-bold text-dark">{metrics.averageStock.toFixed(1)} <span className="fs-6 text-muted font-weight-normal">uds/ref</span></h4>
-                            </Card.Body>
-                        </Card>
-                    </Col>
-                </Row>
-
-                <div ref={tableContainerRef} className="w-100">
-                    <CustomDataTable 
-                        tableId="dt-inventario-maestro"
-                        key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
-                        ajaxData={async (params) => {
-                            params.customCategory = filterCategory;
-                            params.customSubcategory = filterSubcategory;
-                            params.customTag = filterTag;
-                            
-                            const response = await inventarioService.getInventarioPaginados(params);
-                            const totalFilteredRef = response.recordsFiltered || 0;
-                            const stockSum = response.totalStock || 0;
-                            
-                            setMetrics({
-                                totalStock: stockSum,
-                                totalReferences: totalFilteredRef,
-                                averageStock: totalFilteredRef > 0 ? (stockSum / totalFilteredRef) : 0
-                            });
-
-                            return response;
-                        }}
+            <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+                <div className="card" style={{ overflow: 'visible' }}>
+                    <div className="card-body pt-4" style={{ overflow: 'visible' }}>
                         
-                        columns={[
-                            { data: 'ref_name', title: 'Nombre' },
-                            { 
-                                data: 'sku', title: 'Referencia / Código',
-                                render: (data, type, row) => {
-                                    if (!data) return '-';
-                                    const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                                    const skuVal = String(data);
-                                    const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
-                                    const safeData = encodeURIComponent(JSON.stringify(row));
-                                    
-                                    return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${finalSku}</a>`;
-                                }
-                            },
-                            { 
-                                data: 'stock', title: 'Stock',
-                                className: 'text-center',
-                                render: (data, type, row) => {
-                                    const minStock = row.min_stock || 5; 
-                                    const stockLevel = data <= minStock ? 'danger' : 'success';
-                                    return `<span class="badge bg-${stockLevel} fs-6">${data}</span>`
-                                }
-                            },
-                            { 
-                                data: 'precio', title: 'Precio',
-                                render: (data) => renderCurrency(data)
-                            },
-                            {
-                                data: null, title: 'Acciones', orderable: false, className: 'text-center',
-                                render: function (data, type, row) {
-                                    const safeData = encodeURIComponent(JSON.stringify(row));
-                                    
-                                    let menuItems = '';
-                                    
-                                    if (canIncrease) {
-                                        menuItems += `
-                                            <li>
-                                                <a class="dropdown-item btn-increase" href="#" data-alldata="${safeData}">
-                                                    <i class="bi bi-plus-lg me-2 text-success"></i> Aumentar Stock
-                                                </a>
-                                            </li>
-                                        `;
-                                    }
-                                    
-                                    if (canDecrease) {
-                                        menuItems += `
-                                            <li>
-                                                <a class="dropdown-item btn-decrease" href="#" data-alldata="${safeData}">
-                                                    <i class="bi bi-dash-lg me-2 text-warning"></i> Disminuir Stock
-                                                </a>
-                                            </li>
-                                        `;
-                                    }
+                        <div className="bg-light p-3 rounded mb-3 border" style={{ overflow: 'visible' }}>
+                            <Row className="g-3 align-items-end" style={{ overflow: 'visible' }}>
+                                <Col md={3}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold text-secondary"><small>Categoría:</small></Form.Label>
+                                        <BuscadorFiltros 
+                                            items={categoriasList}
+                                            value={filterCategory}
+                                            onChange={setFilterCategory}
+                                            placeholder="Todas las categorías..."
+                                        />
+                                    </Form.Group>
+                                </Col>
 
-                                    if (canIncrease || canDecrease) {
-                                        menuItems += `<li><hr class="dropdown-divider"></li>`;
+                                <Col md={3} style={{ overflow: 'visible' }}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold text-secondary"><small>Subcategoría:</small></Form.Label>
+                                        <BuscadorFiltros 
+                                            items={subcategoriasFiltradas}
+                                            value={filterSubcategory}
+                                            onChange={setFilterSubcategory}
+                                            placeholder={filterCategory ? "Todas las subcategorías..." : "Selecciona categoría primero"}
+                                            disabled={!filterCategory}
+                                        />
+                                    </Form.Group>
+                                </Col>
+
+                                <Col md={3}>
+                                    <Form.Group>
+                                        <Form.Label className="fw-bold text-secondary"><small>Etiqueta:</small></Form.Label>
+                                        <Form.Select size="sm" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
+                                            <option value="">Todas las etiquetas</option>
+                                            {etiquetasList.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                                
+                                <Col md={3} className="text-end">
+                                    <Button 
+                                        variant="outline-danger" size="sm" className="w-100"
+                                        onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterTag(''); }}
+                                        disabled={!filterCategory && !filterSubcategory && !filterTag}
+                                    >
+                                        <i className="bi bi-x-circle me-1"></i> Limpiar Filtros
+                                    </Button>
+                                </Col>
+                            </Row>
+                        </div>
+
+                        <Row className="mb-4 g-2">
+                            <Col xs={12} sm={4}>
+                                <Card className="shadow-sm border-0 border-start border-primary border-4 bg-light">
+                                    <Card.Body className="p-2 px-3">
+                                        <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-boxes me-1"></i>Stock Disponible</p>
+                                        <h4 className="m-0 fw-bold text-dark">{metrics.totalStock.toLocaleString()} <span className="fs-6 text-muted font-weight-normal">uds</span></h4>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                            <Col xs={12} sm={4}>
+                                <Card className="shadow-sm border-0 border-start border-info border-4 bg-light">
+                                    <Card.Body className="p-2 px-3">
+                                        <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-tag-fill me-1"></i>Referencias Filtradas</p>
+                                        <h4 className="m-0 fw-bold text-dark">{metrics.totalReferences.toLocaleString()} <span className="fs-6 text-muted font-weight-normal">ítems</span></h4>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                            <Col xs={12} sm={4}>
+                                <Card className="shadow-sm border-0 border-start border-warning border-4 bg-light">
+                                    <Card.Body className="p-2 px-3">
+                                        <p className="text-muted small mb-1 fw-bold text-uppercase"><i className="bi bi-calculator me-1"></i>Promedio Stock / Ref</p>
+                                        <h4 className="m-0 fw-bold text-dark">{metrics.averageStock.toFixed(1)} <span className="fs-6 text-muted font-weight-normal">uds/ref</span></h4>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        </Row>
+
+                        <div ref={tableContainerRef} className="w-100">
+                            <CustomDataTable 
+                                tableId="dt-inventario-maestro"
+                                key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
+                                ajaxData={async (params) => {
+                                    params.customCategory = filterCategory;
+                                    params.customSubcategory = filterSubcategory;
+                                    params.customTag = filterTag;
+                                    
+                                    const response = await inventarioService.getInventarioPaginados(params);
+                                    const totalFilteredRef = response.recordsFiltered || 0;
+                                    const stockSum = response.totalStock || 0;
+                                    
+                                    setMetrics({
+                                        totalStock: stockSum,
+                                        totalReferences: totalFilteredRef,
+                                        averageStock: totalFilteredRef > 0 ? (stockSum / totalFilteredRef) : 0
+                                    });
+
+                                    return response;
+                                }}
+                                
+                                columns={[
+                                    { data: 'ref_name', title: 'Nombre' },
+                                    { 
+                                        data: 'sku', title: 'Referencia / Código',
+                                        render: (data, type, row) => {
+                                            if (!data) return '-';
+                                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
+                                            const skuVal = String(data);
+                                            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+                                            const safeData = encodeURIComponent(JSON.stringify(row));
+                                            
+                                            return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${finalSku}</a>`;
+                                        }
+                                    },
+                                    { 
+                                        data: 'stock', title: 'Stock',
+                                        className: 'text-center',
+                                        render: (data, type, row) => {
+                                            const minStock = row.min_stock || 5; 
+                                            const stockLevel = data <= minStock ? 'danger' : 'success';
+                                            return `<span class="badge bg-${stockLevel} fs-6">${data}</span>`
+                                        }
+                                    },
+                                    { 
+                                        data: 'precio', title: 'Precio',
+                                        render: (data) => renderCurrency(data)
+                                    },
+                                    {
+                                        data: null, title: 'Acciones', orderable: false, className: 'text-center',
+                                        render: function (data, type, row) {
+                                            const safeData = encodeURIComponent(JSON.stringify(row));
+                                            
+                                            let menuItems = '';
+                                            
+                                            if (canIncrease) {
+                                                menuItems += `
+                                                    <li>
+                                                        <a class="dropdown-item btn-increase" href="#" data-alldata="${safeData}">
+                                                            <i class="bi bi-plus-lg me-2 text-success"></i> Aumentar Stock
+                                                        </a>
+                                                    </li>
+                                                `;
+                                            }
+                                            
+                                            if (canDecrease) {
+                                                menuItems += `
+                                                    <li>
+                                                        <a class="dropdown-item btn-decrease" href="#" data-alldata="${safeData}">
+                                                            <i class="bi bi-dash-lg me-2 text-warning"></i> Disminuir Stock
+                                                        </a>
+                                                    </li>
+                                                `;
+                                            }
+
+                                            if (canIncrease || canDecrease) {
+                                                menuItems += `<li><hr class="dropdown-divider"></li>`;
+                                            }
+                                            
+                                            menuItems += `
+                                                <li>
+                                                    <a class="dropdown-item btn-history" href="#" data-alldata="${safeData}">
+                                                        <i class="bi bi-clock-history me-2 text-secondary"></i> Ver Historial
+                                                    </a>
+                                                </li>
+                                            `;
+                                            
+                                            return `
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                                        <i class="bi bi-three-dots-vertical"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu shadow-sm">
+                                                        ${menuItems}
+                                                    </ul>
+                                                </div>
+                                            `;
+                                        }
                                     }
-                                    
-                                    menuItems += `
-                                        <li>
-                                            <a class="dropdown-item btn-history" href="#" data-alldata="${safeData}">
-                                                <i class="bi bi-clock-history me-2 text-secondary"></i> Ver Historial
-                                            </a>
-                                        </li>
-                                    `;
-                                    
-                                    return `
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <ul class="dropdown-menu shadow-sm">
-                                                ${menuItems}
-                                            </ul>
-                                        </div>
-                                    `;
-                                }
-                            }
-                        ]}
-                    />
+                                ]}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

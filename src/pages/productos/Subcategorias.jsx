@@ -47,15 +47,15 @@ export const Subcategorias = ({ currentUser }) => {
     const [subcatSel, setSubcatSel] = useState(null)
 
     const hasPermission = (permissionKey) => {
-        const u = activeUser || currentUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
+        const u = activeUser || currentUser
+        if (!u) return false
+        if (u.permisos?.includes('ALL')) return true
+        return u.permisos?.includes(permissionKey)
     }
 
-    const canCreate = hasPermission('subcategorias_crear');
-    const canEditAction = hasPermission('subcategorias_editar');
-    const canDeleteAction = hasPermission('subcategorias_eliminar');
+    const canCreate = hasPermission('subcategorias_crear')
+    const canEditAction = hasPermission('subcategorias_editar')
+    const canDeleteAction = hasPermission('subcategorias_eliminar')
 
     const load = useCallback(async () => {
         const [data, cats] = await Promise.all([
@@ -65,13 +65,13 @@ export const Subcategorias = ({ currentUser }) => {
         setDataInTable(data || [])
         setCategorias(cats?.filter(c => c.id !== 'general') || [])
         setReloadTable(prev => prev + 1)
-    }, []);
+    }, [])
 
     const cleanForm = () => setForm({ ...emptyForm })
 
     useEffect(() => { 
         const initData = async () => {
-            setIsLoading(true);
+            setIsLoading(true)
             
             if (currentUser) {
                 setActiveUser(currentUser)
@@ -82,8 +82,8 @@ export const Subcategorias = ({ currentUser }) => {
                 }
             }
 
-            await load();
-            setIsLoading(false);
+            await load()
+            setIsLoading(false)
         }
 
         initData()
@@ -95,7 +95,7 @@ export const Subcategorias = ({ currentUser }) => {
     const handleSubmit = async (e) => {
         e.preventDefault()
         
-        let result;
+        let result
         const payload = { ...form, sku_prefix: (form.sku_prefix || '').toUpperCase() }
 
         if (editingId) {
@@ -184,7 +184,7 @@ export const Subcategorias = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [isLoading])
 
     const dataColumns = useMemo(() => [
         { data: 'nombre', title: 'Subcategoría' },
@@ -192,18 +192,18 @@ export const Subcategorias = ({ currentUser }) => {
             data: 'categoria_nombre', 
             title: 'Categorías Vinculadas', 
             render: (data, type, row) => {
-                if (!data) return '<span class="text-muted small">Ninguna</span>';
-                const catsArray = data.split(' • ');
-                const limit = 4;
+                if (!data) return '<span class="text-muted small">Ninguna</span>'
+                const catsArray = data.split(' • ')
+                const limit = 4
                 
-                let html = catsArray.slice(0, limit).map(c => `<span class="badge bg-secondary text-light me-1 mb-1">${c}</span>`).join('');
+                let html = catsArray.slice(0, limit).map(c => `<span class="badge bg-secondary text-light me-1 mb-1">${c}</span>`).join('')
                 
                 if (catsArray.length > limit) {
                     const hiddenCats = catsArray.slice(limit).join(', ');
                     const safeData = encodeURIComponent(JSON.stringify(row));
-                    html += `<button type="button" class="btn btn-sm btn-light border py-0 px-2 me-1 mb-1 btn-view" data-alldata="${safeData}" title="${hiddenCats}">... +${catsArray.length - limit}</button>`;
+                    html += `<button type="button" class="btn btn-sm btn-light border py-0 px-2 me-1 mb-1 btn-view" data-alldata="${safeData}" title="${hiddenCats}">... +${catsArray.length - limit}</button>`
                 }
-                return html;
+                return html
             }
         },
         { 
@@ -222,7 +222,7 @@ export const Subcategorias = ({ currentUser }) => {
                             <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                         </a>
                     </li>
-                `;
+                `
 
                 if (canEditAction) {
                     menuItems += `
@@ -231,18 +231,18 @@ export const Subcategorias = ({ currentUser }) => {
                                 <i class="bi bi-pencil me-2 text-secondary"></i> Editar
                             </a>
                         </li>
-                    `;
+                    `
                 }
 
                 if (canDeleteAction) {
-                    if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+                    if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`
                     menuItems += `
                         <li>
                             <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
                                 <i class="bi bi-trash3 me-2"></i> Eliminar
                             </a>
                         </li>
-                    `;
+                    `
                 }
 
                 return `
@@ -259,36 +259,39 @@ export const Subcategorias = ({ currentUser }) => {
         }
     ], [activeUser, currentUser])
 
-    if (isLoading) {
-        return <>
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
+    return <>
+        <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
+            
+            {isLoading && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            )}
+
+            <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+                {canCreate && (
+                    <div className="mb-3">
+                        <button className='btn btn-primary' onClick={() => { 
+                                setEditingId(null)
+                                cleanForm()
+                                handleShow()
+                            }}>
+                            <i className="bi bi-plus-circle me-2"></i>Nueva Subcategoría
+                        </button>
+                    </div>
+                )}
+
+                <div ref={tableContainerRef} className="w-100">
+                    <CustomDataTable
+                        tableId="dt-productos-subcategorias"
+                        reloadKey={reloadTable}
+                        data={dataInTable}
+                        columns={dataColumns}
+                    />
                 </div>
             </div>
-        </>
-    }
-
-    return <>
-        {canCreate && (
-            <div className="mb-3">
-                <button className='btn btn-primary' onClick={() => { 
-                        setEditingId(null)
-                        cleanForm()
-                        handleShow()
-                    }}>
-                    <i className="bi bi-plus-circle me-2"></i>Nueva Subcategoría
-                </button>
-            </div>
-        )}
-
-        <div ref={tableContainerRef} className="w-100">
-            <CustomDataTable
-                tableId="dt-productos-subcategorias"
-                reloadKey={reloadTable}
-                data={dataInTable}
-                columns={dataColumns}
-            />
         </div>
 
         <SubcategoriaModal

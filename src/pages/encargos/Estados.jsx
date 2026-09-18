@@ -60,7 +60,7 @@ export const Estados = ({ currentUser }) => {
     const [editingId, setEditingId] = useState(null)
 
     useEffect(() => {
-        let isMounted = true;
+        let isMounted = true
         if (currentUser) {
             if (isMounted) setActiveUser(currentUser)
         } else {
@@ -74,15 +74,15 @@ export const Estados = ({ currentUser }) => {
     }, [currentUser])
 
     const hasPermission = (permissionKey) => {
-        const u = activeUser || currentUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
+        const u = activeUser || currentUser
+        if (!u) return false
+        if (u.permisos?.includes('ALL')) return true
+        return u.permisos?.includes(permissionKey)
     }
 
-    const canCreate = hasPermission('estados_crear');
-    const canEditAction = hasPermission('estados_editar');
-    const canDeleteAction = hasPermission('estados_eliminar');
+    const canCreate = hasPermission('estados_crear')
+    const canEditAction = hasPermission('estados_editar')
+    const canDeleteAction = hasPermission('estados_eliminar')
 
     const loadData = async () => {
         const data = await encargosService.getEstados()
@@ -97,22 +97,22 @@ export const Estados = ({ currentUser }) => {
         } catch (error) {}
 
         try {
-            const arrUsers = await encargosService.getUsuariosAsignacion();
+            const arrUsers = await encargosService.getUsuariosAsignacion()
             if (Array.isArray(arrUsers)) {
-                setUsuariosDB(arrUsers);
+                setUsuariosDB(arrUsers)
                 setUsuariosForBuscador(arrUsers.map(u => ({
                     id: String(u.username || u.usuario || u.nombre_completo || u.id || ''),
                     nombre: String(u.nombre_completo || u.nombre || u.username || 'Usuario sin nombre')
-                })));
+                })))
             }
 
-            const arrRoles = await encargosService.getRolesAsignacion();
+            const arrRoles = await encargosService.getRolesAsignacion()
             if (Array.isArray(arrRoles)) {
-                setRolesDB(arrRoles);
+                setRolesDB(arrRoles)
                 setRolesForBuscador(arrRoles.map(r => ({
                     id: String(r.nombre || ''),
                     nombre: String(r.nombre || 'Rol sin nombre')
-                })));
+                })))
             }
         } catch (e) { 
             console.error("No se pudieron cargar catálogos de asignación", e) 
@@ -291,7 +291,6 @@ export const Estados = ({ currentUser }) => {
             const editBtn = e.target.closest('.btn-edit-estado')
             if (editBtn) {
                 e.preventDefault()
-                e.stopPropagation()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -315,7 +314,6 @@ export const Estados = ({ currentUser }) => {
             const delBtn = e.target.closest('.btn-delete-estado')
             if (delBtn) {
                 e.preventDefault()
-                e.stopPropagation()
                 handleDelete(delBtn.dataset.id)
             }
         }
@@ -379,8 +377,8 @@ export const Estados = ({ currentUser }) => {
             orderable: false,
             className: 'text-center',
             render: function (data, type, row) {
-                const safeData = encodeURIComponent(JSON.stringify(row));
-                let menuItems = '';
+                const safeData = encodeURIComponent(JSON.stringify(row))
+                let menuItems = ''
 
                 if (canEditAction) {
                     menuItems += `
@@ -389,21 +387,21 @@ export const Estados = ({ currentUser }) => {
                                 <i class="bi bi-pencil me-2 text-primary"></i> Editar
                             </button>
                         </li>
-                    `;
+                    `
                 }
 
                 if (canDeleteAction) {
-                    if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+                    if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`
                     menuItems += `
                         <li>
                             <button class="dropdown-item text-danger btn-delete-estado w-100 text-start" data-id="${row.id}">
                                 <i class="bi bi-trash3 me-2"></i> Eliminar
                             </button>
                         </li>
-                    `;
+                    `
                 }
 
-                if (!menuItems) return '<span class="text-muted small">Sin acciones</span>';
+                if (!menuItems) return '<span class="text-muted small">Sin acciones</span>'
 
                 return `
                     <div class="dropdown">
@@ -426,8 +424,6 @@ export const Estados = ({ currentUser }) => {
                 <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
                     <div className="text-center animate__animated animate__fadeIn">
                         <div className="spinner-border text-primary mb-3" role="status" style={{ width: '2.5rem', height: '2.5rem' }}></div>
-                        <h6 className="text-muted fw-bold">Cargando Estados...</h6>
-                        <p className="text-muted small">Preparando la tabla de datos</p>
                     </div>
                 </div>
             )}

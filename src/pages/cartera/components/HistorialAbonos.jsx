@@ -33,6 +33,8 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
         const handleTableClick = (e) => {
             const btn = e.target.closest('.btn-print-abono')
             if (!btn || !container.contains(btn)) return
+            
+            e.preventDefault()
             try {
                 const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
                 setAbonoSeleccionado(item)
@@ -42,68 +44,69 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [currentUser])
-
-    if (isLoading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        )
-    }
+    }, [currentUser, isLoading])
 
     return <>
-        <div className="animation-fade-in">
-            <div ref={tableAbonosRef} className="w-100 overflow-hidden">
-                <DataTableComponent 
-                    tableId="dt-cartera-historial-abonos"
-                    key={`historial-${appConfig.moneda}-${appConfig.formato_numero}-${currentUser?.permisos?.length}`}
-                    reloadKey={reloadKey}
-                    ajaxData={(params) => carteraService.getHistorialAbonosPaginados(params)}
-                    columns={[
-                        { 
-                            data: 'date_created', title: 'Fecha Abono',
-                            render: (data) => new Date(data).toLocaleString(appConfig.formato_numero, { dateStyle: 'short', timeStyle: 'short' })
-                        },
-                        { 
-                            data: null, title: 'Factura Pagada',
-                            render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
-                        },
-                        { data: 'nombre_cliente', title: 'Cliente' },
-                        { 
-                            data: 'metodo_pago', title: 'Método',
-                            render: (data) => `<span class="badge bg-secondary">${data}</span>`
-                        },
-                        { 
-                            data: 'valor', title: 'Valor Abonado',
-                            render: (data) => `<strong class="text-success fs-6">${formatCurrency(data, appConfig.formato_numero, appConfig.moneda)}</strong>`
-                        },
-                        { data: 'usuario', title: 'Cajero' },
-                        {
-                            data: null, title: 'Recibo', orderable: false, className: 'text-center',
-                            render: function (data, type, row) {
-                                const safeData = encodeURIComponent(JSON.stringify(row))
-                                const canPrint = hasPermission('cartera_abono_imprimir')
+        <div className="position-relative animation-fade-in" style={{ minHeight: isLoading ? '50vh' : 'auto' }}>
+            
+            {isLoading && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            )}
 
-                                return canPrint ? `
-                                    <button class="btn btn-sm btn-secondary btn-print-abono" data-alldata="${safeData}" title="Imprimir Recibo">
-                                        <i class="bi bi-printer"></i> 
-                                    </button>
-                                ` : '<i class="bi bi-lock-fill text-muted" title="Sin permiso de impresión"></i>'
+            <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+                <div ref={tableAbonosRef} className="w-100 overflow-hidden">
+                    <DataTableComponent 
+                        tableId="dt-cartera-historial-abonos"
+                        key={`historial-${appConfig.moneda}-${appConfig.formato_numero}-${currentUser?.permisos?.length}`}
+                        reloadKey={reloadKey}
+                        ajaxData={(params) => carteraService.getHistorialAbonosPaginados(params)}
+                        columns={[
+                            { 
+                                data: 'date_created', title: 'Fecha Abono',
+                                render: (data) => new Date(data).toLocaleString(appConfig.formato_numero, { dateStyle: 'short', timeStyle: 'short' })
+                            },
+                            { 
+                                data: null, title: 'Factura Pagada',
+                                render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
+                            },
+                            { data: 'nombre_cliente', title: 'Cliente' },
+                            { 
+                                data: 'metodo_pago', title: 'Método',
+                                render: (data) => `<span class="badge bg-secondary">${data}</span>`
+                            },
+                            { 
+                                data: 'valor', title: 'Valor Abonado',
+                                render: (data) => `<strong class="text-success fs-6">${formatCurrency(data, appConfig.formato_numero, appConfig.moneda)}</strong>`
+                            },
+                            { data: 'usuario', title: 'Cajero' },
+                            {
+                                data: null, title: 'Recibo', orderable: false, className: 'text-center',
+                                render: function (data, type, row) {
+                                    const safeData = encodeURIComponent(JSON.stringify(row))
+                                    const canPrint = hasPermission('cartera_abono_imprimir')
+
+                                    return canPrint ? `
+                                        <button class="btn btn-sm btn-secondary btn-print-abono" data-alldata="${safeData}" title="Imprimir Recibo">
+                                            <i class="bi bi-printer"></i> 
+                                        </button>
+                                    ` : '<i class="bi bi-lock-fill text-muted" title="Sin permiso de impresión"></i>'
+                                }
                             }
-                        }
-                    ]}
-                />
+                        ]}
+                    />
+                </div>
             </div>
-
-            <ImpresorAbono 
-                show={showPreview} 
-                onClose={() => setShowPreview(false)} 
-                abono={abonoSeleccionado} 
-                almacenConf={almacenConf} 
-            />
         </div>
+
+        <ImpresorAbono 
+            show={showPreview} 
+            onClose={() => setShowPreview(false)} 
+            abono={abonoSeleccionado} 
+            almacenConf={almacenConf} 
+        />
     </>
 }

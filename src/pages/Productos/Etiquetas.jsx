@@ -172,16 +172,16 @@ export const Etiquetas = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [isLoading])
 
     const getTextColor = (hexColor) => {
-        if (!hexColor) return '#ffffff'
-        const hex = hexColor.replace('#', '')
-        const r = parseInt(hex.substr(0, 2), 16)
-        const g = parseInt(hex.substr(2, 2), 16)
-        const b = parseInt(hex.substr(4, 2), 16)
-        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
-        return (yiq >= 128) ? '#000000' : '#ffffff'
+        if (!hexColor) return '#ffffff';
+        const hex = hexColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        return (yiq >= 128) ? '#000000' : '#ffffff';
     }
 
     const dataColumns = useMemo(() => [
@@ -189,9 +189,9 @@ export const Etiquetas = ({ currentUser }) => {
             data: 'nombre', 
             title: 'Etiqueta (Tag)',
             render: (data, type, row) => {
-                const color = row.color || '#6c757d'
-                const textColor = getTextColor(color)
-                return `<span class="badge shadow-sm" style="background-color: ${color}; color: ${textColor}; padding: 6px 12px; border-radius: 12px;"><i class="bi bi-tag-fill me-1"></i>${data}</span>`
+                const color = row.color || '#6c757d';
+                const textColor = getTextColor(color);
+                return `<span class="badge shadow-sm" style="background-color: ${color}; color: ${textColor}; padding: 6px 12px; border-radius: 12px;"><i class="bi bi-tag-fill me-1"></i>${data}</span>`;
             }
         },
         { 
@@ -203,16 +203,16 @@ export const Etiquetas = ({ currentUser }) => {
             data: 'categorias_nombres', 
             title: 'Categorías Visibles',
             render: (data, type, row) => {
-                if (!data) return '<span class="text-muted">-</span>'
-                const catsArray = data.split(',').map(s => s.trim()).filter(Boolean)
+                if (!data) return '<span class="text-muted">-</span>';
+                const catsArray = data.split(',').map(s => s.trim()).filter(Boolean);
                 const limit = 4;
                 
-                let html = catsArray.slice(0, limit).map(c => `<span class="badge bg-secondary text-light me-1 mb-1">${c}</span>`).join('')
+                let html = catsArray.slice(0, limit).map(c => `<span class="badge bg-secondary text-light me-1 mb-1">${c}</span>`).join('');
                 
                 if (catsArray.length > limit) {
                     const hiddenCats = catsArray.slice(limit).join(', ');
                     const safeData = encodeURIComponent(JSON.stringify(row));
-                    html += `<button type="button" class="btn btn-sm btn-light border py-0 px-2 me-1 mb-1 btn-view" data-alldata="${safeData}" title="${hiddenCats}">... +${catsArray.length - limit}</button>`
+                    html += `<button type="button" class="btn btn-sm btn-light border py-0 px-2 me-1 mb-1 btn-view" data-alldata="${safeData}" title="${hiddenCats}">... +${catsArray.length - limit}</button>`;
                 }
                 return html;
             }
@@ -241,7 +241,7 @@ export const Etiquetas = ({ currentUser }) => {
                 }
 
                 if (canDeleteAction) {
-                  if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`
+                  if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
                   menuItems += `
                     <li>
                       <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
@@ -265,36 +265,39 @@ export const Etiquetas = ({ currentUser }) => {
         }
     ], [activeUser, currentUser])
 
-    if (isLoading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
+    return <>
+        <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
+            
+            {isLoading && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            )}
+
+            <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+                {canCreate && (
+                    <div className="mb-3">
+                        <button className='btn btn-primary' onClick={() => {
+                            setEditingId(null)
+                            cleanForm()
+                            handleShow()
+                        }}>
+                            <i className="bi bi-tags me-2"></i>Nueva Etiqueta
+                        </button>
+                    </div>
+                )}
+
+                <div ref={tableContainerRef} className="w-100">
+                    <CustomDataTable
+                        tableId="dt-productos-etiquetas"
+                        reloadKey={reloadTable}
+                        data={dataInTable}
+                        columns={dataColumns}
+                    />
                 </div>
             </div>
-        )
-    }
-
-    return <>
-        {canCreate && (
-            <div className="mb-3">
-                <button className='btn btn-primary' onClick={() => {
-                    setEditingId(null)
-                    cleanForm()
-                    handleShow()
-                }}>
-                    <i className="bi bi-tags me-2"></i>Nueva Etiqueta
-                </button>
-            </div>
-        )}
-
-        <div ref={tableContainerRef} className="w-100">
-            <CustomDataTable
-                tableId="dt-productos-etiquetas"
-                reloadKey={reloadTable}
-                data={dataInTable}
-                columns={dataColumns}
-            />
         </div>
 
         <EtiquetaModal 

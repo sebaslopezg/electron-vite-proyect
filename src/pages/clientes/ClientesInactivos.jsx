@@ -84,98 +84,101 @@ export const ClientesInactivos = ({ activeUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [activeUser])
-
-    if (isLoading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        )
-    }
+    }, [activeUser, isLoading])
 
     return <>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="card-title mb-0">
-                <i className="bi bi-person-x text-primary me-2"></i> 
-                 Listado de Clientes Inactivos
-            </h5>
+        <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
+            
+            {isLoading && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            )}
+
+            <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h5 className="card-title mb-0">
+                        <i className="bi bi-person-x text-primary me-2"></i> 
+                         Listado de Clientes Inactivos
+                    </h5>
+                </div>
+
+                <div ref={tableContainerRef} className="w-100 opacity-75">
+                    <CustomDataTable 
+                        tableId="dt-clientes-inactivos"
+                        key={`clientes-inactivos-${reloadTable}-${activeUser?.permisos?.length}`} 
+                        ajaxData={(params) => clientesService.getClientesPaginados({ ...params, estado: 0 })}
+                        columns={[
+                            { 
+                                data: null, title: 'Documento',
+                                render: (data, type, row) => `${row.tipo_documento} ${row.numero_documento}${row.digito_verificacion ? `-${row.digito_verificacion}` : ''}`
+                            },
+                            { 
+                                data: null, title: 'Nombre / Razón Social',
+                                render: (data, type, row) => `<i class="bi ${row.tipo_persona === 'juridica' ? 'bi-building':'bi-person'} text-secondary me-2"></i><span>${row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres}${row.apellidos}`}</span>`
+                            },
+                            { 
+                                data: null, title: 'Contacto',
+                                render: (data, type, row) => `<div class="small text-muted">${row.telefono ? `<div><i class="bi bi-telephone me-1"></i>${row.telefono}</div>`:''}${row.email ? `<div><i class="bi bi-envelope me-1"></i>${row.email}</div>`:''}</div>`
+                            },
+                            {
+                                data: null, title: 'Acciones', orderable: false, className: 'text-center',
+                                render: function (data, type, row) {
+                                    const safeData = encodeURIComponent(JSON.stringify(row))
+                                    const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`
+                                    
+                                    const canEdit = hasPermission('clientes_editar')
+                                    const canDelete = hasPermission('clientes_eliminar')
+
+                                    let menuItems = `
+                                        <li>
+                                            <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
+                                                <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                                            </a>
+                                        </li>
+                                    `;
+
+                                    if (canEdit) {
+                                        menuItems += `
+                                            <li>
+                                                <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                                    <i class="bi bi-pencil me-2 text-secondary"></i> Editar
+                                                </a>
+                                            </li>
+                                        `;
+                                    }
+
+                                    if (canDelete) {
+                                        menuItems += `
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
+                                                    <i class="bi bi-trash3 me-2"></i> Eliminar
+                                                </a>
+                                            </li>
+                                        `;
+                                    }
+
+                                    return `
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu shadow-sm">
+                                                ${menuItems}
+                                            </ul>
+                                        </div>
+                                    `;
+                                }
+                            }
+                        ]}
+                    />
+                </div>
+            </div>
         </div>
 
-        <div ref={tableContainerRef} className="w-100 opacity-75">
-            <CustomDataTable 
-                tableId="dt-clientes-inactivos"
-                key={`clientes-inactivos-${reloadTable}-${activeUser?.permisos?.length}`} 
-                ajaxData={(params) => clientesService.getClientesPaginados({ ...params, estado: 0 })}
-                columns={[
-                    { 
-                        data: null, title: 'Documento',
-                        render: (data, type, row) => `${row.tipo_documento} ${row.numero_documento}${row.digito_verificacion ? `-${row.digito_verificacion}` : ''}`
-                    },
-                    { 
-                        data: null, title: 'Nombre / Razón Social',
-                        render: (data, type, row) => `<i class="bi ${row.tipo_persona === 'juridica' ? 'bi-building':'bi-person'} text-secondary me-2"></i><span>${row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres}${row.apellidos}`}</span>`
-                    },
-                    { 
-                        data: null, title: 'Contacto',
-                        render: (data, type, row) => `<div class="small text-muted">${row.telefono ? `<div><i class="bi bi-telephone me-1"></i>${row.telefono}</div>`:''}${row.email ? `<div><i class="bi bi-envelope me-1"></i>${row.email}</div>`:''}</div>`
-                    },
-                    {
-                        data: null, title: 'Acciones', orderable: false, className: 'text-center',
-                        render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row))
-                            const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`
-                            
-                            const canEdit = hasPermission('clientes_editar')
-                            const canDelete = hasPermission('clientes_eliminar')
-
-                            let menuItems = `
-                                <li>
-                                    <a class="dropdown-item btn-view" href="#" data-alldata="${safeData}">
-                                        <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
-                                    </a>
-                                </li>
-                            `;
-
-                            if (canEdit) {
-                                menuItems += `
-                                    <li>
-                                        <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                            <i class="bi bi-pencil me-2 text-secondary"></i> Editar
-                                        </a>
-                                    </li>
-                                `;
-                            }
-
-                            if (canDelete) {
-                                menuItems += `
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
-                                            <i class="bi bi-trash3 me-2"></i> Eliminar
-                                        </a>
-                                    </li>
-                                `;
-                            }
-
-                            return `
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu shadow-sm">
-                                        ${menuItems}
-                                    </ul>
-                                </div>
-                            `;
-                        }
-                    }
-                ]}
-            />
-        </div>
-        
         <ModalTercero show={showModal} handleClose={() => setShowModal(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={terceroAEditar} forceCliente={true} />
         <ModalDetalleTercero show={showDetalle} handleClose={() => setShowDetalle(false)} terceroData={terceroVer} />
     </>

@@ -198,7 +198,7 @@ export const Servicios = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [isLoading])
 
     const dataColumns = useMemo(() => [
         { data: 'ref_name', title: 'Nombre Referencia' },
@@ -286,37 +286,41 @@ export const Servicios = ({ currentUser }) => {
         }
     ], [appConfig, activeUser, currentUser])
 
-    if (isLoading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
+    return <>
+        <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
+            
+            {isLoading && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            )}
+
+            <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+                
+                {canCreate && (
+                    <div className="mb-3">
+                        <button className='btn btn-primary' onClick={() => {
+                            setEditingId(null)
+                            cleanForm()
+                            handleShow()
+                        }}>
+                            <i className="bi bi-plus-circle me-2"></i>Nuevo Servicio
+                        </button>
+                    </div>
+                )}
+
+                <div ref={tableContainerRef}>
+                    <CustomDataTable
+                        tableId="dt-servicios-catalogo"
+                        key={`servicios-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
+                        reloadKey={reloadTable}
+                        ajaxData={(params) => productosService.getServiciosPaginados(params)}
+                        columns={dataColumns}
+                    />
                 </div>
             </div>
-        )
-    }
-
-    return <>
-        {canCreate && (
-            <div className="mb-3">
-                <button className='btn btn-primary' onClick={() => {
-                    setEditingId(null)
-                    cleanForm()
-                    handleShow()
-                }}>
-                    <i className="bi bi-plus-circle me-2"></i>Nuevo Servicio
-                </button>
-            </div>
-        )}
-
-        <div ref={tableContainerRef}>
-            <CustomDataTable
-                tableId="dt-servicios-catalogo"
-                key={`servicios-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
-                reloadKey={reloadTable}
-                ajaxData={(params) => productosService.getServiciosPaginados(params)}
-                columns={dataColumns}
-            />
         </div>
         
         <ProductModal

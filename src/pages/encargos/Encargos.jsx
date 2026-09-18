@@ -69,15 +69,15 @@ export const Encargos = ({ currentUser: initialUser }) => {
     const tableContainerRef = useRef(null)
 
     const hasPermission = (permissionKey) => {
-        const u = currentUser || initialUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
+        const u = currentUser || initialUser
+        if (!u) return false
+        if (u.permisos?.includes('ALL')) return true
+        return u.permisos?.includes(permissionKey)
     }
 
-    const canCreate = hasPermission('encargos_crear');
-    const canEditAction = hasPermission('encargos_editar');
-    const canDeleteAction = hasPermission('encargos_eliminar');
+    const canCreate = hasPermission('encargos_crear')
+    const canEditAction = hasPermission('encargos_editar')
+    const canDeleteAction = hasPermission('encargos_eliminar')
 
     const loadConfig = useCallback(async () => {
         const configData = await ventasService.getConfiguracion()
@@ -166,9 +166,13 @@ export const Encargos = ({ currentUser: initialUser }) => {
 
     const cleanForm = () => {
         setForm({ 
-            fecha_entrega: '', descripcion: '', estado_id: '', 
-            titulo_personalizado: '', producto_id: '', producto_nombre: '', 
-            custom_data: {} 
+            fecha_entrega: '',
+            descripcion: '',
+            estado_id: '',
+            titulo_personalizado: '',
+            producto_id: '',
+            producto_nombre: '',
+            custom_data: {}
         })
         setBusquedaFactura('')
         setFacturaOrigen(null)
@@ -312,7 +316,6 @@ export const Encargos = ({ currentUser: initialUser }) => {
             const editBtn = e.target.closest('.btn-edit')
             if (editBtn) {
                 e.preventDefault()
-                e.stopPropagation()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -324,7 +327,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
                         producto_id: item.producto_id || '',
                         producto_nombre: item.producto_nombre || '',
                         custom_data: item.custom_data ? JSON.parse(item.custom_data) : {}
-                    });
+                    })
                     setEditingId(item.id)
                     setInitialEstadoId(item.estado_id || 'pendiente')
                     handleShow()
@@ -334,7 +337,6 @@ export const Encargos = ({ currentUser: initialUser }) => {
             const infoBtn = e.target.closest('.btn-info')
             if (infoBtn) {
                 e.preventDefault()
-                e.stopPropagation()
                 const rawData = decodeURIComponent(infoBtn.dataset.alldata)
                 const item = JSON.parse(rawData)
                 handleInfo(item)
@@ -344,7 +346,6 @@ export const Encargos = ({ currentUser: initialUser }) => {
             const historyBtn = e.target.closest('.btn-history')
             if (historyBtn) {
                 e.preventDefault()
-                e.stopPropagation()
                 try {
                     const rawData = decodeURIComponent(historyBtn.dataset.alldata)
                     const item = JSON.parse(rawData)
@@ -357,21 +358,19 @@ export const Encargos = ({ currentUser: initialUser }) => {
             const btnFactura = e.target.closest('.btn-ver-factura')
             if (btnFactura) {
                 e.preventDefault()
-                e.stopPropagation()
                 handleVerFactura(btnFactura.dataset.fullnum)
             }
 
             const delBtn = e.target.closest('.btn-delete')
             if (delBtn) {
                 e.preventDefault()
-                e.stopPropagation()
                 handleDelete(delBtn.dataset.id)
             }
         }
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [isLoading])
 
     useEffect(() => {
         const verId = searchParams.get('ver_id')
@@ -419,207 +418,210 @@ export const Encargos = ({ currentUser: initialUser }) => {
         return `${day}/${month}/${year}`
     }
 
-    if (isLoading) {
-        return (
-            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        )
-    }
-
     return <>
-        {canCreate && (
-            <div className="d-flex justify-content-between align-items-center mb-3">
-                <Button variant="primary" onClick={() => { cleanForm(); setEditingId(null); handleShow(); }}>
-                    <i className="bi bi-plus-circle me-2"></i>Nuevo Encargo
-                </Button>
-            </div>
-        )}
+        <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
+            
+            {isLoading && (
+                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            )}
 
-        <div ref={tableContainerRef} className="w-100" style={{ overflow: 'visible' }}>
-            <DataTableComponent
-                tableId="dt-encargos-maestro"
-                data={dataInTable}
-                columns={[
-                    { data: 'encargo_numero', title: 'N° encargo' },
-                    { 
-                        data: 'factura_numero', 
-                        title: 'N° Factura',
-                        render: (data, type, row) => {
-                            const prefix = row.prefijo ? `${row.prefijo}-` : '';
-                            const fullNum = `${prefix}${data}`;
-                            return `<a href="#" class="text-primary fw-bold btn-ver-factura text-decoration-underline" data-fullnum="${fullNum}" onclick="event.preventDefault()">${fullNum}</a>`
-                        }
-                    },
-                    {
-                        data: 'estado_titulo',
-                        title: 'Estado',
-                        render: (data, type, row) => {
-                            let textColor = '#ffffff';
-                            if (row.estado_color) {
-                                const hex = row.estado_color.replace('#', '');
-                                const r = parseInt(hex.substr(0, 2), 16);
-                                const g = parseInt(hex.substr(2, 2), 16);
-                                const b = parseInt(hex.substr(4, 2), 16);
-                                const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-                                textColor = (yiq >= 128) ? '#000000' : '#ffffff';
-                            }
+            <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+                {canCreate && (
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <Button variant="primary" onClick={() => { cleanForm(); setEditingId(null); handleShow(); }}>
+                            <i className="bi bi-plus-circle me-2"></i>Nuevo Encargo
+                        </Button>
+                    </div>
+                )}
 
-                            return `
-                                <span class="badge" style="background-color: ${row.estado_color || '#6c757d'}; color: ${textColor}; font-size: 13px;">
-                                    <i class="${row.icon || 'bi bi-tag-fill'} me-1"></i> ${data || 'Pendiente'}
-                                </span>
-                            `
-                        }
-                    },
-                    { data: 'cliente_nombre', title: 'Cliente' },
-                    { data: 'cliente_documento', title: 'Documento cliente' },
-                    {
-                        data: 'fecha_entrega',
-                        title: 'Fecha de entrega',
-                        orderable: false,
-                        render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row));
-                            
-                            if (row.fecha_entrega) {
-                                const badgeClass = getBadgeClassForDate(row.fecha_entrega);
-                                const formattedDate = formatToLocalString(row.fecha_entrega);
-                                return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`;
-                            } else {
-                                if (canEditAction) {
-                                    return `<button class="btn btn-sm btn-primary btn-edit" data-id="${row.id}" data-alldata="${safeData}">Agendar</button>`;
-                                } else {
-                                    return `<span class="badge bg-secondary">Sin agendar</span>`;
+                <div ref={tableContainerRef} className="w-100" style={{ overflow: 'visible' }}>
+                    <DataTableComponent
+                        tableId="dt-encargos-maestro"
+                        data={dataInTable}
+                        columns={[
+                            { data: 'encargo_numero', title: 'N° encargo' },
+                            { 
+                                data: 'factura_numero', 
+                                title: 'N° Factura',
+                                render: (data, type, row) => {
+                                    const prefix = row.prefijo ? `${row.prefijo}-` : '';
+                                    const fullNum = `${prefix}${data}`;
+                                    return `<a href="#" class="text-primary fw-bold btn-ver-factura text-decoration-underline" data-fullnum="${fullNum}" onclick="event.preventDefault()">${fullNum}</a>`
+                                }
+                            },
+                            {
+                                data: 'estado_titulo',
+                                title: 'Estado',
+                                render: (data, type, row) => {
+                                    let textColor = '#ffffff';
+                                    if (row.estado_color) {
+                                        const hex = row.estado_color.replace('#', '');
+                                        const r = parseInt(hex.substr(0, 2), 16);
+                                        const g = parseInt(hex.substr(2, 2), 16);
+                                        const b = parseInt(hex.substr(4, 2), 16);
+                                        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+                                        textColor = (yiq >= 128) ? '#000000' : '#ffffff';
+                                    }
+
+                                    return `
+                                        <span class="badge" style="background-color: ${row.estado_color || '#6c757d'}; color: ${textColor}; font-size: 13px;">
+                                            <i class="${row.icon || 'bi bi-tag-fill'} me-1"></i> ${data || 'Pendiente'}
+                                        </span>
+                                    `
+                                }
+                            },
+                            { data: 'cliente_nombre', title: 'Cliente' },
+                            { data: 'cliente_documento', title: 'Documento cliente' },
+                            {
+                                data: 'fecha_entrega',
+                                title: 'Fecha de entrega',
+                                orderable: false,
+                                render: function (data, type, row) {
+                                    const safeData = encodeURIComponent(JSON.stringify(row));
+                                    
+                                    if (row.fecha_entrega) {
+                                        const badgeClass = getBadgeClassForDate(row.fecha_entrega);
+                                        const formattedDate = formatToLocalString(row.fecha_entrega);
+                                        return `<span class="badge rounded-pill ${badgeClass} fs-6 fw-normal">${formattedDate}</span>`;
+                                    } else {
+                                        if (canEditAction) {
+                                            return `<button class="btn btn-sm btn-primary btn-edit" data-id="${row.id}" data-alldata="${safeData}">Agendar</button>`;
+                                        } else {
+                                            return `<span class="badge bg-secondary">Sin agendar</span>`;
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                data: null,
+                                title: 'Acciones',
+                                orderable: false,
+                                className: 'text-center',
+                                render: function (data, type, row) {
+                                    const safeData = encodeURIComponent(JSON.stringify(row));
+                                    let menuItems = '';
+
+                                    if (canEditAction) {
+                                        menuItems += `
+                                            <li>
+                                                <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
+                                                    <i class="bi bi-pencil me-2 text-secondary"></i> Editar Encargo
+                                                </a>
+                                            </li>
+                                        `;
+                                    }
+
+                                    menuItems += `
+                                        <li>
+                                            <a class="dropdown-item btn-info" href="#" data-alldata="${safeData}">
+                                                <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item btn-history" href="#" data-alldata="${safeData}">
+                                                <i class="bi bi-clock-history me-2 text-secondary"></i> Historial de Estados
+                                            </a>
+                                        </li>
+                                    `;
+
+                                    if (canDeleteAction) {
+                                        menuItems += `
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
+                                                    <i class="bi bi-trash3 me-2"></i> Eliminar
+                                                </button>
+                                            </li>
+                                        `;
+                                    }
+
+                                    return `
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu shadow-sm">
+                                                ${menuItems}
+                                            </ul>
+                                        </div>
+                                    `
                                 }
                             }
-                        }
-                    },
-                    {
-                        data: null,
-                        title: 'Acciones',
-                        orderable: false,
-                        className: 'text-center',
-                        render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row));
-                            let menuItems = '';
-
-                            if (canEditAction) {
-                                menuItems += `
-                                    <li>
-                                        <a class="dropdown-item btn-edit" href="#" data-alldata="${safeData}">
-                                            <i class="bi bi-pencil me-2 text-secondary"></i> Editar Encargo
-                                        </a>
-                                    </li>
-                                `;
-                            }
-
-                            menuItems += `
-                                <li>
-                                    <a class="dropdown-item btn-info" href="#" data-alldata="${safeData}">
-                                        <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item btn-history" href="#" data-alldata="${safeData}">
-                                        <i class="bi bi-clock-history me-2 text-secondary"></i> Historial de Estados
-                                    </a>
-                                </li>
-                            `;
-
-                            if (canDeleteAction) {
-                                menuItems += `
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <button class="dropdown-item text-danger btn-delete" data-id="${row.id}">
-                                            <i class="bi bi-trash3 me-2"></i> Eliminar
-                                        </button>
-                                    </li>
-                                `;
-                            }
-
-                            return `
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
-                                        <i class="bi bi-three-dots-vertical"></i>
-                                    </button>
-                                    <ul class="dropdown-menu shadow-sm">
-                                        ${menuItems}
-                                    </ul>
-                                </div>
-                            `
-                        }
-                    }
-                ]}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onShow={handleShow}
-                customRenders={{
-                    date_created: (data) => new Date(data).toLocaleDateString('es-ES'),
-                    date_modify: (data) => new Date(data).toLocaleDateString('es-ES')
-                }}
-            />
-            
-            <ModalFormEncargo 
-                show={show}
-                handleClose={handleClose}
-                handleSubmit={handleSubmit}
-                editingId={editingId}
-                form={form}
-                setForm={setForm}
-                busquedaFactura={busquedaFactura}
-                setBusquedaFactura={setBusquedaFactura}
-                handleSearchFactura={handleSearchFactura}
-                facturaOrigen={facturaOrigen}
-                estados={estados}
-                camposDinamicos={camposFormulario}
-                currentUser={currentUser}
-                alcancePolitica={alcancePolitica}
-                initialEstadoId={initialEstadoId}
-            />
-            
-            <ModalBuscarFactura 
-                show={showSearchFactura}
-                handleClose={() => setShowSearchFactura(false)}
-                handleSearchFactura={handleSearchFactura}
-            />
-
-            <EncargoDetalles
-                show={showInfo}
-                handleClose={handleClose}
-                encargoData={encargoSel}
-                onShowHistory={() => setShowHistoryModal(true)}
-                onVerFactura={(numeroFactura) => {
-                    handleVerFactura(numeroFactura)
-                }}
-            />
-
-            <ModalHistorialEncargo 
-                show={showHistoryModal}
-                handleClose={() => setShowHistoryModal(false)}
-                historial={historialEncargo}
-                encargoData={encargoSel}
-            />
-
-            <ModalDetalleFactura
-                show={showFacturaModal}
-                handleClose={handleCloseFacturaModal}
-                facturaSeleccionada={facturaSeleccionada}
-                detalleData={detalleData}
-                notasFactura={notasFactura}
-                handlePrepararImpresion={handlePrepararImpresion}
-                appConfig={appConfig}
-            />
-            
-            <ImpresorFactura 
-                show={showPreview} 
-                onClose={handleCerrarPreview} 
-                factura={facturaSeleccionada} 
-                detalles={detalleData} 
-                almacenConf={almacenConf} 
-                textoVolver={abiertoDesdeDetalles ? 'Volver a Detalles' : 'Cerrar'} 
-            />
+                        ]}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onShow={handleShow}
+                        customRenders={{
+                            date_created: (data) => new Date(data).toLocaleDateString('es-ES'),
+                            date_modify: (data) => new Date(data).toLocaleDateString('es-ES')
+                        }}
+                    />
+                </div>
+            </div>
         </div>
+
+        <ModalFormEncargo 
+            show={show}
+            handleClose={handleClose}
+            handleSubmit={handleSubmit}
+            editingId={editingId}
+            form={form}
+            setForm={setForm}
+            busquedaFactura={busquedaFactura}
+            setBusquedaFactura={setBusquedaFactura}
+            handleSearchFactura={handleSearchFactura}
+            facturaOrigen={facturaOrigen}
+            estados={estados}
+            camposDinamicos={camposFormulario}
+            currentUser={currentUser}
+            alcancePolitica={alcancePolitica}
+            initialEstadoId={initialEstadoId}
+        />
+        
+        <ModalBuscarFactura 
+            show={showSearchFactura}
+            handleClose={() => setShowSearchFactura(false)}
+            handleSearchFactura={handleSearchFactura}
+        />
+
+        <EncargoDetalles
+            show={showInfo}
+            handleClose={handleClose}
+            encargoData={encargoSel}
+            onShowHistory={() => setShowHistoryModal(true)}
+            onVerFactura={(numeroFactura) => {
+                handleVerFactura(numeroFactura)
+            }}
+        />
+
+        <ModalHistorialEncargo 
+            show={showHistoryModal}
+            handleClose={() => setShowHistoryModal(false)}
+            historial={historialEncargo}
+            encargoData={encargoSel}
+        />
+
+        <ModalDetalleFactura
+            show={showFacturaModal}
+            handleClose={handleCloseFacturaModal}
+            facturaSeleccionada={facturaSeleccionada}
+            detalleData={detalleData}
+            notasFactura={notasFactura}
+            handlePrepararImpresion={handlePrepararImpresion}
+            appConfig={appConfig}
+        />
+        
+        <ImpresorFactura 
+            show={showPreview} 
+            onClose={handleCerrarPreview} 
+            factura={facturaSeleccionada} 
+            detalles={detalleData} 
+            almacenConf={almacenConf} 
+            textoVolver={abiertoDesdeDetalles ? 'Volver a Detalles' : 'Cerrar'} 
+        />
     </>
 }
