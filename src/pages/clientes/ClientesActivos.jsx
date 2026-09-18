@@ -47,11 +47,29 @@ export const ClientesActivos = ({ activeUser }) => {
       setShowDetalle(true)
     }
 
+    const handleDesactivar = (id, nombre) => {
+        Swal.fire({
+            title: '¿Desactivar Cliente?',
+            text: `El cliente "${nombre}" pasará a la lista de inactivos y no aparecerá en las búsquedas principales.`,
+            icon: 'warning', showCancelButton: true, confirmButtonColor: '#ffc107', confirmButtonText: 'Sí, desactivar', cancelButtonText: 'Cancelar'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const res = await window.api.invoke('desactivar-tercero', id)
+                if (res.success) {
+                    Swal.fire('¡Desactivado!', 'El cliente ha sido desactivado exitosamente.', 'success')
+                    setReloadTable(prev => prev + 1)
+                } else {
+                    Swal.fire('Error', res.error, 'error')
+                }
+            }
+        })
+    }
+
     const handleEliminar = (id, nombre) => {
         Swal.fire({
             title: '¿Eliminar Cliente?',
             text: `Borrarás definitivamente a "${nombre}". Las facturas antiguas se mantendrán, pero ya no aparecerá en las búsquedas ni podrás facturarle.`,
-            icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
+            icon: 'error', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
         }).then(async (result) => {
             if (result.isConfirmed) {
                 const res = await clientesService.eliminarTercero(id)
@@ -70,11 +88,18 @@ export const ClientesActivos = ({ activeUser }) => {
         if (!container) return
 
         const handleTableClick = (e) => {
-            const actionEl = e.target.closest('[data-alldata], .btn-delete')
+            const actionEl = e.target.closest('[data-alldata], .btn-desactivar, .btn-delete')
             if (!actionEl || !container.contains(actionEl)) return
             
             e.preventDefault()
             try {
+                if (actionEl.classList.contains('btn-desactivar')) {
+                    const id = actionEl.dataset.id
+                    const nombre = actionEl.dataset.nombre
+                    handleDesactivar(id, nombre)
+                    return
+                }
+
                 if (actionEl.classList.contains('btn-delete')) {
                     const id = actionEl.dataset.id
                     const nombre = actionEl.dataset.nombre
@@ -138,11 +163,12 @@ export const ClientesActivos = ({ activeUser }) => {
                             {
                                 data: null, title: 'Acciones', orderable: false, className: 'text-center',
                                 render: function (data, type, row) {
-                                    const safeData = encodeURIComponent(JSON.stringify(row));
-                                    const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`;
+                                    const safeData = encodeURIComponent(JSON.stringify(row))
+                                    const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`
                                     
-                                    const canEdit = hasPermission('clientes_editar');
-                                    const canDelete = hasPermission('clientes_eliminar');
+                                    const canEdit = hasPermission('clientes_editar')
+                                    const canDesactivar = hasPermission('clientes_desactivar')
+                                    const canDelete = hasPermission('clientes_eliminar')
 
                                     return `
                                         <div class="dropdown">
@@ -162,8 +188,15 @@ export const ClientesActivos = ({ activeUser }) => {
                                                     </a>
                                                 </li>
                                                 ` : ''}
-                                                ${canDelete ? `
+                                                ${canDesactivar ? `
                                                 <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item btn-desactivar text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
+                                                        <i class="bi bi-person-down me-2"></i> Desactivar
+                                                    </a>
+                                                </li>
+                                                ` : ''}
+                                                ${canDelete ? `
                                                 <li>
                                                     <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
                                                         <i class="bi bi-trash3 me-2"></i> Eliminar
@@ -172,7 +205,7 @@ export const ClientesActivos = ({ activeUser }) => {
                                                 ` : ''}
                                             </ul>
                                         </div>
-                                    `;
+                                    `
                                 }
                             }
                         ]}

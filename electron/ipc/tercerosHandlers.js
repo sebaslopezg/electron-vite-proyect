@@ -38,10 +38,20 @@ export const registerTercerosHandlers = () => {
                 telefono, email, ciudad_id, es_cliente, es_proveedor, estado, date_created
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
         `).run(
-            id, tercero.tipo_documento, tercero.numero_documento, tercero.digito_verificacion, 
-            tercero.tipo_persona, tercero.razon_social, tercero.nombres, tercero.apellidos, 
-            tercero.direccion, tercero.telefono, tercero.email, tercero.ciudad_id, 
-            tercero.es_cliente, tercero.es_proveedor
+            id, 
+            tercero.tipo_documento,
+            tercero.numero_documento,
+            tercero.digito_verificacion,
+            tercero.tipo_persona,
+            tercero.razon_social,
+            tercero.nombres,
+            tercero.apellidos,
+            tercero.direccion,
+            tercero.telefono,
+            tercero.email,
+            tercero.ciudad_id,
+            tercero.es_cliente,
+            tercero.es_proveedor
         )
         
         const identificador = tercero.tipo_persona === 'juridica' ? tercero.razon_social : `${tercero.nombres} ${tercero.apellidos}`
@@ -64,10 +74,21 @@ export const registerTercerosHandlers = () => {
                 es_cliente = ?, es_proveedor = ?, estado = ?, date_modify = datetime('now') 
             WHERE id = ?
         `).run(
-            tercero.tipo_documento, tercero.numero_documento, tercero.digito_verificacion, 
-            tercero.tipo_persona, tercero.razon_social, tercero.nombres, tercero.apellidos, 
-            tercero.direccion, tercero.telefono, tercero.email, tercero.ciudad_id, 
-            tercero.es_cliente, tercero.es_proveedor, tercero.estado, tercero.id
+            tercero.tipo_documento,
+            tercero.numero_documento,
+            tercero.digito_verificacion,
+            tercero.tipo_persona,
+            tercero.razon_social,
+            tercero.nombres,
+            tercero.apellidos,
+            tercero.direccion,
+            tercero.telefono,
+            tercero.email,
+            tercero.ciudad_id,
+            tercero.es_cliente,
+            tercero.es_proveedor,
+            tercero.estado,
+            tercero.id
         )
         
         logger.success('TERCEROS', `Datos del tercero ID ${tercero.id} actualizados correctamente`)
@@ -76,6 +97,30 @@ export const registerTercerosHandlers = () => {
         logger.error('TERCEROS', `Error al actualizar la información del tercero ID: ${tercero?.id}`, error)
         return { success: false, error: error.message } 
     }
+  })
+
+  ipcMain.handle("desactivar-tercero", async (event, id) => {
+      if (!checkPermission("clientes_desactivar")) return { success: false, error: "No autorizado" }
+      try {
+          db.prepare("UPDATE terceros SET estado = 0, date_modify = datetime('now') WHERE id = ?").run(id)
+          logger.success('TERCEROS', `Tercero con ID ${id} fue desactivado exitosamente`)
+          return { success: true }
+      } catch (error) { 
+          logger.error('TERCEROS', `Error al desactivar el tercero ID: ${id}`, error)
+          return { success: false, error: error.message } 
+      }
+  })
+
+  ipcMain.handle("reactivar-tercero", async (event, id) => {
+      if (!checkPermission("clientes_editar")) return { success: false, error: "No autorizado" }
+      try {
+          db.prepare("UPDATE terceros SET estado = 1, date_modify = datetime('now') WHERE id = ?").run(id)
+          logger.success('TERCEROS', `Tercero con ID ${id} fue reactivado exitosamente`)
+          return { success: true }
+      } catch (error) { 
+          logger.error('TERCEROS', `Error al reactivar el tercero ID: ${id}`, error)
+          return { success: false, error: error.message } 
+      }
   })
 
   ipcMain.handle("eliminar-tercero", async (event, id) => {
@@ -92,14 +137,18 @@ export const registerTercerosHandlers = () => {
   })
 
   ipcMain.handle("get-terceros-paginados", async (event, params) => {
-    if (!checkPermission("terceros_ver") && !checkPermission("clientes_ver")) {
-        return { draw: params.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
-    }
     try {
         const { start, length, search, soloClientes, estado } = params
         const searchValue = search?.value || ''
         
-        const estadoFinal = estado !== undefined ? Number(estado) : 1;
+        const estadoFinal = estado !== undefined ? Number(estado) : 1
+
+        if (estadoFinal === 1 && !checkPermission("terceros_ver") && !checkPermission("clientes_ver")) {
+            return { draw: params.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
+        }
+        if (estadoFinal === 0 && !checkPermission("clientes_inactivos_ver")) {
+            return { draw: params.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
+        }
         
         let whereClause = "estado = ?"
         let queryParams = [estadoFinal]

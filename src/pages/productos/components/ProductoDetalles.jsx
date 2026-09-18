@@ -14,7 +14,7 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig })
         <Modal show={show} onHide={handleClose} size="lg" centered className="shadow">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>
-                    <i className="bi bi-box-seam me-2"></i>Detalles del Producto
+                    <i className="bi bi-box-seam me-2 text-primary"></i>Detalles del Producto
                 </Modal.Title>
             </Modal.Header>
 

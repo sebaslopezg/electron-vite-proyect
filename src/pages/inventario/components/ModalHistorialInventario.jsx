@@ -34,7 +34,7 @@ export const ModalHistorialInventario = ({
         <Modal show={show} onHide={handleClose} size="xl" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
-                    <i className="bi bi-clock-history me-2"></i>{historyTitle}
+                    <i className="bi bi-clock-history me-2 text-primary"></i>{historyTitle}
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-3" ref={containerRef}>

@@ -191,6 +191,7 @@ export const ModalRol = ({ show, handleClose, editData, onSuccess }) => {
         <Modal show={show} onHide={handleClose} size="xl" centered backdrop="static" scrollable>
             <Modal.Header closeButton className="bg-light border-bottom">
                 <Modal.Title className="h5 text-dark">
+                    <i className={`bi ${editData ? 'bi-shield-lock' : 'bi-shield-plus'} me-2 text-primary`}></i>
                     {editData ? `Editar rol: ${editData.nombre}` : 'Crear permisos del rol'}
                 </Modal.Title>
             </Modal.Header>

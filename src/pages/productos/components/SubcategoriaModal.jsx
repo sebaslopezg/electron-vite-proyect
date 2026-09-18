@@ -29,6 +29,7 @@ export default function SubcategoriaModal({ show, handleClose, handleSubmit, for
     return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton>
+                <i className={`bi ${editingId ? 'bi-pencil' : 'bi-plus-circle'} me-2 text-primary`}></i>
                 <Modal.Title>{editingId ? 'Editar Subcategoría' : 'Nueva Subcategoría'}</Modal.Title>
             </Modal.Header>
             <Modal.Body>

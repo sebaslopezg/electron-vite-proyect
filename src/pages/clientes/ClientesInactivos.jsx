@@ -41,6 +41,24 @@ export const ClientesInactivos = ({ activeUser }) => {
       setShowDetalle(true)
     }
 
+    const handleReactivar = (id, nombre) => {
+        Swal.fire({
+            title: '¿Reactivar Cliente?',
+            text: `El cliente "${nombre}" volverá a estar habilitado y visible en las búsquedas.`,
+            icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', confirmButtonText: 'Sí, reactivar', cancelButtonText: 'Cancelar'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const res = await window.api.invoke('reactivar-tercero', id)
+                if (res.success) {
+                    Swal.fire('¡Reactivado!', 'El cliente está activo nuevamente.', 'success')
+                    setReloadTable(prev => prev + 1)
+                } else {
+                    Swal.fire('Error', res.error, 'error')
+                }
+            }
+        })
+    }
+
     const handleEliminar = (id, nombre) => {
         Swal.fire({
             title: '¿Eliminar Cliente?',
@@ -64,11 +82,18 @@ export const ClientesInactivos = ({ activeUser }) => {
         if (!container) return
 
         const handleTableClick = (e) => {
-            const actionEl = e.target.closest('[data-alldata], .btn-delete')
+            const actionEl = e.target.closest('[data-alldata], .btn-delete, .btn-reactivar')
             if (!actionEl || !container.contains(actionEl)) return
             
             e.preventDefault()
             try {
+                if (actionEl.classList.contains('btn-reactivar')) {
+                    const id = actionEl.dataset.id
+                    const nombre = actionEl.dataset.nombre
+                    handleReactivar(id, nombre)
+                    return
+                }
+
                 if (actionEl.classList.contains('btn-delete')) {
                     const id = actionEl.dataset.id
                     const nombre = actionEl.dataset.nombre
@@ -138,7 +163,7 @@ export const ClientesInactivos = ({ activeUser }) => {
                                                 <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                                             </a>
                                         </li>
-                                    `;
+                                    `
 
                                     if (canEdit) {
                                         menuItems += `
@@ -147,18 +172,23 @@ export const ClientesInactivos = ({ activeUser }) => {
                                                     <i class="bi bi-pencil me-2 text-secondary"></i> Editar
                                                 </a>
                                             </li>
-                                        `;
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item btn-reactivar text-secondary" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
+                                                    <i class="bi bi-person-up me-2"></i> Reactivar
+                                                </a>
+                                            </li>
+                                        `
                                     }
 
                                     if (canDelete) {
                                         menuItems += `
-                                            <li><hr class="dropdown-divider"></li>
                                             <li>
                                                 <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
                                                     <i class="bi bi-trash3 me-2"></i> Eliminar
                                                 </a>
                                             </li>
-                                        `;
+                                        `
                                     }
 
                                     return `
@@ -170,7 +200,7 @@ export const ClientesInactivos = ({ activeUser }) => {
                                                 ${menuItems}
                                             </ul>
                                         </div>
-                                    `;
+                                    `
                                 }
                             }
                         ]}
@@ -178,7 +208,7 @@ export const ClientesInactivos = ({ activeUser }) => {
                 </div>
             </div>
         </div>
-
+        
         <ModalTercero show={showModal} handleClose={() => setShowModal(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={terceroAEditar} forceCliente={true} />
         <ModalDetalleTercero show={showDetalle} handleClose={() => setShowDetalle(false)} terceroData={terceroVer} />
     </>

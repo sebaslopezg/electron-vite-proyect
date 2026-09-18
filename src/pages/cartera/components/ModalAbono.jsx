@@ -80,7 +80,7 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
         <Modal show={show} onHide={onClose} centered>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
-                    <i className="bi bi-cash-coin me-2"></i>Registrar Abono
+                    <i className="bi bi-cash-coin me-2 text-primary"></i>Registrar Abono
                 </Modal.Title>
             </Modal.Header>
             <Form onSubmit={handleSubmitAbono}>
@@ -125,8 +125,8 @@ export const ModalAbono = ({ show, onClose, factura, onSuccess, appConfig, curre
                     </Row>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="outline-secondary" onClick={onClose}>Cancelar</Button>
-                    <Button variant="success" type="submit" className="fw-bold px-4">Abonar</Button>
+                    <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+                    <Button variant="primary" type="submit" className="px-4">Abonar</Button>
                 </Modal.Footer>
             </Form>
         </Modal>

@@ -3,6 +3,10 @@ import DataTableComponent from '../../../components/DataTableComponent'
 import { ImpresorAbono } from './ImpresorAbono'
 import { formatCurrency } from '../../../utils/currencies'
 import { carteraService } from '../../../services/carteraService'
+import { ventasService } from '../../../services/ventasService'
+import { ModalDetalleFactura } from '../../ventas/components/ModalDetalleFactura'
+import { ImpresorFactura } from '../../ventas/components/ImpresorFactura'
+import Swal from 'sweetalert2'
 
 export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentUser }) => {
     const tableAbonosRef = useRef(null)
@@ -10,6 +14,12 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
     const [abonoSeleccionado, setAbonoSeleccionado] = useState(null)
 
     const [isLoading, setIsLoading] = useState(true)
+
+    const [showFacturaModal, setShowFacturaModal] = useState(false)
+    const [showImpresorFactura, setShowImpresorFactura] = useState(false)
+    const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
+    const [detalleFacturaData, setDetalleFacturaData] = useState([])
+    const [notasFactura, setNotasFactura] = useState([])
 
     useEffect(() => {
         if (currentUser) {
@@ -26,20 +36,46 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
         return currentUser.permisos?.includes(permissionKey)
     }
 
+    const handleVerFactura = async (numFactura) => {
+        const result = await ventasService.searchFactura(numFactura)
+        if (result.success) {
+            setFacturaSeleccionada(result.maestro)
+            const det = await ventasService.getDetalleFactura(result.maestro.id)
+            if (det.success) {
+                setDetalleFacturaData(det.data || [])
+                setNotasFactura(det.notes || [])
+                setShowFacturaModal(true)
+            }
+        } else {
+            Swal.fire('Error', 'La factura no existe o fue eliminada', 'error')
+        }
+    }
+
+    const handlePrepararImpresionFactura = () => {
+        setShowFacturaModal(false)
+        setShowImpresorFactura(true)
+    }
+
     useEffect(() => {
         const container = tableAbonosRef.current
         if (!container) return
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('.btn-print-abono')
-            if (!btn || !container.contains(btn)) return
-            
-            e.preventDefault()
-            try {
-                const item = JSON.parse(decodeURIComponent(btn.dataset.alldata))
-                setAbonoSeleccionado(item)
-                setShowPreview(true)
-            } catch(err) { console.error(err) }
+            const btnAbono = e.target.closest('.btn-print-abono')
+            if (btnAbono && container.contains(btnAbono)) {
+                e.preventDefault()
+                try {
+                    const item = JSON.parse(decodeURIComponent(btnAbono.dataset.alldata))
+                    setAbonoSeleccionado(item)
+                    setShowPreview(true)
+                } catch(err) { console.error(err) }
+            }
+
+            const btnFactura = e.target.closest('.btn-ver-factura')
+            if (btnFactura && container.contains(btnFactura)) {
+                e.preventDefault()
+                handleVerFactura(btnFactura.dataset.fullnum)
+            }
         }
 
         container.addEventListener('click', handleTableClick)
@@ -71,7 +107,10 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
                             },
                             { 
                                 data: null, title: 'Factura Pagada',
-                                render: (data, type, row) => `<strong>${row.prefijo || ''}${row.numero_factura}</strong>`
+                                render: (data, type, row) => {
+                                    const finalFactura = `${row.prefijo || ''}${row.separador || ''}${row.numero_factura}`
+                                    return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-ver-factura" data-fullnum="${finalFactura}">${finalFactura}</a>`
+                                }
                             },
                             { data: 'nombre_cliente', title: 'Cliente' },
                             { 
@@ -107,6 +146,26 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
             onClose={() => setShowPreview(false)} 
             abono={abonoSeleccionado} 
             almacenConf={almacenConf} 
+        />
+
+        <ModalDetalleFactura 
+            show={showFacturaModal}
+            handleClose={() => setShowFacturaModal(false)}
+            facturaSeleccionada={facturaSeleccionada}
+            detalleData={detalleFacturaData}
+            notasFactura={notasFactura}
+            handlePrepararImpresion={handlePrepararImpresionFactura}
+            appConfig={appConfig}
+            canPrint={hasPermission('ventas_imprimir')}
+        />
+
+        <ImpresorFactura 
+            show={showImpresorFactura}
+            onClose={() => setShowImpresorFactura(false)}
+            factura={facturaSeleccionada}
+            detalles={detalleFacturaData}
+            almacenConf={almacenConf}
+            textoVolver="Cerrar"
         />
     </>
 }

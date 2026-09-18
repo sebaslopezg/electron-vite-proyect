@@ -13,7 +13,7 @@ export const SubcategoriaDetalles = ({ show, handleClose, subcategoriaData, cate
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable className="shadow">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>
-                    <i className="bi bi-diagram-2 me-2"></i>Detalles de Subcategoría
+                    <i className="bi bi-diagram-2 me-2 text-primary"></i>Detalles de Subcategoría
                 </Modal.Title>
             </Modal.Header>
 

@@ -10,6 +10,7 @@ export default function CategoriaModal({ show, handleClose, handleSubmit, form, 
     return <>
         <Modal show={show} onHide={handleClose} size="md" centered>
             <Modal.Header closeButton>
+                <i className={`bi ${editingId ? 'bi-pencil' : 'bi-plus-circle'} me-2 text-primary`}></i>
                 <Modal.Title>{editingId ? (isGeneral ? 'Ver Categoría' : 'Editar Categoría') : 'Nueva Categoría'}</Modal.Title>
             </Modal.Header>
             <Modal.Body>

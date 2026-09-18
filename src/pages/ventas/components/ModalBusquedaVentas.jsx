@@ -107,6 +107,12 @@ export const ModalBusquedaVentas = ({
             backdropClassName={isUnder ? 'backdrop-under' : ''}
         >
             <Modal.Header closeButton className="bg-light">
+                {modalData.type === 'producto' && (<>
+                    <i className="bi bi-box2 me-2 text-primary"></i>
+                </>)}
+                {modalData.type === 'cliente' && (<>
+                    <i className="bi bi-people me-2 text-primary"></i>
+                </>)}
                 <Modal.Title className="fs-5">{modalData.title}</Modal.Title>
             </Modal.Header>
             <Modal.Body>

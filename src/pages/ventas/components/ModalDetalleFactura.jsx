@@ -34,6 +34,7 @@ export const ModalDetalleFactura = ({
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
+                    <i className="bi bi-receipt-cutoff me-2 text-primary"></i>
                     Detalles de la Factura {facturaSeleccionada ? `${facturaSeleccionada.prefijo || ''}${facturaSeleccionada.separador || ''}${facturaSeleccionada.numero_factura}` : ''}                
                 </Modal.Title>
             </Modal.Header>

@@ -28,6 +28,7 @@ export default function EtiquetaModal({
     return <>
         <Modal show={show} onHide={handleClose} size="md" centered>
             <Modal.Header closeButton>
+                <i className={`bi ${editingId ? 'bi-pencil' : 'bi-plus-circle'} me-2 text-primary`}></i>
                 <Modal.Title>{editingId ? 'Editar Etiqueta' : 'Nueva Etiqueta'}</Modal.Title>
             </Modal.Header>
             <Modal.Body>

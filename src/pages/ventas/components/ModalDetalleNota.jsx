@@ -20,6 +20,7 @@ export const ModalDetalleNota = ({
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
+                    <i class="bi bi-journal-text me-2 text-primary"></i>
                     Detalles de la Nota {notaSeleccionada ? `${notaSeleccionada.prefijo}-${notaSeleccionada.numero_nota}` : ''}                
                 </Modal.Title>
             </Modal.Header>

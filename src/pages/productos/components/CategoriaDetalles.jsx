@@ -35,7 +35,7 @@ export const CategoriaDetalles = ({ show, handleClose, categoriaData, appConfig 
         <Modal show={show} onHide={handleClose} size="xl" centered scrollable className="shadow">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>
-                    <i className="bi bi-tags me-2"></i>Detalles de Categoría
+                    <i className="bi bi-tags me-2 text-primary"></i>Detalles de Categoría
                 </Modal.Title>
             </Modal.Header>
 

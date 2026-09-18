@@ -10,7 +10,7 @@ export const ModalDetalleTercero = ({ show, handleClose, terceroData }) => {
         <Modal show={show} onHide={handleClose} size="lg" centered className="shadow">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>
-                    <i className={`bi ${isJuridica ? 'bi-building' : 'bi-person'} me-2`}></i>
+                    <i className={`bi ${isJuridica ? 'bi-building' : 'bi-person'} me-2 text-primary`}></i>
                     Detalles del {terceroData.es_cliente === 1 && terceroData.es_proveedor === 0 ? 'Cliente' : 'Tercero'}
                 </Modal.Title>
             </Modal.Header>

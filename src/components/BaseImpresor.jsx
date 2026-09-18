@@ -34,7 +34,6 @@ export const BaseImpresor = ({
 }) => {
     const [tipoImpresion, setTipoImpresion] = useState('pos');
     
-    // Estados de Configuración
     const [showConfig, setShowConfig] = useState(false);
     const [configData, setConfigData] = useState(getDefaultConfig());
     const [tempConfig, setTempConfig] = useState(configData);
@@ -87,11 +86,10 @@ export const BaseImpresor = ({
                 `}
             </style>
 
-            {/* MODAL PRINCIPAL DE IMPRESIÓN */}
             <Modal show={show} onHide={onClose} size="lg" centered>
                 <Modal.Header closeButton className="bg-light align-items-center">
                     <Modal.Title className="me-auto fs-5">
-                        <i className="bi bi-printer text-muted me-2"></i>{titulo}
+                        <i className="bi bi-printer me-2 text-primary"></i>{titulo}
                     </Modal.Title>
                     <div className="me-4 d-flex align-items-center gap-2"> 
                         <div className="btn-group" role="group">
@@ -139,7 +137,7 @@ export const BaseImpresor = ({
                 backdropClassName="custom-backdrop-zindex"
             >
                 <Modal.Header closeButton className="bg-light">
-                    <Modal.Title className="fs-6 fw-bold"><i className="bi bi-sliders me-2"></i>Ajustes de Tirilla POS</Modal.Title>
+                    <Modal.Title className="fs-6 fw-bold"><i className="bi bi-sliders me-2 text-primary"></i>Ajustes de Tirilla POS</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form.Group className="mb-3">

@@ -1,11 +1,13 @@
 import { Button, Col, Modal, Row } from "react-bootstrap"
 
 export const EncargoDetalles = ({ show, handleClose, encargoData, onVerFactura, onShowHistory }) => {
+    if (!encargoData) return null
+
     return <>
         <Modal show={show} onHide={handleClose} size="lg" centered className="shadow">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>
-                    <i className="bi bi-info-circle me-2"></i>Detalles del Encargo
+                    <i className="bi bi-info-circle me-2 text-primary"></i>Detalles del Encargo
                 </Modal.Title>
             </Modal.Header>
 
@@ -49,12 +51,13 @@ export const EncargoDetalles = ({ show, handleClose, encargoData, onVerFactura, 
                                     href="#" 
                                     className="text-primary fw-bold text-decoration-underline"
                                     onClick={(e) => {
-                                        e.preventDefault();
-                                        const prefix = encargoData.prefijo ? `${encargoData.prefijo}-` : '';
-                                        if (onVerFactura) onVerFactura(`${prefix}${encargoData.factura_numero}`);
+                                        e.preventDefault()
+                                        const prefix = encargoData.prefijo || ''
+                                        const sep = encargoData.separador !== undefined ? encargoData.separador : (encargoData.prefijo ? '-' : '')
+                                        if (onVerFactura) onVerFactura(`${prefix}${sep}${encargoData.factura_numero}`)
                                     }}
                                 >
-                                    {encargoData.prefijo ? `${encargoData.prefijo}-` : ''}{encargoData.factura_numero}
+                                    {encargoData.prefijo ? `${encargoData.prefijo}${encargoData.separador !== undefined ? encargoData.separador : '-'}` : ''}{encargoData.factura_numero}
                                 </a>
                             </div>
                             <div>

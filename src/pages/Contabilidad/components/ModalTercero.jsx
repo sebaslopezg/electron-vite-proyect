@@ -62,7 +62,7 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceClie
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5">
-                    <i className={`bi ${editData ? 'bi-person-gear' : 'bi-person-plus'} me-2`}></i>
+                    <i className={`bi ${editData ? 'bi-person-gear' : 'bi-person-plus'} me-2 text-primary`}></i>
                     {editData ? 'Editar Tercero' : 'Nuevo Tercero'}
                 </Modal.Title>
             </Modal.Header>

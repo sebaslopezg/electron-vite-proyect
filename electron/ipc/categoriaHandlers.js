@@ -93,7 +93,7 @@ export const registerCategoriaHandlers = () => {
         if (!checkPermission("categorias_ver") && !checkPermission("productos_ver")) return []
         try {
             const stmt = db.prepare(`
-                SELECT id, ref_name, sku, precio, stock, min_stock, status, tipo
+                SELECT id, ref_name, sku, precio, 0 as stock, min_stock, status, tipo
                 FROM producto 
                 WHERE categoria_id = ? AND status > 0
                 ORDER BY ref_name ASC

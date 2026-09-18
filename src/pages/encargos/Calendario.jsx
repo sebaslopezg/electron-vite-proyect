@@ -3,9 +3,13 @@ import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 import esLocale from "@fullcalendar/core/locales/es"
 import { useState, useEffect, useRef, useCallback } from "react"
+import Swal from "sweetalert2"
 import { EncargoDetalles } from "./components/EncargoDetalles"
 import { ModalHistorialEncargo } from "./components/ModalHistorialEncargo"
 import { encargosService } from "../../services/encargosService"
+import { ventasService } from "../../services/ventasService"
+import { ModalDetalleFactura } from "../ventas/components/ModalDetalleFactura"
+import { ImpresorFactura } from "../ventas/components/ImpresorFactura"
 
 function renderEventContent(eventInfo) {
   const nombreAmostrar = eventInfo.event.extendedProps.producto_nombre || 'Pedido General de Factura'
@@ -29,19 +33,27 @@ export const Calendario = () => {
   const [eventos, setEventos] = useState([])
   const calendarRef = useRef(null)
   
-  const [isLoading, setIsLoading] = useState(true) // Estado de carga
+  const [isLoading, setIsLoading] = useState(true)
   const [show, setShow] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   
   const [encargoSel, setEncargoSel] = useState([])
   const [historialEncargo, setHistorialEncargo] = useState([])
 
+  const [showFacturaModal, setShowFacturaModal] = useState(false)
+  const [showImpresorFactura, setShowImpresorFactura] = useState(false)
+  const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
+  const [detalleFacturaData, setDetalleFacturaData] = useState([])
+  const [notasFactura, setNotasFactura] = useState([])
+  const [almacenConf, setAlmacenConf] = useState(null)
+  const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+  const [currentUser, setCurrentUser] = useState(null)
+
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
 
   useEffect(() => {
     const tabEl = document.getElementById("calendario-tab")
-
     if (tabEl) {
       const handleTabShown = () => {
         if (calendarRef.current) {
@@ -49,9 +61,7 @@ export const Calendario = () => {
           calendarApi.updateSize()
         }
       }
-
       tabEl.addEventListener("shown.bs.tab", handleTabShown)
-
       return () => {
         tabEl.removeEventListener("shown.bs.tab", handleTabShown)
       }
@@ -73,18 +83,34 @@ export const Calendario = () => {
     setEventos(formatted)
   }, [])
 
+  const loadConfig = async () => {
+    const configData = await ventasService.getConfiguracion()
+    const confAppRaw = configData.find(c => c.key === 'confApp')
+    if (confAppRaw) {
+      try {
+        const parsed = JSON.parse(confAppRaw.value)
+        setAppConfig({
+          moneda: parsed.moneda || 'COP',
+          formato_numero: parsed.formato_numero || 'es-CO'
+        })
+      } catch(e) {}
+    }
+  }
+
   useEffect(() => {
     const initData = async () => {
-        setIsLoading(true)
-        await loadEncargos()
-        setIsLoading(false)
+      setIsLoading(true)
+      if (window.api && window.api.getCurrentUser) {
+        const res = await window.api.getCurrentUser();
+        if(res.success) setCurrentUser(res.data);
+      }
+      await Promise.all([loadEncargos(), loadConfig()])
+      setIsLoading(false)
     }
 
     initData()
 
-    const handleActualizacionExterna = () => {
-        loadEncargos()
-    }
+    const handleActualizacionExterna = () => loadEncargos()
 
     window.addEventListener('encargos-actualizados', handleActualizacionExterna)
     window.addEventListener('estados-actualizados', handleActualizacionExterna)
@@ -101,58 +127,101 @@ export const Calendario = () => {
     
     const historyRes = await encargosService.getEncargoHistory(encargo.id)
     if (historyRes && historyRes.success) {
-        setHistorialEncargo(historyRes.data)
+      setHistorialEncargo(historyRes.data)
     }
-    
     handleShow()
   }
 
-  if (isLoading) {
-    return (
-        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-            <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                <span className="visually-hidden">Cargando...</span>
-            </div>
-        </div>
-    )
+  const handleVerFacturaLocally = async (numFactura) => {
+    const result = await ventasService.searchFactura(numFactura)
+    if (result.success) {
+      setFacturaSeleccionada(result.maestro)
+      const det = await ventasService.getDetalleFactura(result.maestro.id)
+      if (det.success) {
+        setDetalleFacturaData(det.data || [])
+        setNotasFactura(det.notes || [])
+        setAlmacenConf(det.configuracion || null)
+        setShowFacturaModal(true)
+      }
+    } else {
+      Swal.fire('Error', 'La factura no existe o fue eliminada', 'error')
+    }
   }
 
-  return <>
-    <div className="card p-4 shadow-sm border-0">
-      <FullCalendar
-        ref={calendarRef}
-        plugins={[dayGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        locale={esLocale}
-        events={eventos}
-        eventContent={renderEventContent}
-        eventClick={handleEventClick}
-        headerToolbar={{
-          left: "prev,next today",
-          center: "title",
-          right: "dayGridMonth,dayGridWeek",
-        }}
-        height="75vh"
-        eventClassNames="p-1 shadow-sm"
-      />
-      
-      <EncargoDetalles
-        show={show}
-        handleClose={handleClose}
-        encargoData={encargoSel}
-        historial={historialEncargo}
-        onShowHistory={() => setShowHistoryModal(true)}
-        onVerFactura={(numeroFactura) => {
-          window.dispatchEvent(new CustomEvent('request-ver-factura', { detail: numeroFactura }))
-        }}
-      />
+  const handlePrepararImpresionFactura = () => {
+    setShowFacturaModal(false)
+    setShowImpresorFactura(true)
+  }
 
-      <ModalHistorialEncargo 
-        show={showHistoryModal}
-        handleClose={() => setShowHistoryModal(false)}
-        historial={historialEncargo}
-        encargoData={encargoSel}
-      />
+  const canPrint = currentUser?.permisos?.includes('ALL') || currentUser?.permisos?.includes('ventas_imprimir')
+
+  return <>
+    <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
+        
+      {isLoading && (
+        <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10, borderRadius: '0.375rem' }}>
+          <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+            <span className="visually-hidden">Cargando...</span>
+          </div>
+        </div>
+      )}
+
+      <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+        <div className="card p-4 shadow-sm border-0">
+          <FullCalendar
+            ref={calendarRef}
+            plugins={[dayGridPlugin, interactionPlugin]}
+            initialView="dayGridMonth"
+            locale={esLocale}
+            events={eventos}
+            eventContent={renderEventContent}
+            eventClick={handleEventClick}
+            headerToolbar={{
+              left: "prev,next today",
+              center: "title",
+              right: "dayGridMonth,dayGridWeek",
+            }}
+            height="75vh"
+            eventClassNames="p-1 shadow-sm"
+          />
+        </div>
+      </div>
     </div>
+      
+    <EncargoDetalles
+      show={show}
+      handleClose={handleClose}
+      encargoData={encargoSel}
+      historial={historialEncargo}
+      onShowHistory={() => setShowHistoryModal(true)}
+      onVerFactura={(numeroFactura) => handleVerFacturaLocally(numeroFactura)}
+    />
+
+    <ModalHistorialEncargo 
+      show={showHistoryModal}
+      handleClose={() => setShowHistoryModal(false)}
+      historial={historialEncargo}
+      encargoData={encargoSel}
+    />
+
+    <ModalDetalleFactura 
+      show={showFacturaModal}
+      handleClose={() => setShowFacturaModal(false)}
+      facturaSeleccionada={facturaSeleccionada}
+      detalleData={detalleFacturaData}
+      notasFactura={notasFactura}
+      handlePrepararImpresion={handlePrepararImpresionFactura}
+      appConfig={appConfig}
+      canPrint={canPrint}
+    />
+
+    <ImpresorFactura 
+      show={showImpresorFactura}
+      onClose={() => setShowImpresorFactura(false)}
+      factura={facturaSeleccionada}
+      detalles={detalleFacturaData}
+      almacenConf={almacenConf}
+      textoVolver="Cerrar"
+    />
   </>
 }

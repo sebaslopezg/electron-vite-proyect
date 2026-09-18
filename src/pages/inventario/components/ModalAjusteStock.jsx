@@ -12,9 +12,10 @@ export const ModalAjusteStock = ({
     handleSave 
 }) => {
     return <>
-        <Modal show={show} onHide={handleClose} size="sm" centered>
+        <Modal show={show} onHide={handleClose} size="m" centered>
             <Modal.Header closeButton className="bg-light">
-                <Modal.Title className="fs-6 fw-bold">{modalInfo.title}</Modal.Title>
+                <i className="bi bi-boxes me-2 text-primary"></i>
+                <Modal.Title className="fs-6">{modalInfo.title}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
                 <Form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>

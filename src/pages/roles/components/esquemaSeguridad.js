@@ -239,22 +239,12 @@ export const ESQUEMA_SEGURIDAD = [
         icono: 'bi-people', 
         path: '/clientes', 
         submodulos: [
-            { 
-                id: 'clientes_ver', 
-                label: 'Ver clientes (terceros)' 
-            }, 
-            { 
-                id: 'clientes_crear', 
-                label: 'Crear clientes (terceros)' 
-            }, 
-            { 
-                id: 'clientes_editar', 
-                label: 'Modificar clientes' 
-            }, 
-            { 
-                id: 'clientes_eliminar', 
-                label: 'Eliminar clientes' 
-            }
+            { id: 'clientes_ver', label: 'Ver clientes (terceros)' }, 
+            { id: 'clientes_desactivar', label: 'Desactivar cliente' },
+            { id: 'clientes_inactivos_ver', label: 'Ver clientes inactivos' },
+            { id: 'clientes_crear', label: 'Crear clientes (terceros)' }, 
+            { id: 'clientes_editar', label: 'Modificar clientes' }, 
+            { id: 'clientes_eliminar', label: 'Eliminar clientes' }
         ] 
     },
     { 

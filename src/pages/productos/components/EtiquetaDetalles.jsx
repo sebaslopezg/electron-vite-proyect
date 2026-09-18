@@ -23,7 +23,7 @@ export const EtiquetaDetalles = ({ show, handleClose, etiquetaData, categoriasDi
         <Modal show={show} onHide={handleClose} size="md" centered scrollable className="shadow">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>
-                    <i className="bi bi-tags me-2"></i>Detalles de Etiqueta
+                    <i className="bi bi-tags me-2 text-primary"></i>Detalles de Etiqueta
                 </Modal.Title>
             </Modal.Header>
 

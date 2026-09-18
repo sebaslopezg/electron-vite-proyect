@@ -75,10 +75,11 @@ export const ModalUsuario = ({ show, handleClose, editData, onSuccess, rolesDisp
         }
     }
 
-    return (
+    return <>
         <Modal show={show} onHide={handleClose} centered>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="h5">
+                    <i className={`bi ${editData ? 'bi-person-gear' : 'bi-person-add'} me-2 text-primary`}></i>
                     {editData ? 'Editar Usuario' : 'Nuevo Usuario Global'}
                 </Modal.Title>
             </Modal.Header>
@@ -143,5 +144,5 @@ export const ModalUsuario = ({ show, handleClose, editData, onSuccess, rolesDisp
                 </Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

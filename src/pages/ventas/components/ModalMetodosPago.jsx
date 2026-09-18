@@ -55,7 +55,7 @@ export const ModalMetodosPago = ({
         <Modal show={show} onHide={handleClose} centered>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
-                    <i className="bi bi-credit-card me-2"></i>Métodos de Pago
+                    <i className="bi bi-credit-card me-2 text-primary"></i>Métodos de Pago
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>

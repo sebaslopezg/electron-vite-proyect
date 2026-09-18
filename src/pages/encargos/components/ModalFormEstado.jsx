@@ -34,6 +34,7 @@ export const ModalFormEstado = ({
     return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
+                <i className={`bi ${editingId ? 'bi-pencil' : 'bi-plus-circle'} me-2 text-primary`}></i>
                 <Modal.Title>{editingId ? 'Editar Estado' : 'Nuevo Estado'}</Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-4">

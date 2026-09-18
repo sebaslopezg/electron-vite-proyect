@@ -216,6 +216,7 @@ export default function ProductModal(
     return <>
         <Modal show={show} onHide={handleClose} size="lg" centered scrollable backdrop="static">
             <Modal.Header closeButton>
+                <i className={`bi ${editingId ? 'bi-pencil' : 'bi-plus-circle'} me-2 text-primary`}></i>
                 <Modal.Title>{editingId ? 'Editar Producto' : 'Crear Producto'}</Modal.Title>
             </Modal.Header>
             <Modal.Body style={{ overflowX: 'hidden', overflowY: 'visible' }}>

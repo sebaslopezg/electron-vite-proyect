@@ -80,6 +80,7 @@ export const ModalFormEncargo = ({
             <Modal show={show} onHide={handleClose} size={tieneDinamicos ? "lg" : "md"} centered backdrop="static">
                 <Modal.Header closeButton className="bg-light">
                     <Modal.Title className="fs-5">
+                        <i className={`bi ${editingId ? 'bi-pencil' : 'bi-plus-circle'} me-2 text-primary`}></i>
                         {editingId ? 'Completar Encargo' : 'Nuevo Encargo'}
                     </Modal.Title>
                 </Modal.Header>
