@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useSearchParams } from "react-router-dom"
 import DataTableComponent from "../../components/DataTableComponent"
 import { Button } from "react-bootstrap"
@@ -23,6 +23,8 @@ const Toast = Swal.mixin({
 export const Encargos = ({ currentUser: initialUser }) => {
     const [searchParams, setSearchParams] = useSearchParams()
 
+    const [isLoading, setIsLoading] = useState(true)
+
     const [show, setShow] = useState(false)
     const [showInfo, setShowInfo] = useState(false)
     const [showHistoryModal, setShowHistoryModal] = useState(false)
@@ -38,40 +40,6 @@ export const Encargos = ({ currentUser: initialUser }) => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     const [currentUser, setCurrentUser] = useState(initialUser)
-
-    useEffect(() => {
-        if (initialUser) {
-            setCurrentUser(initialUser)
-        } else {
-            encargosService.getCurrentUser().then(res => {
-                if (res && res.success && res.data) {
-                    setCurrentUser(res.data)
-                }
-            })
-        }
-    }, [initialUser])
-
-    const hasPermission = (permissionKey) => {
-        const u = currentUser || initialUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
-    }
-
-    const canCreate = hasPermission('encargos_crear');
-    const canEditAction = hasPermission('encargos_editar');
-    const canDeleteAction = hasPermission('encargos_eliminar');
-
-    const handleClose = () => setShow(false) || setShowInfo(false)
-    const handleShow = () => setShow(true)
-    const handleShowInfo = () => setShowInfo(true)
-
-    const handleCloseFacturaModal = () => {
-        setShowFacturaModal(false)
-        setFacturaSeleccionada(null)
-        setDetalleData([])
-        setNotasFactura([])
-    }
 
     const [items, setItems] = useState([])
     const [dataInTable, setDataInTable] = useState([])
@@ -100,7 +68,18 @@ export const Encargos = ({ currentUser: initialUser }) => {
 
     const tableContainerRef = useRef(null)
 
-    const loadConfig = async () => {
+    const hasPermission = (permissionKey) => {
+        const u = currentUser || initialUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
+    }
+
+    const canCreate = hasPermission('encargos_crear');
+    const canEditAction = hasPermission('encargos_editar');
+    const canDeleteAction = hasPermission('encargos_eliminar');
+
+    const loadConfig = useCallback(async () => {
         const configData = await ventasService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
@@ -112,9 +91,9 @@ export const Encargos = ({ currentUser: initialUser }) => {
                 })
             } catch(e) {}
         }
-    }
+    }, [])
 
-    const load = async () => {
+    const load = useCallback(async () => {
         const data = await encargosService.getEncargos()
         setItems(data)
         setDataInTable(data)
@@ -125,13 +104,64 @@ export const Encargos = ({ currentUser: initialUser }) => {
                 setAlcancePolitica(settings.alcance_estados)
             }
         } catch (e) { console.error('Error cargando permisos', e) }
-    }
+    }, [])
 
-    const loadSelectData = async () => {
-        const dataEstados = await encargosService.getEstados()
-        const dataCampos = await encargosService.getEncargosCampos()
+    const loadSelectData = useCallback(async () => {
+        const [dataEstados, dataCampos] = await Promise.all([
+            encargosService.getEstados(),
+            encargosService.getEncargosCampos()
+        ])
         setEstados(dataEstados)
         setCamposFormulario(dataCampos || [])
+    }, [])
+
+    useEffect(() => {
+        const initData = async () => {
+            setIsLoading(true)
+            
+            if (initialUser) {
+                setCurrentUser(initialUser)
+            } else if (window.api && window.api.getCurrentUser) {
+                const res = await window.api.getCurrentUser()
+                if (res && res.success && res.data) {
+                    setCurrentUser(res.data)
+                }
+            }
+
+            await Promise.all([
+                loadConfig(),
+                load(),
+                loadSelectData()
+            ])
+            
+            setIsLoading(false)
+        }
+
+        initData()
+
+        const handleConfigUpdate = () => loadConfig()
+        const handleEstadosUpdate = () => loadSelectData()
+
+        window.addEventListener('config-actualizada', handleConfigUpdate)
+        window.addEventListener('estados-actualizados', handleEstadosUpdate)
+        window.addEventListener('formulario-encargos-actualizado', handleEstadosUpdate)
+        
+        return () => {
+            window.removeEventListener('config-actualizada', handleConfigUpdate)
+            window.removeEventListener('estados-actualizados', handleEstadosUpdate)
+            window.removeEventListener('formulario-encargos-actualizado', handleEstadosUpdate)
+        }
+    }, [initialUser, load, loadConfig, loadSelectData])
+
+    const handleClose = () => setShow(false) || setShowInfo(false)
+    const handleShow = () => setShow(true)
+    const handleShowInfo = () => setShowInfo(true)
+
+    const handleCloseFacturaModal = () => {
+        setShowFacturaModal(false)
+        setFacturaSeleccionada(null)
+        setDetalleData([])
+        setNotasFactura([])
     }
 
     const cleanForm = () => {
@@ -267,27 +297,6 @@ export const Encargos = ({ currentUser: initialUser }) => {
     }
 
     useEffect(() => {
-        loadConfig()
-        window.addEventListener('config-actualizada', loadConfig)
-        return () => window.removeEventListener('config-actualizada', loadConfig)
-    }, [])
-
-    useEffect(() => {
-        load()
-        loadSelectData()
-
-        const handleEstadosUpdate = () => loadSelectData()
-        
-        window.addEventListener('estados-actualizados', handleEstadosUpdate)
-        window.addEventListener('formulario-encargos-actualizado', handleEstadosUpdate)
-        
-        return () => {
-            window.removeEventListener('estados-actualizados', handleEstadosUpdate)
-            window.removeEventListener('formulario-encargos-actualizado', handleEstadosUpdate)
-        }
-    }, [])
-
-    useEffect(() => {
         const handleRequestFactura = (e) => {
             handleVerFactura(e.detail)
         }
@@ -408,6 +417,16 @@ export const Encargos = ({ currentUser: initialUser }) => {
         if (!dateString) return ''
         const [year, month, day] = dateString.split('-')
         return `${day}/${month}/${year}`
+    }
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
     }
 
     return <>

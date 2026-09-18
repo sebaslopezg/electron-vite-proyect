@@ -14,6 +14,17 @@ export const ClientesInactivos = ({ activeUser }) => {
     const [reloadTable, setReloadTable] = useState(0)
     const tableContainerRef = useRef(null)
 
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        if (activeUser) {
+            setIsLoading(false)
+        } else {
+            const timer = setTimeout(() => setIsLoading(false), 1000)
+            return () => clearTimeout(timer)
+        }
+    }, [activeUser])
+
     const hasPermission = (permissionKey) => {
         if (!activeUser) return false
         if (activeUser.permisos?.includes('ALL')) return true
@@ -75,10 +86,20 @@ export const ClientesInactivos = ({ activeUser }) => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [activeUser])
 
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
+
     return <>
         <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="card-title mb-0">
-                <i class="bi bi-person-x text-primary me-2"></i> 
+                <i className="bi bi-person-x text-primary me-2"></i> 
                  Listado de Clientes Inactivos
             </h5>
         </div>
@@ -104,11 +125,11 @@ export const ClientesInactivos = ({ activeUser }) => {
                     {
                         data: null, title: 'Acciones', orderable: false, className: 'text-center',
                         render: function (data, type, row) {
-                            const safeData = encodeURIComponent(JSON.stringify(row));
-                            const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`;
+                            const safeData = encodeURIComponent(JSON.stringify(row))
+                            const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`
                             
-                            const canEdit = hasPermission('clientes_editar');
-                            const canDelete = hasPermission('clientes_eliminar');
+                            const canEdit = hasPermission('clientes_editar')
+                            const canDelete = hasPermission('clientes_eliminar')
 
                             let menuItems = `
                                 <li>

@@ -3,8 +3,6 @@
  ## Modificaciones Prioritarias:
 
  ### PRIORITARIO
- - Separar cantidades de inventario del modulo de productos, hacer que esto se gestione en la tabla de inventario y no en la de productos.
- - Preload en todos los modulos para adaptarlos a web.
  - Iniciar Sincronizadores
 
  ### Modulo Encargos:

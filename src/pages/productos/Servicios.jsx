@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import ProductModal from './components/ProductoModal'
@@ -11,6 +11,8 @@ export const Servicios = ({ currentUser }) => {
     const [showDetalles, setShowDetalles] = useState(false)
 
     const [activeUser, setActiveUser] = useState(currentUser)
+    
+    const [isLoading, setIsLoading] = useState(true)
 
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
@@ -43,18 +45,6 @@ export const Servicios = ({ currentUser }) => {
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
-    useEffect(() => {
-        if (currentUser) {
-            setActiveUser(currentUser)
-        } else if (window.api && window.api.getCurrentUser) {
-            window.api.getCurrentUser().then(res => {
-                if (res.success && res.data) {
-                    setActiveUser(res.data)
-                }
-            })
-        }
-    }, [currentUser])
-
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser;
         if (!u) return false;
@@ -83,21 +73,41 @@ export const Servicios = ({ currentUser }) => {
         return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
     }
 
+    const loadExtras = useCallback(async () => {
+        const [cats, tags] = await Promise.all([
+            productosService.getCategorias(),
+            productosService.getEtiquetas()
+        ]);
+        setCategorias(cats || [])
+        setEtiquetas(tags || [])
+    }, [])
+
     useEffect(() => {
-        const loadExtras = async () => {
-            const [cats, tags] = await Promise.all([
-                productosService.getCategorias(),
-                productosService.getEtiquetas()
+        const initData = async () => {
+            setIsLoading(true);
+            
+            if (currentUser) {
+                setActiveUser(currentUser)
+            } else if (window.api && window.api.getCurrentUser) {
+                const res = await window.api.getCurrentUser()
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            }
+
+            await Promise.all([
+                loadExtras(),
+                loadConfig()
             ]);
-            setCategorias(cats || [])
-            setEtiquetas(tags || [])
+
+            setIsLoading(false);
         }
-        loadExtras()
-        loadConfig()
+
+        initData()
         
         window.addEventListener('config-actualizada', loadConfig);
         return () => window.removeEventListener('config-actualizada', loadConfig)
-    }, [])
+    }, [currentUser, loadExtras])
 
     const cleanForm = () => setForm({ ...emptyForm })
 
@@ -275,6 +285,16 @@ export const Servicios = ({ currentUser }) => {
             }
         }
     ], [appConfig, activeUser, currentUser])
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
 
     return <>
         {canCreate && (

@@ -10,7 +10,7 @@ import { exportToExcel, exportToPDF, exportInvoicePDF } from '../../utils/export
 
 export const VerFacturas = ({ currentUser }) => {
 
-    const [reloadTable, setReloadTable] = useState(0);
+    const [reloadTable, setReloadTable] = useState(0)
 
     const [show, setShow] = useState(false)
     const [detalleData, setDetalleData] = useState([])
@@ -21,6 +21,8 @@ export const VerFacturas = ({ currentUser }) => {
     const [endDate, setEndDate] = useState(() => localStorage.getItem('ventas_filtro_fin') || '')
 
     const [todasLasFacturas, setTodasLasFacturas] = useState([])
+
+    const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
         localStorage.setItem('ventas_filtro_inicio', startDate)
@@ -40,10 +42,11 @@ export const VerFacturas = ({ currentUser }) => {
         return currentUser.permisos?.includes(permissionKey)
     }
 
-    const canDownloadPDF = hasPermission('ventas_descargar_pdf');
-    const canDownloadExcel = hasPermission('ventas_descargar_excel');
+    const canDownloadPDF = hasPermission('ventas_descargar_pdf')
+    const canDownloadExcel = hasPermission('ventas_descargar_excel')
 
     const loadConfig = async () => {
+        setIsLoading(true);
         const configData = await ventasService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
@@ -55,6 +58,7 @@ export const VerFacturas = ({ currentUser }) => {
                 })
             } catch(e) {}
         }
+        setIsLoading(false);
     }
 
     const _formatCurrency = (val) => formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
@@ -351,6 +355,16 @@ export const VerFacturas = ({ currentUser }) => {
             }
         }
     ], [appConfig, currentUser?.permisos])
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
 
     return <>
         <div className="bg-light p-3 rounded mb-4 border">

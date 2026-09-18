@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import SubcategoriaModal from './components/SubcategoriaModal'
@@ -21,13 +21,15 @@ export const Subcategorias = ({ currentUser }) => {
     const [show, setShow] = useState(false)
     const [showDetalles, setShowDetalles] = useState(false)
 
+    const [activeUser, setActiveUser] = useState(currentUser)
+    
+    const [isLoading, setIsLoading] = useState(true)
+
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
     
     const handleCloseDetalles = () => setShowDetalles(false)
     const handleShowDetalles = () => setShowDetalles(true)
-
-    const [activeUser, setActiveUser] = useState(currentUser)
 
     const [dataInTable, setDataInTable] = useState([])
     const [categorias, setCategorias] = useState([])
@@ -44,18 +46,6 @@ export const Subcategorias = ({ currentUser }) => {
     const [editingId, setEditingId] = useState(null)
     const [subcatSel, setSubcatSel] = useState(null)
 
-    useEffect(() => {
-        if (currentUser) {
-            setActiveUser(currentUser)
-        } else if (window.api && window.api.getCurrentUser) {
-            window.api.getCurrentUser().then(res => {
-                if (res.success && res.data) {
-                    setActiveUser(res.data)
-                }
-            })
-        }
-    }, [currentUser])
-
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser;
         if (!u) return false;
@@ -67,21 +57,40 @@ export const Subcategorias = ({ currentUser }) => {
     const canEditAction = hasPermission('subcategorias_editar');
     const canDeleteAction = hasPermission('subcategorias_eliminar');
 
-    const load = async () => {
-        const data = await productosService.getSubcategorias()
-        const cats = await productosService.getCategorias()
+    const load = useCallback(async () => {
+        const [data, cats] = await Promise.all([
+            productosService.getSubcategorias(),
+            productosService.getCategorias()
+        ])
         setDataInTable(data || [])
         setCategorias(cats?.filter(c => c.id !== 'general') || [])
         setReloadTable(prev => prev + 1)
-    };
+    }, []);
 
     const cleanForm = () => setForm({ ...emptyForm })
 
     useEffect(() => { 
-        load() 
+        const initData = async () => {
+            setIsLoading(true);
+            
+            if (currentUser) {
+                setActiveUser(currentUser)
+            } else if (window.api && window.api.getCurrentUser) {
+                const res = await window.api.getCurrentUser()
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            }
+
+            await load();
+            setIsLoading(false);
+        }
+
+        initData()
+        
         window.addEventListener('categorias-actualizadas', load)
         return () => window.removeEventListener('categorias-actualizadas', load)
-    }, [])
+    }, [currentUser, load])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -239,7 +248,7 @@ export const Subcategorias = ({ currentUser }) => {
                 return `
                     <div class="dropdown">
                         <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
-                        <i class="bi bi-three-dots-vertical"></i>
+                            <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <ul class="dropdown-menu shadow-sm">
                             ${menuItems}
@@ -249,6 +258,16 @@ export const Subcategorias = ({ currentUser }) => {
             }
         }
     ], [activeUser, currentUser])
+
+    if (isLoading) {
+        return <>
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        </>
+    }
 
     return <>
         {canCreate && (

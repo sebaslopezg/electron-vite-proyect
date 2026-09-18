@@ -16,7 +16,7 @@ const Toast = Swal.mixin({
 })
 
 export const Ventas = ({ currentUser }) => {
-    const [almacenData, setAlmacenData] = useState([])
+    const [almacenData, setAlmacenData] = useState(null)
     const [activeTab, setActiveTab] = useState('')
 
     const loadAlmacenConf = async () => {
@@ -74,14 +74,13 @@ export const Ventas = ({ currentUser }) => {
 
     useEffect(() => {
         loadAlmacenConf()
+    }, [])
+
+    useEffect(() => {
         if (tabsDisponibles.length > 0 && activeTab === '') {
             setActiveTab(tabsDisponibles[0].id)
         }
-    }, [currentUser, activeTab])
-
-    if (!almacenData || almacenData.length === 0) {
-        return <div className="p-3 text-muted small">Cargando datos contables...</div>
-    }
+    }, [currentUser, activeTab, tabsDisponibles])
 
     if (tabsDisponibles.length === 0) {
         return <>
@@ -120,7 +119,7 @@ export const Ventas = ({ currentUser }) => {
                     </ul>
 
                     <div className="tab-content pt-4 animate__animated animate__fadeIn">
-                        {currentTabObj ? currentTabObj.component : <div className="text-muted small">Cargando módulo...</div>}
+                        {currentTabObj ? currentTabObj.component : null}
                     </div>
 
                 </div>

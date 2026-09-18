@@ -9,6 +9,17 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
     const [showPreview, setShowPreview] = useState(false)
     const [abonoSeleccionado, setAbonoSeleccionado] = useState(null)
 
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        if (currentUser) {
+            setIsLoading(false)
+        } else {
+            const timer = setTimeout(() => setIsLoading(false), 800)
+            return () => clearTimeout(timer)
+        }
+    }, [currentUser])
+
     const hasPermission = (permissionKey) => {
         if (!currentUser) return false
         if (currentUser.permisos?.includes('ALL')) return true
@@ -32,6 +43,16 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
     }, [currentUser])
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
 
     return <>
         <div className="animation-fade-in">

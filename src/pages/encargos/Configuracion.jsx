@@ -8,17 +8,41 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
     const [activeUser, setActiveUser] = useState(currentUser)
     const [campos, setCampos] = useState([])
     const [alcanceEstados, setAlcanceEstados] = useState('global')
+    
+    const [isLoading, setIsLoading] = useState(true)
+
+    const loadData = async () => {
+        try {
+            const data = await encargosService.getEncargosCampos()
+            setCampos(data || [])
+
+            const settings = await encargosService.getEncargosSettings()
+            if (settings && settings.alcance_estados) {
+                setAlcanceEstados(settings.alcance_estados)
+            }
+        } catch (error) {
+            console.error("Error al cargar configuraciones", error)
+        }
+    }
 
     useEffect(() => {
-        if (currentUser) {
-            setActiveUser(currentUser)
-        } else {
-            encargosService.getCurrentUser().then(res => {
+        const initData = async () => {
+            setIsLoading(true);
+
+            if (currentUser) {
+                setActiveUser(currentUser)
+            } else if (window.api && window.api.getCurrentUser) {
+                const res = await window.api.getCurrentUser()
                 if (res && res.success && res.data) {
                     setActiveUser(res.data)
                 }
-            })
+            }
+
+            await loadData();
+            setIsLoading(false);
         }
+
+        initData()
     }, [currentUser])
 
     const hasPermission = (permissionKey) => {
@@ -32,22 +56,6 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
     const canEditCampos = hasPermission('encargos_config_campos');
 
     const isFormDisabled = !canEditEstados && !canEditCampos;
-
-    const loadData = async () => {
-        const data = await encargosService.getEncargosCampos()
-        setCampos(data || [])
-
-        try {
-            const settings = await encargosService.getEncargosSettings()
-            if (settings && settings.alcance_estados) {
-                setAlcanceEstados(settings.alcance_estados)
-            }
-        } catch (error) {
-            console.error("Error al cargar configuraciones", error)
-        }
-    }
-
-    useEffect(() => { loadData() }, []);
 
     const handleAddCampo = () => {
         setCampos([...campos, { id: uuidv4(), label: '', type: 'text', options: '', required: false }])
@@ -90,6 +98,16 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
         } else {
             Swal.fire('Error', 'No se pudo guardar la configuración completa', 'error')
         }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
     }
 
     return <>

@@ -5,7 +5,7 @@ import { logger } from "../utils/logger.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
-    if (!user) return false;
+    if (!user) return false
     if (user.permisos?.includes("ALL")) return true
     return user.permisos?.includes(permission)
 }
@@ -181,12 +181,12 @@ export const registerComprasHandlers = () => {
                 )
 
                 if (item.producto_id) {
-                    const producto = db.prepare("SELECT stock FROM producto WHERE id = ?").get(item.producto_id)
+                    const producto = db.prepare("SELECT stock FROM inventario_saldos WHERE producto_id = ?").get(item.producto_id)
                     if (producto) {
                         const stockAnterior = producto.stock
                         const stockNuevo = stockAnterior + item.cantidad
 
-                        db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.producto_id)
+                        db.prepare("UPDATE inventario_saldos SET stock = ? WHERE producto_id = ?").run(stockNuevo, item.producto_id)
 
                         db.prepare(`
                             INSERT INTO inventario (

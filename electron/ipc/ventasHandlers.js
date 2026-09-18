@@ -24,11 +24,11 @@ export const registerVentasHandlers = () => {
                     v.*,
                     (SELECT separador FROM almacen_conf LIMIT 1) AS separador,
                     (SELECT GROUP_CONCAT(tipo_nota, ' y ') 
-                     FROM nota 
-                     WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas,
+                        FROM nota 
+                        WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas,
                     (SELECT GROUP_CONCAT(motivo_dian, '|') 
-                     FROM nota 
-                     WHERE id_factura_origen = v.id AND status = 1) AS notas_motivos
+                        FROM nota 
+                        WHERE id_factura_origen = v.id AND status = 1) AS notas_motivos
                 FROM ventasMaestro v
                 WHERE v.status > 0
                 ORDER BY v.date_created DESC
@@ -42,7 +42,7 @@ export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-maestro-paginados", (_, dtParams) => {
         if (!checkPermission("ventas_historial")) {
-            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" };
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], error: "No autorizado" }
         }
         try {
             const limit = parseInt(dtParams.length, 10) || 10
@@ -113,7 +113,7 @@ export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-detalle", (_, facturaId) => {
         if (!checkPermission("ventas_historial")) {
-            return { success: false, error: "No autorizado para consultar detalles de facturación." };
+            return { success: false, error: "No autorizado para consultar detalles de facturación." }
         }
         try {
             const stmt = db.prepare(`
@@ -130,36 +130,36 @@ export const registerVentasHandlers = () => {
             const detallesRaw = stmt.all(facturaId)
 
             const detalles = detallesRaw.map(d => {
-                let fullPrefix = d.cat_prefix || ''; 
-                let finalSeparator = d.cat_separador || '';
+                let fullPrefix = d.cat_prefix || ''
+                let finalSeparator = d.cat_separador || ''
                 
-                const subIds = d.subcategorias_ids_json ? JSON.parse(d.subcategorias_ids_json) : [];
+                const subIds = d.subcategorias_ids_json ? JSON.parse(d.subcategorias_ids_json) : []
                 
                 if (subIds.length > 0) {
-                    const placeholders = subIds.map(() => '?').join(',');
-                    const subs = db.prepare(`SELECT id, sku_prefix, separador FROM subcategoria WHERE id IN (${placeholders})`).all(...subIds);
+                    const placeholders = subIds.map(() => '?').join(',')
+                    const subs = db.prepare(`SELECT id, sku_prefix, separador FROM subcategoria WHERE id IN (${placeholders})`).all(...subIds)
                     
                     subIds.forEach(id => {
-                        const s = subs.find(sub => sub.id === id);
+                        const s = subs.find(sub => sub.id === id)
                         if (s && s.sku_prefix) {
                             if (fullPrefix) {
-                                fullPrefix += `${finalSeparator}${s.sku_prefix}`;
+                                fullPrefix += `${finalSeparator}${s.sku_prefix}`
                             } else {
-                                fullPrefix = s.sku_prefix;
+                                fullPrefix = s.sku_prefix
                             }
                             if (s.separador !== undefined && s.separador !== null) {
-                                finalSeparator = s.separador; 
+                                finalSeparator = s.separador
                             }
                         }
-                    });
+                    })
                 }
                 
-                delete d.subcategorias_ids_json;
-                delete d.cat_prefix;
-                delete d.cat_separador;
+                delete d.subcategorias_ids_json
+                delete d.cat_prefix
+                delete d.cat_separador
 
-                return { ...d, sku_prefix: fullPrefix, separador: finalSeparator };
-            });
+                return { ...d, sku_prefix: fullPrefix, separador: finalSeparator }
+            })
 
             const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`)
             const notas = notasStmt.all(facturaId)
@@ -190,7 +190,7 @@ export const registerVentasHandlers = () => {
 
     ipcMain.handle("get-reporte-ventas", (_, { startDate, endDate }) => {
         if (!checkPermission("reportes_ver")) {
-            return { success: false, error: "No autorizado para consultar reportes financieros de ventas." };
+            return { success: false, error: "No autorizado para consultar reportes financieros de ventas." }
         }
         try {
             let baseQueryVentas = `
@@ -202,16 +202,16 @@ export const registerVentasHandlers = () => {
                     AND n.status = 1 
                     AND n.motivo_dian COLLATE NOCASE LIKE '%anula%'
                 )
-            `;
+            `
             let queryParams = [];
 
             if (startDate) {
-                baseQueryVentas += " AND date(v.date_created) >= date(?)";
-                queryParams.push(startDate);
+                baseQueryVentas += " AND date(v.date_created) >= date(?)"
+                queryParams.push(startDate)
             }
             if (endDate) {
-                baseQueryVentas += " AND date(v.date_created) <= date(?)";
-                queryParams.push(endDate);
+                baseQueryVentas += " AND date(v.date_created) <= date(?)"
+                queryParams.push(endDate)
             }
 
             const queryVentas = `
@@ -219,20 +219,20 @@ export const registerVentasHandlers = () => {
                 (SELECT separador FROM almacen_conf LIMIT 1) AS separador
                 ${baseQueryVentas}
                 ORDER BY v.date_created ASC
-            `;
+            `
             
-            const dataVentas = db.prepare(queryVentas).all(...queryParams);
+            const dataVentas = db.prepare(queryVentas).all(...queryParams)
 
-            let abonosWhere = `WHERE 1=1`;
-            let abonosParams = [];
+            let abonosWhere = `WHERE 1=1`
+            let abonosParams = []
 
             if (startDate) {
-                abonosWhere += " AND date(a.date_created) >= date(?)";
-                abonosParams.push(startDate);
+                abonosWhere += " AND date(a.date_created) >= date(?)"
+                abonosParams.push(startDate)
             }
             if (endDate) {
-                abonosWhere += " AND date(a.date_created) <= date(?)";
-                abonosParams.push(endDate);
+                abonosWhere += " AND date(a.date_created) <= date(?)"
+                abonosParams.push(endDate)
             }
 
             const queryAbonos = `
@@ -241,28 +241,28 @@ export const registerVentasHandlers = () => {
                 LEFT JOIN ventasMaestro v ON a.maestro_id = v.id
                 ${abonosWhere}
                 ORDER BY a.date_created ASC
-            `;
+            `
             
-            let dataAbonos = [];
+            let dataAbonos = []
             try {
-                dataAbonos = db.prepare(queryAbonos).all(...abonosParams);
+                dataAbonos = db.prepare(queryAbonos).all(...abonosParams)
             } catch (e) {
-                logger.warning('REPORTES_VENTAS', "No se encontraron abonos en el rango de fechas.", e.message);
+                logger.warning('REPORTES_VENTAS', "No se encontraron abonos en el rango de fechas.", e.message)
             }
             
-            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`);
-            const configuracion = confStmt.get() || {};
+            const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`)
+            const configuracion = confStmt.get() || {}
 
-            return { success: true, data: dataVentas, abonos: dataAbonos, configuracion };
+            return { success: true, data: dataVentas, abonos: dataAbonos, configuracion }
         } catch (error) {
-            logger.error('REPORTES_VENTAS', "Error generando el reporte de ventas por rango de fechas", error);
-            return { success: false, error: error.message };
+            logger.error('REPORTES_VENTAS', "Error generando el reporte de ventas por rango de fechas", error)
+            return { success: false, error: error.message }
         }
-    });
+    })
 
     ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
         if (!checkPermission("ventas_crear")) {
-            return { success: false, error: "No autorizado para registrar operaciones de venta de mostrador." };
+            return { success: false, error: "No autorizado para registrar operaciones de venta de mostrador." }
         }
         const transaction = db.transaction((maestroData, detallesData) => {
             const now = new Date().toISOString()
@@ -335,11 +335,11 @@ export const registerVentasHandlers = () => {
                 )
 
                 if (item.isEncargo === '0' && item.tipo !== "servicio") {
-                    const producto = db.prepare("SELECT stock FROM producto WHERE id = ?").get(item.id)
-                    const stockAnterior = producto.stock
+                    const producto = db.prepare("SELECT stock FROM inventario_saldos WHERE producto_id = ?").get(item.id)
+                    const stockAnterior = producto ? producto.stock : 0
                     const stockNuevo = stockAnterior - item.cantidad
 
-                    db.prepare("UPDATE producto SET stock = ? WHERE id = ?").run(stockNuevo, item.id)
+                    db.prepare("UPDATE inventario_saldos SET stock = ? WHERE producto_id = ?").run(stockNuevo, item.id)
 
                     const insertInventario = db.prepare(`
                     INSERT INTO inventario (
@@ -347,8 +347,8 @@ export const registerVentasHandlers = () => {
                         stock_anterior, stock_nuevo, fecha, usuario, notas
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `)
-                    const numF = `${prefijoFactura}${config.separador || ''}${nuevoNumeroFactura}`;
-                    const htmlNota = `Venta <a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura-global" data-fullnum="${numF}">Factura ${numF}</a>`;
+                    const numF = `${prefijoFactura}${config.separador || ''}${nuevoNumeroFactura}`
+                    const htmlNota = `Venta <a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura-global" data-fullnum="${numF}">Factura ${numF}</a>`
                     
                     insertInventario.run(
                         uuidv4(), item.id, 'SALIDA', 'VENTA', item.cantidad, 
@@ -365,8 +365,8 @@ export const registerVentasHandlers = () => {
                             ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
                         )
                         
-                        let estadoIdObj = db.prepare("SELECT id FROM estadoEncargo WHERE titulo COLLATE NOCASE = 'Pendiente'").get();
-                        let estadoId = estadoIdObj ? estadoIdObj.id : 'pendiente';
+                        let estadoIdObj = db.prepare("SELECT id FROM estadoEncargo WHERE titulo COLLATE NOCASE = 'Pendiente'").get()
+                        let estadoId = estadoIdObj ? estadoIdObj.id : 'pendiente'
 
                         insertEncargo.run(uuidv4(), maestroId, item.id, estadoId, maestroData.nombre_cliente, maestroData.documento_cliente, nuevoNumeroFactura, item.cantidad, newNum, now)
                     } catch (err) {
@@ -415,24 +415,24 @@ export const registerVentasHandlers = () => {
                         insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_descuento, terceroId, 'Descuento Concedido', maestroData.descuento, 0)
                     }
 
-                    let montoFaltantePorRegistrar = maestroData.total - maestroData.saldo_pendiente;
-                    let pagosMultiplesArray = [];
+                    let montoFaltantePorRegistrar = maestroData.total - maestroData.saldo_pendiente
+                    let pagosMultiplesArray = []
                     try {
-                        if (maestroData.pagos_multiples) pagosMultiplesArray = JSON.parse(maestroData.pagos_multiples);
+                        if (maestroData.pagos_multiples) pagosMultiplesArray = JSON.parse(maestroData.pagos_multiples)
                     } catch(e){}
 
                     if (montoFaltantePorRegistrar > 0 && pagosMultiplesArray.length > 0) {
                         for (const p of pagosMultiplesArray) {
-                            if (montoFaltantePorRegistrar <= 0) break;
-                            let montoAAplicar = parseFloat(p.monto) || 0;
+                            if (montoFaltantePorRegistrar <= 0) break
+                            let montoAAplicar = parseFloat(p.monto) || 0
                             if (montoAAplicar > montoFaltantePorRegistrar) {
-                                montoAAplicar = montoFaltantePorRegistrar;
+                                montoAAplicar = montoFaltantePorRegistrar
                             }
                             if (montoAAplicar > 0) {
-                                const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(p.metodo);
-                                const cuentaDestinoEfectivo = (metodoInfo && metodoInfo.cuenta_id) ? metodoInfo.cuenta_id : configContable.cuenta_caja;
-                                insertDetalleContable.run(uuidv4(), comprobanteId, cuentaDestinoEfectivo, terceroId, `Ingreso por ${p.metodo}`, montoAAplicar, 0);
-                                montoFaltantePorRegistrar -= montoAAplicar;
+                                const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(p.metodo)
+                                const cuentaDestinoEfectivo = (metodoInfo && metodoInfo.cuenta_id) ? metodoInfo.cuenta_id : configContable.cuenta_caja
+                                insertDetalleContable.run(uuidv4(), comprobanteId, cuentaDestinoEfectivo, terceroId, `Ingreso por ${p.metodo}`, montoAAplicar, 0)
+                                montoFaltantePorRegistrar -= montoAAplicar
                             }
                         }
                     } else if (montoFaltantePorRegistrar > 0) {
@@ -459,7 +459,7 @@ export const registerVentasHandlers = () => {
 
         try {
             const result = transaction(maestro, detalles);
-            logger.success('VENTAS', `Venta procesada exitosamente: Factura N° ${result.prefijo}${result.numero_factura}`);
+            logger.success('VENTAS', `Venta procesada exitosamente: Factura N° ${result.prefijo}${result.numero_factura}`)
             return result;
         } catch (error) {
             logger.error('VENTAS', "Error crítico al intentar registrar una nueva venta", error)

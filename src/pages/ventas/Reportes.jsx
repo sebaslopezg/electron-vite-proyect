@@ -441,7 +441,11 @@ export const Reportes = ({ currentUser }) => {
         <h6 className="mb-3">Detalle de Transacciones ({transacciones.length})</h6>
         <div className="w-100 bg-white" ref={tableContainerRef}>
             {loading ? (
-                <div className="text-center py-5"><div className="spinner-border text-primary"></div></div>
+                <div className="d-flex justify-content-center align-items-center py-5">
+                    <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
             ) : (
                 <DataTableComponent 
                     tableId="dt-reportes-ventas"

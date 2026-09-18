@@ -13,8 +13,8 @@ const Toast = Swal.mixin({
     timer: 5000,
     timerProgressBar: true,
     didOpen: (toast) => {
-        toast.addEventListener('mouseenter', Swal.stopTimer)
-        toast.addEventListener('mouseleave', Swal.resumeTimer)
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
     }
 })
 
@@ -22,8 +22,9 @@ export const Productos = ({ currentUser }) => {
   const [show, setShow] = useState(false)
   const [showDetalles, setShowDetalles] = useState(false)
 
-  // 1. Estado local para garantizar la persistencia de sesión
   const [activeUser, setActiveUser] = useState(currentUser)
+  
+  const [isLoading, setIsLoading] = useState(true)
 
   const handleClose = () => setShow(false)
   const handleShow = () => setShow(true)
@@ -62,29 +63,15 @@ export const Productos = ({ currentUser }) => {
   
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
-  // 2. Garantizamos la carga de la sesión
-  useEffect(() => {
-      if (currentUser) {
-          setActiveUser(currentUser)
-      } else if (window.api && window.api.getCurrentUser) {
-          window.api.getCurrentUser().then(res => {
-              if (res.success && res.data) {
-                  setActiveUser(res.data)
-              }
-          })
-      }
-  }, [currentUser])
-
-  // 3. Validador de permisos dinámico
   const hasPermission = (permissionKey) => {
-      const u = activeUser || currentUser;
-      if (!u) return false;
-      if (u.permisos?.includes('ALL')) return true;
-      return u.permisos?.includes(permissionKey);
+    const u = activeUser || currentUser
+    if (!u) return false
+    if (u.permisos?.includes('ALL')) return true
+    return u.permisos?.includes(permissionKey)
   }
 
-  const canCreate = hasPermission('productos_crear');
-  const canEdit = hasPermission('productos_editar');
+  const canCreate = hasPermission('productos_crear')
+  const canEdit = hasPermission('productos_editar')
 
   const loadConfig = async () => {
     const configData = await productosService.getConfiguracion()
@@ -113,8 +100,27 @@ export const Productos = ({ currentUser }) => {
   const cleanForm = () => setForm({ ...emptyForm })
 
   useEffect(() => { 
-    loadSelectsData()
-    loadConfig()
+    const initData = async () => {
+        setIsLoading(true);
+        
+        if (currentUser) {
+          setActiveUser(currentUser)
+        } else if (window.api && window.api.getCurrentUser) {
+          const res = await window.api.getCurrentUser()
+          if (res.success && res.data) {
+            setActiveUser(res.data)
+          }
+        }
+
+        await Promise.all([
+          loadSelectsData(),
+          loadConfig()
+        ])
+
+        setIsLoading(false)
+    }
+
+    initData()
     
     window.addEventListener('config-actualizada', loadConfig)
     window.addEventListener('categorias-actualizadas', loadSelectsData)
@@ -127,7 +133,7 @@ export const Productos = ({ currentUser }) => {
         window.removeEventListener('subcategorias-actualizadas', loadSelectsData)
         window.removeEventListener('etiquetas-actualizadas', loadSelectsData)
     }
-  }, [loadSelectsData])
+  }, [currentUser, loadSelectsData])
 
   const tableContainerRef = useRef(null)
 
@@ -136,7 +142,6 @@ export const Productos = ({ currentUser }) => {
     if (!container) return
 
     const handleTableClick = (e) => {
-      // Editar
       const editBtn = e.target.closest('.btn-edit')
       if (editBtn) {
         e.preventDefault()
@@ -187,8 +192,8 @@ export const Productos = ({ currentUser }) => {
 
       const delBtn = e.target.closest('.btn-delete')
       if (delBtn) {
-          e.preventDefault()
-          handleDelete(delBtn.dataset.id)
+        e.preventDefault()
+        handleDelete(delBtn.dataset.id)
       }
     }
 
@@ -320,6 +325,16 @@ export const Productos = ({ currentUser }) => {
       }
     }
   ], [appConfig, activeUser, currentUser])
+
+  if (isLoading) {
+    return <>
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+          <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+            <span className="visually-hidden">Cargando...</span>
+          </div>
+      </div>
+    </>
+  }
 
   return <>
     {canCreate && (

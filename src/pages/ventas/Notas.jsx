@@ -23,9 +23,9 @@ const Toast = Swal.mixin({
 })
 
 export const Notas = ({ currentUser }) => {
-    // 1. Estado local para garantizar que siempre tengamos la sesión cargada
     const [activeUser, setActiveUser] = useState(currentUser)
 
+    const [isLoading, setIsLoading] = useState(true)
     const [notasData, setNotasData] = useState([])
     const [showForm, setShowForm] = useState(false) 
 
@@ -106,9 +106,18 @@ export const Notas = ({ currentUser }) => {
     }
 
     useEffect(() => {
-        loadAlmacenInfo()
-        loadNotas()
-        loadConfig()
+        const initData = async () => {
+            setIsLoading(true)
+            await Promise.all([
+                loadAlmacenInfo(),
+                loadNotas(),
+                loadConfig()
+            ])
+            setIsLoading(false)
+        }
+        
+        initData()
+        
         window.addEventListener('config-actualizada', loadConfig)
         return () => window.removeEventListener('config-actualizada', loadConfig)
     }, [])
@@ -320,6 +329,16 @@ export const Notas = ({ currentUser }) => {
         return () => container.removeEventListener('click', handleTableClick)
         
     }, [showForm, notasData])
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
 
     if (showForm) {
         return <NuevaNota 

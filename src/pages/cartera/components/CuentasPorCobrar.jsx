@@ -1,10 +1,21 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import DataTableComponent from '../../../components/DataTableComponent'
 import { formatCurrency } from '../../../utils/currencies'
 import { carteraService } from '../../../services/carteraService'
 
 export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, onViewFactura, appConfig, currentUser, almacenConf }) => {
-    const tableCobrarRef = useRef(null);
+    const tableCobrarRef = useRef(null)
+
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        if (currentUser) {
+            setIsLoading(false)
+        } else {
+            const timer = setTimeout(() => setIsLoading(false), 800)
+            return () => clearTimeout(timer)
+        }
+    }, [currentUser])
 
     const hasPermission = (permissionKey) => {
         if (!currentUser) return false
@@ -37,7 +48,17 @@ export const TabCuentasPorCobrar = ({ reloadKey, onOpenModal, onViewFactura, app
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [onOpenModal, onViewFactura, currentUser])
+    }, [onOpenModal, onViewFactura, currentUser, isLoading])
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
 
     return <>
         <div className="animation-fade-in">

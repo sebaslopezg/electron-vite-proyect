@@ -51,11 +51,13 @@ export const registerProductoHandlers = () => {
     try {
       const stmt = db.prepare(`
         SELECT p.*,
+          inv.stock, inv.min_stock, inv.max_stock,
           c.nombre as categoria_nombre,
           c.sku_prefix as cat_prefix,
           c.separador as cat_separador,
           GROUP_CONCAT(pe.etiqueta_id, ',') as etiquetas_ids
         FROM producto p
+        LEFT JOIN inventario_saldos inv ON p.id = inv.producto_id
         LEFT JOIN categoria c ON p.categoria_id = c.id
         LEFT JOIN producto_etiqueta pe ON p.id = pe.producto_id
         WHERE p.status > 0 AND p.tipo = 'producto'
@@ -85,6 +87,7 @@ export const registerProductoHandlers = () => {
       
       let orderCol = columnsMap[orderColIndex] || 'date_created'
       if (orderCol === 'categoria_nombre') orderCol = 'c.nombre'
+      else if (orderCol === 'stock') orderCol = 'inv.stock'
       else orderCol = `p.${orderCol}`
 
       const customCategory = dtParams.customCategory
@@ -93,6 +96,7 @@ export const registerProductoHandlers = () => {
 
       let baseQuery = `
         FROM producto p
+        LEFT JOIN inventario_saldos inv ON p.id = inv.producto_id
         LEFT JOIN categoria c ON p.categoria_id = c.id
         WHERE p.status > 0 AND p.tipo = 'producto'
       `
@@ -128,6 +132,7 @@ export const registerProductoHandlers = () => {
 
       const dataQuery = `
         SELECT p.*,
+               inv.stock, inv.min_stock, inv.max_stock,
                c.nombre as categoria_nombre,
                c.sku_prefix as cat_prefix, c.separador as cat_separador,
                (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
@@ -223,8 +228,11 @@ export const registerProductoHandlers = () => {
     if (!checkPermission("productos_ver") && !checkPermission("servicios_ver") && !checkPermission("ventas_crear")) return [];
     try {
       const stmt = db.prepare(`
-        SELECT p.*, c.sku_prefix as cat_prefix, c.separador as cat_separador
+        SELECT p.*, 
+          inv.stock, inv.min_stock, inv.max_stock,
+          c.sku_prefix as cat_prefix, c.separador as cat_separador
         FROM producto p
+        LEFT JOIN inventario_saldos inv ON p.id = inv.producto_id
         LEFT JOIN categoria c ON p.categoria_id = c.id
         WHERE p.status > 0
       `)
@@ -252,15 +260,13 @@ export const registerProductoHandlers = () => {
 
       db.prepare(`
         INSERT INTO producto (
-          id, ref_name, sku, precio, tipo, allow_negative, stock, 
-          min_stock, max_stock, categoria_id, subcategorias_ids_json, iva, unidad_medida, descripcion, 
-          allow_encargo, encargo_solo_sin_stock,
-          status, date_created, date_modify
+          id, ref_name, sku, precio, tipo, allow_negative, 
+          categoria_id, subcategorias_ids_json, iva, unidad_medida, descripcion, 
+          allow_encargo, encargo_solo_sin_stock, status, date_created, date_modify
         ) VALUES (
-          @id, @ref_name, @sku, @precio, @tipo, @allow_negative, @stock, 
-          @min_stock, @max_stock, @categoria_id, @subcategorias_ids_json, @iva, @unidad_medida, @descripcion, 
-          @allow_encargo, @encargo_solo_sin_stock,
-          @status, @date_created, @date_modify
+          @id, @ref_name, @sku, @precio, @tipo, @allow_negative, 
+          @categoria_id, @subcategorias_ids_json, @iva, @unidad_medida, @descripcion, 
+          @allow_encargo, @encargo_solo_sin_stock, @status, @date_created, @date_modify
         )
       `).run({
         ...data,
@@ -268,13 +274,18 @@ export const registerProductoHandlers = () => {
         date_created: now,
         date_modify: now,
         status,
-        min_stock: data.min_stock || 5,
-        max_stock: data.max_stock || 100,
         categoria_id: data.categoria_id || 'general',
         subcategorias_ids_json: JSON.stringify(data.subcategorias_ids || []),
         allow_encargo: parseBooleanToInt(data.allow_encargo) !== null ? parseBooleanToInt(data.allow_encargo) : 1,
         encargo_solo_sin_stock: parseBooleanToInt(data.encargo_solo_sin_stock) !== null ? parseBooleanToInt(data.encargo_solo_sin_stock) : 1
       })
+
+      if (tipoItem === 'producto') {
+          db.prepare(`
+              INSERT INTO inventario_saldos (producto_id, stock, min_stock, max_stock) 
+              VALUES (?, ?, ?, ?)
+          `).run(id, data.stock || 0, data.min_stock || 5, data.max_stock || 100);
+      }
 
       if (data.etiquetas && data.etiquetas.length > 0) {
         const insertTag = db.prepare(`INSERT INTO producto_etiqueta (producto_id, etiqueta_id) VALUES (?, ?)`)
@@ -324,8 +335,8 @@ export const registerProductoHandlers = () => {
       db.prepare(`
         UPDATE producto SET
           ref_name = @ref_name, sku = @sku, precio = @precio, tipo = @tipo,
-          allow_negative = @allow_negative, stock = @stock, 
-          min_stock = @min_stock, max_stock = @max_stock, categoria_id = @categoria_id,
+          allow_negative = @allow_negative, 
+          categoria_id = @categoria_id,
           subcategorias_ids_json = @subcategorias_ids_json,
           iva = @iva, unidad_medida = @unidad_medida, descripcion = @descripcion,
           allow_encargo = @allow_encargo, encargo_solo_sin_stock = @encargo_solo_sin_stock,
@@ -335,13 +346,20 @@ export const registerProductoHandlers = () => {
         ...data,
         date_modify: now,
         status,
-        min_stock: data.min_stock || 5,
-        max_stock: data.max_stock || 100,
         categoria_id: data.categoria_id || 'general',
         subcategorias_ids_json: JSON.stringify(data.subcategorias_ids || []),
         allow_encargo: parseBooleanToInt(data.allow_encargo) !== null ? parseBooleanToInt(data.allow_encargo) : 1,
         encargo_solo_sin_stock: parseBooleanToInt(data.encargo_solo_sin_stock) !== null ? parseBooleanToInt(data.encargo_solo_sin_stock) : 1
       })
+
+      if (tipoItem === 'producto') {
+        db.prepare(`
+          UPDATE inventario_saldos SET 
+            min_stock = ?, 
+            max_stock = ? 
+          WHERE producto_id = ?
+        `).run(data.min_stock || 5, data.max_stock || 100, data.id);
+      }
 
       db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(data.id)
       if (data.etiquetas && data.etiquetas.length > 0) {

@@ -162,7 +162,15 @@ export const Configuracion = ({ data, onReload, currentUser }) => {
         }
     }
 
-    if (!data) return <div>Cargando configuración...</div>
+    if (!data || !activeUser) {
+        return <>
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        </>
+    }
 
     return <>
         <div className="d-flex justify-content-between align-items-center mb-3">
@@ -173,7 +181,7 @@ export const Configuracion = ({ data, onReload, currentUser }) => {
                 </Button>
             )}
         </div>
-                                                
+                                                        
         <Form onSubmit={handleSubmit}>
             
             <div className={`bg-light p-3 rounded mb-4 border ${!canEditAlmacen ? 'opacity-75' : ''}`}>

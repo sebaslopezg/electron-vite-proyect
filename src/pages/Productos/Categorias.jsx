@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 import CategoriaModal from './components/CategoriaModal'
@@ -21,8 +21,9 @@ export const Categorias = ({ currentUser }) => {
     const [show, setShow] = useState(false)
     const [showDetalles, setShowDetalles] = useState(false)
 
-    // Estado local para garantizar la persistencia de sesión
     const [activeUser, setActiveUser] = useState(currentUser)
+    
+    const [isLoading, setIsLoading] = useState(true)
 
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
@@ -39,20 +40,6 @@ export const Categorias = ({ currentUser }) => {
     const [catSel, setCatSel] = useState(null)
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
-    // Garantizamos la carga de la sesión
-    useEffect(() => {
-        if (currentUser) {
-            setActiveUser(currentUser)
-        } else if (window.api && window.api.getCurrentUser) {
-            window.api.getCurrentUser().then(res => {
-                if (res.success && res.data) {
-                    setActiveUser(res.data)
-                }
-            })
-        }
-    }, [currentUser])
-
-    // Validador de permisos dinámico
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser;
         if (!u) return false;
@@ -64,7 +51,7 @@ export const Categorias = ({ currentUser }) => {
     const canEditAction = hasPermission('categorias_editar');
     const canDeleteAction = hasPermission('categorias_eliminar');
 
-    const loadConfig = async () => {
+    const loadConfig = useCallback(async () => {
         const configData = await productosService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
@@ -73,20 +60,47 @@ export const Categorias = ({ currentUser }) => {
                 setAppConfig({ moneda: parsed.moneda || 'COP', formato_numero: parsed.formato_numero || 'es-CO' })
             } catch(e) {}
         }
-    }
+    }, [])
 
-    const load = async () => {
+    const load = useCallback(async () => {
         const data = await productosService.getCategorias()
-        setDataInTable(data)
+        setDataInTable(data || [])
         setReloadTable(prev => prev + 1)
-    }
+    }, [])
 
     const cleanForm = () => setForm({ ...emptyForm })
 
     useEffect(() => { 
-        load() 
-        loadConfig()
-    }, [])
+        const initData = async () => {
+            setIsLoading(true);
+            
+            if (currentUser) {
+                setActiveUser(currentUser)
+            } else if (window.api && window.api.getCurrentUser) {
+                const res = await window.api.getCurrentUser()
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            }
+
+            await Promise.all([
+                load(),
+                loadConfig()
+            ])
+
+            setIsLoading(false)
+        }
+
+        initData()
+        
+        window.addEventListener('config-actualizada', loadConfig)
+        window.addEventListener('categorias-actualizadas', load)
+        
+        return () => {
+            window.removeEventListener('config-actualizada', loadConfig)
+            window.removeEventListener('categorias-actualizadas', load)
+        }
+    }, [currentUser, load, loadConfig])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -105,7 +119,7 @@ export const Categorias = ({ currentUser }) => {
             cleanForm()
             handleClose()
             load()
-            window.dispatchEvent(new CustomEvent('categorias-actualizadas'));
+            window.dispatchEvent(new CustomEvent('categorias-actualizadas'))
         } else {
             Toast.fire({ icon: 'error', title: result?.error || 'No se pudo guardar la categoría' })
         }
@@ -130,7 +144,7 @@ export const Categorias = ({ currentUser }) => {
             if (res.success) {
                 Toast.fire({ icon: 'success', title: 'Categoría eliminada' })
                 load()
-                window.dispatchEvent(new CustomEvent('categorias-actualizadas'));
+                window.dispatchEvent(new CustomEvent('categorias-actualizadas'))
             } else {
                 Toast.fire({ icon: 'error', title: res.error || 'No se puede eliminar la categoría' })
             }
@@ -259,10 +273,20 @@ export const Categorias = ({ currentUser }) => {
                         ${menuItems}
                       </ul>
                     </div>
-                `;
+                `
             }
         }
     ], [appConfig, activeUser, currentUser])
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
 
     return <>
         {canCreate && (

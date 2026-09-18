@@ -190,6 +190,49 @@ const migrations = [
                 if (!error.message.includes('duplicate column name')) throw error
             }
         }
+    },
+    {
+        version: 17,
+        up: () => {
+            console.log("Applying migration V17: Separando saldos de inventario del catálogo de productos");
+            try {
+                db.exec(`
+                    CREATE TABLE IF NOT EXISTS inventario_saldos (
+                        producto_id TEXT PRIMARY KEY,
+                        stock REAL DEFAULT 0,
+                        min_stock REAL DEFAULT 5,
+                        max_stock REAL DEFAULT 100,
+                        FOREIGN KEY (producto_id) REFERENCES producto(id) ON DELETE CASCADE
+                    );
+                `)
+
+                const tableInfo = db.pragma("table_info(producto)")
+                const hasStock = tableInfo.some(col => col.name === 'stock')
+
+                if (hasStock) {
+                    db.exec(`
+                        INSERT OR IGNORE INTO inventario_saldos (producto_id, stock, min_stock, max_stock)
+                        SELECT id, IFNULL(stock, 0), IFNULL(min_stock, 5), IFNULL(max_stock, 100) FROM producto;
+                    `)
+
+                    try {
+                        db.exec("ALTER TABLE producto DROP COLUMN stock;")
+                        db.exec("ALTER TABLE producto DROP COLUMN min_stock;")
+                        db.exec("ALTER TABLE producto DROP COLUMN max_stock;")
+                        console.log("Columnas de stock extraídas y eliminadas exitosamente de la tabla producto.")
+                    } catch (dropError) {
+                        console.warn("Aviso: El motor SQLite actual no soporta DROP COLUMN. Las columnas antiguas quedarán inactivas pero no afectarán el sistema.")
+                    }
+                } else {
+                    console.log("La tabla producto ya fue migrada previamente.")
+                }
+                
+                console.log("Migración V17 finalizada correctamente.")
+            } catch (error) {
+                console.error("Error crítico en la migración V17", error)
+                throw error
+            }
+        }
     }
 ]
 

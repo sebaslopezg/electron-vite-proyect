@@ -20,9 +20,11 @@ export const registerInventarioHandler = () => {
             const stmt = db.prepare(`
                 SELECT 
                     p.*,
+                    inv.stock, inv.min_stock, inv.max_stock,
                     c.sku_prefix, c.separador, c.nombre as categoria_nombre,
                     GROUP_CONCAT(pe.etiqueta_id, ',') as etiquetas_ids
                 FROM producto p
+                LEFT JOIN inventario_saldos inv ON p.id = inv.producto_id
                 LEFT JOIN categoria c ON p.categoria_id = c.id
                 LEFT JOIN producto_etiqueta pe ON p.id = pe.producto_id
                 WHERE p.status = 1 AND p.tipo = 'producto'
@@ -37,72 +39,76 @@ export const registerInventarioHandler = () => {
 
     ipcMain.handle("get-inventario-paginados", (_, dtParams) => {
         if (!checkPermission("inventario_ver") && !checkPermission("productos_ver")) {
-            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], totalStock: 0 };
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [], totalStock: 0 }
         }
         try {
-            const limit = parseInt(dtParams.length, 10) || 10;
-            const offset = parseInt(dtParams.start, 10) || 0;
-            const searchValue = dtParams.search?.value || '';
+            const limit = parseInt(dtParams.length, 10) || 10
+            const offset = parseInt(dtParams.start, 10) || 0
+            const searchValue = dtParams.search?.value || ''
 
-            const filterCategory = dtParams.customCategory || '';
-            const filterSubcategory = dtParams.customSubcategory || ''; 
-            const filterTag = dtParams.customTag || '';
+            const filterCategory = dtParams.customCategory || ''
+            const filterSubcategory = dtParams.customSubcategory || ''
+            const filterTag = dtParams.customTag || ''
 
-            const orderColIndex = dtParams.order?.[0]?.column || 0;
-            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC';
+            const orderColIndex = dtParams.order?.[0]?.column || 0
+            const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC'
             
-            const columnsMap = ['ref_name', 'sku', 'stock', 'precio'];
-            let orderCol = columnsMap[orderColIndex] || 'ref_name';
-            orderCol = `p.${orderCol}`;
+            const columnsMap = ['ref_name', 'sku', 'stock', 'precio']
+            let orderCol = columnsMap[orderColIndex] || 'ref_name'
+            
+            if (orderCol === 'stock') orderCol = 'inv.stock'
+            else orderCol = `p.${orderCol}`
 
             let baseQuery = `
                 FROM producto p
+                LEFT JOIN inventario_saldos inv ON p.id = inv.producto_id
                 LEFT JOIN categoria c ON p.categoria_id = c.id
                 WHERE p.status = 1 AND p.tipo = 'producto'
-            `;
+            `
             let queryParams = []
 
             if (searchValue) {
-                baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ?)";
-                const likeParam = `%${searchValue}%`;
-                queryParams.push(likeParam, likeParam);
+                baseQuery += " AND (p.ref_name LIKE ? OR p.sku LIKE ?)"
+                const likeParam = `%${searchValue}%`
+                queryParams.push(likeParam, likeParam)
             }
 
             if (filterCategory) {
-                baseQuery += " AND p.categoria_id = ?";
-                queryParams.push(filterCategory);
+                baseQuery += " AND p.categoria_id = ?"
+                queryParams.push(filterCategory)
             }
 
             if (filterSubcategory) {
-                baseQuery += " AND p.subcategorias_ids_json LIKE ?";
-                queryParams.push(`%${filterSubcategory}%`);
+                baseQuery += " AND p.subcategorias_ids_json LIKE ?"
+                queryParams.push(`%${filterSubcategory}%`)
             }
 
             if (filterTag) {
-                baseQuery += " AND EXISTS (SELECT 1 FROM producto_etiqueta pe2 WHERE pe2.producto_id = p.id AND pe2.etiqueta_id = ?)";
-                queryParams.push(filterTag);
+                baseQuery += " AND EXISTS (SELECT 1 FROM producto_etiqueta pe2 WHERE pe2.producto_id = p.id AND pe2.etiqueta_id = ?)"
+                queryParams.push(filterTag)
             }
 
-            const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status = 1 AND tipo = 'producto'").get();
-            const recordsTotal = totalRow.count;
+            const totalRow = db.prepare("SELECT COUNT(*) as count FROM producto WHERE status = 1 AND tipo = 'producto'").get()
+            const recordsTotal = totalRow.count
 
-            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
-            const recordsFiltered = filteredRow.count;
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams)
+            const recordsFiltered = filteredRow.count
 
-            const totalStockRow = db.prepare(`SELECT SUM(p.stock) as totalStock ${baseQuery}`).get(...queryParams);
-            const totalStock = totalStockRow.totalStock || 0;
+            const totalStockRow = db.prepare(`SELECT SUM(inv.stock) as totalStock ${baseQuery}`).get(...queryParams)
+            const totalStock = totalStockRow.totalStock || 0
 
             const dataQuery = `
                 SELECT 
                     p.*,
+                    inv.stock, inv.min_stock, inv.max_stock,
                     c.sku_prefix, c.separador, c.nombre as categoria_nombre,
                     (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
                 ${baseQuery}
                 ORDER BY ${orderCol} ${orderDir} 
                 LIMIT ? OFFSET ?
-            `;
+            `
             
-            const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset)
 
             return {
                 draw: dtParams.draw,
@@ -110,7 +116,7 @@ export const registerInventarioHandler = () => {
                 recordsFiltered: recordsFiltered,
                 data: data,
                 totalStock: totalStock
-            };
+            }
         } catch (error) {
             logger.error('INVENTARIO', "Error en paginación y filtros del inventario", error)
             return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [], totalStock: 0 }
@@ -119,14 +125,14 @@ export const registerInventarioHandler = () => {
 
     ipcMain.handle("set-inventario", (_, item) => {
         if (item.type === 'ingreso' && !checkPermission("inventario_incrementar")) {
-            return { success: false, error: "No tienes los permisos de rol requeridos para ingresar existencias físicamente." };
+            return { success: false, error: "No tienes los permisos de rol requeridos para ingresar existencias físicamente." }
         }
         if (item.type === 'egreso' && !checkPermission("inventario_decrementar")) {
-            return { success: false, error: "No tienes los permisos de rol requeridos para retirar existencias físicamente." };
+            return { success: false, error: "No tienes los permisos de rol requeridos para retirar existencias físicamente." }
         }
 
         if (!item.notes || item.notes.trim() === '') {
-            return { success: false, error: "Es obligatorio proporcionar un motivo o descripción detallada para realizar el ajuste de inventario." };
+            return { success: false, error: "Es obligatorio proporcionar un motivo o descripción detallada para realizar el ajuste de inventario." }
         }
 
         const transaction = db.transaction((item) => {
@@ -134,11 +140,16 @@ export const registerInventarioHandler = () => {
             const now = new Date().toISOString()
             const currentUser = global.currentUserSession?.username || 'system'
 
-            const getStock = db.prepare(`SELECT stock, ref_name FROM producto WHERE id = ?`)
+            const getStock = db.prepare(`
+                SELECT inv.stock, p.ref_name 
+                FROM inventario_saldos inv 
+                INNER JOIN producto p ON inv.producto_id = p.id 
+                WHERE inv.producto_id = ?
+            `)
             const currentProduct = getStock.get(item.id)
 
             if (!currentProduct) {
-                throw new Error(`Producto con id ${item.id} no encontrado`)
+                throw new Error(`Producto con id ${item.id} no encontrado en la tabla de saldos`)
             }
 
             const stockAnterior = currentProduct.stock
@@ -154,19 +165,14 @@ export const registerInventarioHandler = () => {
                 throw new Error(`Tipo de movimiento no válido: ${item.type}`)
             }
 
-            const updateStock = db.prepare(`
-                UPDATE producto SET 
-                    stock = ?,
-                    date_modify = ?,
-                    modify_by = ?
-                WHERE id = ?
-            `)
-
-            const updateInfo = updateStock.run(stockNuevo, now, currentUser, item.id)
+            const updateStock = db.prepare(`UPDATE inventario_saldos SET stock = ? WHERE producto_id = ?`)
+            const updateInfo = updateStock.run(stockNuevo, item.id)
 
             if (updateInfo.changes === 0) {
                 throw new Error('No se pudo actualizar el stock del producto')
             }
+
+            db.prepare(`UPDATE producto SET date_modify = ?, modify_by = ? WHERE id = ?`).run(now, currentUser, item.id)
 
             const insertInventario = db.prepare(`
                 INSERT INTO inventario(
@@ -202,7 +208,7 @@ export const registerInventarioHandler = () => {
 
         try {
             const result = transaction(item)
-            logger.success('INVENTARIO', `Ajuste de inventario realizado: ${item.type.toUpperCase()} - ${item.notes.trim()}`);
+            logger.success('INVENTARIO', `Ajuste de inventario realizado: ${item.type.toUpperCase()} - ${item.notes.trim()}`)
             return result
         } catch (error) {
             logger.error('INVENTARIO', "Error crítico en transacción de ajuste de inventario", error)
@@ -211,7 +217,7 @@ export const registerInventarioHandler = () => {
     })
 
     ipcMain.handle("get-inventario-history", (_, productoId) => {
-        if (!checkPermission("inventario_ver") && !checkPermission("productos_ver")) return [];
+        if (!checkPermission("inventario_ver") && !checkPermission("productos_ver")) return []
         try {
             const stmt = db.prepare(`
                 SELECT i.*, p.ref_name, p.sku
@@ -228,36 +234,36 @@ export const registerInventarioHandler = () => {
 
     ipcMain.handle("get-inventario-history-paginados", (_, dtParams) => {
         if (!checkPermission("inventario_ver") && !checkPermission("productos_ver")) {
-            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] };
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
         try {
-            const limit = parseInt(dtParams.length, 10) || 10;
-            const offset = parseInt(dtParams.start, 10) || 0;
-            const searchValue = dtParams.search?.value || '';
+            const limit = parseInt(dtParams.length, 10) || 10
+            const offset = parseInt(dtParams.start, 10) || 0
+            const searchValue = dtParams.search?.value || ''
             
-            const productoId = dtParams.productoId; 
-            if (!productoId) throw new Error("Se requiere el ID del producto");
+            const productoId = dtParams.productoId
+            if (!productoId) throw new Error("Se requiere el ID del producto")
 
-            const orderColIndex = dtParams.order?.[0]?.column || 0;
-            const orderDir = dtParams.order?.[0]?.dir === 'asc' ? 'ASC' : 'DESC'; 
+            const orderColIndex = dtParams.order?.[0]?.column || 0
+            const orderDir = dtParams.order?.[0]?.dir === 'asc' ? 'ASC' : 'DESC'
             
-            const columnsMap = ['fecha', 'tipo_movimiento', 'cantidad', 'stock_anterior', 'stock_nuevo', 'usuario', 'notas'];
-            let orderCol = columnsMap[orderColIndex] || 'fecha';
+            const columnsMap = ['fecha', 'tipo_movimiento', 'cantidad', 'stock_anterior', 'stock_nuevo', 'usuario', 'notas']
+            let orderCol = columnsMap[orderColIndex] || 'fecha'
 
-            let baseQuery = `FROM inventario WHERE producto_id = ?`;
-            let queryParams = [productoId];
+            let baseQuery = `FROM inventario WHERE producto_id = ?`
+            let queryParams = [productoId]
 
             if (searchValue) {
-                baseQuery += " AND (tipo_movimiento LIKE ? OR usuario LIKE ? OR notas LIKE ?)";
-                const likeParam = `%${searchValue}%`;
-                queryParams.push(likeParam, likeParam, likeParam);
+                baseQuery += " AND (tipo_movimiento LIKE ? OR usuario LIKE ? OR notas LIKE ?)"
+                const likeParam = `%${searchValue}%`
+                queryParams.push(likeParam, likeParam, likeParam)
             }
 
-            const totalRow = db.prepare("SELECT COUNT(*) as count FROM inventario WHERE producto_id = ?").get(productoId);
-            const recordsTotal = totalRow.count;
+            const totalRow = db.prepare("SELECT COUNT(*) as count FROM inventario WHERE producto_id = ?").get(productoId)
+            const recordsTotal = totalRow.count
 
-            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams);
-            const recordsFiltered = filteredRow.count;
+            const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams)
+            const recordsFiltered = filteredRow.count
 
             const dataQuery = `
                 SELECT * ${baseQuery}
@@ -265,7 +271,7 @@ export const registerInventarioHandler = () => {
                 LIMIT ? OFFSET ?
             `;
             
-            const data = db.prepare(dataQuery).all(...queryParams, limit, offset);
+            const data = db.prepare(dataQuery).all(...queryParams, limit, offset)
 
             return {
                 draw: dtParams.draw,
@@ -274,8 +280,8 @@ export const registerInventarioHandler = () => {
                 data: data
             };
         } catch (error) {
-            logger.error('INVENTARIO', "Error en paginación del historial de inventario", error);
-            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] };
+            logger.error('INVENTARIO', "Error en paginación del historial de inventario", error)
+            return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
     })
 }

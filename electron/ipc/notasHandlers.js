@@ -4,16 +4,16 @@ import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 
 const checkPermission = (permission) => {
-    const user = global.currentUserSession;
-    if (!user) return false;
-    if (user.permisos?.includes("ALL")) return true;
-    return user.permisos?.includes(permission);
+  const user = global.currentUserSession
+  if (!user) return false
+  if (user.permisos?.includes("ALL")) return true
+  return user.permisos?.includes(permission)
 }
 
 export const registerNotasHandlers = () => {
 
   ipcMain.handle("get-notas", () => {
-    if (!checkPermission("notas_gestionar")) return [];
+    if (!checkPermission("notas_gestionar")) return []
     try {
       const stmt = db.prepare(`
         SELECT 
@@ -33,7 +33,7 @@ export const registerNotasHandlers = () => {
 
   ipcMain.handle("add-nota", (_, data) => {
     if (!checkPermission("notas_gestionar")) {
-        return { success: false, error: "No autorizado para emitir notas de crédito o débito contables." };
+      return { success: false, error: "No autorizado para emitir notas de crédito o débito contables." }
     }
     const createNotaTransaction = db.transaction((notaData) => {
       const now = new Date().toISOString()
@@ -101,8 +101,9 @@ export const registerNotasHandlers = () => {
         )
       `)
 
-      const getStock = db.prepare(`SELECT stock FROM producto WHERE id = ?`)
-      const updateStock = db.prepare(`UPDATE producto SET stock = @stock, date_modify = @now WHERE id = @id`)
+      const getStock = db.prepare(`SELECT stock FROM inventario_saldos WHERE producto_id = ?`)
+      const updateStock = db.prepare(`UPDATE inventario_saldos SET stock = @stock WHERE producto_id = @id`)
+      const updateProductDate = db.prepare(`UPDATE producto SET date_modify = @now WHERE id = @id`)
       
       const insertInventario = db.prepare(`
         INSERT INTO inventario (
@@ -133,7 +134,8 @@ export const registerNotasHandlers = () => {
             const stockAnterior = currentProduct.stock
             const stockNuevo = notaData.tipo_nota === 'Crédito' ? stockAnterior + item.cantidad : stockAnterior - item.cantidad
 
-            updateStock.run({ stock: stockNuevo, now: now, id: item.id_producto })
+            updateStock.run({ stock: stockNuevo, id: item.id_producto })
+            updateProductDate.run({ now: now, id: item.id_producto })
 
             insertInventario.run({
               id: uuidv4(),
@@ -163,13 +165,13 @@ export const registerNotasHandlers = () => {
   })
 
   ipcMain.handle("search-factura", (_, numero_factura) => {
-    if (!checkPermission("notas_gestionar")) return { success: false, message: "No autorizado" };
+    if (!checkPermission("notas_gestionar")) return { success: false, message: "No autorizado" }
     try {
       const stmt = db.prepare(`
         SELECT * FROM ventasMaestro 
         WHERE (
-            (IFNULL(prefijo, '') || IFNULL(separador, '') || numero_factura) COLLATE NOCASE = ? 
-            OR numero_factura = ?
+          (IFNULL(prefijo, '') || IFNULL(separador, '') || numero_factura) COLLATE NOCASE = ? 
+          OR numero_factura = ?
         )
         AND status > 0
       `);
@@ -178,11 +180,11 @@ export const registerNotasHandlers = () => {
       if (!maestro) return { success: false, message: 'Factura no encontrada' }
 
       const detalles = db.prepare(`
-          SELECT df.*, p.sku, p.iva, c.sku_prefix, c.separador
-          FROM ventasDetalle df
-          LEFT JOIN producto p ON df.id_producto = p.id
-          LEFT JOIN categoria c ON p.categoria_id = c.id
-          WHERE df.maestro_id = ?
+        SELECT df.*, p.sku, p.iva, c.sku_prefix, c.separador
+        FROM ventasDetalle df
+        LEFT JOIN producto p ON df.id_producto = p.id
+        LEFT JOIN categoria c ON p.categoria_id = c.id
+        WHERE df.maestro_id = ?
       `).all(maestro.id)
       
       return { success: true, maestro, detalles }
@@ -192,15 +194,15 @@ export const registerNotasHandlers = () => {
   })
 
   ipcMain.handle("get-nota-detalle", (_, notaId) => {
-    if (!checkPermission("notas_gestionar")) return { success: false, error: "No autorizado" };
+    if (!checkPermission("notas_gestionar")) return { success: false, error: "No autorizado" }
     try {
       const stmt = db.prepare(`
-          SELECT ni.*, p.sku, c.sku_prefix, c.separador
-          FROM nota_item ni
-          LEFT JOIN producto p ON ni.id_producto = p.id
-          LEFT JOIN categoria c ON p.categoria_id = c.id
-          WHERE ni.id_nota = ?
-      `);
+        SELECT ni.*, p.sku, c.sku_prefix, c.separador
+        FROM nota_item ni
+        LEFT JOIN producto p ON ni.id_producto = p.id
+        LEFT JOIN categoria c ON p.categoria_id = c.id
+        WHERE ni.id_nota = ?
+      `)
       return { success: true, data: stmt.all(notaId), configuracion: db.prepare(`SELECT * FROM almacen_conf LIMIT 1`).get() }
     } catch (error) {
       return { success: false, error: error.message }

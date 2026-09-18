@@ -35,6 +35,7 @@ const getInitialDraft = () => {
 export const Facturacion = ({ currentUser: initialUser }) => {
   const draft = getInitialDraft()
 
+  const [isLoading, setIsLoading] = useState(true)
   const [productos, setProductos] = useState([])
   const [clientes, setClientes] = useState([])
   
@@ -130,6 +131,8 @@ export const Facturacion = ({ currentUser: initialUser }) => {
   }
 
   const loadInitialData = async () => {
+    setIsLoading(true)
+    
     if (!initialUser && window.api && window.api.getCurrentUser) {
       const userRes = await window.api.getCurrentUser()
       if (userRes?.success) setCurrentUser(userRes.data)
@@ -146,6 +149,8 @@ export const Facturacion = ({ currentUser: initialUser }) => {
     
     await loadConfig()
     await loadMetodosDePago()
+    
+    setIsLoading(false);
   }
 
   useEffect(() => {
@@ -690,6 +695,16 @@ export const Facturacion = ({ currentUser: initialUser }) => {
     }
   }, [productos, clientes, carrito])
 
+  if (isLoading) {
+    return (
+        <div className="d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+            <div className="spinner-border text-primary mb-3" style={{ width: '3rem', height: '3rem' }} role="status">
+                <span className="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    )
+  }
+
   return <>
     <Row className="justify-content-between mb-3">
       <Col xs={4}>
@@ -910,13 +925,13 @@ export const Facturacion = ({ currentUser: initialUser }) => {
                 </Col>
             </Row>
 
-            <div className="mb-3">
-                <Form.Label className="fw-bold d-block"><small>Métodos de Pago</small></Form.Label>
+            <div className="bg-light p-2 rounded mb-3 border">
+                <Form.Label className="fw-bold d-block"><small>Métodos de Pago y Dinero Recibido</small></Form.Label>
                 
                 {pagos.map((pago, index) => (
                     <div key={index} className="p-2 mb-2 bg-white border rounded shadow-sm">
                         <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="small text-muted fw-bold">Método {index + 1}</span>
+                            <span className="small text-muted fw-bold">Pago {index + 1}</span>
                             {pagos.length > 1 && (
                                 <Button variant="link" size="sm" className="text-danger p-0 text-decoration-none" onClick={() => removePago(index)}>
                                     <i className="bi bi-trash"></i>

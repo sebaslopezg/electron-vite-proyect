@@ -16,6 +16,8 @@ import { ImpresorFactura } from '../ventas/components/ImpresorFactura'
 
 export const Inventario = ({ currentUser }) => {
     const [activeUser, setActiveUser] = useState(currentUser)
+    
+    const [isLoading, setIsLoading] = useState(true)
 
     const [show, setShow] = useState(false)
     const [showDetalles, setShowDetalles] = useState(false)
@@ -23,7 +25,6 @@ export const Inventario = ({ currentUser }) => {
     const [prodSel, setProdSel] = useState(null)
     const [reloadTable, setReloadTable] = useState(0)
 
-    // Estados para la Modal Global de Facturas
     const [showModalFactura, setShowModalFactura] = useState(false)
     const [showImpresorFactura, setShowImpresorFactura] = useState(false)
     const [facturaSeleccionada, setFacturaSeleccionada] = useState(null)
@@ -61,47 +62,24 @@ export const Inventario = ({ currentUser }) => {
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
-    // Manejo automático de capas (z-index) para múltiples modales superpuestos
     useEffect(() => {
         const timer = setTimeout(() => {
             const modals = document.querySelectorAll('.modal.show');
-            const backdrops = document.querySelectorAll('.modal-backdrop.show');
+            const backdrops = document.querySelectorAll('.modal-backdrop.show')
             
             if (modals.length > 1) {
-                let baseZIndex = 1050;
+                let baseZIndex = 1050
                 backdrops.forEach((bg, index) => {
-                    bg.style.setProperty('z-index', `${baseZIndex + (index * 10)}`, 'important');
+                    bg.style.setProperty('z-index', `${baseZIndex + (index * 10)}`, 'important')
                 });
                 modals.forEach((modal, index) => {
-                    modal.style.setProperty('z-index', `${baseZIndex + 5 + (index * 10)}`, 'important');
-                });
+                    modal.style.setProperty('z-index', `${baseZIndex + 5 + (index * 10)}`, 'important')
+                })
             }
-        }, 150);
+        }, 150)
 
-        return () => clearTimeout(timer);
-    }, [show, showHistory, showDetalles, showModalFactura, showImpresorFactura]);
-
-    useEffect(() => {
-        if (currentUser) {
-            setActiveUser(currentUser)
-        } else if (window.api && window.api.getCurrentUser) {
-            window.api.getCurrentUser().then(res => {
-                if (res.success && res.data) {
-                    setActiveUser(res.data)
-                }
-            })
-        }
-    }, [currentUser])
-
-    const hasPermission = (permissionKey) => {
-        const u = activeUser || currentUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
-    }
-
-    const canIncrease = hasPermission('inventario_incrementar');
-    const canDecrease = hasPermission('inventario_decrementar');
+        return () => clearTimeout(timer)
+    }, [show, showHistory, showDetalles, showModalFactura, showImpresorFactura])
 
     const loadConfig = async () => {
         const configData = await inventarioService.getConfiguracion()
@@ -117,6 +95,54 @@ export const Inventario = ({ currentUser }) => {
         }
     }
 
+    const loadFilters = async () => {
+        const [cats, tags, subs] = await Promise.all([
+            inventarioService.getCategorias(),
+            inventarioService.getEtiquetas(),
+            inventarioService.getSubcategorias()
+        ])
+        setCategoriasList(cats || [])
+        setEtiquetasList(tags || [])
+        setSubcategoriasTotales(subs || [])
+    }
+
+    useEffect(() => {
+        const initData = async () => {
+            setIsLoading(true);
+            
+            if (currentUser) {
+                setActiveUser(currentUser)
+            } else if (window.api && window.api.getCurrentUser) {
+                const res = await window.api.getCurrentUser()
+                if (res.success && res.data) {
+                    setActiveUser(res.data)
+                }
+            }
+
+            await Promise.all([
+                loadFilters(),
+                loadConfig()
+            ]);
+
+            setIsLoading(false);
+        }
+
+        initData();
+
+        window.addEventListener('config-actualizada', loadConfig)
+        return () => window.removeEventListener('config-actualizada', loadConfig)
+    }, [currentUser])
+
+    const hasPermission = (permissionKey) => {
+        const u = activeUser || currentUser;
+        if (!u) return false;
+        if (u.permisos?.includes('ALL')) return true;
+        return u.permisos?.includes(permissionKey);
+    }
+
+    const canIncrease = hasPermission('inventario_incrementar');
+    const canDecrease = hasPermission('inventario_decrementar');
+
     const renderCurrency = (val) => {
         return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
     }
@@ -131,24 +157,6 @@ export const Inventario = ({ currentUser }) => {
 
     const handleCloseDetalles = () => setShowDetalles(false)
     const handleShowDetalles = () => setShowDetalles(true)
-
-    const loadFilters = async () => {
-        const [cats, tags, subs] = await Promise.all([
-            inventarioService.getCategorias(),
-            inventarioService.getEtiquetas(),
-            inventarioService.getSubcategorias()
-        ])
-        setCategoriasList(cats || [])
-        setEtiquetasList(tags || [])
-        setSubcategoriasTotales(subs || [])
-    }
-
-    useEffect(() => { 
-        loadFilters()
-        loadConfig()
-        window.addEventListener('config-actualizada', loadConfig)
-        return () => window.removeEventListener('config-actualizada', loadConfig)
-    }, [])
 
     useEffect(() => {
         if (!filterCategory) {
@@ -235,7 +243,6 @@ export const Inventario = ({ currentUser }) => {
         setShowHistory(true)
     }
 
-    // Funciones del Modal de Factura Global
     const handleVerFactura = async (numFactura) => {
         const result = await ventasService.searchFactura(numFactura)
         if (result.success) {
@@ -286,6 +293,16 @@ export const Inventario = ({ currentUser }) => {
         return () => container.removeEventListener('click', handleTableClick)
         
     }, [reloadTable, filterCategory, filterSubcategory, filterTag])
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
 
     return <>
         <div className="pagetitle">

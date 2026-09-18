@@ -12,6 +12,20 @@ export const Compras = ({ currentUser }) => {
     const [reloadTable, setReloadTable] = useState(0)
     const tableContainerRef = useRef(null)
 
+    // Estado para manejar el spinner
+    const [isLoading, setIsLoading] = useState(true)
+
+    // Simulamos la espera de la carga de permisos o validaciones
+    useEffect(() => {
+        if (currentUser) {
+            setIsLoading(false)
+        } else {
+            // Fallback preventivo
+            const timer = setTimeout(() => setIsLoading(false), 800)
+            return () => clearTimeout(timer)
+        }
+    }, [currentUser])
+
     const hasPermission = (permissionKey) => {
         if (!currentUser) return false
         if (currentUser.permisos?.includes('ALL')) return true
@@ -52,7 +66,17 @@ export const Compras = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [])
+    }, [isLoading])
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                    <span className="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        )
+    }
 
     return <>
         <div>
@@ -103,7 +127,7 @@ export const Compras = ({ currentUser }) => {
                                 render: function (data, type, row) {
                                     return `
                                         <button class="btn btn-sm btn-info text-white me-2 btn-view" data-id="${row.id}" title="Ver Detalles">
-                                            <i className="bi bi-eye"></i>
+                                            <i class="bi bi-eye"></i>
                                         </button>
                                     `
                                 }

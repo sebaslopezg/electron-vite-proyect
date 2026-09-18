@@ -2,7 +2,7 @@ import FullCalendar from "@fullcalendar/react"
 import dayGridPlugin from "@fullcalendar/daygrid"
 import interactionPlugin from "@fullcalendar/interaction"
 import esLocale from "@fullcalendar/core/locales/es"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { EncargoDetalles } from "./components/EncargoDetalles"
 import { ModalHistorialEncargo } from "./components/ModalHistorialEncargo"
 import { encargosService } from "../../services/encargosService"
@@ -28,6 +28,8 @@ function renderEventContent(eventInfo) {
 export const Calendario = () => {
   const [eventos, setEventos] = useState([])
   const calendarRef = useRef(null)
+  
+  const [isLoading, setIsLoading] = useState(true) // Estado de carga
   const [show, setShow] = useState(false)
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   
@@ -56,7 +58,7 @@ export const Calendario = () => {
     }
   }, [])
 
-  const loadEncargos = async () => {
+  const loadEncargos = useCallback(async () => {
     const data = await encargosService.getEncargos()
     const formatted = data
       .filter((e) => e.fecha_entrega && e.allow_calendar > 0)
@@ -69,10 +71,16 @@ export const Calendario = () => {
         extendedProps: { ...e },
       }))
     setEventos(formatted)
-  }
+  }, [])
 
   useEffect(() => {
-    loadEncargos()
+    const initData = async () => {
+        setIsLoading(true)
+        await loadEncargos()
+        setIsLoading(false)
+    }
+
+    initData()
 
     const handleActualizacionExterna = () => {
         loadEncargos()
@@ -85,7 +93,7 @@ export const Calendario = () => {
         window.removeEventListener('encargos-actualizados', handleActualizacionExterna)
         window.removeEventListener('estados-actualizados', handleActualizacionExterna)
     }
-  }, [])
+  }, [loadEncargos])
 
   const handleEventClick = async (info) => {
     const encargo = info.event.extendedProps
@@ -97,6 +105,16 @@ export const Calendario = () => {
     }
     
     handleShow()
+  }
+
+  if (isLoading) {
+    return (
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+            <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                <span className="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    )
   }
 
   return <>
