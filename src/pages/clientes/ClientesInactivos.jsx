@@ -48,7 +48,7 @@ export const ClientesInactivos = ({ activeUser }) => {
             icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', confirmButtonText: 'Sí, reactivar', cancelButtonText: 'Cancelar'
         }).then(async (result) => {
             if (result.isConfirmed) {
-                const res = await window.api.invoke('reactivar-tercero', id)
+                const res = await clientesService.reactivarTercero(id)
                 if (res.success) {
                     Swal.fire('¡Reactivado!', 'El cliente está activo nuevamente.', 'success')
                     setReloadTable(prev => prev + 1)
@@ -163,7 +163,7 @@ export const ClientesInactivos = ({ activeUser }) => {
                                                 <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                                             </a>
                                         </li>
-                                    `
+                                    `;
 
                                     if (canEdit) {
                                         menuItems += `
@@ -172,23 +172,23 @@ export const ClientesInactivos = ({ activeUser }) => {
                                                     <i class="bi bi-pencil me-2 text-secondary"></i> Editar
                                                 </a>
                                             </li>
-                                            <li><hr class="dropdown-divider"></li>
                                             <li>
-                                                <a class="dropdown-item btn-reactivar text-secondary" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
+                                                <a class="dropdown-item btn-reactivar text-success" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
                                                     <i class="bi bi-person-up me-2"></i> Reactivar
                                                 </a>
                                             </li>
-                                        `
+                                        `;
                                     }
 
                                     if (canDelete) {
                                         menuItems += `
+                                            <li><hr class="dropdown-divider"></li>
                                             <li>
                                                 <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
                                                     <i class="bi bi-trash3 me-2"></i> Eliminar
                                                 </a>
                                             </li>
-                                        `
+                                        `;
                                     }
 
                                     return `
@@ -200,7 +200,7 @@ export const ClientesInactivos = ({ activeUser }) => {
                                                 ${menuItems}
                                             </ul>
                                         </div>
-                                    `
+                                    `;
                                 }
                             }
                         ]}
@@ -209,6 +209,7 @@ export const ClientesInactivos = ({ activeUser }) => {
             </div>
         </div>
         
+        {/* MODALES FUERA DEL CONTENEDOR */}
         <ModalTercero show={showModal} handleClose={() => setShowModal(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={terceroAEditar} forceCliente={true} />
         <ModalDetalleTercero show={showDetalle} handleClose={() => setShowDetalle(false)} terceroData={terceroVer} />
     </>

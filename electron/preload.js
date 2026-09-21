@@ -190,6 +190,8 @@ contextBridge.exposeInMainWorld('contaAPI', {
   crearTercero: (data) => ipcRenderer.invoke('crear-tercero', data),
   actualizarTercero: (data) => ipcRenderer.invoke('actualizar-tercero', data),
   eliminarTercero: (id) => ipcRenderer.invoke('eliminar-tercero', id),
+  desactivarTercero: (id) => ipcRenderer.invoke("desactivar-tercero", id),
+  reactivarTercero: (id) => ipcRenderer.invoke("reactivar-tercero", id),
 
   getComprobantesPaginados: (params) => ipcRenderer.invoke('get-comprobantes-paginados', params),
   getComprobanteDetalle: (id) => ipcRenderer.invoke('get-comprobante-detalle', id),

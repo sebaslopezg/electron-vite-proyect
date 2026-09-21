@@ -39,6 +39,38 @@ export const clientesService = {
         }
     },
 
+    desactivarTercero: async (id) => {
+        if (isElectronConta()) {
+            return await window.contaAPI.desactivarTercero(id)
+        } else {
+            try {
+                const response = await api.patch(`/terceros/${id}/desactivar`)
+                return { success: true, ...response.data }
+            } catch (error) {
+                return { 
+                    success: false, 
+                    error: error.response?.data?.message || 'Error al desactivar el cliente' 
+                }
+            }
+        }
+    },
+
+    reactivarTercero: async (id) => {
+        if (isElectronConta()) {
+            return await window.contaAPI.reactivarTercero(id)
+        } else {
+            try {
+                const response = await api.patch(`/terceros/${id}/reactivar`)
+                return { success: true, ...response.data }
+            } catch (error) {
+                return { 
+                    success: false, 
+                    error: error.response?.data?.message || 'Error al reactivar el cliente' 
+                }
+            }
+        }
+    },
+
     eliminarTercero: async (id) => {
         if (isElectronConta()) {
             return await window.contaAPI.eliminarTercero(id)

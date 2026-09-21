@@ -54,7 +54,7 @@ export const ClientesActivos = ({ activeUser }) => {
             icon: 'warning', showCancelButton: true, confirmButtonColor: '#ffc107', confirmButtonText: 'Sí, desactivar', cancelButtonText: 'Cancelar'
         }).then(async (result) => {
             if (result.isConfirmed) {
-                const res = await window.api.invoke('desactivar-tercero', id)
+                const res = await clientesService.desactivarTercero(id)
                 if (res.success) {
                     Swal.fire('¡Desactivado!', 'El cliente ha sido desactivado exitosamente.', 'success')
                     setReloadTable(prev => prev + 1)
@@ -163,12 +163,12 @@ export const ClientesActivos = ({ activeUser }) => {
                             {
                                 data: null, title: 'Acciones', orderable: false, className: 'text-center',
                                 render: function (data, type, row) {
-                                    const safeData = encodeURIComponent(JSON.stringify(row))
-                                    const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`
+                                    const safeData = encodeURIComponent(JSON.stringify(row));
+                                    const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`;
                                     
-                                    const canEdit = hasPermission('clientes_editar')
-                                    const canDesactivar = hasPermission('clientes_desactivar')
-                                    const canDelete = hasPermission('clientes_eliminar')
+                                    const canEdit = hasPermission('clientes_editar');
+                                    const canDesactivar = hasPermission('clientes_desactivar');
+                                    const canDelete = hasPermission('clientes_eliminar');
 
                                     return `
                                         <div class="dropdown">
@@ -189,14 +189,14 @@ export const ClientesActivos = ({ activeUser }) => {
                                                 </li>
                                                 ` : ''}
                                                 ${canDesactivar ? `
-                                                <li><hr class="dropdown-divider"></li>
                                                 <li>
-                                                    <a class="dropdown-item btn-desactivar text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
+                                                    <a class="dropdown-item btn-desactivar text-warning" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
                                                         <i class="bi bi-person-down me-2"></i> Desactivar
                                                     </a>
                                                 </li>
                                                 ` : ''}
                                                 ${canDelete ? `
+                                                <li><hr class="dropdown-divider"></li>
                                                 <li>
                                                     <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
                                                         <i class="bi bi-trash3 me-2"></i> Eliminar
@@ -205,7 +205,7 @@ export const ClientesActivos = ({ activeUser }) => {
                                                 ` : ''}
                                             </ul>
                                         </div>
-                                    `
+                                    `;
                                 }
                             }
                         ]}
@@ -214,6 +214,7 @@ export const ClientesActivos = ({ activeUser }) => {
             </div>
         </div>
         
+        {/* MODALES FUERA DEL CONTENEDOR */}
         <ModalTercero show={showModal} handleClose={() => setShowModal(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={terceroAEditar} forceCliente={true} />
         <ModalDetalleTercero show={showDetalle} handleClose={() => setShowDetalle(false)} terceroData={terceroVer} />
     </>
