@@ -5,6 +5,7 @@ import { Importar } from './Importar'
 import { Exportar } from './Exportar'
 import { Actualizaciones } from './Actualizaciones'
 import { Logs } from './Logs'
+import { Sincronizacion } from './Sincronizacion'
 
 export const ConfiguracionIndex = ({ currentUser }) => {
     const [activeTab, setActiveTab] = useState('')
@@ -45,6 +46,13 @@ export const ConfiguracionIndex = ({ currentUser }) => {
             component: <Datos currentUser={currentUser} /> 
         },
         { 
+            id: 'sincronizacion', 
+            label: 'Sincronización', 
+            icon: 'bi-arrow-left-right', 
+            perm: 'configuracion_general',
+            component: <Sincronizacion currentUser={currentUser} /> 
+        },
+        { 
             id: 'importar', 
             label: 'Importar Datos', 
             icon: 'bi-cloud-upload', 
@@ -61,8 +69,10 @@ export const ConfiguracionIndex = ({ currentUser }) => {
     ].filter(tab => hasPermission(tab.perm))
 
     useEffect(() => {
-        if (tabsDisponibles.length > 0) setActiveTab(tabsDisponibles[0].id)
-    }, [currentUser])
+        if (tabsDisponibles.length > 0 && !activeTab) {
+            setActiveTab(tabsDisponibles[0].id)
+        }
+    }, [currentUser, tabsDisponibles, activeTab])
 
     if (tabsDisponibles.length === 0) {
         return (
@@ -74,7 +84,7 @@ export const ConfiguracionIndex = ({ currentUser }) => {
         )
     }
 
-    const currentTabObj = tabsDisponibles.find(t => t.id === activeTab)
+    const currentTabObj = tabsDisponibles.find(t => t.id === activeTab) || tabsDisponibles[0]
 
     return <>
         <div className="pagetitle">

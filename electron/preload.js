@@ -87,6 +87,11 @@ contextBridge.exposeInMainWorld("api", {
   executeImportQuery: (data) => ipcRenderer.invoke('execute-import-query', data),
   executeImportJson: (data) => ipcRenderer.invoke('execute-import-json', data),
 
+  // sincronización web
+  getSyncConfig: () => ipcRenderer.invoke("get-sync-config"),
+  saveSyncConfig: (token) => ipcRenderer.invoke("save-sync-config", token),
+  forceSyncNow: () => ipcRenderer.invoke("force-sync-now"),
+
   // logs
   getSystemLogs: (limit) => ipcRenderer.invoke("get-system-logs", limit),
   clearSystemLogs: () => ipcRenderer.invoke("clear-system-logs"),

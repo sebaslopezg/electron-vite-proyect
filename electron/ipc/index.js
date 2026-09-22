@@ -23,6 +23,7 @@ import { registerUsuariosHandlers } from "./usuariosHandlers.js"
 import { registerRolesHandlers } from "./rolesHandlers.js"
 import { registerActivationHandlers } from "./activationHandlers.js"
 import { registerNotificacionesHandlers } from "./notificacionesHandler.js"
+import { registerSyncHandlers } from "./syncHandlers.js"
 
 export const registerAllHandlers = () => {
   registerProductoHandlers()
@@ -50,4 +51,5 @@ export const registerAllHandlers = () => {
   registerRolesHandlers()
   registerActivationHandlers()
   registerNotificacionesHandlers()
+  registerSyncHandlers()
 }

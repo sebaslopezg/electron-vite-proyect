@@ -233,6 +233,31 @@ const migrations = [
                 throw error
             }
         }
+    },
+    {
+        version: 18,
+        up: () => {
+            console.log("Applying migration V18: Tabla de Control de Sincronización Web (sync_log)");
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS sync_log (
+                    modulo TEXT PRIMARY KEY,
+                    last_sync_time TEXT NOT NULL,
+                    status TEXT DEFAULT 'pending'
+                );
+            `);
+        }
+    },
+    {
+        version: 19,
+        up: () => {
+            console.log("Applying migration V19: Tabla de configuraciones generales (Token Sync)")
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS configuracion (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                );
+            `)
+        }
     }
 ]
 
