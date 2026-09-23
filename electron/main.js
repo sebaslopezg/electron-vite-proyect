@@ -34,7 +34,7 @@ async function createMainWindow() {
   })
 
   if (isDev) {
-    const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173"
+    const devServerURL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5174"
     console.log("Loading Vite dev server:", devServerURL)
     await mainWindow.loadURL(devServerURL)
 

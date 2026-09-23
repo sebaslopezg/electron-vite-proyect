@@ -7,7 +7,7 @@
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5174 && electron .\"",
     "lint": "eslint .",
     "preview": "vite preview",
     "build:react": "vite build",

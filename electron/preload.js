@@ -91,6 +91,9 @@ contextBridge.exposeInMainWorld("api", {
   getSyncConfig: () => ipcRenderer.invoke("get-sync-config"),
   saveSyncConfig: (token) => ipcRenderer.invoke("save-sync-config", token),
   forceSyncNow: () => ipcRenderer.invoke("force-sync-now"),
+  getSyncHistory: () => ipcRenderer.invoke("get-sync-history"),
+  onSyncProgress: (callback) => ipcRenderer.on("sync-progress", (_event, data) => callback(data)),
+  removeSyncProgressListeners: () => ipcRenderer.removeAllListeners("sync-progress"),
 
   // logs
   getSystemLogs: (limit) => ipcRenderer.invoke("get-system-logs", limit),
