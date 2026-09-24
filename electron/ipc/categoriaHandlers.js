@@ -93,10 +93,14 @@ export const registerCategoriaHandlers = () => {
         if (!checkPermission("categorias_ver") && !checkPermission("productos_ver")) return []
         try {
             const stmt = db.prepare(`
-                SELECT id, ref_name, sku, precio, 0 as stock, min_stock, status, tipo
-                FROM producto 
-                WHERE categoria_id = ? AND status > 0
-                ORDER BY ref_name ASC
+                SELECT p.id, p.ref_name, p.sku, p.precio, 
+                       IFNULL(i.stock, 0) as stock, 
+                       IFNULL(i.min_stock, 5) as min_stock, 
+                       p.status, p.tipo
+                FROM producto p
+                LEFT JOIN inventario_saldos i ON p.id = i.producto_id
+                WHERE p.categoria_id = ? AND p.status > 0
+                ORDER BY p.ref_name ASC
             `)
             return stmt.all(categoriaId)
         } catch (error) {

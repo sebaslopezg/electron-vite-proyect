@@ -17,6 +17,9 @@ export const ClientesActivos = ({ activeUser }) => {
 
     const [isLoading, setIsLoading] = useState(true)
 
+    const syncRule = activeUser?.syncRules?.terceros || 'desktop_to_web'
+    const isReadOnly = syncRule === 'web_to_desktop'
+
     useEffect(() => {
         if (activeUser) {
             setIsLoading(false)
@@ -31,6 +34,12 @@ export const ClientesActivos = ({ activeUser }) => {
         if (activeUser.permisos?.includes('ALL')) return true
         return activeUser.permisos?.includes(permissionKey)
     }
+
+    // === PERMISOS CONDICIONADOS A LA SINCRONIZACIÓN ===
+    const canCreate = !isReadOnly && hasPermission('clientes_crear');
+    const canEdit = !isReadOnly && hasPermission('clientes_editar');
+    const canDesactivar = !isReadOnly && hasPermission('clientes_desactivar');
+    const canDelete = !isReadOnly && hasPermission('clientes_eliminar');
 
     const handleNuevo = () => {
       setTerceroAEditar(null)
@@ -93,14 +102,14 @@ export const ClientesActivos = ({ activeUser }) => {
             
             e.preventDefault()
             try {
-                if (actionEl.classList.contains('btn-desactivar')) {
+                if (actionEl.classList.contains('btn-desactivar') && canDesactivar) {
                     const id = actionEl.dataset.id
                     const nombre = actionEl.dataset.nombre
                     handleDesactivar(id, nombre)
                     return
                 }
 
-                if (actionEl.classList.contains('btn-delete')) {
+                if (actionEl.classList.contains('btn-delete') && canDelete) {
                     const id = actionEl.dataset.id
                     const nombre = actionEl.dataset.nombre
                     handleEliminar(id, nombre)
@@ -109,13 +118,13 @@ export const ClientesActivos = ({ activeUser }) => {
 
                 const item = JSON.parse(decodeURIComponent(actionEl.dataset.alldata))
                 if (actionEl.classList.contains('btn-view')) handleVerDetalles(item)
-                else if (actionEl.classList.contains('btn-edit')) handleEditar(item)
+                else if (actionEl.classList.contains('btn-edit') && canEdit) handleEditar(item)
             } catch(err) { console.error(err) }
         }
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [activeUser, isLoading])
+    }, [activeUser, isLoading, canDesactivar, canDelete, canEdit])
 
     return <>
         <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
@@ -133,9 +142,14 @@ export const ClientesActivos = ({ activeUser }) => {
                     <h5 className="card-title mb-0">
                         <i className="bi bi-person-check text-primary me-2"></i>
                          Listado de Clientes Activos
+                         {isReadOnly && (
+                            <span className="badge bg-warning ms-3 text-dark fw-bold border border-warning-subtle shadow-sm" title="Los clientes solo pueden crearse o modificarse desde la plataforma Web.">
+                                <i className="bi bi-lock-fill me-1"></i>Sincronizado desde la Web
+                            </span>
+                         )}
                     </h5>
                     
-                    {hasPermission('clientes_crear') && (
+                    {canCreate && (
                         <button className="btn btn-primary" onClick={handleNuevo}>
                             <i className="bi bi-plus-circle me-2"></i>Nuevo Cliente
                         </button>
@@ -145,7 +159,7 @@ export const ClientesActivos = ({ activeUser }) => {
                 <div ref={tableContainerRef} className="w-100 overflow-visible">
                     <CustomDataTable 
                         tableId="dt-clientes-activos"
-                        key={`clientes-activos-${reloadTable}-${activeUser?.permisos?.length}`} 
+                        key={`clientes-activos-${reloadTable}-${activeUser?.permisos?.length}-${isReadOnly}`} 
                         ajaxData={(params) => clientesService.getClientesPaginados({ ...params, estado: 1 })}
                         columns={[
                             { 
@@ -166,10 +180,6 @@ export const ClientesActivos = ({ activeUser }) => {
                                     const safeData = encodeURIComponent(JSON.stringify(row));
                                     const nombreCliente = row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`;
                                     
-                                    const canEdit = hasPermission('clientes_editar');
-                                    const canDesactivar = hasPermission('clientes_desactivar');
-                                    const canDelete = hasPermission('clientes_eliminar');
-
                                     return `
                                         <div class="dropdown">
                                             <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
@@ -214,7 +224,6 @@ export const ClientesActivos = ({ activeUser }) => {
             </div>
         </div>
         
-        {/* MODALES FUERA DEL CONTENEDOR */}
         <ModalTercero show={showModal} handleClose={() => setShowModal(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={terceroAEditar} forceCliente={true} />
         <ModalDetalleTercero show={showDetalle} handleClose={() => setShowDetalle(false)} terceroData={terceroVer} />
     </>

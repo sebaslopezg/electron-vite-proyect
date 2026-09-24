@@ -104,8 +104,9 @@ export const Sincronizacion = ({ currentUser }) => {
             if (window.api) {
                 const res = await window.api.saveSyncConfig({ syncToken, syncUrl })
                 if (res.success) {
-                    Swal.fire({ icon: 'success', title: '¡Guardado!', timer: 1500, showConfirmButton: false })
+                    Swal.fire({ icon: 'success', title: '¡Conectado!', text: 'Se obtuvieron los permisos de sincronización.', timer: 2000, showConfirmButton: false })
                     setShowConfigModal(false)
+                    window.dispatchEvent(new CustomEvent('sync-rules-updated'))
                 } else {
                     Swal.fire('Error', res.error, 'error')
                 }

@@ -18,6 +18,14 @@ function App() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Función para inyectar reglas de sync al usuario
+  const attachSyncRules = async (userObj) => {
+    if (window.api && window.api.getSyncRules) {
+        userObj.syncRules = await window.api.getSyncRules();
+    }
+    return userObj;
+  }
+
   const verificarSeguridadAcceso = async () => {
     setLoading(true)
     
@@ -40,10 +48,13 @@ function App() {
       if (res.success) {
         setLoginRequired(res.required)
         if (!res.required && res.user) {
-          setCurrentUser(res.user)
+          
+          // Adjuntamos las reglas antes de setear el usuario
+          const fullUser = await attachSyncRules(res.user);
+          setCurrentUser(fullUser)
           
           if (location.pathname === '/') {
-            const startPathToken = res.user.permisos?.find(p => p.startsWith('START_PATH:'))
+            const startPathToken = fullUser.permisos?.find(p => p.startsWith('START_PATH:'))
             const defaultRoute = startPathToken ? startPathToken.split(':')[1] : '/ventas'
             navigate(defaultRoute, { replace: true })
           }
@@ -59,7 +70,17 @@ function App() {
     const handleGlobalProfileUpdate = (e) => {
       setCurrentUser(e.detail)
     }
+    
+    // Escucha el evento cuando guardamos la configuración de sincronización para actualizar reglas en caliente
+    const handleRulesUpdated = async () => {
+        if (currentUser) {
+            const updatedUser = await attachSyncRules({ ...currentUser });
+            setCurrentUser(updatedUser);
+        }
+    }
+
     window.addEventListener('perfil-actualizado', handleGlobalProfileUpdate)
+    window.addEventListener('sync-rules-updated', handleRulesUpdated)
 
     if (window.updaterAPI) {
       window.updaterAPI.onUpdateAvailable((info) => {
@@ -108,11 +129,13 @@ function App() {
 
     return () => {
       window.removeEventListener('perfil-actualizado', handleGlobalProfileUpdate)
+      window.removeEventListener('sync-rules-updated', handleRulesUpdated)
       if (window.updaterAPI && window.updaterAPI.removeAllListeners) {
         window.updaterAPI.removeAllListeners()
       }
     }
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Removemos currentUser de dependencias para evitar recargas infinitas en el listener
 
   const handleLogout = async () => {
     localStorage.removeItem('auth_token')
@@ -124,10 +147,12 @@ function App() {
     navigate('/', { replace: true }) 
   }
 
-  const handleLoginSuccess = (user) => {
-    setCurrentUser(user)
+  const handleLoginSuccess = async (user) => {
+    // Adjuntamos las reglas al iniciar sesión
+    const fullUser = await attachSyncRules(user);
+    setCurrentUser(fullUser)
     
-    const startPathToken = user.permisos?.find(p => p.startsWith('START_PATH:'))
+    const startPathToken = fullUser.permisos?.find(p => p.startsWith('START_PATH:'))
     const defaultRoute = startPathToken ? startPathToken.split(':')[1] : '/ventas'
     navigate(defaultRoute, { replace: true })
   }

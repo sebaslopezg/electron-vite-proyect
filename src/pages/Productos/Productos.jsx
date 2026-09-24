@@ -63,6 +63,10 @@ export const Productos = ({ currentUser }) => {
   
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
+  // === REGLAS DE SINCRONIZACIÓN WEB ===
+  const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
+  const isReadOnly = syncRule === 'web_to_desktop';
+
   const hasPermission = (permissionKey) => {
     const u = activeUser || currentUser
     if (!u) return false
@@ -70,8 +74,8 @@ export const Productos = ({ currentUser }) => {
     return u.permisos?.includes(permissionKey)
   }
 
-  const canCreate = hasPermission('productos_crear')
-  const canEdit = hasPermission('productos_editar')
+  // Permisos condicionados a la regla de Sincronización
+  const canCreate = !isReadOnly && hasPermission('productos_crear')
 
   const loadConfig = async () => {
     const configData = await productosService.getConfiguracion()
@@ -143,7 +147,7 @@ export const Productos = ({ currentUser }) => {
 
     const handleTableClick = (e) => {
       const editBtn = e.target.closest('.btn-edit')
-      if (editBtn) {
+      if (editBtn && !isReadOnly) {
         e.preventDefault()
         try {
           const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -191,7 +195,7 @@ export const Productos = ({ currentUser }) => {
       }
 
       const delBtn = e.target.closest('.btn-delete')
-      if (delBtn) {
+      if (delBtn && !isReadOnly) {
         e.preventDefault()
         handleDelete(delBtn.dataset.id)
       }
@@ -199,10 +203,11 @@ export const Productos = ({ currentUser }) => {
 
     container.addEventListener('click', handleTableClick)
     return () => container.removeEventListener('click', handleTableClick)
-  }, [isLoading])
+  }, [isLoading, isReadOnly])
 
   const handleSubmit = async (e, finalSkuArmado) => {
     e.preventDefault()
+    if (isReadOnly) return;
     
     const payload = { ...form }
     if (finalSkuArmado) payload.sku = finalSkuArmado
@@ -225,6 +230,7 @@ export const Productos = ({ currentUser }) => {
   }
 
   const handleDelete = async (id) => {
+    if (isReadOnly) return;
     const result = await Swal.fire({
       title: "¿Seguro que desea eliminar?",
       showDenyButton: true,
@@ -280,8 +286,8 @@ export const Productos = ({ currentUser }) => {
       data: null, title: 'Acciones', orderable: false, className: 'text-center',
       render: function (data, type, row) {
         const safeData = encodeURIComponent(JSON.stringify(row))
-        const canEditAction = hasPermission('productos_editar');
-        const canDeleteAction = hasPermission('productos_eliminar');
+        const canEditAction = !isReadOnly && hasPermission('productos_editar');
+        const canDeleteAction = !isReadOnly && hasPermission('productos_eliminar');
 
         let menuItems = `
           <li>
@@ -324,7 +330,8 @@ export const Productos = ({ currentUser }) => {
         `
       }
     }
-  ], [appConfig, activeUser, currentUser])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [appConfig, activeUser, currentUser, isReadOnly])
 
   return <>
     <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
@@ -338,6 +345,18 @@ export const Productos = ({ currentUser }) => {
         )}
 
         <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+            
+            {/* Aviso visual en caso de que esté bloqueado */}
+            {isReadOnly && (
+                <div className="alert alert-warning border-warning-subtle shadow-sm py-2 d-flex align-items-center mb-3">
+                    <i className="bi bi-lock-fill fs-4 me-3 text-warning"></i>
+                    <div>
+                        <h6 className="mb-0 fw-bold">Modo de Solo Lectura</h6>
+                        <span className="small">La gestión de productos está configurada desde la plataforma web. No es posible crear, editar ni eliminar productos localmente.</span>
+                    </div>
+                </div>
+            )}
+
             {canCreate && (
               <div className="mb-3">
                   <button className='btn btn-primary' onClick={() => {
@@ -353,7 +372,7 @@ export const Productos = ({ currentUser }) => {
             <div ref={tableContainerRef} className="w-100" style={{ overflow: 'visible' }}>
               <CustomDataTable
                 tableId="dt-productos-catalogo"
-                key={`productos-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
+                key={`productos-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}-${isReadOnly}`}
                 reloadKey={reloadTable}
                 ajaxData={(params) => productosService.getProductosPaginados(params)}
                 columns={dataColumns}
