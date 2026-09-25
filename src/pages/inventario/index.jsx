@@ -122,7 +122,7 @@ export const Inventario = ({ currentUser }) => {
             await Promise.all([
                 loadFilters(),
                 loadConfig()
-            ]);
+            ])
 
             setIsLoading(false)
         }
@@ -134,14 +134,14 @@ export const Inventario = ({ currentUser }) => {
     }, [currentUser])
 
     const hasPermission = (permissionKey) => {
-        const u = activeUser || currentUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
+        const u = activeUser || currentUser
+        if (!u) return false
+        if (u.permisos?.includes('ALL')) return true
+        return u.permisos?.includes(permissionKey)
     }
 
-    const canIncrease = hasPermission('inventario_incrementar');
-    const canDecrease = hasPermission('inventario_decrementar');
+    const canIncrease = hasPermission('inventario_incrementar')
+    const canDecrease = hasPermission('inventario_decrementar')
 
     const renderCurrency = (val) => {
         return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
@@ -353,7 +353,11 @@ export const Inventario = ({ currentUser }) => {
                                 <Col md={3} className="text-end">
                                     <Button 
                                         variant="outline-danger" size="sm" className="w-100"
-                                        onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterTag(''); }}
+                                        onClick={() => { 
+                                            setFilterCategory('')
+                                            setFilterSubcategory('')
+                                            setFilterTag('')
+                                        }}
                                         disabled={!filterCategory && !filterSubcategory && !filterTag}
                                     >
                                         <i className="bi bi-x-circle me-1"></i> Limpiar Filtros
@@ -394,21 +398,21 @@ export const Inventario = ({ currentUser }) => {
                                 tableId="dt-inventario-maestro"
                                 key={`inv-${filterCategory}-${filterSubcategory}-${filterTag}-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`} 
                                 ajaxData={async (params) => {
-                                    params.customCategory = filterCategory;
-                                    params.customSubcategory = filterSubcategory;
-                                    params.customTag = filterTag;
+                                    params.customCategory = filterCategory
+                                    params.customSubcategory = filterSubcategory
+                                    params.customTag = filterTag
                                     
-                                    const response = await inventarioService.getInventarioPaginados(params);
-                                    const totalFilteredRef = response.recordsFiltered || 0;
-                                    const stockSum = response.totalStock || 0;
+                                    const response = await inventarioService.getInventarioPaginados(params)
+                                    const totalFilteredRef = response.recordsFiltered || 0
+                                    const stockSum = response.totalStock || 0
                                     
                                     setMetrics({
                                         totalStock: stockSum,
                                         totalReferences: totalFilteredRef,
                                         averageStock: totalFilteredRef > 0 ? (stockSum / totalFilteredRef) : 0
-                                    });
+                                    })
 
-                                    return response;
+                                    return response
                                 }}
                                 
                                 columns={[
@@ -416,21 +420,21 @@ export const Inventario = ({ currentUser }) => {
                                     { 
                                         data: 'sku', title: 'Referencia / Código',
                                         render: (data, type, row) => {
-                                            if (!data) return '-';
-                                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                                            const skuVal = String(data);
-                                            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
+                                            if (!data) return '-'
+                                            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
+                                            const skuVal = String(data)
+                                            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
                                             const safeData = encodeURIComponent(JSON.stringify(row));
                                             
-                                            return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${finalSku}</a>`;
+                                            return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${finalSku}</a>`
                                         }
                                     },
                                     { 
                                         data: 'stock', title: 'Stock',
                                         className: 'text-center',
                                         render: (data, type, row) => {
-                                            const minStock = row.min_stock || 5; 
-                                            const stockLevel = data <= minStock ? 'danger' : 'success';
+                                            const minStock = row.min_stock || 5
+                                            const stockLevel = data <= minStock ? 'danger' : 'success'
                                             return `<span class="badge bg-${stockLevel} fs-6">${data}</span>`
                                         }
                                     },
@@ -441,9 +445,9 @@ export const Inventario = ({ currentUser }) => {
                                     {
                                         data: null, title: 'Acciones', orderable: false, className: 'text-center',
                                         render: function (data, type, row) {
-                                            const safeData = encodeURIComponent(JSON.stringify(row));
+                                            const safeData = encodeURIComponent(JSON.stringify(row))
                                             
-                                            let menuItems = '';
+                                            let menuItems = ''
                                             
                                             if (canIncrease) {
                                                 menuItems += `
@@ -452,7 +456,7 @@ export const Inventario = ({ currentUser }) => {
                                                             <i class="bi bi-plus-lg me-2 text-success"></i> Aumentar Stock
                                                         </a>
                                                     </li>
-                                                `;
+                                                `
                                             }
                                             
                                             if (canDecrease) {
@@ -462,11 +466,11 @@ export const Inventario = ({ currentUser }) => {
                                                             <i class="bi bi-dash-lg me-2 text-warning"></i> Disminuir Stock
                                                         </a>
                                                     </li>
-                                                `;
+                                                `
                                             }
 
                                             if (canIncrease || canDecrease) {
-                                                menuItems += `<li><hr class="dropdown-divider"></li>`;
+                                                menuItems += `<li><hr class="dropdown-divider"></li>`
                                             }
                                             
                                             menuItems += `
@@ -475,7 +479,7 @@ export const Inventario = ({ currentUser }) => {
                                                         <i class="bi bi-clock-history me-2 text-secondary"></i> Ver Historial
                                                     </a>
                                                 </li>
-                                            `;
+                                            `
                                             
                                             return `
                                                 <div class="dropdown">
@@ -486,7 +490,7 @@ export const Inventario = ({ currentUser }) => {
                                                         ${menuItems}
                                                     </ul>
                                                 </div>
-                                            `;
+                                            `
                                         }
                                     }
                                 ]}

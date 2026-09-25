@@ -14,10 +14,11 @@ const checkPermission = (permission) => {
 export const registerAlmacenConfigHandlers = () => {
 
     try { db.exec("ALTER TABLE metodos_pago ADD COLUMN status INTEGER DEFAULT 1;"); } catch (error) {}
-    try { db.exec("ALTER TABLE metodos_pago ADD COLUMN orden INTEGER DEFAULT 0;"); } catch (error) {}
-    try { db.exec("ALTER TABLE metodos_pago ADD COLUMN date_created TEXT DEFAULT CURRENT_TIMESTAMP;"); } catch (error) {}
+    try { db.exec("ALTER TABLE metodos_pago ADD COLUMN orden INTEGER DEFAULT 0;"); } catch (error) {}    
+    try { db.exec("ALTER TABLE metodos_pago ADD COLUMN date_created TEXT;"); } catch (error) {}    
+    try { db.exec("UPDATE metodos_pago SET date_created = datetime('now', 'localtime') WHERE date_created IS NULL;"); } catch (error) {}
     try { db.exec("ALTER TABLE metodos_pago ADD COLUMN date_modify TEXT;"); } catch (error) {}
-    try { db.prepare("UPDATE metodos_pago SET date_modify = date_created WHERE date_modify IS NULL").run(); } catch(e){}
+    try { db.exec("UPDATE metodos_pago SET date_modify = date_created WHERE date_modify IS NULL;"); } catch(e){}
 
     ipcMain.handle("getAll-almacenConf", () => {
         try {
