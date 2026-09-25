@@ -2,6 +2,7 @@ import { ipcMain } from "electron"
 import db from "../database/index.js"
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from "../utils/logger.js"
+import { canModifyModule } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
@@ -12,15 +13,11 @@ const checkPermission = (permission) => {
 
 export const registerAlmacenConfigHandlers = () => {
 
-    try {
-        db.exec("ALTER TABLE metodos_pago ADD COLUMN status INTEGER DEFAULT 1;");
-        logger.info('SISTEMA', 'Migración exitosa: Columna "status" inyectada en la tabla metodos_pago.');
-    } catch (error) {}
-
-    try {
-        db.exec("ALTER TABLE metodos_pago ADD COLUMN orden INTEGER DEFAULT 0;");
-        logger.info('SISTEMA', 'Migración exitosa: Columna "orden" inyectada en la tabla metodos_pago.');
-    } catch (error) {}
+    try { db.exec("ALTER TABLE metodos_pago ADD COLUMN status INTEGER DEFAULT 1;"); } catch (error) {}
+    try { db.exec("ALTER TABLE metodos_pago ADD COLUMN orden INTEGER DEFAULT 0;"); } catch (error) {}
+    try { db.exec("ALTER TABLE metodos_pago ADD COLUMN date_created TEXT DEFAULT CURRENT_TIMESTAMP;"); } catch (error) {}
+    try { db.exec("ALTER TABLE metodos_pago ADD COLUMN date_modify TEXT;"); } catch (error) {}
+    try { db.prepare("UPDATE metodos_pago SET date_modify = date_created WHERE date_modify IS NULL").run(); } catch(e){}
 
     ipcMain.handle("getAll-almacenConf", () => {
         try {
@@ -33,11 +30,12 @@ export const registerAlmacenConfigHandlers = () => {
     })
 
     ipcMain.handle("update-almacenConf", (_, item) => {
-        if (!checkPermission("ventas_configurar")) {
-            return { success: false, error: "No autorizado para modificar los datos fiscales y resoluciones del almacén." }
-        }
+        if (!checkPermission("ventas_configurar")) return { success: false, error: "No autorizado" }
+        if (!canModifyModule('almacen_conf')) return { success: false, error: "Configuración bloqueada por Sincronización Web." }
+        
         try {
-            const now = new Date().toISOString()
+            const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get();
+            const now = nowRow.nowStr;
             const user = global.currentUserSession?.username || 'system'
 
             const stmt = db.prepare(`
@@ -88,15 +86,17 @@ export const registerAlmacenConfigHandlers = () => {
     });
 
     ipcMain.handle("add-metodo-pago", (_, nombre) => {
-        if (!checkPermission("ventas_configurar")) {
-            return { success: false, error: "No autorizado." }
-        }
+        if (!checkPermission("ventas_configurar")) return { success: false, error: "No autorizado." }
+        if (!canModifyModule('metodos_pago')) return { success: false, error: "Bloqueado por Sincronización Web." }
+        
         try {
             const id = uuidv4()
             const maxOrderRow = db.prepare("SELECT MAX(orden) as maxOrden FROM metodos_pago WHERE status > 0").get();
             const nextOrder = (maxOrderRow.maxOrden || 0) + 1;
+            
+            const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get();
 
-            db.prepare("INSERT INTO metodos_pago (id, nombre, status, orden) VALUES (?, ?, 1, ?)").run(id, nombre, nextOrder)
+            db.prepare("INSERT INTO metodos_pago (id, nombre, status, orden, date_created, date_modify) VALUES (?, ?, 1, ?, ?, ?)").run(id, nombre, nextOrder, nowRow.nowStr, nowRow.nowStr)
             logger.success('METODOS_PAGO', `Nuevo método de pago agregado: ${nombre}`)
             return { success: true, id, nombre }
         } catch (error) {
@@ -109,11 +109,11 @@ export const registerAlmacenConfigHandlers = () => {
     })
 
     ipcMain.handle("update-metodo-pago-cuenta", (_, { id, cuenta_id }) => {
-        if (!checkPermission("ventas_configurar")) {
-            return { success: false, error: "No autorizado." };
-        }
+        if (!checkPermission("ventas_configurar")) return { success: false, error: "No autorizado." };
+        if (!canModifyModule('metodos_pago')) return { success: false, error: "Bloqueado por Sincronización Web." }
+        
         try {
-            db.prepare("UPDATE metodos_pago SET cuenta_id = ? WHERE id = ?").run(cuenta_id, id)
+            db.prepare("UPDATE metodos_pago SET cuenta_id = ?, date_modify = datetime('now', 'localtime') WHERE id = ?").run(cuenta_id, id)
             logger.success('METODOS_PAGO', `Vínculo de cuenta contable actualizado para el método ID: ${id}`)
             return { success: true }
         } catch (error) {
@@ -123,11 +123,11 @@ export const registerAlmacenConfigHandlers = () => {
     })
 
     ipcMain.handle("delete-metodo-pago", (_, id) => {
-        if (!checkPermission("ventas_configurar")) {
-            return { success: false, error: "No autorizado." }
-        }
+        if (!checkPermission("ventas_configurar")) return { success: false, error: "No autorizado." }
+        if (!canModifyModule('metodos_pago')) return { success: false, error: "Bloqueado por Sincronización Web." }
+        
         try {
-            db.prepare("UPDATE metodos_pago SET status = 0 WHERE id = ?").run(id)
+            db.prepare("UPDATE metodos_pago SET status = 0, date_modify = datetime('now', 'localtime') WHERE id = ?").run(id)
             logger.success('METODOS_PAGO', `Método de pago con ID ${id} fue eliminado lógicamente (Soft Delete)`)
             return { success: true }
         } catch (error) {
@@ -137,11 +137,11 @@ export const registerAlmacenConfigHandlers = () => {
     })
 
     ipcMain.handle("reorder-metodos-pago", (_, ordenData) => {
-        if (!checkPermission("ventas_configurar")) {
-            return { success: false, error: "No autorizado." }
-        }
+        if (!checkPermission("ventas_configurar")) return { success: false, error: "No autorizado." }
+        if (!canModifyModule('metodos_pago')) return { success: false, error: "Bloqueado por Sincronización Web." }
+        
         try {
-            const updateStmt = db.prepare("UPDATE metodos_pago SET orden = ? WHERE id = ?");
+            const updateStmt = db.prepare("UPDATE metodos_pago SET orden = ?, date_modify = datetime('now', 'localtime') WHERE id = ?");
             const transaction = db.transaction((data) => {
                 for (const item of data) {
                     updateStmt.run(item.orden, item.id);

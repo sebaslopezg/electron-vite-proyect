@@ -20,9 +20,16 @@ const saveConfigValue = (key, value) => {
     }
 }
 
+// Mapeo inverso para bloquear módulos de la Interfaz Gráfica
 const SYNC_MAP = {
     'terceros': 'terceros',
-    'producto': 'productos'
+    'producto': 'productos',
+    'ventasMaestro': 'ventas',
+    'ventasDetalle': 'ventas',
+    'nota': 'ventas',
+    'nota_item': 'ventas',
+    'almacen_conf': 'ventas',
+    'metodos_pago': 'ventas'
 }
 
 export const canModifyModule = (moduloLocal) => {
@@ -103,13 +110,37 @@ export const registerSyncHandlers = () => {
     ipcMain.handle('force-sync-now', async (event) => {
         if (!checkPermission("configuracion_general")) return { success: false, error: 'No autorizado' }
         
+        let accumulatedLogs = [];
         const sendProgress = (msg, type = 'info') => {
-            event.sender.send('sync-progress', { text: msg, type })
+            const timeStr = new Date().toLocaleTimeString();
+            const logEntry = { time: timeStr, text: msg, type };
+            accumulatedLogs.push(logEntry);
+            event.sender.send('sync-progress', logEntry);
         }
 
         try {
             sendProgress("Iniciando proceso de sincronización...", "info")
             logger.info('SYNC', "Iniciando proceso de sincronización manual...")
+
+            // ==============================================
+            // AUTO-REPARACIÓN AVANZADA DE BASE DE DATOS
+            // ==============================================
+            try {
+                const tablesWithDates = ['terceros', 'producto', 'ventasMaestro', 'ventasDetalle', 'nota', 'nota_item', 'almacen_conf', 'metodos_pago'];
+                for (const tbl of tablesWithDates) {
+                    try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN date_modify TEXT;`); } catch(e){}
+                    try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN date_created TEXT DEFAULT CURRENT_TIMESTAMP;`); } catch(e){}
+                    try { db.prepare(`UPDATE ${tbl} SET date_modify = date_created WHERE date_modify IS NULL`).run(); } catch(e){}
+                    
+                    // Reparación de Desfases de Zona Horaria (Timezone Poisoning)
+                    try { db.prepare(`UPDATE ${tbl} SET date_modify = datetime('now', 'localtime') WHERE date_modify > datetime('now', 'localtime')`).run(); } catch(e){}
+                }
+                try { db.prepare("UPDATE sync_log SET last_sync_time = datetime('now', 'localtime') WHERE last_sync_time > datetime('now', 'localtime')").run(); } catch(e){}
+                
+                sendProgress("Escaneo de integridad de esquema y fechas completado.", "success");
+            } catch (e) {
+                logger.warn('SYNC', 'Fallo leve en auto-reparación', e)
+            }
 
             const tokenRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_token'").get()
             const urlRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_url'").get()
@@ -124,10 +155,20 @@ export const registerSyncHandlers = () => {
 
             const rules = rulesRow ? JSON.parse(rulesRow.value) : {}
 
+            // Orden estricto para proteger Integridad Referencial (Foreign Keys)
             const modulesToSync = [
                 { local: 'terceros', web: 'terceros' },
-                { local: 'producto', web: 'productos' }
+                { local: 'producto', web: 'productos' },
+                
+                // --- Grupo Ventas (Regla dependiente de 'ventas') ---
+                { local: 'almacen_conf', web: 'configuracion', parentRule: 'ventas' },
+                { local: 'metodos_pago', web: 'metodosPago', parentRule: 'ventas' },
+                { local: 'ventasMaestro', web: 'ventasMaestro', parentRule: 'ventas' },
+                { local: 'ventasDetalle', web: 'ventasDetalle', parentRule: 'ventas' },
+                { local: 'nota', web: 'notasMaestro', parentRule: 'ventas' },
+                { local: 'nota_item', web: 'notasDetalle', parentRule: 'ventas' }
             ] 
+            
             let totalProcessed = 0
             let totalErrors = 0
             let allDetails = {}
@@ -137,8 +178,9 @@ export const registerSyncHandlers = () => {
             for (const mod of modulesToSync) {
                 const localModulo = mod.local;
                 const webModulo = mod.web;
-
-                const moduleRule = rules[webModulo] || 'desktop_to_web'
+                
+                const ruleKey = mod.parentRule || webModulo;
+                const moduleRule = rules[ruleKey] || 'desktop_to_web'
 
                 if (moduleRule === 'disabled') {
                     sendProgress(`[${webModulo.toUpperCase()}] Omitido: Módulo aislado (Regla: disabled).`, "warning")
@@ -173,13 +215,12 @@ export const registerSyncHandlers = () => {
                         sendProgress(`[${webModulo.toUpperCase()}] Guardando ${records.length} registros...`, "warning");
 
                         const stmtExists = db.prepare(`SELECT 1 FROM ${localModulo} WHERE id = ?`);
+                        const validColumns = db.pragma(`table_info(${localModulo})`).map(c => c.name);
                         
-                        // Transacción segura para procesar todos los insert/updates del Pull
                         db.transaction(() => {
                             for (const row of records) {
                                 let inventarioData = null;
                                 
-                                // Intercepción especial para Productos y su Inventario
                                 if (localModulo === 'producto') {
                                     inventarioData = {
                                         producto_id: row.id,
@@ -187,25 +228,31 @@ export const registerSyncHandlers = () => {
                                         min_stock: row.min_stock !== undefined ? row.min_stock : 5,
                                         max_stock: row.max_stock !== undefined ? row.max_stock : 100
                                     };
-                                    // Limpiamos las llaves para que no rompan la inserción en 'producto'
-                                    delete row.stock;
-                                    delete row.min_stock;
-                                    delete row.max_stock;
+                                    if (row.impuesto !== undefined) row.iva = row.impuesto;
+                                    if (row.estado !== undefined) row.status = row.estado; 
+                                    if (!row.categoria_id) row.categoria_id = 'general';
+                                    if (!row.tipo) row.tipo = 'producto';
                                 }
 
-                                const keys = Object.keys(row);
-                                const exists = stmtExists.get(row.id);
+                                const cleanRow = {};
+                                for (const key of Object.keys(row)) {
+                                    if (validColumns.includes(key)) {
+                                        cleanRow[key] = row[key];
+                                    }
+                                }
+
+                                const keys = Object.keys(cleanRow);
+                                const exists = stmtExists.get(cleanRow.id);
 
                                 if (exists) {
                                     const sets = keys.filter(k => k !== 'id').map(k => `${k} = @${k}`).join(', ');
-                                    if (sets.length > 0) db.prepare(`UPDATE ${localModulo} SET ${sets} WHERE id = @id`).run(row);
+                                    if (sets.length > 0) db.prepare(`UPDATE ${localModulo} SET ${sets} WHERE id = @id`).run(cleanRow);
                                 } else {
                                     const cols = keys.join(', ');
                                     const placeholders = keys.map(k => `@${k}`).join(', ');
-                                    db.prepare(`INSERT INTO ${localModulo} (${cols}) VALUES (${placeholders})`).run(row);
+                                    db.prepare(`INSERT INTO ${localModulo} (${cols}) VALUES (${placeholders})`).run(cleanRow);
                                 }
 
-                                // UPSERT para la tabla hija inventario_saldos
                                 if (inventarioData) {
                                     const invExists = db.prepare(`SELECT 1 FROM inventario_saldos WHERE producto_id = ?`).get(row.id);
                                     if (invExists) {
@@ -217,7 +264,6 @@ export const registerSyncHandlers = () => {
                             }
                         })();
 
-                        // Buscar la fecha más reciente de todo el lote para el log
                         let latestDate = lastSyncTime;
                         for (const row of records) {
                             const rowDate = row.date_modify || row.date_created;
@@ -240,9 +286,8 @@ export const registerSyncHandlers = () => {
                         allDetails[webModulo] = [netError.message];
                     }
 
-                    continue; // Fin de la regla Pull, pasa al siguiente módulo
+                    continue; 
                 }
-
 
                 // ==============================================
                 // REGLA: EL ESCRITORIO MANDA (SUBIDA / PUSH)
@@ -259,7 +304,6 @@ export const registerSyncHandlers = () => {
                     const tableInfo = db.pragma(`table_info(${localModulo})`)
                     if (!tableInfo.some(col => col.name === 'date_modify')) timeColumn = 'date_created'
 
-                    // JOIN especial para mandar el producto con su stock hacia la Web
                     let query = `SELECT * FROM ${localModulo} WHERE ${timeColumn} > ? ORDER BY ${timeColumn} ASC LIMIT ? OFFSET ?`;
                     if (localModulo === 'producto') {
                         query = `
@@ -277,8 +321,36 @@ export const registerSyncHandlers = () => {
                         break
                     }
 
-                    const payload = { [webModulo]: rows }
-                    sendProgress(`[${webModulo.toUpperCase()}] Enviando lote de ${rows.length} registros...`, "warning")
+                    // --- TRADUCTOR DE ESQUEMAS: Escritorio -> Web ---
+                    const mappedRows = rows.map(row => {
+                        const newRow = { ...row };
+                        
+                        if (webModulo === 'ventasMaestro') {
+                            if (newRow.total_factura !== undefined) newRow.total = newRow.total_factura;
+                            if (newRow.status !== undefined) newRow.estado = newRow.status;
+                        } 
+                        else if (webModulo === 'ventasDetalle') {
+                            if (newRow.maestro_id !== undefined) newRow.id_factura = newRow.maestro_id;
+                            if (newRow.is_encargo !== undefined) newRow.isEncargo = newRow.is_encargo;
+                            newRow.estado = newRow.status !== undefined ? newRow.status : 1;
+                            newRow.tipo = newRow.tipo || 'producto';
+                            newRow.iva = newRow.iva || 0;
+                            newRow.descuento = newRow.descuento || 0;
+                            newRow.subtotal = newRow.subtotal || newRow.total;
+                        } 
+                        else if (webModulo === 'productos') {
+                            if (newRow.status !== undefined) newRow.estado = newRow.status;
+                            if (newRow.iva !== undefined) newRow.impuesto = newRow.iva;
+                        } 
+                        else if (webModulo === 'terceros' || webModulo === 'metodosPago' || webModulo === 'notasMaestro' || webModulo === 'notasDetalle') {
+                            if (newRow.status !== undefined) newRow.estado = newRow.status;
+                        }
+
+                        return newRow;
+                    });
+
+                    const payload = { [webModulo]: mappedRows }
+                    sendProgress(`[${webModulo.toUpperCase()}] Enviando lote de ${mappedRows.length} registros...`, "warning")
                     
                     try {
                         const response = await axios.post(`${syncUrl}/api/sync/push`, payload, { 
@@ -328,8 +400,10 @@ export const registerSyncHandlers = () => {
             
             const logId = uuidv4()
             const logMsg = `Sincronización finalizada. Registros procesados: ${totalProcessed}. Advertencias/Errores: ${totalErrors}.`;
+            const finalDetails = JSON.stringify({ consoleLogs: accumulatedLogs, apiErrors: allDetails });
+            
             db.prepare("INSERT INTO system_logs (id, tipo, modulo, mensaje, detalles, fecha) VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))")
-              .run(logId, 'SYNC', 'Sincronizador', logMsg, Object.keys(allDetails).length > 0 ? JSON.stringify(allDetails) : null);
+              .run(logId, 'SYNC', 'Sincronizador', logMsg, finalDetails);
 
             return { success: true, processed: totalProcessed, errors: totalErrors }
 
@@ -337,8 +411,9 @@ export const registerSyncHandlers = () => {
             sendProgress(`ERROR CRÍTICO: ${error.message}`, "error")
             logger.error('SYNC', "Fallo crítico en el motor", error)
             
+            const finalDetailsErr = JSON.stringify({ consoleLogs: accumulatedLogs, apiErrors: { system: error.message } });
             db.prepare("INSERT INTO system_logs (id, tipo, modulo, mensaje, detalles, fecha) VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))")
-              .run(uuidv4(), 'SYNC', 'Sincronizador', `Fallo crítico: ${error.message}`, null);
+              .run(uuidv4(), 'SYNC', 'Sincronizador', `Fallo crítico: ${error.message}`, finalDetailsErr);
 
             return { success: false, error: error.message }
         }

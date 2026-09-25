@@ -2,6 +2,7 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
+import { canModifyModule } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
   const user = global.currentUserSession
@@ -32,11 +33,13 @@ export const registerNotasHandlers = () => {
   })
 
   ipcMain.handle("add-nota", (_, data) => {
-    if (!checkPermission("notas_gestionar")) {
-      return { success: false, error: "No autorizado para emitir notas de crédito o débito contables." }
-    }
+    if (!checkPermission("notas_gestionar")) return { success: false, error: "No autorizado." }
+    if (!canModifyModule('nota')) return { success: false, error: "La emisión de notas está bloqueada por la sincronización web." }
+    
     const createNotaTransaction = db.transaction((notaData) => {
-      const now = new Date().toISOString()
+      const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get();
+      const now = nowRow.nowStr;
+      
       const notaId = uuidv4()
       const currentUser = global.currentUserSession?.username || 'system'
 
@@ -94,10 +97,10 @@ export const registerNotasHandlers = () => {
       const insertItem = db.prepare(`
         INSERT INTO nota_item (
           id, id_nota, id_producto, nombre_producto, cantidad, 
-          precio_unitario, iva_percent, subtotal, total
+          precio_unitario, iva_percent, subtotal, total, date_created, date_modify
         ) VALUES (
           @id, @id_nota, @id_producto, @nombre_producto, @cantidad, 
-          @precio_unitario, @iva_percent, @subtotal, @total
+          @precio_unitario, @iva_percent, @subtotal, @total, @now, @now
         )
       `)
 
@@ -125,7 +128,8 @@ export const registerNotasHandlers = () => {
           precio_unitario: item.precio_unitario,
           iva_percent: item.iva_percent,
           subtotal: item.subtotal,
-          total: item.total
+          total: item.total,
+          now: now
         })
 
         if (notaData.afecta_inventario) {

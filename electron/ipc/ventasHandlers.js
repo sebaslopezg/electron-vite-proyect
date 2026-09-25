@@ -2,6 +2,7 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
+import { canModifyModule } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
@@ -264,8 +265,14 @@ export const registerVentasHandlers = () => {
         if (!checkPermission("ventas_crear")) {
             return { success: false, error: "No autorizado para registrar operaciones de venta de mostrador." }
         }
+        if (!canModifyModule('ventasMaestro')) {
+            return { success: false, error: "La facturación local está bloqueada. La nube controla las ventas." }
+        }
+
         const transaction = db.transaction((maestroData, detallesData) => {
-            const now = new Date().toISOString()
+            const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get();
+            const now = nowRow.nowStr;
+            
             const maestroId = uuidv4()
             const currentUser = global.currentUserSession?.username || 'system'
 
@@ -282,9 +289,9 @@ export const registerVentasHandlers = () => {
                     email_almacen, footer, nombre_cliente, documento_cliente, subtotal,
                     descuento, iva, total_factura, total_recibido, saldo_pendiente,
                     total_recibido_original, saldo_pendiente_original, tipo_pago,
-                    metodo_pago, pagos_multiples, moneda, formato_numero, date_created, status, observaciones
+                    metodo_pago, pagos_multiples, moneda, formato_numero, date_created, date_modify, status, observaciones
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?
                 )
             `)
             insertMaestro.run(
@@ -316,6 +323,7 @@ export const registerVentasHandlers = () => {
                 maestroData.moneda, 
                 maestroData.formato_numero, 
                 now, 
+                now, 
                 maestroData.observaciones || ''
             )
 
@@ -326,12 +334,12 @@ export const registerVentasHandlers = () => {
                 const insertDetalle = db.prepare(`
                     INSERT INTO ventasDetalle (
                         id, maestro_id, id_producto, nombre_producto, cantidad_producto, 
-                        precio_producto, total, is_encargo, date_created
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        precio_producto, total, is_encargo, date_created, date_modify
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `)
                 insertDetalle.run(
                     detalleId, maestroId, item.id, item.ref_name, item.cantidad,
-                    item.precio, item.cantidad * item.precio, item.isEncargo, now
+                    item.precio, item.cantidad * item.precio, item.isEncargo, now, now
                 )
 
                 if (item.isEncargo === '0' && item.tipo !== "servicio") {

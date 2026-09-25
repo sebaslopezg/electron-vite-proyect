@@ -21,7 +21,9 @@ export const Sincronizacion = ({ currentUser }) => {
     const [reloadKey, setReloadKey] = useState(0)
     const tableContainerRef = useRef(null)
 
-    // 1. Cargar configuración inicial
+    const [showHistoryConsoleModal, setShowHistoryConsoleModal] = useState(false)
+    const [historyConsoleLogs, setHistoryConsoleLogs] = useState([])
+
     useEffect(() => {
         const loadSettings = async () => {
             if (window.api) {
@@ -35,7 +37,6 @@ export const Sincronizacion = ({ currentUser }) => {
         loadSettings()
     }, [])
 
-    // 2. Cargar historial de la base de datos local
     useEffect(() => {
         const fetchHistory = async () => {
             if (window.api && window.api.getSyncHistory) {
@@ -46,11 +47,10 @@ export const Sincronizacion = ({ currentUser }) => {
         fetchHistory()
     }, [reloadKey])
 
-    // 3. Escuchar eventos de la consola en tiempo real
     useEffect(() => {
         if (window.api && showConsoleModal) {
             window.api.onSyncProgress((data) => {
-                setConsoleLogs((prev) => [...prev, { time: new Date().toLocaleTimeString(), ...data }])
+                setConsoleLogs((prev) => [...prev, data])
             })
         }
         return () => {
@@ -58,36 +58,44 @@ export const Sincronizacion = ({ currentUser }) => {
         }
     }, [showConsoleModal])
 
-    // 4. Auto-scroll de la consola
     useEffect(() => {
         if (consoleEndRef.current) {
             consoleEndRef.current.scrollIntoView({ behavior: 'smooth' })
         }
     }, [consoleLogs])
 
-    // 5. Manejador de clics para ver el JSON de errores en la tabla
     useEffect(() => {
         const container = tableContainerRef.current
         if (!container) return
 
         const handleTableClick = (e) => {
-            const btn = e.target.closest('.btn-view-error')
+            const btn = e.target.closest('.btn-view-details')
             if (!btn || !container.contains(btn)) return
             
             e.preventDefault()
             try {
-                const errorJson = decodeURIComponent(btn.dataset.errors)
-                const parsedErrors = JSON.parse(errorJson)
+                const detailsJson = decodeURIComponent(btn.dataset.details)
+                let parsedDetails = {}
+                try {
+                    parsedDetails = JSON.parse(detailsJson)
+                } catch (err) {}
                 
-                Swal.fire({
-                    title: '<i class="bi bi-bug text-danger me-2"></i>Detalles de Errores',
-                    html: `<div style="text-align: left; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px;">
-                            <pre style="margin:0">${JSON.stringify(parsedErrors, null, 2)}</pre>
-                           </div>`,
-                    width: '700px',
-                    confirmButtonText: 'Cerrar',
-                    confirmButtonColor: '#6c757d'
-                })
+                // Si tiene el nuevo formato con logs de consola, mostramos la modal
+                if (parsedDetails.consoleLogs) {
+                    setHistoryConsoleLogs(parsedDetails.consoleLogs)
+                    setShowHistoryConsoleModal(true)
+                } else {
+                    // Fallback para logs antiguos que solo tenían el error
+                    Swal.fire({
+                        title: '<i class="bi bi-bug text-danger me-2"></i>Detalles de Errores',
+                        html: `<div style="text-align: left; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+                                <pre style="margin:0">${JSON.stringify(parsedDetails, null, 2)}</pre>
+                               </div>`,
+                        width: '700px',
+                        confirmButtonText: 'Cerrar',
+                        confirmButtonColor: '#6c757d'
+                    })
+                }
             } catch(err) { 
                 console.error(err) 
             }
@@ -95,7 +103,7 @@ export const Sincronizacion = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [historyData]) // Dependemos de historyData para re-atar eventos si la tabla cambia
+    }, [historyData])
 
     const handleSaveConfig = async (e) => {
         e.preventDefault()
@@ -131,12 +139,11 @@ export const Sincronizacion = ({ currentUser }) => {
             if (window.api) {
                 const res = await window.api.forceSyncNow()
                 
-                // Sin importar el resultado, recargamos el historial
                 setReloadKey(prev => prev + 1) 
 
                 if (res.success) {
                     if (res.errors > 0) {
-                        Swal.fire('Completado con advertencias', `Procesados: ${res.processed}. Registros rechazados: ${res.errors}. Revisa el historial para más detalles.`, 'warning')
+                        Swal.fire('Completado con advertencias', `Procesados: ${res.processed}. Registros rechazados/Errores: ${res.errors}. Revisa el historial para más detalles.`, 'warning')
                     } else {
                         Swal.fire('Sincronización Completada', `Enviados exitosamente a la nube.`, 'success')
                     }
@@ -165,11 +172,11 @@ export const Sincronizacion = ({ currentUser }) => {
         <div className="animation-fade-in">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h5 className="fw-bold mb-0"><i className="bi bi-cloud-sync me-2 text-primary"></i>Centro de Sincronización</h5>
+                    <h5 className="card-title p-0 m-0"><i className="bi-arrow-left-right me-2 text-primary"></i>Centro de Sincronización</h5>
                     <p className="text-muted small mb-0">Gestiona la comunicación entre tu sistema local y la plataforma web.</p>
                 </div>
                 <div>
-                    <Button variant="outline-secondary" className="me-2 shadow-sm" onClick={() => setShowConfigModal(true)} disabled={isSyncing}>
+                    <Button variant="secondary" className="me-2 shadow-sm" onClick={() => setShowConfigModal(true)} disabled={isSyncing}>
                         <i className="bi bi-gear-fill me-2"></i>Ajustes de Conexión
                     </Button>
                     <Button variant="primary" className="shadow-sm" onClick={handleForceSync} disabled={isSyncing}>
@@ -178,44 +185,35 @@ export const Sincronizacion = ({ currentUser }) => {
                 </div>
             </div>
 
-            <Card className="shadow-sm border-0">
-                <Card.Header className="bg-light fw-bold border-bottom">
-                    <i className="bi bi-clock-history me-2"></i>Historial de Sincronizaciones
-                </Card.Header>
-                <Card.Body className="p-0">
-                    {/* Contenedor con ref para delegar los clics del botón Ver JSON */}
-                    <div ref={tableContainerRef}> 
-                        <CustomDataTable 
-                            tableId="dt-sync-history"
-                            key={`sync-history-${reloadKey}`}
-                            data={historyData} // <-- Ahora pasamos el arreglo directamente
-                            columns={[
-                                { 
-                                    data: 'fecha', title: 'Fecha y Hora',
-                                    render: (data) => new Date(data).toLocaleString()
-                                },
-                                { 
-                                    data: 'mensaje', title: 'Resultado / Mensaje',
-                                    render: (data) => {
-                                        if (data.includes('Fallo')) return `<span class="text-danger fw-bold"><i class="bi bi-x-circle me-1"></i>${data}</span>`
-                                        if (data.includes('Errores devueltos: 0')) return `<span class="text-success fw-bold"><i class="bi bi-check-circle me-1"></i>${data}</span>`
-                                        return `<span class="text-warning fw-bold"><i class="bi bi-exclamation-triangle me-1"></i>${data}</span>`
-                                    }
-                                },
-                                {
-                                    data: 'detalles', title: 'Detalles (Errores)', orderable: false, className: 'text-center',
-                                    render: (data) => {
-                                        if (!data) return '<span class="text-muted small">Ninguno</span>'
-                                        const safeData = encodeURIComponent(data)
-                                        // Usamos data-errors para capturar el clic en el useEffect
-                                        return `<button class="btn btn-sm btn-outline-danger btn-view-error" data-errors="${safeData}"><i class="bi bi-bug me-1"></i>Ver Errores</button>`
-                                    }
+                <div ref={tableContainerRef}> 
+                    <CustomDataTable 
+                        tableId="dt-sync-history"
+                        key={`sync-history-${reloadKey}`}
+                        data={historyData}
+                        columns={[
+                            { 
+                                data: 'fecha', title: 'Fecha y Hora',
+                                render: (data) => new Date(data).toLocaleString()
+                            },
+                            { 
+                                data: 'mensaje', title: 'Resultado / Mensaje',
+                                render: (data) => {
+                                    if (data.includes('Fallo')) return `<i class="text-danger bi bi-x-circle me-1"></i>${data}`
+                                    if (data.includes('Errores: 0') || data.includes('Advertencias/Errores: 0')) return `<i class="text-success bi bi-check-circle me-1"></i>${data}`
+                                    return `<i class="text-warning bi bi-exclamation-triangle me-1"></i>${data}`
                                 }
-                            ]}
-                        />
-                    </div>
-                </Card.Body>
-            </Card>
+                            },
+                            {
+                                data: 'detalles', title: 'Detalles', orderable: false, className: 'text-center',
+                                render: (data) => {
+                                    if (!data) return '<span class="text-muted small">Ninguno</span>'
+                                    const safeData = encodeURIComponent(data)
+                                    return `<button class="btn btn-sm btn-secondary btn-view-details" data-details="${safeData}"><i class="bi bi-terminal me-1"></i>Ver detalles</button>`
+                                }
+                            }
+                        ]}
+                    />
+                </div>
 
             {/* MODAL DE CONFIGURACIÓN */}
             <Modal show={showConfigModal} onHide={() => setShowConfigModal(false)} centered>
@@ -245,7 +243,7 @@ export const Sincronizacion = ({ currentUser }) => {
                 </Form>
             </Modal>
 
-            {/* MODAL CONSOLA DE SINCRONIZACIÓN */}
+            {/* MODAL CONSOLA DE SINCRONIZACIÓN EN VIVO */}
             <Modal show={showConsoleModal} onHide={() => !isSyncing && setShowConsoleModal(false)} size="lg" centered backdrop={isSyncing ? 'static' : true} keyboard={!isSyncing}>
                 <Modal.Header className="bg-dark text-white border-secondary">
                     <Modal.Title className="fs-6 font-monospace">
@@ -268,6 +266,32 @@ export const Sincronizacion = ({ currentUser }) => {
                 <Modal.Footer className="bg-dark border-secondary">
                     <Button variant="outline-light" size="sm" onClick={() => setShowConsoleModal(false)} disabled={isSyncing}>
                         {isSyncing ? 'Trabajando...' : 'Cerrar Terminal'}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+
+            {/* MODAL CONSOLA DE HISTORIAL (ESTÁTICA) */}
+            <Modal show={showHistoryConsoleModal} onHide={() => setShowHistoryConsoleModal(false)} size="lg" centered>
+                <Modal.Header className="bg-dark text-white border-secondary">
+                    <Modal.Title className="fs-6 font-monospace">
+                        <i className="bi bi-clock-history me-2"></i>Historial de Consola
+                    </Modal.Title>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setShowHistoryConsoleModal(false)}></button>
+                </Modal.Header>
+                <Modal.Body className="bg-dark p-0">
+                    <div style={{ height: '350px', overflowY: 'auto', backgroundColor: '#1e1e1e', padding: '15px', fontFamily: 'monospace', fontSize: '13px' }}>
+                        {historyConsoleLogs.length === 0 && <div className="text-muted">No hay registros de consola guardados.</div>}
+                        {historyConsoleLogs.map((log, i) => (
+                            <div key={i} className={`mb-1 ${getColorClass(log.type)}`}>
+                                <span className="text-secondary me-2">[{log.time}]</span>
+                                {log.text}
+                            </div>
+                        ))}
+                    </div>
+                </Modal.Body>
+                <Modal.Footer className="bg-dark border-secondary">
+                    <Button variant="outline-light" size="sm" onClick={() => setShowHistoryConsoleModal(false)}>
+                        Cerrar
                     </Button>
                 </Modal.Footer>
             </Modal>
