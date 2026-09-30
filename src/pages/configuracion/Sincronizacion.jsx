@@ -245,7 +245,7 @@ export const Sincronizacion = ({ currentUser }) => {
 
             {/* MODAL CONSOLA DE SINCRONIZACIÓN EN VIVO */}
             <Modal show={showConsoleModal} onHide={() => !isSyncing && setShowConsoleModal(false)} size="lg" centered backdrop={isSyncing ? 'static' : true} keyboard={!isSyncing}>
-                <Modal.Header className="bg-dark text-white border-secondary">
+                <Modal.Header className="bg-light border-secondary">
                     <Modal.Title className="fs-6 font-monospace">
                         <i className="bi bi-terminal me-2"></i>Consola de Sincronización
                     </Modal.Title>
@@ -263,8 +263,8 @@ export const Sincronizacion = ({ currentUser }) => {
                         <div ref={consoleEndRef} />
                     </div>
                 </Modal.Body>
-                <Modal.Footer className="bg-dark border-secondary">
-                    <Button variant="outline-light" size="sm" onClick={() => setShowConsoleModal(false)} disabled={isSyncing}>
+                <Modal.Footer className="bg-light border-secondary">
+                    <Button variant="secondary" size="sm" onClick={() => setShowConsoleModal(false)} disabled={isSyncing}>
                         {isSyncing ? 'Trabajando...' : 'Cerrar Terminal'}
                     </Button>
                 </Modal.Footer>
@@ -272,7 +272,7 @@ export const Sincronizacion = ({ currentUser }) => {
 
             {/* MODAL CONSOLA DE HISTORIAL (ESTÁTICA) */}
             <Modal show={showHistoryConsoleModal} onHide={() => setShowHistoryConsoleModal(false)} size="lg" centered>
-                <Modal.Header className="bg-dark text-white border-secondary">
+                <Modal.Header className="bg-light border-secondary">
                     <Modal.Title className="fs-6 font-monospace">
                         <i className="bi bi-clock-history me-2"></i>Historial de Consola
                     </Modal.Title>
@@ -289,8 +289,8 @@ export const Sincronizacion = ({ currentUser }) => {
                         ))}
                     </div>
                 </Modal.Body>
-                <Modal.Footer className="bg-dark border-secondary">
-                    <Button variant="outline-light" size="sm" onClick={() => setShowHistoryConsoleModal(false)}>
+                <Modal.Footer className="bg-light border-secondary">
+                    <Button variant="secondary" size="sm" onClick={() => setShowHistoryConsoleModal(false)}>
                         Cerrar
                     </Button>
                 </Modal.Footer>

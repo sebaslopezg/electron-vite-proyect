@@ -230,7 +230,7 @@ export const Productos = ({ currentUser }) => {
   }
 
   const handleDelete = async (id) => {
-    if (isReadOnly) return;
+    if (isReadOnly) return
     const result = await Swal.fire({
       title: "¿Seguro que desea eliminar?",
       showDenyButton: true,
@@ -257,9 +257,9 @@ export const Productos = ({ currentUser }) => {
     { 
       data: 'sku', title: 'SKU', 
       render: (data, type, row) => {
-        if (!data) return '-';
+        if (!data) return '-'
         const safeData = encodeURIComponent(JSON.stringify(row));
-        return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${data.toUpperCase()}</a>`;
+        return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${data.toUpperCase()}</a>`
       }
     },
     { 
@@ -286,8 +286,8 @@ export const Productos = ({ currentUser }) => {
       data: null, title: 'Acciones', orderable: false, className: 'text-center',
       render: function (data, type, row) {
         const safeData = encodeURIComponent(JSON.stringify(row))
-        const canEditAction = !isReadOnly && hasPermission('productos_editar');
-        const canDeleteAction = !isReadOnly && hasPermission('productos_eliminar');
+        const canEditAction = !isReadOnly && hasPermission('productos_editar')
+        const canDeleteAction = !isReadOnly && hasPermission('productos_eliminar')
 
         let menuItems = `
           <li>
@@ -295,7 +295,7 @@ export const Productos = ({ currentUser }) => {
               <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
             </a>
           </li>
-        `;
+        `
 
         if (canEditAction) {
           menuItems += `
@@ -304,18 +304,18 @@ export const Productos = ({ currentUser }) => {
                 <i class="bi bi-pencil me-2 text-secondary"></i> Editar
               </a>
             </li>
-          `;
+          `
         }
 
         if (canDeleteAction) {
-          if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+          if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`
           menuItems += `
             <li>
               <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
                 <i class="bi bi-trash3 me-2"></i> Eliminar
               </a>
             </li>
-          `;
+          `
         }
 
         return `
@@ -330,55 +330,43 @@ export const Productos = ({ currentUser }) => {
         `
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [appConfig, activeUser, currentUser, isReadOnly])
 
   return <>
     <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
         
-        {isLoading && (
-            <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
-                <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
-                    <span className="visually-hidden">Cargando...</span>
-                </div>
-            </div>
-        )}
-
-        <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
-            
-            {/* Aviso visual en caso de que esté bloqueado */}
-            {isReadOnly && (
-                <div className="alert alert-warning border-warning-subtle shadow-sm py-2 d-flex align-items-center mb-3">
-                    <i className="bi bi-lock-fill fs-4 me-3 text-warning"></i>
-                    <div>
-                        <h6 className="mb-0 fw-bold">Modo de Solo Lectura</h6>
-                        <span className="small">La gestión de productos está configurada desde la plataforma web. No es posible crear, editar ni eliminar productos localmente.</span>
-                    </div>
-                </div>
-            )}
-
-            {canCreate && (
-              <div className="mb-3">
-                  <button className='btn btn-primary' onClick={() => {
-                    setEditingId(null)
-                    cleanForm()
-                    handleShow()
-                  }}>
-                    <i className="bi bi-plus-circle me-2"></i>Nuevo Producto
-                  </button>
-              </div>
-            )}
-
-            <div ref={tableContainerRef} className="w-100" style={{ overflow: 'visible' }}>
-              <CustomDataTable
-                tableId="dt-productos-catalogo"
-                key={`productos-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}-${isReadOnly}`}
-                reloadKey={reloadTable}
-                ajaxData={(params) => productosService.getProductosPaginados(params)}
-                columns={dataColumns}
-              />
+      {isLoading && (
+        <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white" style={{ zIndex: 10 }}>
+            <div className="spinner-border text-primary" style={{ width: '3rem', height: '3rem' }} role="status">
+                <span className="visually-hidden">Cargando...</span>
             </div>
         </div>
+      )}
+
+      <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
+
+        {canCreate && (
+          <div className="mb-3">
+              <button className='btn btn-primary' onClick={() => {
+                setEditingId(null)
+                cleanForm()
+                handleShow()
+              }}>
+                <i className="bi bi-plus-circle me-2"></i>Nuevo Producto
+              </button>
+          </div>
+        )}
+
+        <div ref={tableContainerRef} className="w-100" style={{ overflow: 'visible' }}>
+          <CustomDataTable
+            tableId="dt-productos-catalogo"
+            key={`productos-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}-${isReadOnly}`}
+            reloadKey={reloadTable}
+            ajaxData={(params) => productosService.getProductosPaginados(params)}
+            columns={dataColumns}
+          />
+        </div>
+      </div>
     </div>
 
     <ProductModal 
@@ -394,10 +382,10 @@ export const Productos = ({ currentUser }) => {
     />
 
     <ProductoDetalles 
-        show={showDetalles}
-        handleClose={handleCloseDetalles}
-        productoData={prodSel}
-        appConfig={appConfig}
+      show={showDetalles}
+      handleClose={handleCloseDetalles}
+      productoData={prodSel}
+      appConfig={appConfig}
     />
   </>
 }

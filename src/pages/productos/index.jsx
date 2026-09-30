@@ -72,7 +72,7 @@ export const ProductosIndex = ({ currentUser }) => {
 
     return <>
         <div className="pagetitle">
-            <h1><i className="bi bi-box-seam me-2"></i>Productos y Servicios</h1>
+            <h1><i className="bi bi-box-seam me-2"></i>Productos</h1>
         </div>
         <div className="card shadow-sm border-0">
             <div className="card-body">

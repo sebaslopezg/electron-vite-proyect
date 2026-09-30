@@ -20,9 +20,11 @@ const saveConfigValue = (key, value) => {
     }
 }
 
-// Mapeo inverso para bloquear módulos de la Interfaz Gráfica
 const SYNC_MAP = {
     'terceros': 'terceros',
+    'categoria': 'productos',
+    'subcategoria': 'productos',
+    'etiqueta': 'productos',
     'producto': 'productos',
     'inventario': 'inventario',
     'ventasMaestro': 'ventas',
@@ -127,21 +129,18 @@ export const registerSyncHandlers = () => {
             // AUTO-REPARACIÓN AVANZADA DE BASE DE DATOS
             // ==============================================
             try {
-                // CORRECCIÓN: Se eliminó 'inventario' de esta lista para no alterar su estructura
-                const tablesWithDates = ['terceros', 'producto', 'ventasMaestro', 'ventasDetalle', 'nota', 'nota_item', 'almacen_conf', 'metodos_pago']
+                const tablesWithDates = ['terceros', 'categoria', 'subcategoria', 'etiqueta', 'producto', 'ventasMaestro', 'ventasDetalle', 'nota', 'nota_item', 'almacen_conf', 'metodos_pago']
                 for (const tbl of tablesWithDates) {
                     try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN date_modify TEXT;`); } catch(e){}
-                    // CORRECCIÓN: Sin DEFAULT CURRENT_TIMESTAMP
                     try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN date_created TEXT;`); } catch(e){}
                     
-                    // Rellenar datos nulos
                     try { db.prepare(`UPDATE ${tbl} SET date_created = datetime('now', 'localtime') WHERE date_created IS NULL`).run(); } catch(e){}
                     try { db.prepare(`UPDATE ${tbl} SET date_modify = date_created WHERE date_modify IS NULL`).run(); } catch(e){}
                     
-                    // Reparación de Desfases de Zona Horaria
                     try { db.prepare(`UPDATE ${tbl} SET date_modify = datetime('now', 'localtime') WHERE date_modify > datetime('now', 'localtime')`).run(); } catch(e){}
                 }
                 
+                try { db.prepare(`UPDATE inventario SET date_created = fecha WHERE date_created IS NULL`).run(); } catch(e){}
                 try { db.prepare("UPDATE sync_log SET last_sync_time = datetime('now', 'localtime') WHERE last_sync_time > datetime('now', 'localtime')").run(); } catch(e){}
                 
                 sendProgress("Escaneo de integridad de esquema y fechas completado.", "success");
@@ -164,7 +163,14 @@ export const registerSyncHandlers = () => {
 
             const modulesToSync = [
                 { local: 'terceros', web: 'terceros' },
+                
+                // --- Grupo Catálogo ---
+                { local: 'categoria', web: 'categorias', parentRule: 'productos' },
+                { local: 'subcategoria', web: 'subcategorias', parentRule: 'productos' },
+                { local: 'etiqueta', web: 'etiquetas', parentRule: 'productos' },
                 { local: 'producto', web: 'productos' },
+                
+                // --- Grupo Kárdex ---
                 { local: 'inventario', web: 'inventario' },
                 
                 // --- Grupo Ventas ---
@@ -227,8 +233,15 @@ export const registerSyncHandlers = () => {
                         db.transaction(() => {
                             for (const row of records) {
                                 let inventarioData = null
+                                let tagsData = null
+                                let subcatCatData = null
+                                let etiquetaCatData = null
                                 
+                                // === INTERCEPTOR PULL: WEB -> ESCRITORIO ===
                                 if (localModulo === 'producto') {
+                                    if (row.categoriaId !== undefined) row.categoria_id = row.categoriaId;
+                                    if (row.subcategoriasIds !== undefined) row.subcategorias_ids = row.subcategoriasIds;
+
                                     inventarioData = {
                                         producto_id: row.id,
                                         stock: row.stock !== undefined ? row.stock : 0,
@@ -236,10 +249,64 @@ export const registerSyncHandlers = () => {
                                         max_stock: row.max_stock !== undefined ? row.max_stock : 100
                                     }
                                     if (row.impuesto !== undefined) row.iva = row.impuesto
-                                    if (row.estado !== undefined) row.status = row.estado
+                                    if (row.estado !== undefined) row.status = Number(row.estado) 
                                     if (!row.categoria_id) row.categoria_id = 'general'
                                     if (!row.tipo) row.tipo = 'producto'
+                                    
+                                    if (row.subcategorias_ids && Array.isArray(row.subcategorias_ids)) {
+                                        row.subcategorias_ids_json = JSON.stringify(row.subcategorias_ids)
+                                    }
+                                    if (row.etiquetas && Array.isArray(row.etiquetas)) {
+                                        tagsData = row.etiquetas 
+                                    }
+
+                                    delete row.stock;
+                                    delete row.min_stock;
+                                    delete row.max_stock;
+
+                                } else if (localModulo === 'subcategoria') {
+                                    if (row.categoriasIds !== undefined) row.categorias_ids = row.categoriasIds;
+                                    
+                                    if (row.estado !== undefined) row.status = Number(row.estado); 
+                                    
+                                    if (row.categorias_ids && Array.isArray(row.categorias_ids)) {
+                                        subcatCatData = row.categorias_ids
+                                        row.categoria_id = row.categorias_ids.length > 0 ? row.categorias_ids[0] : 'general'
+                                    } else {
+                                        row.categoria_id = 'general'
+                                    }
+                                } else if (localModulo === 'etiqueta') {
+                                    if (row.estado !== undefined) row.status = Number(row.estado); 
+                                    if (row.categorias && Array.isArray(row.categorias)) {
+                                        etiquetaCatData = row.categorias
+                                    }
+                                } else if (localModulo === 'categoria') {
+                                    if (row.estado !== undefined) row.status = Number(row.estado); 
+                                } else if (localModulo === 'terceros' || localModulo === 'metodos_pago') {
+                                    if (row.estado !== undefined) row.status = Number(row.estado); 
                                 }
+
+                                // -------------------------------------------------------------
+                                // ELIMINACIÓN FÍSICA (HARD DELETE) SI EL SERVIDOR ENVÍA ESTADO 0 o 2
+                                // -------------------------------------------------------------
+                                const isDeleted = row.status === 0 || (localModulo === 'producto' && row.status === 2);
+                                
+                                if (isDeleted) {
+                                    // 1. Limpiar tablas pivote para no dejar referencias huérfanas
+                                    if (localModulo === 'producto') {
+                                        db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id);
+                                        db.prepare(`DELETE FROM inventario_saldos WHERE producto_id = ?`).run(row.id);
+                                    } else if (localModulo === 'subcategoria') {
+                                        db.prepare(`DELETE FROM subcategoria_categoria WHERE subcategoria_id = ?`).run(row.id);
+                                    } else if (localModulo === 'etiqueta') {
+                                        db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(row.id);
+                                    }
+                                    
+                                    // 2. Eliminar de la tabla maestra físicamente
+                                    db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id);
+                                    continue; // Saltamos el UPSERT
+                                }
+                                // -------------------------------------------------------------
 
                                 const cleanRow = {}
                                 for (const key of Object.keys(row)) {
@@ -258,6 +325,22 @@ export const registerSyncHandlers = () => {
                                     const cols = keys.join(', ')
                                     const placeholders = keys.map(k => `@${k}`).join(', ')
                                     db.prepare(`INSERT INTO ${localModulo} (${cols}) VALUES (${placeholders})`).run(cleanRow)
+                                }
+
+                                if (tagsData) {
+                                    db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id)
+                                    const insertTag = db.prepare(`INSERT INTO producto_etiqueta (producto_id, etiqueta_id) VALUES (?, ?)`)
+                                    for (const tagId of tagsData) insertTag.run(row.id, tagId)
+                                }
+                                if (subcatCatData) {
+                                    db.prepare(`DELETE FROM subcategoria_categoria WHERE subcategoria_id = ?`).run(row.id)
+                                    const insertSubcatCat = db.prepare(`INSERT INTO subcategoria_categoria (subcategoria_id, categoria_id) VALUES (?, ?)`)
+                                    for (const catId of subcatCatData) insertSubcatCat.run(row.id, catId)
+                                }
+                                if (etiquetaCatData) {
+                                    db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(row.id)
+                                    const insertEtiqCat = db.prepare(`INSERT INTO etiqueta_categoria (etiqueta_id, categoria_id) VALUES (?, ?)`)
+                                    for (const catId of etiquetaCatData) insertEtiqCat.run(row.id, catId)
                                 }
 
                                 if (inventarioData) {
@@ -310,13 +393,14 @@ export const registerSyncHandlers = () => {
                     
                     let timeColumn = 'date_modify'
                     if (localModulo === 'inventario') {
-                        timeColumn = 'fecha'; // CORRECCIÓN: inventario es inmutable, usamos la fecha nativa del movimiento
+                        timeColumn = 'fecha'; 
                     } else {
                          const tableInfo = db.pragma(`table_info(${localModulo})`)
                          if (!tableInfo.some(col => col.name === 'date_modify')) timeColumn = 'date_created'
                     }
 
                     let query = `SELECT * FROM ${localModulo} WHERE ${timeColumn} > ? ORDER BY ${timeColumn} ASC LIMIT ? OFFSET ?`
+                    
                     if (localModulo === 'producto') {
                         query = `
                             SELECT p.*, IFNULL(i.stock, 0) as stock, IFNULL(i.min_stock, 5) as min_stock, IFNULL(i.max_stock, 100) as max_stock 
@@ -353,11 +437,31 @@ export const registerSyncHandlers = () => {
                         else if (webModulo === 'productos') {
                             if (newRow.status !== undefined) newRow.estado = newRow.status
                             if (newRow.iva !== undefined) newRow.impuesto = newRow.iva
+                            
+                            const tags = db.prepare("SELECT etiqueta_id FROM producto_etiqueta WHERE producto_id = ?").all(newRow.id)
+                            newRow.etiquetas = tags.map(t => t.etiqueta_id)
+
+                            if (newRow.subcategorias_ids_json) {
+                                try { newRow.subcategorias_ids = JSON.parse(newRow.subcategorias_ids_json) } catch(e){ newRow.subcategorias_ids = [] }
+                            } else {
+                                newRow.subcategorias_ids = []
+                            }
+                            delete newRow.subcategorias_ids_json
+                        }
+                        else if (webModulo === 'subcategorias') {
+                            if (newRow.status !== undefined) newRow.estado = newRow.status
+                            const cats = db.prepare("SELECT categoria_id FROM subcategoria_categoria WHERE subcategoria_id = ?").all(newRow.id)
+                            newRow.categorias_ids = cats.map(c => c.categoria_id)
+                        }
+                        else if (webModulo === 'etiquetas') {
+                            if (newRow.status !== undefined) newRow.estado = newRow.status
+                            const cats = db.prepare("SELECT categoria_id FROM etiqueta_categoria WHERE etiqueta_id = ?").all(newRow.id)
+                            newRow.categorias = cats.map(c => c.categoria_id)
                         }
                         else if (webModulo === 'inventario') {
-                            newRow.date_created = newRow.fecha // Mapeamos la fecha nativa al esquema que exige la web
+                            newRow.date_created = newRow.fecha 
                         }
-                        else if (webModulo === 'terceros' || webModulo === 'metodosPago' || webModulo === 'notasMaestro' || webModulo === 'notasDetalle') {
+                        else if (webModulo === 'terceros' || webModulo === 'metodosPago' || webModulo === 'notasMaestro' || webModulo === 'notasDetalle' || webModulo === 'categorias') {
                             if (newRow.status !== undefined) newRow.estado = newRow.status
                         }
 
