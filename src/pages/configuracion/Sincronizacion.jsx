@@ -80,12 +80,10 @@ export const Sincronizacion = ({ currentUser }) => {
                     parsedDetails = JSON.parse(detailsJson)
                 } catch (err) {}
                 
-                // Si tiene el nuevo formato con logs de consola, mostramos la modal
                 if (parsedDetails.consoleLogs) {
                     setHistoryConsoleLogs(parsedDetails.consoleLogs)
                     setShowHistoryConsoleModal(true)
                 } else {
-                    // Fallback para logs antiguos que solo tenían el error
                     Swal.fire({
                         title: '<i class="bi bi-bug text-danger me-2"></i>Detalles de Errores',
                         html: `<div style="text-align: left; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px;">
@@ -126,7 +124,7 @@ export const Sincronizacion = ({ currentUser }) => {
         }
     }
 
-    const handleForceSync = async () => {
+    const executeSync = async (isFullPull) => {
         if (!syncToken || !syncUrl) {
             return Swal.fire('Atención', 'Debes configurar la URL y el Token de Sincronización primero.', 'warning')
         }
@@ -137,7 +135,8 @@ export const Sincronizacion = ({ currentUser }) => {
 
         try {
             if (window.api) {
-                const res = await window.api.forceSyncNow()
+                // Pasamos la variable isFullPull a nuestro motor de IPC
+                const res = await window.api.forceSyncNow({ isFullPull })
                 
                 setReloadKey(prev => prev + 1) 
 
@@ -145,10 +144,10 @@ export const Sincronizacion = ({ currentUser }) => {
                     if (res.errors > 0) {
                         Swal.fire('Completado con advertencias', `Procesados: ${res.processed}. Registros rechazados/Errores: ${res.errors}. Revisa el historial para más detalles.`, 'warning')
                     } else {
-                        Swal.fire('Sincronización Completada', `Enviados exitosamente a la nube.`, 'success')
+                        Swal.fire('Sincronización Completada', `Proceso ejecutado exitosamente.`, 'success')
                     }
                 } else {
-                    Swal.fire('Error', res.error, 'error')
+                    Swal.fire('Error Crítico', res.error, 'error')
                 }
             }
         } catch (error) {
@@ -157,6 +156,29 @@ export const Sincronizacion = ({ currentUser }) => {
         } finally {
             setIsSyncing(false)
         }
+    }
+
+    // Botón de Sync Normal (Incremental)
+    const handleForceSync = () => {
+        executeSync(false);
+    }
+
+    // Botón de Sync Total (Reset)
+    const handleFullSync = () => {
+        Swal.fire({
+            title: 'Sincronización Completa',
+            text: 'Esta opción borrará el registro interno de última sincronización y forzará la recarga total del Catálogo e Inventario desde la Nube. Usar solo si notas descuadres.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, forzar sincronización',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                executeSync(true);
+            }
+        });
     }
 
     const getColorClass = (type) => {
@@ -176,11 +198,14 @@ export const Sincronizacion = ({ currentUser }) => {
                     <p className="text-muted small mb-0">Gestiona la comunicación entre tu sistema local y la plataforma web.</p>
                 </div>
                 <div>
+                    <Button variant="outline-danger" className="me-2 shadow-sm" onClick={handleFullSync} disabled={isSyncing}>
+                        <i className="bi bi-arrow-clockwise me-2"></i>Sync. Completa
+                    </Button>
                     <Button variant="secondary" className="me-2 shadow-sm" onClick={() => setShowConfigModal(true)} disabled={isSyncing}>
-                        <i className="bi bi-gear-fill me-2"></i>Ajustes de Conexión
+                        <i className="bi bi-gear-fill me-2"></i>Ajustes
                     </Button>
                     <Button variant="primary" className="shadow-sm" onClick={handleForceSync} disabled={isSyncing}>
-                        {isSyncing ? <><span className="spinner-border spinner-border-sm me-2" />Sincronizando...</> : <><i className="bi bi-cloud-arrow-up-fill me-2"></i>Forzar Sincronización</>}
+                        {isSyncing ? <><span className="spinner-border spinner-border-sm me-2" />Sincronizando...</> : <><i className="bi bi-cloud-arrow-up-fill me-2"></i>Sincronizar</>}
                     </Button>
                 </div>
             </div>

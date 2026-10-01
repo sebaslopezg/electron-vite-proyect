@@ -46,6 +46,11 @@ export const Subcategorias = ({ currentUser }) => {
     const [editingId, setEditingId] = useState(null)
     const [subcatSel, setSubcatSel] = useState(null)
 
+    // === REGLAS DE SINCRONIZACIÓN WEB ===
+    // En SYNC_MAP subcategoria mapea a la regla de 'productos'
+    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
+    const isReadOnly = syncRule === 'web_to_desktop';
+
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser
         if (!u) return false
@@ -53,9 +58,10 @@ export const Subcategorias = ({ currentUser }) => {
         return u.permisos?.includes(permissionKey)
     }
 
-    const canCreate = hasPermission('subcategorias_crear')
-    const canEditAction = hasPermission('subcategorias_editar')
-    const canDeleteAction = hasPermission('subcategorias_eliminar')
+    // Permisos condicionados a la regla de Sincronización
+    const canCreate = !isReadOnly && hasPermission('subcategorias_crear')
+    const canEditAction = !isReadOnly && hasPermission('subcategorias_editar')
+    const canDeleteAction = !isReadOnly && hasPermission('subcategorias_eliminar')
 
     const load = useCallback(async () => {
         const [data, cats] = await Promise.all([
@@ -94,6 +100,7 @@ export const Subcategorias = ({ currentUser }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (isReadOnly) return; // Protección extra
         
         let result
         const payload = { ...form, sku_prefix: (form.sku_prefix || '').toUpperCase() }
@@ -116,6 +123,8 @@ export const Subcategorias = ({ currentUser }) => {
     }
 
     const handleDelete = async (id) => {
+        if (isReadOnly) return; // Protección extra
+
         const result = await Swal.fire({
             title: "¿Eliminar Subcategoría?",
             text: "Los productos no se borrarán, pero perderán esta clasificación.",
@@ -145,7 +154,7 @@ export const Subcategorias = ({ currentUser }) => {
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
-            if (editBtn) {
+            if (editBtn && !isReadOnly) { // Bloqueo si es de solo lectura
                 e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -176,7 +185,7 @@ export const Subcategorias = ({ currentUser }) => {
             }
             
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn) {
+            if (delBtn && !isReadOnly) { // Bloqueo si es de solo lectura
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }
@@ -184,7 +193,7 @@ export const Subcategorias = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [isLoading])
+    }, [isLoading, isReadOnly])
 
     const dataColumns = useMemo(() => [
         { data: 'nombre', title: 'Subcategoría' },
@@ -257,7 +266,7 @@ export const Subcategorias = ({ currentUser }) => {
                 `
             }
         }
-    ], [activeUser, currentUser])
+    ], [activeUser, currentUser, isReadOnly, canEditAction, canDeleteAction])
 
     return <>
         <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>

@@ -64,8 +64,8 @@ export const Productos = ({ currentUser }) => {
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
   // === REGLAS DE SINCRONIZACIÓN WEB ===
-  const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
-  const isReadOnly = syncRule === 'web_to_desktop';
+  const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web'
+  const isReadOnly = syncRule === 'web_to_desktop'
 
   const hasPermission = (permissionKey) => {
     const u = activeUser || currentUser

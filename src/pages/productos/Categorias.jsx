@@ -40,6 +40,11 @@ export const Categorias = ({ currentUser }) => {
     const [catSel, setCatSel] = useState(null)
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
+    // === REGLAS DE SINCRONIZACIÓN WEB ===
+    // En SYNC_MAP categoria mapea a la regla de 'productos'
+    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
+    const isReadOnly = syncRule === 'web_to_desktop';
+
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser;
         if (!u) return false;
@@ -47,9 +52,10 @@ export const Categorias = ({ currentUser }) => {
         return u.permisos?.includes(permissionKey);
     }
 
-    const canCreate = hasPermission('categorias_crear');
-    const canEditAction = hasPermission('categorias_editar');
-    const canDeleteAction = hasPermission('categorias_eliminar');
+    // Permisos condicionados a la regla de Sincronización
+    const canCreate = !isReadOnly && hasPermission('categorias_crear');
+    const canEditAction = !isReadOnly && hasPermission('categorias_editar');
+    const canDeleteAction = !isReadOnly && hasPermission('categorias_eliminar');
 
     const loadConfig = useCallback(async () => {
         const configData = await productosService.getConfiguracion()
@@ -104,6 +110,7 @@ export const Categorias = ({ currentUser }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (isReadOnly) return; // Protección extra
         
         let result;
         const payload = { ...form, sku_prefix: form.sku_prefix.toUpperCase() }
@@ -126,6 +133,8 @@ export const Categorias = ({ currentUser }) => {
     }
 
     const handleDelete = async (id) => {
+        if (isReadOnly) return; // Protección extra
+
         if (id === 'general') {
             return Toast.fire({ icon: 'error', title: 'La categoría General no se puede eliminar.' })
         }
@@ -159,7 +168,7 @@ export const Categorias = ({ currentUser }) => {
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
-            if (editBtn) {
+            if (editBtn && !isReadOnly) { // Solo si no es read-only
                 e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -188,7 +197,7 @@ export const Categorias = ({ currentUser }) => {
             }
 
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn && !delBtn.classList.contains('disabled')) {
+            if (delBtn && !delBtn.classList.contains('disabled') && !isReadOnly) { // Solo si no es read-only
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }
@@ -196,7 +205,7 @@ export const Categorias = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [isLoading])
+    }, [isLoading, isReadOnly])
 
     const dataColumns = useMemo(() => [
         { 
@@ -276,7 +285,7 @@ export const Categorias = ({ currentUser }) => {
                 `
             }
         }
-    ], [appConfig, activeUser, currentUser])
+    ], [appConfig, activeUser, currentUser, isReadOnly, canEditAction, canDeleteAction])
 
     return <>
         <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>

@@ -34,6 +34,11 @@ export const Etiquetas = ({ currentUser }) => {
     const [editingId, setEditingId] = useState(null)
     const [tagSel, setTagSel] = useState(null)
 
+    // === REGLAS DE SINCRONIZACIÓN WEB ===
+    // En SYNC_MAP etiqueta mapea a la regla de 'productos'
+    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
+    const isReadOnly = syncRule === 'web_to_desktop';
+
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser
         if (!u) return false
@@ -41,9 +46,10 @@ export const Etiquetas = ({ currentUser }) => {
         return u.permisos?.includes(permissionKey)
     }
 
-    const canCreate = hasPermission('etiquetas_crear')
-    const canEditAction = hasPermission('etiquetas_editar')
-    const canDeleteAction = hasPermission('etiquetas_eliminar')
+    // Permisos condicionados a la regla de Sincronización
+    const canCreate = !isReadOnly && hasPermission('etiquetas_crear')
+    const canEditAction = !isReadOnly && hasPermission('etiquetas_editar')
+    const canDeleteAction = !isReadOnly && hasPermission('etiquetas_eliminar')
 
     const loadData = useCallback(async () => {
         const [tagsData, catsData] = await Promise.all([
@@ -84,6 +90,7 @@ export const Etiquetas = ({ currentUser }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (isReadOnly) return; // Protección extra
         
         let result
         if (editingId) {
@@ -104,6 +111,8 @@ export const Etiquetas = ({ currentUser }) => {
     }
 
     const handleDelete = async (id) => {
+        if (isReadOnly) return; // Protección extra
+
         const result = await Swal.fire({
             title: "¿Eliminar Etiqueta?",
             text: "Se borrará de todos los productos que la tengan asignada.",
@@ -133,7 +142,7 @@ export const Etiquetas = ({ currentUser }) => {
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
-            if (editBtn) {
+            if (editBtn && !isReadOnly) { // Bloqueo si es de solo lectura
                 e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -164,7 +173,7 @@ export const Etiquetas = ({ currentUser }) => {
             }
 
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn) {
+            if (delBtn && !isReadOnly) { // Bloqueo si es de solo lectura
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }
@@ -172,7 +181,7 @@ export const Etiquetas = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [isLoading])
+    }, [isLoading, isReadOnly])
 
     const getTextColor = (hexColor) => {
         if (!hexColor) return '#ffffff';
@@ -263,7 +272,7 @@ export const Etiquetas = ({ currentUser }) => {
                 `
             }
         }
-    ], [activeUser, currentUser])
+    ], [activeUser, currentUser, isReadOnly, canEditAction, canDeleteAction])
 
     return <>
         <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>

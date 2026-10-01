@@ -20,6 +20,7 @@ const saveConfigValue = (key, value) => {
     }
 }
 
+// Mapeo inverso para bloquear módulos de la Interfaz Gráfica
 const SYNC_MAP = {
     'terceros': 'terceros',
     'categoria': 'productos',
@@ -110,7 +111,7 @@ export const registerSyncHandlers = () => {
         }
     })
 
-    ipcMain.handle('force-sync-now', async (event) => {
+    ipcMain.handle('force-sync-now', async (event, { isFullPull = true } = {}) => {
         if (!checkPermission("configuracion_general")) return { success: false, error: 'No autorizado' }
         
         let accumulatedLogs = []
@@ -122,8 +123,28 @@ export const registerSyncHandlers = () => {
         }
 
         try {
-            sendProgress("Iniciando proceso de sincronización...", "info")
-            logger.info('SYNC', "Iniciando proceso de sincronización manual...")
+            sendProgress(isFullPull ? "Iniciando proceso de FULL SYNC..." : "Iniciando proceso de sincronización...", "info")
+            logger.info('SYNC', isFullPull ? "Iniciando proceso de sincronización completa (FULL PULL)..." : "Iniciando proceso de sincronización manual...")
+
+            // ==============================================
+            // RESET DE FECHAS (FULL PULL FORZADO SI APLICA)
+            // ==============================================
+            if (isFullPull) {
+                try {
+                    db.prepare(`UPDATE sync_log SET last_sync_time = '1970-01-01 00:00:00' WHERE modulo IN ('categoria', 'subcategoria', 'etiqueta', 'producto', 'inventario')`).run();
+                    
+                    const catalogTables = ['categoria', 'subcategoria', 'etiqueta', 'producto']
+                    for (const t of catalogTables) {
+                        try { db.exec(`UPDATE ${t} SET date_modify = datetime('now', 'localtime')`); } catch(e){}
+                    }
+                    
+                    try { db.exec(`DELETE FROM inventario_saldos`); } catch(e){}
+                    
+                    sendProgress("Sincronización forzosa. Limpiando caché de fechas del Catálogo...", "warning");
+                } catch (e) {
+                    logger.warn('SYNC', 'No se pudo forzar el Full PULL', e)
+                }
+            }
 
             // ==============================================
             // AUTO-REPARACIÓN AVANZADA DE BASE DE DATOS
@@ -140,6 +161,11 @@ export const registerSyncHandlers = () => {
                     try { db.prepare(`UPDATE ${tbl} SET date_modify = datetime('now', 'localtime') WHERE date_modify > datetime('now', 'localtime')`).run(); } catch(e){}
                 }
                 
+                try { db.exec(`ALTER TABLE producto ADD COLUMN categoria_nombre TEXT;`); } catch(e){}
+                try { db.exec(`ALTER TABLE categoria ADD COLUMN cant_productos INTEGER DEFAULT 0;`); } catch(e){}
+                try { db.exec(`ALTER TABLE subcategoria ADD COLUMN categoria_nombre TEXT;`); } catch(e){}
+                try { db.exec(`ALTER TABLE subcategoria ADD COLUMN cant_productos INTEGER DEFAULT 0;`); } catch(e){}
+
                 try { db.prepare(`UPDATE inventario SET date_created = fecha WHERE date_created IS NULL`).run(); } catch(e){}
                 try { db.prepare("UPDATE sync_log SET last_sync_time = datetime('now', 'localtime') WHERE last_sync_time > datetime('now', 'localtime')").run(); } catch(e){}
                 
@@ -201,7 +227,9 @@ export const registerSyncHandlers = () => {
                 }
 
                 let lastSyncRow = db.prepare("SELECT last_sync_time FROM sync_log WHERE modulo = ?").get(localModulo)
-                let lastSyncTime = lastSyncRow ? lastSyncRow.last_sync_time : '1970-01-01 00:00:00'
+                let lastSyncTime = (isFullPull && ['categoria', 'subcategoria', 'etiqueta', 'producto', 'inventario'].includes(localModulo)) 
+                                    ? '1970-01-01 00:00:00' 
+                                    : (lastSyncRow ? lastSyncRow.last_sync_time : '1970-01-01 00:00:00');
 
                 // ==============================================
                 // REGLA: LA WEB MANDA (DESCARGA / PULL)
@@ -231,16 +259,19 @@ export const registerSyncHandlers = () => {
                         const validColumns = db.pragma(`table_info(${localModulo})`).map(c => c.name)
                         
                         db.transaction(() => {
+                            db.exec('PRAGMA foreign_keys = OFF;');
+
                             for (const row of records) {
                                 let inventarioData = null
                                 let tagsData = null
                                 let subcatCatData = null
                                 let etiquetaCatData = null
                                 
+                                const rowStatus = row.estado !== undefined ? Number(row.estado) : (row.status !== undefined ? Number(row.status) : 1);
+                                
                                 // === INTERCEPTOR PULL: WEB -> ESCRITORIO ===
                                 if (localModulo === 'producto') {
                                     if (row.categoriaId !== undefined) row.categoria_id = row.categoriaId;
-                                    if (row.subcategoriasIds !== undefined) row.subcategorias_ids = row.subcategoriasIds;
 
                                     inventarioData = {
                                         producto_id: row.id,
@@ -249,15 +280,25 @@ export const registerSyncHandlers = () => {
                                         max_stock: row.max_stock !== undefined ? row.max_stock : 100
                                     }
                                     if (row.impuesto !== undefined) row.iva = row.impuesto
-                                    if (row.estado !== undefined) row.status = Number(row.estado) 
+                                    row.status = rowStatus;
                                     if (!row.categoria_id) row.categoria_id = 'general'
                                     if (!row.tipo) row.tipo = 'producto'
-                                    
-                                    if (row.subcategorias_ids && Array.isArray(row.subcategorias_ids)) {
-                                        row.subcategorias_ids_json = JSON.stringify(row.subcategorias_ids)
+                                    if (row.categoria_nombre !== undefined) row.categoria_nombre = row.categoria_nombre
+
+                                    // Traductor robusto para Subcategorías JSON
+                                    let subRaw = row.subcategorias_ids_json !== undefined ? row.subcategorias_ids_json : row.subcategoriasIdsJson;
+                                    if (subRaw) {
+                                        row.subcategorias_ids_json = typeof subRaw === 'string' ? subRaw : JSON.stringify(subRaw);
+                                    } else if (row.subcategorias_ids && Array.isArray(row.subcategorias_ids)) {
+                                        row.subcategorias_ids_json = JSON.stringify(row.subcategorias_ids);
                                     }
-                                    if (row.etiquetas && Array.isArray(row.etiquetas)) {
-                                        tagsData = row.etiquetas 
+
+                                    // Traductor robusto para Etiquetas (CSV o Array)
+                                    let tagsRaw = row.etiquetas_ids !== undefined ? row.etiquetas_ids : (row.etiquetasIds !== undefined ? row.etiquetasIds : row.etiquetas);
+                                    if (typeof tagsRaw === 'string' && tagsRaw.trim() !== '') {
+                                        tagsData = tagsRaw.split(',').map(id => id.trim()).filter(Boolean);
+                                    } else if (Array.isArray(tagsRaw)) {
+                                        tagsData = tagsRaw;
                                     }
 
                                     delete row.stock;
@@ -265,46 +306,57 @@ export const registerSyncHandlers = () => {
                                     delete row.max_stock;
 
                                 } else if (localModulo === 'subcategoria') {
-                                    if (row.categoriasIds !== undefined) row.categorias_ids = row.categoriasIds;
+                                    row.status = rowStatus;
+                                    if (row.categoria_nombre !== undefined) row.categoria_nombre = row.categoria_nombre
+                                    if (row.cant_productos !== undefined) row.cant_productos = row.cant_productos
                                     
-                                    if (row.estado !== undefined) row.status = Number(row.estado); 
-                                    
-                                    if (row.categorias_ids && Array.isArray(row.categorias_ids)) {
-                                        subcatCatData = row.categorias_ids
-                                        row.categoria_id = row.categorias_ids.length > 0 ? row.categorias_ids[0] : 'general'
-                                    } else {
-                                        row.categoria_id = 'general'
+                                    // Traductor robusto para Categorías (CSV o Array)
+                                    let catsRaw = row.categorias_ids !== undefined ? row.categorias_ids : row.categoriasIds;
+                                    if (typeof catsRaw === 'string' && catsRaw.trim() !== '') {
+                                        subcatCatData = catsRaw.split(',').map(id => id.trim()).filter(Boolean);
+                                    } else if (Array.isArray(catsRaw)) {
+                                        subcatCatData = catsRaw;
                                     }
+
+                                    if (subcatCatData && subcatCatData.length > 0) {
+                                        row.categoria_id = subcatCatData[0];
+                                        row.categorias_ids = subcatCatData.join(','); 
+                                    } else {
+                                        row.categoria_id = 'general';
+                                    }
+
                                 } else if (localModulo === 'etiqueta') {
-                                    if (row.estado !== undefined) row.status = Number(row.estado); 
-                                    if (row.categorias && Array.isArray(row.categorias)) {
-                                        etiquetaCatData = row.categorias
+                                    row.status = rowStatus;
+                                    let catsRaw = row.categorias_ids !== undefined ? row.categorias_ids : (row.categoriasIds !== undefined ? row.categoriasIds : row.categorias);
+                                    if (typeof catsRaw === 'string' && catsRaw.trim() !== '') {
+                                        etiquetaCatData = catsRaw.split(',').map(id => id.trim()).filter(Boolean);
+                                    } else if (Array.isArray(catsRaw)) {
+                                        etiquetaCatData = catsRaw;
                                     }
                                 } else if (localModulo === 'categoria') {
-                                    if (row.estado !== undefined) row.status = Number(row.estado); 
+                                    row.status = rowStatus;
+                                    if (row.cant_productos !== undefined) row.cant_productos = row.cant_productos
                                 } else if (localModulo === 'terceros' || localModulo === 'metodos_pago') {
-                                    if (row.estado !== undefined) row.status = Number(row.estado); 
+                                    row.status = rowStatus;
                                 }
 
                                 // -------------------------------------------------------------
                                 // ELIMINACIÓN FÍSICA (HARD DELETE) SI EL SERVIDOR ENVÍA ESTADO 0 o 2
                                 // -------------------------------------------------------------
-                                const isDeleted = row.status === 0 || (localModulo === 'producto' && row.status === 2);
+                                const isDeleted = rowStatus === 0 || (localModulo === 'producto' && rowStatus === 2);
                                 
                                 if (isDeleted) {
-                                    // 1. Limpiar tablas pivote para no dejar referencias huérfanas
                                     if (localModulo === 'producto') {
                                         db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id);
                                         db.prepare(`DELETE FROM inventario_saldos WHERE producto_id = ?`).run(row.id);
                                     } else if (localModulo === 'subcategoria') {
-                                        db.prepare(`DELETE FROM subcategoria_categoria WHERE subcategoria_id = ?`).run(row.id);
+                                        try { db.prepare(`DELETE FROM subcategoria_categoria WHERE subcategoria_id = ?`).run(row.id); } catch(e){}
                                     } else if (localModulo === 'etiqueta') {
-                                        db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(row.id);
+                                        try { db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(row.id); } catch(e){}
                                     }
                                     
-                                    // 2. Eliminar de la tabla maestra físicamente
-                                    db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id);
-                                    continue; // Saltamos el UPSERT
+                                    try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id); } catch(e){}
+                                    continue; 
                                 }
                                 // -------------------------------------------------------------
 
@@ -327,31 +379,54 @@ export const registerSyncHandlers = () => {
                                     db.prepare(`INSERT INTO ${localModulo} (${cols}) VALUES (${placeholders})`).run(cleanRow)
                                 }
 
-                                if (tagsData) {
+                                // === GUARDADO POSTERIOR DE TABLAS PIVOTE (RELACIONES N:M) ===
+                                if (tagsData !== null) {
                                     db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id)
-                                    const insertTag = db.prepare(`INSERT INTO producto_etiqueta (producto_id, etiqueta_id) VALUES (?, ?)`)
-                                    for (const tagId of tagsData) insertTag.run(row.id, tagId)
+                                    if (cleanRow.status === 1) {
+                                        const insertTag = db.prepare(`INSERT INTO producto_etiqueta (producto_id, etiqueta_id) VALUES (?, ?)`)
+                                        for (const tagId of tagsData) insertTag.run(row.id, tagId)
+                                    }
                                 }
-                                if (subcatCatData) {
+                                if (subcatCatData !== null) {
                                     db.prepare(`DELETE FROM subcategoria_categoria WHERE subcategoria_id = ?`).run(row.id)
-                                    const insertSubcatCat = db.prepare(`INSERT INTO subcategoria_categoria (subcategoria_id, categoria_id) VALUES (?, ?)`)
-                                    for (const catId of subcatCatData) insertSubcatCat.run(row.id, catId)
+                                    if (cleanRow.status === 1) {
+                                        const insertSubcatCat = db.prepare(`INSERT INTO subcategoria_categoria (subcategoria_id, categoria_id) VALUES (?, ?)`)
+                                        for (const catId of subcatCatData) insertSubcatCat.run(row.id, catId)
+                                    }
                                 }
-                                if (etiquetaCatData) {
+                                if (etiquetaCatData !== null) {
                                     db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(row.id)
-                                    const insertEtiqCat = db.prepare(`INSERT INTO etiqueta_categoria (etiqueta_id, categoria_id) VALUES (?, ?)`)
-                                    for (const catId of etiquetaCatData) insertEtiqCat.run(row.id, catId)
+                                    if (cleanRow.status === 1) {
+                                        const insertEtiqCat = db.prepare(`INSERT INTO etiqueta_categoria (etiqueta_id, categoria_id) VALUES (?, ?)`)
+                                        for (const catId of etiquetaCatData) insertEtiqCat.run(row.id, catId)
+                                    }
                                 }
 
                                 if (inventarioData) {
                                     const invExists = db.prepare(`SELECT 1 FROM inventario_saldos WHERE producto_id = ?`).get(row.id)
                                     if (invExists) {
-                                        db.prepare(`UPDATE inventario_saldos SET stock=@stock, min_stock=@min_stock, max_stock=@max_stock WHERE producto_id=@producto_id`).run(inventarioData)
+                                        db.prepare(`UPDATE inventario_saldos SET min_stock=@min_stock, max_stock=@max_stock WHERE producto_id=@producto_id`).run({
+                                            producto_id: inventarioData.producto_id,
+                                            min_stock: inventarioData.min_stock,
+                                            max_stock: inventarioData.max_stock
+                                        })
                                     } else {
                                         db.prepare(`INSERT INTO inventario_saldos (producto_id, stock, min_stock, max_stock) VALUES (@producto_id, @stock, @min_stock, @max_stock)`).run(inventarioData)
+                                        
+                                        if (inventarioData.stock > 0) {
+                                            db.prepare(`
+                                                INSERT INTO inventario (id, producto_id, tipo_movimiento, modulo_movimiento, cantidad, stock_anterior, stock_nuevo, fecha, usuario, notas) 
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            `).run(
+                                                uuidv4(), inventarioData.producto_id, 'ingreso', 'sincronizacion_inicial', 
+                                                inventarioData.stock, 0, inventarioData.stock, new Date().toISOString(), 'system', 'Stock inicial recuperado de la nube'
+                                            )
+                                        }
                                     }
                                 }
                             }
+                            
+                            db.exec('PRAGMA foreign_keys = ON;');
                         })()
 
                         let latestDate = lastSyncTime
@@ -371,6 +446,7 @@ export const registerSyncHandlers = () => {
                         sendProgress(`[${webModulo.toUpperCase()}] Descarga e inserción completada.`, "success")
 
                     } catch (netError) {
+                        try { db.exec('PRAGMA foreign_keys = ON;'); } catch(e) {}
                         sendProgress(`[${webModulo.toUpperCase()}] ERROR DE DESCARGA: ${netError.message}`, "error")
                         totalErrors++
                         allDetails[webModulo] = [netError.message]
@@ -514,6 +590,10 @@ export const registerSyncHandlers = () => {
                     sendProgress(`[${webModulo.toUpperCase()}] Al día. No hay datos nuevos para subir.`, "success")
                 }
             }
+
+            try {
+                // Limpieza tras el Full Pull
+            } catch(e) {}
 
             sendProgress(`¡Sincronización finalizada! Procesados: ${totalProcessed}. Errores/Advertencias: ${totalErrors}`, "success")
             

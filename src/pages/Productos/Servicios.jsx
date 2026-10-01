@@ -45,6 +45,11 @@ export const Servicios = ({ currentUser }) => {
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
+    // === REGLAS DE SINCRONIZACIÓN WEB ===
+    // En SYNC_MAP servicios mapea a la regla de 'productos'
+    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
+    const isReadOnly = syncRule === 'web_to_desktop';
+
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser;
         if (!u) return false;
@@ -52,8 +57,10 @@ export const Servicios = ({ currentUser }) => {
         return u.permisos?.includes(permissionKey);
     }
 
-    const canCreate = hasPermission('servicios_crear');
-    const canEdit = hasPermission('servicios_editar');
+    // Permisos condicionados a la regla de Sincronización
+    const canCreate = !isReadOnly && hasPermission('servicios_crear');
+    const canEdit = !isReadOnly && hasPermission('servicios_editar');
+    const canDelete = !isReadOnly && hasPermission('servicios_eliminar');
 
     const loadConfig = async () => {
         const configData = await productosService.getConfiguracion()
@@ -113,6 +120,8 @@ export const Servicios = ({ currentUser }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        if (isReadOnly) return; // Protección extra
+
         let result;
         if (editingId) {
             result = await productosService.updateProducto({ ...form, id: editingId })
@@ -131,6 +140,8 @@ export const Servicios = ({ currentUser }) => {
     }
 
     const handleDelete = async (id) => {
+        if (isReadOnly) return; // Protección extra
+
         const result = await Swal.fire({
             title: "¿Seguro que desea eliminar el registro?",
             showDenyButton: true,
@@ -139,8 +150,13 @@ export const Servicios = ({ currentUser }) => {
         })
 
         if (result.isConfirmed) {
-            await productosService.deleteProducto(id)
-            setReloadTable(prev => prev + 1)
+            const res = await productosService.deleteProducto(id)
+            if (res.success) {
+                setReloadTable(prev => prev + 1)
+                Swal.fire({ title: 'Eliminado', text: 'Registro eliminado', icon: 'success', timer: 1500 })
+            } else {
+                 Swal.fire('Error', res?.error || 'No se pudo eliminar', 'error')
+            }
         }
     }
 
@@ -152,7 +168,7 @@ export const Servicios = ({ currentUser }) => {
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
-            if (editBtn) {
+            if (editBtn && !isReadOnly) { // Solo si no es read-only
                 e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -190,7 +206,7 @@ export const Servicios = ({ currentUser }) => {
             }
             
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn) {
+            if (delBtn && !isReadOnly) { // Solo si no es read-only
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }
@@ -198,7 +214,7 @@ export const Servicios = ({ currentUser }) => {
 
         container.addEventListener('click', handleTableClick)
         return () => container.removeEventListener('click', handleTableClick)
-    }, [isLoading])
+    }, [isLoading, isReadOnly])
 
     const dataColumns = useMemo(() => [
         { data: 'ref_name', title: 'Nombre Referencia' },
@@ -240,8 +256,6 @@ export const Servicios = ({ currentUser }) => {
             className: 'text-center',
             render: function (data, type, row) {
                 const safeData = encodeURIComponent(JSON.stringify(row));
-                const canEditAction = hasPermission('servicios_editar');
-                const canDeleteAction = hasPermission('servicios_eliminar');
 
                 let menuItems = `
                     <li>
@@ -251,7 +265,7 @@ export const Servicios = ({ currentUser }) => {
                     </li>
                 `;
 
-                if (canEditAction) {
+                if (canEdit) {
                     menuItems += `
                         <li>
                             <a class="dropdown-item btn-edit" href="#" data-id="${row.id}" data-alldata="${safeData}">
@@ -261,8 +275,8 @@ export const Servicios = ({ currentUser }) => {
                     `;
                 }
 
-                if (canDeleteAction) {
-                    if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+                if (canDelete) {
+                    if (canEdit) menuItems += `<li><hr class="dropdown-divider"></li>`;
                     menuItems += `
                         <li>
                             <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
@@ -284,7 +298,7 @@ export const Servicios = ({ currentUser }) => {
                 `
             }
         }
-    ], [appConfig, activeUser, currentUser])
+    ], [appConfig, activeUser, currentUser, isReadOnly, canEdit, canDelete])
 
     return <>
         <div className="position-relative" style={{ minHeight: isLoading ? '60vh' : 'auto' }}>
@@ -314,7 +328,7 @@ export const Servicios = ({ currentUser }) => {
                 <div ref={tableContainerRef}>
                     <CustomDataTable
                         tableId="dt-servicios-catalogo"
-                        key={`servicios-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}`}
+                        key={`servicios-${reloadTable}-${appConfig.moneda}-${appConfig.formato_numero}-${isReadOnly}`}
                         reloadKey={reloadTable}
                         ajaxData={(params) => productosService.getServiciosPaginados(params)}
                         columns={dataColumns}
