@@ -72,12 +72,6 @@ contextBridge.exposeInMainWorld("api", {
   updateCliente: (item) => ipcRenderer.invoke("update-cliente", item),
   deleteCliente: (item) => ipcRenderer.invoke("delete-cliente", item),
 
-  // bitacoras
-  getBitacoras: () => ipcRenderer.invoke("get-bitacoras"),
-  addBitacora: (item) => ipcRenderer.invoke("add-bitacora", item),
-  updateBitacora: (item) => ipcRenderer.invoke("update-bitacora", item),
-  deleteBitacora: (item) => ipcRenderer.invoke("delete-bitacora", item),
-
   // configuraciones
   getConfiguracion: () => ipcRenderer.invoke("get-configuracion"),
   updateConfiguracion: (item) => ipcRenderer.invoke("update-configuracion", item),
@@ -87,10 +81,10 @@ contextBridge.exposeInMainWorld("api", {
   executeImportQuery: (data) => ipcRenderer.invoke('execute-import-query', data),
   executeImportJson: (data) => ipcRenderer.invoke('execute-import-json', data),
 
-  // sincronización web
+// sincronización web
   getSyncConfig: () => ipcRenderer.invoke("get-sync-config"),
   saveSyncConfig: (data) => ipcRenderer.invoke("save-sync-config", data),
-  forceSyncNow: () => ipcRenderer.invoke("force-sync-now"),
+  forceSyncNow: (options) => ipcRenderer.invoke("force-sync-now", options),
   getSyncHistory: () => ipcRenderer.invoke("get-sync-history"),
   getSyncRules: () => ipcRenderer.invoke("get-sync-rules"),
   onSyncProgress: (callback) => ipcRenderer.on("sync-progress", (_event, data) => callback(data)),

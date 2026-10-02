@@ -39,7 +39,7 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
 
     useEffect(() => {
         const initData = async () => {
-            setIsLoading(true);
+            setIsLoading(true)
 
             if (currentUser) {
                 setActiveUser(currentUser)
@@ -50,24 +50,24 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
                 }
             }
 
-            await loadData();
-            setIsLoading(false);
+            await loadData()
+            setIsLoading(false)
         }
 
         initData()
     }, [currentUser])
 
     const hasPermission = (permissionKey) => {
-        const u = activeUser || currentUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
+        const u = activeUser || currentUser
+        if (!u) return false
+        if (u.permisos?.includes('ALL')) return true
+        return u.permisos?.includes(permissionKey)
     }
 
-    const canEditEstados = hasPermission('encargos_config_estados');
-    const canEditCampos = hasPermission('encargos_config_campos');
+    const canEditEstados = hasPermission('encargos_config_estados')
+    const canEditCampos = hasPermission('encargos_config_campos')
 
-    const isFormDisabled = !canEditEstados && !canEditCampos;
+    const isFormDisabled = !canEditEstados && !canEditCampos
 
     const handleAddCampo = () => {
         setCampos([...campos, { id: uuidv4(), label: '', type: 'text', options: '', required: false }])

@@ -291,7 +291,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
             showDenyButton: true,
             confirmButtonText: "Sí",
             denyButtonText: `No`
-        });
+        })
 
         if (result.isConfirmed) {
             const res = await encargosService.deleteEncargo(id)
@@ -404,9 +404,9 @@ export const Encargos = ({ currentUser: initialUser }) => {
         const hoy = new Date()
         hoy.setHours(0, 0, 0, 0)
         
-        const [year, month, day] = dateString.split('-');
-        const fechaEntrega = new Date(year, month - 1, day);
-        fechaEntrega.setHours(0, 0, 0, 0);
+        const [year, month, day] = dateString.split('-')
+        const fechaEntrega = new Date(year, month - 1, day)
+        fechaEntrega.setHours(0, 0, 0, 0)
 
         if (fechaEntrega.getTime() === hoy.getTime()) {
             return 'bg-warning text-dark'
@@ -415,7 +415,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
         } else {
             return 'bg-secondary'
         }
-    };
+    }
 
     const formatToLocalString = (dateString) => {
         if (!dateString) return ''
@@ -517,7 +517,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
                                                     <i class="bi bi-pencil me-2 text-secondary"></i> Editar Encargo
                                                 </a>
                                             </li>
-                                        `;
+                                        `
                                     }
 
                                     menuItems += `
@@ -531,7 +531,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
                                                 <i class="bi bi-clock-history me-2 text-secondary"></i> Historial de Estados
                                             </a>
                                         </li>
-                                    `;
+                                    `
 
                                     if (canDeleteAction) {
                                         menuItems += `
@@ -541,7 +541,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
                                                     <i class="bi bi-trash3 me-2"></i> Eliminar
                                                 </button>
                                             </li>
-                                        `;
+                                        `
                                     }
 
                                     return `

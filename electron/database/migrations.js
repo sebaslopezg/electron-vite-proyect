@@ -14,7 +14,6 @@ import { runV1NotasMaestro } from './tables/notasMaestro.js'
 import { runV1Producto } from './tables/producto.js'
 import { runV1VentasDetalle } from './tables/ventasDetalle.js'
 import { runV1VentasMaestro } from './tables/ventasMaestro.js'
-import { runV1Bitacora } from './tables/bitacora.js'
 import { runV1CuentasContables } from './tables/cuentasContables.js'
 import { runV1Terceros } from './tables/terceros.js'
 import { runV1Comprobantes } from './tables/comprobantes.js'
@@ -44,7 +43,6 @@ const migrations = [
             runV1Producto()
             runV1VentasDetalle()
             runV1VentasMaestro()
-            runV1Bitacora()
             runV1Notificaciones()
         }
     },

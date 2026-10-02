@@ -33,7 +33,10 @@ const SYNC_MAP = {
     'nota': 'ventas',
     'nota_item': 'ventas',
     'almacen_conf': 'ventas',
-    'metodos_pago': 'ventas'
+    'metodos_pago': 'ventas',
+    'estadoEncargo': 'encargos_estados',
+    'encargos': 'encargos',
+    'encargos_config': 'encargos_config'
 }
 
 export const canModifyModule = (moduloLocal) => {
@@ -111,10 +114,12 @@ export const registerSyncHandlers = () => {
         }
     })
 
-    ipcMain.handle('force-sync-now', async (event, { isFullPull = true } = {}) => {
+    ipcMain.handle('force-sync-now', async (event, args) => {
         if (!checkPermission("configuracion_general")) return { success: false, error: 'No autorizado' }
         
+        const isFullPull = args && args.isFullPull === true ? true : false;
         let accumulatedLogs = []
+        
         const sendProgress = (msg, type = 'info') => {
             const timeStr = new Date().toLocaleTimeString()
             const logEntry = { time: timeStr, text: msg, type }
@@ -126,38 +131,29 @@ export const registerSyncHandlers = () => {
             sendProgress(isFullPull ? "Iniciando proceso de FULL SYNC..." : "Iniciando proceso de sincronización...", "info")
             logger.info('SYNC', isFullPull ? "Iniciando proceso de sincronización completa (FULL PULL)..." : "Iniciando proceso de sincronización manual...")
 
-            // ==============================================
-            // RESET DE FECHAS (FULL PULL FORZADO SI APLICA)
-            // ==============================================
             if (isFullPull) {
                 try {
-                    db.prepare(`UPDATE sync_log SET last_sync_time = '1970-01-01 00:00:00' WHERE modulo IN ('categoria', 'subcategoria', 'etiqueta', 'producto', 'inventario')`).run();
+                    db.prepare(`UPDATE sync_log SET last_sync_time = '1970-01-01 00:00:00' WHERE modulo IN ('categoria', 'subcategoria', 'etiqueta', 'producto', 'inventario', 'estadoEncargo', 'encargos')`).run();
                     
-                    const catalogTables = ['categoria', 'subcategoria', 'etiqueta', 'producto']
+                    const catalogTables = ['categoria', 'subcategoria', 'etiqueta', 'producto', 'estadoEncargo', 'encargos']
                     for (const t of catalogTables) {
                         try { db.exec(`UPDATE ${t} SET date_modify = datetime('now', 'localtime')`); } catch(e){}
                     }
-                    
                     try { db.exec(`DELETE FROM inventario_saldos`); } catch(e){}
                     
-                    sendProgress("Sincronización forzosa. Limpiando caché de fechas del Catálogo...", "warning");
+                    sendProgress("Sincronización forzosa. Limpiando caché de fechas...", "warning");
                 } catch (e) {
                     logger.warn('SYNC', 'No se pudo forzar el Full PULL', e)
                 }
             }
 
-            // ==============================================
-            // AUTO-REPARACIÓN AVANZADA DE BASE DE DATOS
-            // ==============================================
             try {
-                const tablesWithDates = ['terceros', 'categoria', 'subcategoria', 'etiqueta', 'producto', 'ventasMaestro', 'ventasDetalle', 'nota', 'nota_item', 'almacen_conf', 'metodos_pago']
+                const tablesWithDates = ['terceros', 'categoria', 'subcategoria', 'etiqueta', 'producto', 'ventasMaestro', 'nota', 'nota_item', 'almacen_conf', 'metodos_pago', 'estadoEncargo', 'encargos']
                 for (const tbl of tablesWithDates) {
                     try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN date_modify TEXT;`); } catch(e){}
                     try { db.exec(`ALTER TABLE ${tbl} ADD COLUMN date_created TEXT;`); } catch(e){}
-                    
                     try { db.prepare(`UPDATE ${tbl} SET date_created = datetime('now', 'localtime') WHERE date_created IS NULL`).run(); } catch(e){}
                     try { db.prepare(`UPDATE ${tbl} SET date_modify = date_created WHERE date_modify IS NULL`).run(); } catch(e){}
-                    
                     try { db.prepare(`UPDATE ${tbl} SET date_modify = datetime('now', 'localtime') WHERE date_modify > datetime('now', 'localtime')`).run(); } catch(e){}
                 }
                 
@@ -185,27 +181,40 @@ export const registerSyncHandlers = () => {
             let syncUrl = urlRow.value
             if (syncUrl.endsWith('/')) syncUrl = syncUrl.slice(0, -1)
 
-            const rules = rulesRow ? JSON.parse(rulesRow.value) : {}
+            let rules = rulesRow ? JSON.parse(rulesRow.value) : {}
+
+            // =======================================================================
+            // SOLUCIÓN: AUTOFETCH DE REGLAS PARA EVITAR DESFASES CON LA CONFIG WEB
+            // =======================================================================
+            try {
+                sendProgress("Verificando permisos y reglas en la nube...", "info")
+                const confRes = await axios.get(`${syncUrl}/api/sync/config`, { headers: { 'x-sync-token': syncToken } })
+                if (confRes.status === 200 && confRes.data?.success) {
+                    rules = confRes.data.modules || rules
+                    saveConfigValue('sync_rules', JSON.stringify(rules))
+                }
+            } catch (e) {
+                sendProgress("No se pudieron actualizar las reglas. Usando caché local.", "warning")
+            }
 
             const modulesToSync = [
                 { local: 'terceros', web: 'terceros' },
-                
-                // --- Grupo Catálogo ---
                 { local: 'categoria', web: 'categorias', parentRule: 'productos' },
                 { local: 'subcategoria', web: 'subcategorias', parentRule: 'productos' },
                 { local: 'etiqueta', web: 'etiquetas', parentRule: 'productos' },
                 { local: 'producto', web: 'productos' },
-                
-                // --- Grupo Kárdex ---
                 { local: 'inventario', web: 'inventario' },
-                
-                // --- Grupo Ventas ---
                 { local: 'almacen_conf', web: 'configuracion', parentRule: 'ventas' },
                 { local: 'metodos_pago', web: 'metodosPago', parentRule: 'ventas' },
                 { local: 'ventasMaestro', web: 'ventasMaestro', parentRule: 'ventas' },
                 { local: 'ventasDetalle', web: 'ventasDetalle', parentRule: 'ventas' },
                 { local: 'nota', web: 'notasMaestro', parentRule: 'ventas' },
-                { local: 'nota_item', web: 'notasDetalle', parentRule: 'ventas' }
+                { local: 'nota_item', web: 'notasDetalle', parentRule: 'ventas' },
+
+                // --- Grupo Encargos Particionado ---
+                { local: 'encargos_config', web: 'encargos_config', parentRule: 'encargos_config' },
+                { local: 'estadoEncargo', web: 'encargos_estados', parentRule: 'encargos_estados' },
+                { local: 'encargos', web: 'encargos', parentRule: 'encargos' }
             ] 
             
             let totalProcessed = 0
@@ -219,15 +228,24 @@ export const registerSyncHandlers = () => {
                 const webModulo = mod.web
                 
                 const ruleKey = mod.parentRule || webModulo;
-                const moduleRule = rules[ruleKey] || 'desktop_to_web'
+                
+                let fallbackRule = 'desktop_to_web';
+                if (webModulo === 'encargos_config' || webModulo === 'encargos_estados') {
+                    fallbackRule = 'web_to_desktop';
+                }
+                const moduleRule = rules[ruleKey] || fallbackRule;
 
                 if (moduleRule === 'disabled') {
                     sendProgress(`[${webModulo.toUpperCase()}] Omitido: Módulo aislado (Regla: disabled).`, "warning")
                     continue
                 }
 
-                let lastSyncRow = db.prepare("SELECT last_sync_time FROM sync_log WHERE modulo = ?").get(localModulo)
-                let lastSyncTime = (isFullPull && ['categoria', 'subcategoria', 'etiqueta', 'producto', 'inventario'].includes(localModulo)) 
+                let lastSyncRow = null;
+                if (localModulo !== 'encargos_config') {
+                    lastSyncRow = db.prepare("SELECT last_sync_time FROM sync_log WHERE modulo = ?").get(localModulo)
+                }
+
+                let lastSyncTime = (isFullPull && ['categoria', 'subcategoria', 'etiqueta', 'producto', 'inventario', 'estadoEncargo', 'encargos'].includes(localModulo)) 
                                     ? '1970-01-01 00:00:00' 
                                     : (lastSyncRow ? lastSyncRow.last_sync_time : '1970-01-01 00:00:00');
 
@@ -255,6 +273,37 @@ export const registerSyncHandlers = () => {
 
                         sendProgress(`[${webModulo.toUpperCase()}] Guardando ${records.length} registros...`, "warning")
 
+                        // CASO ESPECIAL 1: ENCARGOS CONFIGURACIÓN (NO ES TABLA)
+                        if (localModulo === 'encargos_config') {
+                            const configData = records[0];
+                            if (configData) {
+                                if (configData.settings_json) {
+                                    try {
+                                        const parsedSettings = JSON.parse(configData.settings_json);
+                                        Object.keys(parsedSettings).forEach(key => {
+                                            db.prepare("INSERT OR REPLACE INTO encargos_settings (key, value) VALUES (?, ?)").run(key, parsedSettings[key]);
+                                        });
+                                    } catch(e) {}
+                                }
+                                if (configData.campos_json) {
+                                    try {
+                                        const parsedCampos = JSON.parse(configData.campos_json);
+                                        db.transaction(() => {
+                                            db.prepare("DELETE FROM encargos_campos").run();
+                                            const insert = db.prepare("INSERT INTO encargos_campos (id, label, type, options, required, orden) VALUES (?, ?, ?, ?, ?, ?)");
+                                            parsedCampos.forEach((c, index) => {
+                                                insert.run(c.id || uuidv4(), c.label, c.type, c.options || '', c.required ? 1 : 0, index);
+                                            });
+                                        })();
+                                    } catch(e) {}
+                                }
+                            }
+                            sendProgress(`[ENCARGOS_CONFIG] Configuraciones dinámicas aplicadas.`, "success")
+                            totalProcessed += 1
+                            continue;
+                        }
+
+                        // PROCESAMIENTO ESTÁNDAR PULL
                         const stmtExists = db.prepare(`SELECT 1 FROM ${localModulo} WHERE id = ?`)
                         const validColumns = db.pragma(`table_info(${localModulo})`).map(c => c.name)
                         
@@ -285,7 +334,6 @@ export const registerSyncHandlers = () => {
                                     if (!row.tipo) row.tipo = 'producto'
                                     if (row.categoria_nombre !== undefined) row.categoria_nombre = row.categoria_nombre
 
-                                    // Traductor robusto para Subcategorías JSON
                                     let subRaw = row.subcategorias_ids_json !== undefined ? row.subcategorias_ids_json : row.subcategoriasIdsJson;
                                     if (subRaw) {
                                         row.subcategorias_ids_json = typeof subRaw === 'string' ? subRaw : JSON.stringify(subRaw);
@@ -293,7 +341,6 @@ export const registerSyncHandlers = () => {
                                         row.subcategorias_ids_json = JSON.stringify(row.subcategorias_ids);
                                     }
 
-                                    // Traductor robusto para Etiquetas (CSV o Array)
                                     let tagsRaw = row.etiquetas_ids !== undefined ? row.etiquetas_ids : (row.etiquetasIds !== undefined ? row.etiquetasIds : row.etiquetas);
                                     if (typeof tagsRaw === 'string' && tagsRaw.trim() !== '') {
                                         tagsData = tagsRaw.split(',').map(id => id.trim()).filter(Boolean);
@@ -310,7 +357,6 @@ export const registerSyncHandlers = () => {
                                     if (row.categoria_nombre !== undefined) row.categoria_nombre = row.categoria_nombre
                                     if (row.cant_productos !== undefined) row.cant_productos = row.cant_productos
                                     
-                                    // Traductor robusto para Categorías (CSV o Array)
                                     let catsRaw = row.categorias_ids !== undefined ? row.categorias_ids : row.categoriasIds;
                                     if (typeof catsRaw === 'string' && catsRaw.trim() !== '') {
                                         subcatCatData = catsRaw.split(',').map(id => id.trim()).filter(Boolean);
@@ -338,10 +384,12 @@ export const registerSyncHandlers = () => {
                                     if (row.cant_productos !== undefined) row.cant_productos = row.cant_productos
                                 } else if (localModulo === 'terceros' || localModulo === 'metodos_pago') {
                                     row.status = rowStatus;
+                                } else if (localModulo === 'estadoEncargo' || localModulo === 'encargos') {
+                                    row.status = rowStatus;
                                 }
 
                                 // -------------------------------------------------------------
-                                // ELIMINACIÓN FÍSICA (HARD DELETE) SI EL SERVIDOR ENVÍA ESTADO 0 o 2
+                                // ELIMINACIÓN (SOFT/HARD DELETE) SI EL SERVIDOR ENVÍA ESTADO 0
                                 // -------------------------------------------------------------
                                 const isDeleted = rowStatus === 0 || (localModulo === 'producto' && rowStatus === 2);
                                 
@@ -349,13 +397,18 @@ export const registerSyncHandlers = () => {
                                     if (localModulo === 'producto') {
                                         db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id);
                                         db.prepare(`DELETE FROM inventario_saldos WHERE producto_id = ?`).run(row.id);
+                                        try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id); } catch(e){}
                                     } else if (localModulo === 'subcategoria') {
                                         try { db.prepare(`DELETE FROM subcategoria_categoria WHERE subcategoria_id = ?`).run(row.id); } catch(e){}
+                                        try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id); } catch(e){}
                                     } else if (localModulo === 'etiqueta') {
                                         try { db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(row.id); } catch(e){}
+                                        try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id); } catch(e){}
+                                    } else if (localModulo === 'estadoEncargo' || localModulo === 'encargos') {
+                                        try { db.prepare(`UPDATE ${localModulo} SET status = 0 WHERE id = ?`).run(row.id); } catch(e){}
+                                    } else {
+                                        try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id); } catch(e){}
                                     }
-                                    
-                                    try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id); } catch(e){}
                                     continue; 
                                 }
                                 // -------------------------------------------------------------
@@ -379,7 +432,7 @@ export const registerSyncHandlers = () => {
                                     db.prepare(`INSERT INTO ${localModulo} (${cols}) VALUES (${placeholders})`).run(cleanRow)
                                 }
 
-                                // === GUARDADO POSTERIOR DE TABLAS PIVOTE (RELACIONES N:M) ===
+                                // === GUARDADO POSTERIOR DE TABLAS PIVOTE ===
                                 if (tagsData !== null) {
                                     db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id)
                                     if (cleanRow.status === 1) {
@@ -458,6 +511,9 @@ export const registerSyncHandlers = () => {
                 // ==============================================
                 // REGLA: EL ESCRITORIO MANDA (SUBIDA / PUSH)
                 // ==============================================
+                
+                if (localModulo === 'encargos_config') continue;
+
                 sendProgress(`[${webModulo.toUpperCase()}] Consultando registros pendientes...`, "info")
 
                 const batchSize = 100
@@ -470,6 +526,8 @@ export const registerSyncHandlers = () => {
                     let timeColumn = 'date_modify'
                     if (localModulo === 'inventario') {
                         timeColumn = 'fecha'; 
+                    } else if (localModulo === 'ventasDetalle') {
+                        timeColumn = 'date_created';
                     } else {
                          const tableInfo = db.pragma(`table_info(${localModulo})`)
                          if (!tableInfo.some(col => col.name === 'date_modify')) timeColumn = 'date_created'
@@ -495,7 +553,7 @@ export const registerSyncHandlers = () => {
 
                     // --- TRADUCTOR DE ESQUEMAS: Escritorio -> Web ---
                     const mappedRows = rows.map(row => {
-                        const newRow = { ...row };
+                        let newRow = { ...row };
                         
                         if (webModulo === 'ventasMaestro') {
                             if (newRow.total_factura !== undefined) newRow.total = newRow.total_factura
@@ -536,6 +594,28 @@ export const registerSyncHandlers = () => {
                         }
                         else if (webModulo === 'inventario') {
                             newRow.date_created = newRow.fecha 
+                        }
+                        else if (webModulo === 'encargos_estados') {
+                            if (newRow.status !== undefined) newRow.estado = newRow.status
+                        }
+                        else if (webModulo === 'encargos') {
+                            newRow = {
+                                id: row.id,
+                                estado_id: row.estado_id,
+                                producto_id: row.producto_id,
+                                factura_id: row.factura_id,
+                                cliente_id: row.cliente_id,
+                                cliente_nombre: row.cliente_nombre,
+                                cliente_documento: row.cliente_documento,
+                                factura_numero: row.factura_numero,
+                                producto_cantidad: row.producto_cantidad,
+                                encargo_numero: row.encargo_numero,
+                                fecha_entrega: row.fecha_entrega,
+                                descripcion: row.descripcion,
+                                titulo_personalizado: row.titulo_personalizado,
+                                custom_data: row.custom_data,
+                                status: row.status
+                            }
                         }
                         else if (webModulo === 'terceros' || webModulo === 'metodosPago' || webModulo === 'notasMaestro' || webModulo === 'notasDetalle' || webModulo === 'categorias') {
                             if (newRow.status !== undefined) newRow.estado = newRow.status

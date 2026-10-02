@@ -3,7 +3,6 @@ import { Card, Form, Button, Row, Col, Modal, Alert } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 
-// Implementación del Toast con SweetAlert2
 const Toast = Swal.mixin({
     toast: true,
     position: 'bottom-end',
@@ -148,8 +147,7 @@ export const Sincronizacion = ({ currentUser }) => {
 
         try {
             if (window.api) {
-                // Pasamos la variable isFullPull a nuestro motor de IPC
-                const res = await window.api.forceSyncNow({ isFullPull })
+                const res = await window.api.forceSyncNow({ isFullPull: Boolean(isFullPull) })
                 
                 setReloadKey(prev => prev + 1) 
 
@@ -171,12 +169,10 @@ export const Sincronizacion = ({ currentUser }) => {
         }
     }
 
-    // Botón de Sync Normal (Incremental)
     const handleForceSync = () => {
-        executeSync(false);
+        executeSync(false)
     }
 
-    // Botón de Sync Total (Reset)
     const handleFullSync = () => {
         Swal.fire({
             title: 'Sincronización Completa',
@@ -189,9 +185,9 @@ export const Sincronizacion = ({ currentUser }) => {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                executeSync(true);
+                executeSync(true)
             }
-        });
+        })
     }
 
     const getColorClass = (type) => {
