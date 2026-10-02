@@ -14,5 +14,5 @@ export const runV1Subcategorias = () => {
             FOREIGN KEY(categoria_id) REFERENCES categoria(id)
         );
     `)
-    console.log("Tabla 'Subcategorias' inicializada.");
+    console.log("Tabla 'Subcategorias' inicializada.")
 }

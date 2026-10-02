@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename)
 const isDev = !app.isPackaged
 const isMac = process.platform === "darwin"
 
-let mainWindow;
+let mainWindow
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -40,7 +40,7 @@ async function createMainWindow() {
 
     mainWindow.webContents.once("dom-ready", () => {
       mainWindow.webContents.openDevTools({ mode: "detach" })
-    });
+    })
   } else {
     const indexPath = path.join(__dirname, "../dist/index.html")
     console.log("Loading production build:", indexPath)

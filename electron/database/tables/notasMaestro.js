@@ -1,33 +1,32 @@
 import db from "../index.js"
 
 export function runV1NotasMaestro() {
-    db.exec(`
-      CREATE TABLE notasMaestro (
-        id TEXT PRIMARY KEY,
-        numero_factura INTEGER,
-        facturaId TEXT,
-        codigoRazon INTEGER,
-        titulo_documento TEXT,
-        
-        nombre_almacen TEXT,
-        nit_almacen TEXT,
-        direccion_almacen TEXT,
-        telefono_almacen TEXT,
-        email_almacen TEXT,
+  db.exec(`
+    CREATE TABLE notasMaestro (
+      id TEXT PRIMARY KEY,
+      numero_factura INTEGER,
+      facturaId TEXT,
+      codigoRazon INTEGER,
+      titulo_documento TEXT,
+      
+      nombre_almacen TEXT,
+      nit_almacen TEXT,
+      direccion_almacen TEXT,
+      telefono_almacen TEXT,
+      email_almacen TEXT,
 
-        nombre_cliente TEXT,
-        documento_cliente TEXT,
-        telefono_cliente TEXT,
-        direccion_cliente TEXT,
-        email_cliente TEXT,
+      nombre_cliente TEXT,
+      documento_cliente TEXT,
+      telefono_cliente TEXT,
+      direccion_cliente TEXT,
+      email_cliente TEXT,
 
-        footer TEXT,
-        status INTEGER,
-        date_created TEXT,
-        date_modify TEXT,
-        modify_by TEXT
-      )
-    `);
-
-    console.log("Tabla Notas Maestro inicializada.");
+      footer TEXT,
+      status INTEGER,
+      date_created TEXT,
+      date_modify TEXT,
+      modify_by TEXT
+    )
+  `)
+  console.log("Tabla Notas Maestro inicializada.")
 }

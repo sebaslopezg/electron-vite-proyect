@@ -274,9 +274,9 @@ export const runMigrations = () => {
                     console.log(`Migration v${migration.version} applied successfully.`)
                 }
             }
-        });
+        })
 
-        applyMigrations();
+        applyMigrations()
         
     } catch (err) {
         console.error('Fatal error applying migrations:', err)

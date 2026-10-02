@@ -1,31 +1,31 @@
 import db from "../index.js"
 
 export function runV1Encargos() {
-    db.exec(`
-      CREATE TABLE encargos (
-        id TEXT PRIMARY KEY,
+  db.exec(`
+    CREATE TABLE encargos (
+      id TEXT PRIMARY KEY,
   
-        factura_id TEXT,
-        producto_id TEXT,
-        estado_id TEXT,
-        almacen_id TEXT,
-        cliente_id TEXT,
+      factura_id TEXT,
+      producto_id TEXT,
+      estado_id TEXT,
+      almacen_id TEXT,
+      cliente_id TEXT,
   
-        cliente_nombre TEXT,
-        cliente_documento TEXT,
+      cliente_nombre TEXT,
+      cliente_documento TEXT,
   
-        factura_numero INTEGER,
-        producto_cantidad REAL,
+      factura_numero INTEGER,
+      producto_cantidad REAL,
   
-        encargo_numero INTEGER,
-        fecha_entrega TEXT,
-        descripcion TEXT,
+      encargo_numero INTEGER,
+      fecha_entrega TEXT,
+      descripcion TEXT,
   
-        notificado INTEGER DEFAULT 0,
-        status INTEGER,
-        date_created TEXT,
-        date_modify TEXT,
-        modify_by TEXT
-      )
-    `)
-  }
+      notificado INTEGER DEFAULT 0,
+      status INTEGER,
+      date_created TEXT,
+      date_modify TEXT,
+      modify_by TEXT
+    )
+  `)
+}

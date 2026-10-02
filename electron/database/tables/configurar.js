@@ -9,20 +9,20 @@ export const runV1Configurar = () => {
       date_modify TEXT,
       modify_by TEXT
     );
-  `);
+  `)
 
   const now = new Date().toISOString()
   const confApp = {
-      nombre: 'Caedro',
-      logo: '',
-      moneda: 'COP',
-      formato_numero: 'es-CO'
+    nombre: 'Caedro',
+    logo: '',
+    moneda: 'COP',
+    formato_numero: 'es-CO'
   }
 
   db.prepare(`
     INSERT INTO configurar (key, value, date_created, date_modify, modify_by) 
     VALUES (?, ?, ?, ?, ?)
-  `).run('confApp', JSON.stringify(confApp), now, now, 'system');
+  `).run('confApp', JSON.stringify(confApp), now, now, 'system')
 
-  console.log("Tabla Configurar inicializada.");
+  console.log("Tabla Configurar inicializada.")
 }
