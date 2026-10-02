@@ -331,15 +331,16 @@ export const registerVentasHandlers = () => {
 
             for (const item of detallesData) {
                 const detalleId = uuidv4()
+                // SE ELIMINÓ EL CAMPO date_modify de la inserción y de la instrucción SQL.
                 const insertDetalle = db.prepare(`
                     INSERT INTO ventasDetalle (
                         id, maestro_id, id_producto, nombre_producto, cantidad_producto, 
-                        precio_producto, total, is_encargo, date_created, date_modify
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        precio_producto, total, is_encargo, date_created
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `)
                 insertDetalle.run(
                     detalleId, maestroId, item.id, item.ref_name, item.cantidad,
-                    item.precio, item.cantidad * item.precio, item.isEncargo, now, now
+                    item.precio, item.cantidad * item.precio, item.isEncargo, now
                 )
 
                 if (item.isEncargo === '0' && item.tipo !== "servicio") {
