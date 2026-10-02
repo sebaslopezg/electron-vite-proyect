@@ -1,10 +1,21 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Swal from 'sweetalert2'
-import toast from 'react-hot-toast'
 import CustomDataTable from '../../components/DataTableComponent'
 import EtiquetaModal from './components/EtiquetaModal'
 import { EtiquetaDetalles } from './components/EtiquetaDetalles'
 import { productosService } from '../../services/productosService'
+
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
 
 export const Etiquetas = ({ currentUser }) => {
     const [show, setShow] = useState(false)
@@ -35,9 +46,8 @@ export const Etiquetas = ({ currentUser }) => {
     const [tagSel, setTagSel] = useState(null)
 
     // === REGLAS DE SINCRONIZACIÓN WEB ===
-    // En SYNC_MAP etiqueta mapea a la regla de 'productos'
-    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
-    const isReadOnly = syncRule === 'web_to_desktop';
+    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web'
+    const isReadOnly = syncRule === 'web_to_desktop'
 
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser
@@ -46,7 +56,6 @@ export const Etiquetas = ({ currentUser }) => {
         return u.permisos?.includes(permissionKey)
     }
 
-    // Permisos condicionados a la regla de Sincronización
     const canCreate = !isReadOnly && hasPermission('etiquetas_crear')
     const canEditAction = !isReadOnly && hasPermission('etiquetas_editar')
     const canDeleteAction = !isReadOnly && hasPermission('etiquetas_eliminar')
@@ -90,7 +99,7 @@ export const Etiquetas = ({ currentUser }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        if (isReadOnly) return; // Protección extra
+        if (isReadOnly) return
         
         let result
         if (editingId) {
@@ -100,18 +109,18 @@ export const Etiquetas = ({ currentUser }) => {
         }
 
         if (result && result.success) {
-            toast.success('Etiqueta guardada correctamente')
+            Toast.fire({ icon: 'success', title: 'Etiqueta guardada correctamente' })
             cleanForm()
             handleClose()
             loadData()
             window.dispatchEvent(new CustomEvent('etiquetas-actualizadas'))
         } else {
-            toast.error(result?.error || 'No se pudo guardar la etiqueta')
+            Toast.fire({ icon: 'error', title: result?.error || 'No se pudo guardar la etiqueta' })
         }
     }
 
     const handleDelete = async (id) => {
-        if (isReadOnly) return; // Protección extra
+        if (isReadOnly) return
 
         const result = await Swal.fire({
             title: "¿Eliminar Etiqueta?",
@@ -125,11 +134,11 @@ export const Etiquetas = ({ currentUser }) => {
         if (result.isConfirmed) {
             const res = await productosService.deleteEtiqueta(id)
             if (res.success) {
-                toast.success('Etiqueta eliminada')
+                Toast.fire({ icon: 'success', title: 'Etiqueta eliminada' })
                 loadData()
                 window.dispatchEvent(new CustomEvent('etiquetas-actualizadas'))
             } else {
-                toast.error(res.error || 'Error al eliminar')
+                Toast.fire({ icon: 'error', title: res.error || 'Error al eliminar' })
             }
         }
     }
@@ -142,7 +151,7 @@ export const Etiquetas = ({ currentUser }) => {
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
-            if (editBtn && !isReadOnly) { // Bloqueo si es de solo lectura
+            if (editBtn && !isReadOnly) {
                 e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -173,7 +182,7 @@ export const Etiquetas = ({ currentUser }) => {
             }
 
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn && !isReadOnly) { // Bloqueo si es de solo lectura
+            if (delBtn && !isReadOnly) {
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }
@@ -184,13 +193,13 @@ export const Etiquetas = ({ currentUser }) => {
     }, [isLoading, isReadOnly])
 
     const getTextColor = (hexColor) => {
-        if (!hexColor) return '#ffffff';
-        const hex = hexColor.replace('#', '');
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-        return (yiq >= 128) ? '#000000' : '#ffffff';
+        if (!hexColor) return '#ffffff'
+        const hex = hexColor.replace('#', '')
+        const r = parseInt(hex.substr(0, 2), 16)
+        const g = parseInt(hex.substr(2, 2), 16)
+        const b = parseInt(hex.substr(4, 2), 16)
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+        return (yiq >= 128) ? '#000000' : '#ffffff'
     }
 
     const dataColumns = useMemo(() => [
@@ -200,7 +209,7 @@ export const Etiquetas = ({ currentUser }) => {
             render: (data, type, row) => {
                 const color = row.color || '#6c757d';
                 const textColor = getTextColor(color);
-                return `<span class="badge shadow-sm" style="background-color: ${color}; color: ${textColor}; padding: 6px 12px; border-radius: 12px;"><i class="bi bi-tag-fill me-1"></i>${data}</span>`;
+                return `<span class="badge shadow-sm" style="background-color: ${color}; color: ${textColor}; padding: 6px 12px; border-radius: 12px;"><i class="bi bi-tag-fill me-1"></i>${data}</span>`
             }
         },
         { 
@@ -212,18 +221,18 @@ export const Etiquetas = ({ currentUser }) => {
             data: 'categorias_nombres', 
             title: 'Categorías Visibles',
             render: (data, type, row) => {
-                if (!data) return '<span class="text-muted">-</span>';
-                const catsArray = data.split(',').map(s => s.trim()).filter(Boolean);
-                const limit = 4;
+                if (!data) return '<span class="text-muted">-</span>'
+                const catsArray = data.split(',').map(s => s.trim()).filter(Boolean)
+                const limit = 4
                 
-                let html = catsArray.slice(0, limit).map(c => `<span class="badge bg-secondary text-light me-1 mb-1">${c}</span>`).join('');
+                let html = catsArray.slice(0, limit).map(c => `<span class="badge bg-secondary text-light me-1 mb-1">${c}</span>`).join('')
                 
                 if (catsArray.length > limit) {
-                    const hiddenCats = catsArray.slice(limit).join(', ');
-                    const safeData = encodeURIComponent(JSON.stringify(row));
-                    html += `<button type="button" class="btn btn-sm btn-light border py-0 px-2 me-1 mb-1 btn-view" data-alldata="${safeData}" title="${hiddenCats}">... +${catsArray.length - limit}</button>`;
+                    const hiddenCats = catsArray.slice(limit).join(', ')
+                    const safeData = encodeURIComponent(JSON.stringify(row))
+                    html += `<button type="button" class="btn btn-sm btn-light border py-0 px-2 me-1 mb-1 btn-view" data-alldata="${safeData}" title="${hiddenCats}">... +${catsArray.length - limit}</button>`
                 }
-                return html;
+                return html
             }
         },
         {
@@ -237,7 +246,7 @@ export const Etiquetas = ({ currentUser }) => {
                       <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                     </a>
                   </li>
-                `;
+                `
 
                 if (canEditAction) {
                   menuItems += `
@@ -246,18 +255,18 @@ export const Etiquetas = ({ currentUser }) => {
                         <i class="bi bi-pencil me-2 text-secondary"></i> Editar
                       </a>
                     </li>
-                  `;
+                  `
                 }
 
                 if (canDeleteAction) {
-                  if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+                  if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`
                   menuItems += `
                     <li>
                       <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
                         <i class="bi bi-trash3 me-2"></i> Eliminar
                       </a>
                     </li>
-                  `;
+                  `
                 }
 
                 return `

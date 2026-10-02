@@ -14,6 +14,18 @@ import { ventasService } from '../../services/ventasService'
 import { ModalDetalleFactura } from '../ventas/components/ModalDetalleFactura'
 import { ImpresorFactura } from '../ventas/components/ImpresorFactura'
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const Inventario = ({ currentUser }) => {
     const [activeUser, setActiveUser] = useState(currentUser)
     
@@ -206,12 +218,11 @@ export const Inventario = ({ currentUser }) => {
     }
 
     const handleSave = async () => {
-        if (!selectedProduct) return Swal.fire({ icon: 'error', title: 'Error', text: 'No hay producto seleccionado' })
-        if (!form.cantidad || parseFloat(form.cantidad) <= 0) return Swal.fire(
+        if (!selectedProduct) return Toast.fire({ icon: 'error', title: 'Error', text: 'No hay producto seleccionado' })
+        if (!form.cantidad || parseFloat(form.cantidad) <= 0) return Toast.fire(
             { 
                 icon: 'error', 
-                title: 'Error', 
-                text: 'La cantidad debe ser mayor a 0' 
+                title: 'La cantidad debe ser mayor a 0' 
             })
 
         try {
@@ -224,16 +235,16 @@ export const Inventario = ({ currentUser }) => {
             })
 
             if (result.success) {
-              Swal.fire({
-                  icon: 'success', title: 'Éxito', text: `Stock actualizado: ${result.stockAnterior} → ${result.stockNuevo}`, timer: 2000
+              Toast.fire({
+                  icon: 'success', title: `Stock actualizado: ${result.stockAnterior} → ${result.stockNuevo}`
               })
               handleClose()
               setReloadTable(prev => prev + 1)
             } else {
-              Swal.fire({ icon: 'error', title: 'Error', text: result.error || 'No se pudo actualizar' })
+              Toast.fire({ icon: 'error', title: result.error || 'No se pudo actualizar' })
             }
         } catch (error) {
-          Swal.fire({ icon: 'error', title: 'Error', text: 'Ocurrió un error al procesar' })
+          Toast.fire({ icon: 'error', title: 'Ocurrió un error al procesar' })
         }
     }
 
@@ -255,7 +266,7 @@ export const Inventario = ({ currentUser }) => {
                 setShowModalFactura(true)
             }
         } else {
-            Swal.fire('Error', 'La factura no existe o fue eliminada', 'error')
+            Toast.fire({ icon: 'error', title: 'La factura no existe o fue eliminada'})
         }
     }
 

@@ -41,21 +41,20 @@ export const Categorias = ({ currentUser }) => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     // === REGLAS DE SINCRONIZACIÓN WEB ===
-    // En SYNC_MAP categoria mapea a la regla de 'productos'
-    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
-    const isReadOnly = syncRule === 'web_to_desktop';
+    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web'
+    const isReadOnly = syncRule === 'web_to_desktop'
 
     const hasPermission = (permissionKey) => {
-        const u = activeUser || currentUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
+        const u = activeUser || currentUser
+        if (!u) return false
+        if (u.permisos?.includes('ALL')) return true
+        return u.permisos?.includes(permissionKey)
     }
 
     // Permisos condicionados a la regla de Sincronización
-    const canCreate = !isReadOnly && hasPermission('categorias_crear');
-    const canEditAction = !isReadOnly && hasPermission('categorias_editar');
-    const canDeleteAction = !isReadOnly && hasPermission('categorias_eliminar');
+    const canCreate = !isReadOnly && hasPermission('categorias_crear')
+    const canEditAction = !isReadOnly && hasPermission('categorias_editar')
+    const canDeleteAction = !isReadOnly && hasPermission('categorias_eliminar')
 
     const loadConfig = useCallback(async () => {
         const configData = await productosService.getConfiguracion()
@@ -110,9 +109,9 @@ export const Categorias = ({ currentUser }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        if (isReadOnly) return; // Protección extra
+        if (isReadOnly) return
         
-        let result;
+        let result
         const payload = { ...form, sku_prefix: form.sku_prefix.toUpperCase() }
 
         if (editingId) {
@@ -133,7 +132,7 @@ export const Categorias = ({ currentUser }) => {
     }
 
     const handleDelete = async (id) => {
-        if (isReadOnly) return; // Protección extra
+        if (isReadOnly) return
 
         if (id === 'general') {
             return Toast.fire({ icon: 'error', title: 'La categoría General no se puede eliminar.' })
@@ -168,7 +167,7 @@ export const Categorias = ({ currentUser }) => {
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
-            if (editBtn && !isReadOnly) { // Solo si no es read-only
+            if (editBtn && !isReadOnly) {
                 e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -197,7 +196,7 @@ export const Categorias = ({ currentUser }) => {
             }
 
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn && !delBtn.classList.contains('disabled') && !isReadOnly) { // Solo si no es read-only
+            if (delBtn && !delBtn.classList.contains('disabled') && !isReadOnly) {
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }
@@ -232,7 +231,7 @@ export const Categorias = ({ currentUser }) => {
                     <button class="btn btn-sm btn-outline-secondary btn-view rounded-pill px-3 fw-bold" data-alldata="${safeData}" title="Ver Lista de Productos">
                         ${data || 0}
                     </button>
-                `;
+                `
             }
         },
         {
@@ -250,7 +249,7 @@ export const Categorias = ({ currentUser }) => {
                       <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                     </a>
                   </li>
-                `;
+                `
 
                 if (canEditAction) {
                   menuItems += `
@@ -259,18 +258,18 @@ export const Categorias = ({ currentUser }) => {
                         <i class="bi bi-pencil me-2 text-secondary"></i> Editar
                       </a>
                     </li>
-                  `;
+                  `
                 }
 
                 if (canDeleteAction) {
-                  if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`;
+                  if (canEditAction) menuItems += `<li><hr class="dropdown-divider"></li>`
                   menuItems += `
                     <li>
                       <a class="dropdown-item btn-delete text-danger ${isGeneral ? 'disabled' : ''}" href="#" data-id="${row.id}">
                         <i class="bi bi-trash3 me-2"></i> Eliminar
                       </a>
                     </li>
-                  `;
+                  `
                 }
 
                 return `

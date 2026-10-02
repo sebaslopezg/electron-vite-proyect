@@ -13,6 +13,18 @@ import Swal from "sweetalert2"
 import { encargosService } from "../../services/encargosService"
 import { ModalFormEstado } from "./components/ModalFormEstado"
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 const safeParse = (str) => {
     if (!str) return []
     try { 
@@ -176,7 +188,7 @@ export const Estados = ({ currentUser }) => {
             const nameToSave = userObj.nombre_completo || userObj.nombre || userObj.username || 'Usuario Desconocido'
 
             if (asignacionesUsuarios.some(u => u.nombre.toLowerCase() === nameToSave.toLowerCase())) {
-                return Swal.fire('Aviso', 'Este usuario ya está en la lista', 'info')
+                return Toast.fire({ icon: 'info', title: 'Este usuario ya está en la lista' })
             }
             
             setAsignacionesUsuarios([...asignacionesUsuarios, {
@@ -196,7 +208,7 @@ export const Estados = ({ currentUser }) => {
             const roleName = rolObj.nombre || 'Rol Desconocido'
 
             if (asignacionesRoles.some(r => r.nombre.toLowerCase() === roleName.toLowerCase())) {
-                return Swal.fire('Aviso', 'Este rol ya está en la lista', 'info')
+                return Toast.fire({ icon: 'info', title: 'Este rol ya está en la lista' })
             }
             
             setAsignacionesRoles([...asignacionesRoles, {
@@ -252,13 +264,13 @@ export const Estados = ({ currentUser }) => {
         }
 
         if (result && result.success) {
-            Swal.fire({ title: '¡Éxito!', text: 'Estado guardado', icon: 'success', timer: 1500 })
+            Toast.fire({ icon: 'success', title: 'Estado guardado correctamente' })
             cleanForm()
             handleClose()
             loadData()
             window.dispatchEvent(new CustomEvent('estados-actualizados'))
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar', 'error')
+            Toast.fire({ icon: 'error', title: result?.error || 'No se pudo guardar el estado' })
         }
     }
 
@@ -275,8 +287,11 @@ export const Estados = ({ currentUser }) => {
         if (result.isConfirmed) {
             const res = await encargosService.deleteEstado(id)
             if (res.success) {
+                Toast.fire({ icon: 'success', title: 'Estado eliminado' })
                 loadData()
                 window.dispatchEvent(new CustomEvent('estados-actualizados'))
+            } else {
+                Toast.fire({ icon: 'error', title: res?.error || 'Error al eliminar' })
             }
         }
     }

@@ -64,6 +64,9 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
             <div className="mb-2 border-bottom border-dark pb-2">
                 <div><strong>Cliente:</strong> {factura.nombre_cliente}</div>
                 <div><strong>CC/NIT:</strong> {factura.documento_cliente}</div>
+                {(factura.telefono_cliente || factura.telefono) && (
+                    <div><strong>Teléfono:</strong> {factura.telefono_cliente || factura.telefono}</div>
+                )}
             </div>
 
             <table>
@@ -156,9 +159,12 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
             <div className="card border-dark mb-4">
                 <div className="card-body py-2">
                     <Row>
-                        <Col sm={5}><strong>Cliente:</strong> {factura.nombre_cliente}</Col>
-                        <Col sm={4}><strong>CC/NIT:</strong> {factura.documento_cliente}</Col>
-                        <Col sm={3}><strong>Estado:</strong> <span className="text-capitalize">{factura.tipo_pago}</span></Col>
+                        <Col sm={4}><strong>Cliente:</strong> {factura.nombre_cliente}</Col>
+                        <Col sm={3}><strong>CC/NIT:</strong> {factura.documento_cliente}</Col>
+                        {(factura.telefono_cliente || factura.telefono) && (
+                            <Col sm={3}><strong>Tel:</strong> {factura.telefono_cliente || factura.telefono}</Col>
+                        )}
+                        <Col sm={(factura.telefono_cliente || factura.telefono) ? 2 : 5}><strong>Estado:</strong> <span className="text-capitalize">{factura.tipo_pago}</span></Col>
                     </Row>
                 </div>
             </div>

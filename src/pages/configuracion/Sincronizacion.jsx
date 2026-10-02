@@ -3,6 +3,19 @@ import { Card, Form, Button, Row, Col, Modal, Alert } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import CustomDataTable from '../../components/DataTableComponent'
 
+// Implementación del Toast con SweetAlert2
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const Sincronizacion = ({ currentUser }) => {
     // Estados Configuración
     const [syncToken, setSyncToken] = useState('')
@@ -110,15 +123,15 @@ export const Sincronizacion = ({ currentUser }) => {
             if (window.api) {
                 const res = await window.api.saveSyncConfig({ syncToken, syncUrl })
                 if (res.success) {
-                    Swal.fire({ icon: 'success', title: '¡Conectado!', text: 'Se obtuvieron los permisos de sincronización.', timer: 2000, showConfirmButton: false })
+                    Toast.fire({ icon: 'success', title: 'Permisos de sincronización obtenidos.' })
                     setShowConfigModal(false)
                     window.dispatchEvent(new CustomEvent('sync-rules-updated'))
                 } else {
-                    Swal.fire('Error', res.error, 'error')
+                    Toast.fire({ icon: 'error', title: res.error })
                 }
             }
         } catch (error) {
-            Swal.fire('Error', 'No se pudo guardar la configuración.', 'error')
+            Toast.fire({ icon: 'error', title: 'No se pudo guardar la configuración.' })
         } finally {
             setIsSaving(false)
         }
@@ -126,7 +139,7 @@ export const Sincronizacion = ({ currentUser }) => {
 
     const executeSync = async (isFullPull) => {
         if (!syncToken || !syncUrl) {
-            return Swal.fire('Atención', 'Debes configurar la URL y el Token de Sincronización primero.', 'warning')
+            return Toast.fire({ icon: 'warning', title: 'Debes configurar la URL y el Token de Sincronización primero.' })
         }
 
         setConsoleLogs([])
@@ -142,16 +155,16 @@ export const Sincronizacion = ({ currentUser }) => {
 
                 if (res.success) {
                     if (res.errors > 0) {
-                        Swal.fire('Completado con advertencias', `Procesados: ${res.processed}. Registros rechazados/Errores: ${res.errors}. Revisa el historial para más detalles.`, 'warning')
+                        Toast.fire({ icon: 'warning', title: `Procesados: ${res.processed}. Errores: ${res.errors}.` })
                     } else {
-                        Swal.fire('Sincronización Completada', `Proceso ejecutado exitosamente.`, 'success')
+                        Toast.fire({ icon: 'success', title: 'Proceso ejecutado exitosamente.' })
                     }
                 } else {
-                    Swal.fire('Error Crítico', res.error, 'error')
+                    Toast.fire({ icon: 'error', title: res.error })
                 }
             }
         } catch (error) {
-            Swal.fire('Error Crítico', error.message, 'error')
+            Toast.fire({ icon: 'error', title: error.message })
             setReloadKey(prev => prev + 1) 
         } finally {
             setIsSyncing(false)
@@ -252,11 +265,11 @@ export const Sincronizacion = ({ currentUser }) => {
                         </Alert>
                         <Form.Group className="mb-3">
                             <Form.Label className="fw-bold small">URL del Sistema Web</Form.Label>
-                            <Form.Control type="url" placeholder="Ej: http://localhost:3000 o https://mitienda.com" value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} required />
+                            <Form.Control type="url" value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} required />
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label className="fw-bold small">Token de Sincronización (x-sync-token)</Form.Label>
-                            <Form.Control type="password" placeholder="Pegar token aquí..." value={syncToken} onChange={(e) => setSyncToken(e.target.value)} required />
+                            <Form.Control type="password" value={syncToken} onChange={(e) => setSyncToken(e.target.value)} required />
                         </Form.Group>
                     </Modal.Body>
                     <Modal.Footer>
@@ -271,7 +284,7 @@ export const Sincronizacion = ({ currentUser }) => {
             {/* MODAL CONSOLA DE SINCRONIZACIÓN EN VIVO */}
             <Modal show={showConsoleModal} onHide={() => !isSyncing && setShowConsoleModal(false)} size="lg" centered backdrop={isSyncing ? 'static' : true} keyboard={!isSyncing}>
                 <Modal.Header className="bg-light border-secondary">
-                    <Modal.Title className="fs-6 font-monospace">
+                    <Modal.Title className="fs-5">
                         <i className="bi bi-terminal me-2"></i>Consola de Sincronización
                     </Modal.Title>
                     {!isSyncing && <button type="button" className="btn-close btn-close-white" onClick={() => setShowConsoleModal(false)}></button>}
@@ -298,7 +311,7 @@ export const Sincronizacion = ({ currentUser }) => {
             {/* MODAL CONSOLA DE HISTORIAL (ESTÁTICA) */}
             <Modal show={showHistoryConsoleModal} onHide={() => setShowHistoryConsoleModal(false)} size="lg" centered>
                 <Modal.Header className="bg-light border-secondary">
-                    <Modal.Title className="fs-6 font-monospace">
+                    <Modal.Title className="fs-5">
                         <i className="bi bi-clock-history me-2"></i>Historial de Consola
                     </Modal.Title>
                     <button type="button" className="btn-close btn-close-white" onClick={() => setShowHistoryConsoleModal(false)}></button>

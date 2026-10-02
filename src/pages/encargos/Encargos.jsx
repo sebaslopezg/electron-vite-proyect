@@ -263,13 +263,13 @@ export const Encargos = ({ currentUser: initialUser }) => {
         }
 
         if (result && result.success) {
-            Swal.fire({ title: '¡Éxito!', text: 'Encargo agendado correctamente', icon: 'success', timer: 1500 })
+            Toast.fire({ icon: 'success', title: 'Encargo agendado correctamente' })
             cleanForm()
             handleClose()
             load()
             window.dispatchEvent(new CustomEvent('encargos-actualizados'))
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar', 'error')
+            Toast.fire({ icon: 'error', title: result?.error || 'No se pudo guardar' })
         }
     }
 
@@ -294,9 +294,14 @@ export const Encargos = ({ currentUser: initialUser }) => {
         });
 
         if (result.isConfirmed) {
-            await encargosService.deleteEncargo(id)
-            load()
-            window.dispatchEvent(new CustomEvent('encargos-actualizados'))
+            const res = await encargosService.deleteEncargo(id)
+            if (res.success) {
+                Toast.fire({ icon: 'success', title: 'Encargo eliminado' })
+                load()
+                window.dispatchEvent(new CustomEvent('encargos-actualizados'))
+            } else {
+                Toast.fire({ icon: 'error', title: res?.error || 'No se pudo eliminar' })
+            }
         }
     }
 

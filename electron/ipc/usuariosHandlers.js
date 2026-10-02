@@ -192,7 +192,7 @@ export const registerUsuariosHandlers = () => {
         try { 
             return { 
                 success: true, 
-                data: appDb.prepare("SELECT id, foto_perfil FROM usuarios WHERE status = 1 AND foto_perfil IS NOT NULL AND foto_perfil != ''").all() 
+                data: appDb.prepare("SELECT id, username, nombre_completo, foto_perfil FROM usuarios WHERE status = 1 AND foto_perfil IS NOT NULL AND foto_perfil != ''").all() 
             } 
         } catch (e) { return { success: false, error: e.message } }
     })

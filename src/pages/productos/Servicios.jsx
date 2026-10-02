@@ -46,32 +46,30 @@ export const Servicios = ({ currentUser }) => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
     // === REGLAS DE SINCRONIZACIÓN WEB ===
-    // En SYNC_MAP servicios mapea a la regla de 'productos'
-    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
-    const isReadOnly = syncRule === 'web_to_desktop';
+    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web'
+    const isReadOnly = syncRule === 'web_to_desktop'
 
     const hasPermission = (permissionKey) => {
-        const u = activeUser || currentUser;
-        if (!u) return false;
-        if (u.permisos?.includes('ALL')) return true;
-        return u.permisos?.includes(permissionKey);
+        const u = activeUser || currentUser
+        if (!u) return false
+        if (u.permisos?.includes('ALL')) return true
+        return u.permisos?.includes(permissionKey)
     }
 
-    // Permisos condicionados a la regla de Sincronización
-    const canCreate = !isReadOnly && hasPermission('servicios_crear');
-    const canEdit = !isReadOnly && hasPermission('servicios_editar');
-    const canDelete = !isReadOnly && hasPermission('servicios_eliminar');
+    const canCreate = !isReadOnly && hasPermission('servicios_crear')
+    const canEdit = !isReadOnly && hasPermission('servicios_editar')
+    const canDelete = !isReadOnly && hasPermission('servicios_eliminar')
 
     const loadConfig = async () => {
         const configData = await productosService.getConfiguracion()
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
-                const parsed = JSON.parse(confAppRaw.value);
+                const parsed = JSON.parse(confAppRaw.value)
                 setAppConfig({
                     moneda: parsed.moneda || 'COP',
                     formato_numero: parsed.formato_numero || 'es-CO'
-                });
+                })
             } catch(e) {}
         }
     }
@@ -91,7 +89,7 @@ export const Servicios = ({ currentUser }) => {
 
     useEffect(() => {
         const initData = async () => {
-            setIsLoading(true);
+            setIsLoading(true)
             
             if (currentUser) {
                 setActiveUser(currentUser)
@@ -105,14 +103,14 @@ export const Servicios = ({ currentUser }) => {
             await Promise.all([
                 loadExtras(),
                 loadConfig()
-            ]);
+            ])
 
-            setIsLoading(false);
+            setIsLoading(false)
         }
 
         initData()
         
-        window.addEventListener('config-actualizada', loadConfig);
+        window.addEventListener('config-actualizada', loadConfig)
         return () => window.removeEventListener('config-actualizada', loadConfig)
     }, [currentUser, loadExtras])
 
@@ -120,9 +118,9 @@ export const Servicios = ({ currentUser }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        if (isReadOnly) return; // Protección extra
+        if (isReadOnly) return
 
-        let result;
+        let result
         if (editingId) {
             result = await productosService.updateProducto({ ...form, id: editingId })
         } else {
@@ -140,7 +138,7 @@ export const Servicios = ({ currentUser }) => {
     }
 
     const handleDelete = async (id) => {
-        if (isReadOnly) return; // Protección extra
+        if (isReadOnly) return
 
         const result = await Swal.fire({
             title: "¿Seguro que desea eliminar el registro?",
@@ -155,7 +153,7 @@ export const Servicios = ({ currentUser }) => {
                 setReloadTable(prev => prev + 1)
                 Swal.fire({ title: 'Eliminado', text: 'Registro eliminado', icon: 'success', timer: 1500 })
             } else {
-                 Swal.fire('Error', res?.error || 'No se pudo eliminar', 'error')
+                Swal.fire('Error', res?.error || 'No se pudo eliminar', 'error')
             }
         }
     }
@@ -168,7 +166,7 @@ export const Servicios = ({ currentUser }) => {
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
-            if (editBtn && !isReadOnly) { // Solo si no es read-only
+            if (editBtn && !isReadOnly) {
                 e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -206,7 +204,7 @@ export const Servicios = ({ currentUser }) => {
             }
             
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn && !isReadOnly) { // Solo si no es read-only
+            if (delBtn && !isReadOnly) {
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }
@@ -222,11 +220,11 @@ export const Servicios = ({ currentUser }) => {
             data: 'sku', 
             title: 'SKU', 
             render: (data, type, row) => {
-                if (!data) return '-';
-                const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : '';
-                const fullSku = `${prefix}${data.toUpperCase()}`;
-                const safeData = encodeURIComponent(JSON.stringify(row));
-                return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${fullSku}</a>`;
+                if (!data) return '-'
+                const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
+                const fullSku = `${prefix}${data.toUpperCase()}`
+                const safeData = encodeURIComponent(JSON.stringify(row))
+                return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${fullSku}</a>`
             } 
         },
         { 
@@ -255,7 +253,7 @@ export const Servicios = ({ currentUser }) => {
             orderable: false,
             className: 'text-center',
             render: function (data, type, row) {
-                const safeData = encodeURIComponent(JSON.stringify(row));
+                const safeData = encodeURIComponent(JSON.stringify(row))
 
                 let menuItems = `
                     <li>
@@ -263,7 +261,7 @@ export const Servicios = ({ currentUser }) => {
                             <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                         </a>
                     </li>
-                `;
+                `
 
                 if (canEdit) {
                     menuItems += `
@@ -272,18 +270,18 @@ export const Servicios = ({ currentUser }) => {
                                 <i class="bi bi-pencil me-2 text-secondary"></i> Editar
                             </a>
                         </li>
-                    `;
+                    `
                 }
 
                 if (canDelete) {
-                    if (canEdit) menuItems += `<li><hr class="dropdown-divider"></li>`;
+                    if (canEdit) menuItems += `<li><hr class="dropdown-divider"></li>`
                     menuItems += `
                         <li>
                             <a class="dropdown-item btn-delete text-danger" href="#" data-id="${row.id}">
                                 <i class="bi bi-trash3 me-2"></i> Eliminar
                             </a>
                         </li>
-                    `;
+                    `
                 }
 
                 return `

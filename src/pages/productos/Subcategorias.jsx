@@ -47,9 +47,8 @@ export const Subcategorias = ({ currentUser }) => {
     const [subcatSel, setSubcatSel] = useState(null)
 
     // === REGLAS DE SINCRONIZACIÓN WEB ===
-    // En SYNC_MAP subcategoria mapea a la regla de 'productos'
-    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web';
-    const isReadOnly = syncRule === 'web_to_desktop';
+    const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web'
+    const isReadOnly = syncRule === 'web_to_desktop'
 
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser
@@ -100,7 +99,7 @@ export const Subcategorias = ({ currentUser }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        if (isReadOnly) return; // Protección extra
+        if (isReadOnly) return
         
         let result
         const payload = { ...form, sku_prefix: (form.sku_prefix || '').toUpperCase() }
@@ -123,7 +122,7 @@ export const Subcategorias = ({ currentUser }) => {
     }
 
     const handleDelete = async (id) => {
-        if (isReadOnly) return; // Protección extra
+        if (isReadOnly) return
 
         const result = await Swal.fire({
             title: "¿Eliminar Subcategoría?",
@@ -154,7 +153,7 @@ export const Subcategorias = ({ currentUser }) => {
 
         const handleTableClick = (e) => {
             const editBtn = e.target.closest('.btn-edit')
-            if (editBtn && !isReadOnly) { // Bloqueo si es de solo lectura
+            if (editBtn && !isReadOnly) {
                 e.preventDefault()
                 try {
                     const rawData = decodeURIComponent(editBtn.dataset.alldata)
@@ -185,7 +184,7 @@ export const Subcategorias = ({ currentUser }) => {
             }
             
             const delBtn = e.target.closest('.btn-delete')
-            if (delBtn && !isReadOnly) { // Bloqueo si es de solo lectura
+            if (delBtn && !isReadOnly) {
                 e.preventDefault()
                 handleDelete(delBtn.dataset.id)
             }

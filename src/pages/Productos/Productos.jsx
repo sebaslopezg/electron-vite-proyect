@@ -74,7 +74,6 @@ export const Productos = ({ currentUser }) => {
     return u.permisos?.includes(permissionKey)
   }
 
-  // Permisos condicionados a la regla de Sincronización
   const canCreate = !isReadOnly && hasPermission('productos_crear')
 
   const loadConfig = async () => {
@@ -185,13 +184,13 @@ export const Productos = ({ currentUser }) => {
       
       const viewBtn = e.target.closest('.btn-view')
       if (viewBtn) {
-          e.preventDefault()
-          try {
-              const rawData = decodeURIComponent(viewBtn.dataset.alldata)
-              const item = JSON.parse(rawData)
-              setProdSel(item)
-              handleShowDetalles()
-          } catch(err) { console.error("Error leyendo datos para vista", err) }
+        e.preventDefault()
+        try {
+          const rawData = decodeURIComponent(viewBtn.dataset.alldata)
+          const item = JSON.parse(rawData)
+          setProdSel(item)
+          handleShowDetalles()
+        } catch(err) { console.error("Error leyendo datos para vista", err) }
       }
 
       const delBtn = e.target.closest('.btn-delete')
@@ -241,10 +240,10 @@ export const Productos = ({ currentUser }) => {
     if (result.isConfirmed) {
       const res = await productosService.deleteProducto(id)
       if (res.success) {
-          Toast.fire({ icon: 'success', title: 'Producto eliminado' })
-          setReloadTable(prev => prev + 1)
+        Toast.fire({ icon: 'success', title: 'Producto eliminado' })
+        setReloadTable(prev => prev + 1)
       } else {
-          Toast.fire({ icon: 'error', title: res.error || 'Error al eliminar' })
+        Toast.fire({ icon: 'error', title: res.error || 'Error al eliminar' })
       }
     }
   }
@@ -386,6 +385,8 @@ export const Productos = ({ currentUser }) => {
       handleClose={handleCloseDetalles}
       productoData={prodSel}
       appConfig={appConfig}
+      subcategoriasDisponibles={subcategorias}
+      etiquetasDisponibles={etiquetas}
     />
   </>
 }

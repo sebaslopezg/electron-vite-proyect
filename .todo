@@ -3,13 +3,13 @@
  ## Modificaciones Prioritarias:
 
  ### PRIORITARIO
- - Iniciar Sincronizadores
 
  ### Modulo Encargos:
  - > Habilitar cuadro de firma para que un usuario tenga que cambiar un estado.  
 
  ### Otros:
  - Agregar cartera con sistecredito y addi, el cliente no debe al almacen, si no que sea addi para controlar los pagos factoring
+ - Agregar saldos a favor del cliente cuando sea aplicable.
 
  - Avanzar con la implementacion de los botones excel y pdf en todas las vistas
 

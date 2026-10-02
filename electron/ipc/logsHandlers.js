@@ -4,7 +4,7 @@ import { logger } from "../utils/logger.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession;
-    if (!user) return false;
+    if (!user) return false
     return user.permisos?.includes("ALL") || user.permisos?.includes(permission)
 }
 

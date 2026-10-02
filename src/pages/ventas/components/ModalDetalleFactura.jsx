@@ -53,6 +53,9 @@ export const ModalDetalleFactura = ({
                             <Col md={6}>
                                 <p className="mb-1"><span className="text-muted">Cliente:</span> <strong className="fs-6">{facturaSeleccionada.nombre_cliente}</strong></p>
                                 <p className="mb-0"><span className="text-muted">Documento:</span> <strong>{facturaSeleccionada.documento_cliente}</strong></p>
+                                {(facturaSeleccionada.telefono_cliente || facturaSeleccionada.telefono) && (
+                                    <p className="mb-0 mt-1"><span className="text-muted">Teléfono:</span> <strong>{facturaSeleccionada.telefono_cliente || facturaSeleccionada.telefono}</strong></p>
+                                )}
                             </Col>
                             <Col md={6} className="text-end border-start">
                                 <div className="mb-2">

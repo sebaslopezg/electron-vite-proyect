@@ -1,20 +1,57 @@
 import { Button, Col, Modal, Row, Badge } from "react-bootstrap"
 import { formatCurrency } from '../../../utils/currencies'
 
-export const ProductoDetalles = ({ show, handleClose, productoData, appConfig }) => {
-    if (!productoData) return null;
+export const ProductoDetalles = ({ show, handleClose, productoData, appConfig, subcategoriasDisponibles = [], etiquetasDisponibles = [] }) => {
+    if (!productoData) return null
 
     const renderCurrency = (val) => formatCurrency(val, appConfig?.formato_numero || 'es-CO', appConfig?.moneda || 'COP')
 
-    const prefix = productoData.sku_prefix ? `${productoData.sku_prefix}${productoData.separador || ''}`.toUpperCase() : '';
-    const rawSku = String(productoData.sku || '').toUpperCase();
-    const finalSku = rawSku.startsWith(prefix) ? rawSku : `${prefix}${rawSku}`;
+    const prefix = productoData.sku_prefix ? `${productoData.sku_prefix}${productoData.separador || ''}`.toUpperCase() : ''
+    const rawSku = String(productoData.sku || '').toUpperCase()
+    const finalSku = rawSku.startsWith(prefix) ? rawSku : `${prefix}${rawSku}`
 
-    return (
+    let subcatsNombres = []
+    if (productoData.subcategorias_ids_json) {
+        try {
+            const subIds = typeof productoData.subcategorias_ids_json === 'string' 
+                ? JSON.parse(productoData.subcategorias_ids_json) 
+                : productoData.subcategorias_ids_json
+            
+            if (Array.isArray(subIds) && subIds.length > 0) {
+                subcatsNombres = subIds.map(id => {
+                    const sub = subcategoriasDisponibles.find(s => s.id === id)
+                    return sub ? sub.nombre : null
+                }).filter(Boolean)
+            }
+        } catch (e) {
+            console.error("Error parseando subcategorías", e)
+        }
+    }
+
+    let etiquetasObjs = []
+    if (productoData.etiquetas_ids) {
+        const tagIds = String(productoData.etiquetas_ids).split(',').map(s => s.trim()).filter(Boolean)
+        etiquetasObjs = tagIds.map(id => {
+            return etiquetasDisponibles.find(t => t.id === id)
+        }).filter(Boolean)
+    }
+
+    const getTextColor = (hexColor) => {
+        if (!hexColor) return '#ffffff'
+        const hex = hexColor.replace('#', '')
+        const r = parseInt(hex.substr(0, 2), 16)
+        const g = parseInt(hex.substr(2, 2), 16)
+        const b = parseInt(hex.substr(4, 2), 16)
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+        return (yiq >= 128) ? '#000000' : '#ffffff'
+    }
+
+    return <>
         <Modal show={show} onHide={handleClose} size="lg" centered className="shadow">
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title>
-                    <i className="bi bi-box-seam me-2 text-primary"></i>Detalles del Producto
+                    <i className={`bi ${productoData.tipo === 'servicio' ? 'bi bi-briefcase' : 'bi-box-seam'} me-2 text-primary`}></i>
+                    Detalles del {productoData.tipo === 'servicio' ? 'Servicio' : 'Producto'}
                 </Modal.Title>
             </Modal.Header>
 
@@ -50,6 +87,37 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig })
                             <label className="d-block small text-muted">Categoría Principal</label>
                             <span className="fw-medium">{productoData.categoria_nombre || 'General'}</span>
                         </div>
+
+                        {subcatsNombres.length > 0 && (
+                            <div className="mb-3">
+                                <label className="d-block small text-muted mb-1">Subcategorías</label>
+                                <div>
+                                    {subcatsNombres.map((nombre, idx) => (
+                                        <Badge key={idx} bg="secondary" className="me-1 mb-1 fw-normal">{nombre}</Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {etiquetasObjs.length > 0 && (
+                            <div className="mb-3">
+                                <label className="d-block small text-muted mb-1">Etiquetas (Tags)</label>
+                                <div>
+                                    {etiquetasObjs.map((tag, idx) => {
+                                        const color = tag.color || '#6c757d'
+                                        return (
+                                            <span 
+                                                key={idx} 
+                                                className="badge shadow-sm me-1 mb-1" 
+                                                style={{ backgroundColor: color, color: getTextColor(color), padding: '5px 10px', borderRadius: '12px' }}
+                                            >
+                                                <i className="bi bi-tag-fill me-1"></i>{tag.nombre}
+                                            </span>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="mb-3">
                             <label className="d-block small text-muted">Precio Unitario</label>
@@ -133,7 +201,7 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig })
                         <div className="bg-light p-3 rounded border mt-3">
                             <label className="text-muted fw-bold d-block small mb-1">Descripción / Notas</label>
                             <p className="mb-0" style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
-                                {productoData.descripcion || "El producto no posee descripción adicional."}
+                                {productoData.descripcion || "El producto/servicio no posee descripción adicional."}
                             </p>
                         </div>
                     </Col>
@@ -146,5 +214,5 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig })
                 </Button>
             </Modal.Footer>
         </Modal>
-    )
+    </>
 }

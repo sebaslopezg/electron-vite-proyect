@@ -4,6 +4,18 @@ import Swal from "sweetalert2"
 import { encargosService } from "../../services/encargosService"
 import { v4 as uuidv4 } from "uuid"
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const ConfiguracionEncargos = ({ currentUser }) => {
     const [activeUser, setActiveUser] = useState(currentUser)
     const [campos, setCampos] = useState([])
@@ -75,7 +87,7 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
 
     const handleSave = async () => {
         if (canEditCampos && campos.some(c => !c.label.trim())) {
-            return Swal.fire('Error', 'Todos los campos dinámicos deben tener un nombre (Label)', 'error')
+            return Toast.fire({ icon: 'error', title: 'Todos los campos dinámicos deben tener un nombre (Label)' })
         }
         
         Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
@@ -92,11 +104,11 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
         }
 
         if (resultCampos.success && resultSettings.success) {
-            Swal.fire('¡Éxito!', 'Configuración de encargos actualizada correctamente', 'success')
+            Toast.fire({ icon: 'success', title: 'Configuración actualizada correctamente' })
             window.dispatchEvent(new CustomEvent('formulario-encargos-actualizado'))
             window.dispatchEvent(new CustomEvent('configuracion-estados-actualizada'))
         } else {
-            Swal.fire('Error', 'No se pudo guardar la configuración completa', 'error')
+            Toast.fire({ icon: 'error', title: 'No se pudo guardar la configuración completa' })
         }
     }
 

@@ -1,29 +1,30 @@
 import db from "../database/index.js"
 import { v4 as uuidv4 } from 'uuid'
 
-let schemaChecked = false;
+let schemaChecked = false
 
 const writeLog = (tipo, modulo, mensaje, detalles = null) => {
     try {
         if (!schemaChecked) {
             try {
-                const tableInfo = db.prepare("PRAGMA table_info(system_logs)").all();
-                const hasUsuario = tableInfo.some(col => col.name === 'usuario');
+                const tableInfo = db.prepare("PRAGMA table_info(system_logs)").all()
+                const hasUsuario = tableInfo.some(col => col.name === 'usuario')
                 if (!hasUsuario) {
-                    db.prepare("ALTER TABLE system_logs ADD COLUMN usuario TEXT DEFAULT 'Sistema'").run();
+                    db.prepare("ALTER TABLE system_logs ADD COLUMN usuario TEXT DEFAULT 'Sistema'").run()
                 }
-                schemaChecked = true;
+                schemaChecked = true
             } catch (e) {
             }
         }
 
         const id = uuidv4()
         const fecha = new Date().toISOString()
-        const usuarioActivo = global.currentUserSession?.nombre || global.currentUserSession?.usuario || 'Sistema'
         
-        let detallesStr = '';
+        const usuarioActivo = global.currentUserSession?.nombre_completo || global.currentUserSession?.username || 'Sistema'
+        
+        let detallesStr = ''
         if (detalles instanceof Error) {
-            detallesStr = detalles.stack || detalles.message;
+            detallesStr = detalles.stack || detalles.message
         } else if (typeof detalles === 'object' && detalles !== null) {
             detallesStr = JSON.stringify(detalles)
         } else {
@@ -43,7 +44,7 @@ const writeLog = (tipo, modulo, mensaje, detalles = null) => {
     } catch (err) {
         console.error("Fallo crítico en el Logger del sistema:", err)
     }
-};
+}
 
 export const logger = {
     info: (modulo, mensaje, detalles) => writeLog('INFO', modulo, mensaje, detalles),
