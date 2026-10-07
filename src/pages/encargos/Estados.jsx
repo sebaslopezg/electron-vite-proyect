@@ -7,7 +7,8 @@ import {
     FormGroup, 
     Row,
     InputGroup,
-    Table
+    Table,
+    Alert
 } from "react-bootstrap"
 import Swal from "sweetalert2"
 import { encargosService } from "../../services/encargosService"
@@ -42,6 +43,7 @@ export const Estados = ({ currentUser }) => {
     const [isInitialLoad, setIsInitialLoad] = useState(true)
     
     const [alcancePolitica, setAlcancePolitica] = useState('global')
+    const [syncRules, setSyncRules] = useState({})
 
     const [usuariosDB, setUsuariosDB] = useState([])
     const [rolesDB, setRolesDB] = useState([])
@@ -92,11 +94,20 @@ export const Estados = ({ currentUser }) => {
         return u.permisos?.includes(permissionKey)
     }
 
-    const canCreate = hasPermission('estados_crear')
-    const canEditAction = hasPermission('estados_editar')
-    const canDeleteAction = hasPermission('estados_eliminar')
+    const isReadOnly = syncRules['encargos_estados'] === 'web_to_desktop'
+
+    const canCreate = !isReadOnly && hasPermission('estados_crear')
+    const canEditAction = !isReadOnly && hasPermission('estados_editar')
+    const canDeleteAction = !isReadOnly && hasPermission('estados_eliminar')
 
     const loadData = async () => {
+        try {
+            if (window.api && window.api.getSyncRules) {
+                const rules = await window.api.getSyncRules()
+                setSyncRules(rules || {})
+            }
+        } catch (e) {}
+
         const data = await encargosService.getEstados()
         setItems(Array.isArray(data) ? data : [])
         setDataInTable(Array.isArray(data) ? data : [])
@@ -430,7 +441,7 @@ export const Estados = ({ currentUser }) => {
                 `
             }
         }
-    ], [alcancePolitica, activeUser, currentUser])
+    ], [alcancePolitica, activeUser, currentUser, isReadOnly])
 
     return <>
         <div className="position-relative" style={{ minHeight: isInitialLoad ? '40vh' : 'auto' }}>
@@ -444,6 +455,7 @@ export const Estados = ({ currentUser }) => {
             )}
 
             <div style={{ opacity: isInitialLoad ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isInitialLoad ? 'none' : 'auto' }}>
+
                 {canCreate && (
                     <div className="mb-3">
                         <button className='btn btn-primary' onClick={() => {

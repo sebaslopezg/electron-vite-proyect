@@ -14,6 +14,21 @@ export const encargosService = {
         }
     },
 
+    getSyncRules: async () => {
+        if (isElectron() && window.api.getSyncRules) {
+            return await window.api.getSyncRules()
+        }
+        try {
+            // Reemplazar con el endpoint real de tu backend web si aplica
+            // const response = await api.get('/configuracion/sync-rules')
+            // return response.data || {}
+            return {}
+        } catch (error) {
+            console.error("Error al obtener reglas de sincronización desde la web", error)
+            return {}
+        }
+    },
+
     getEncargosSettings: async () => {
         if (isElectron()) return await window.api.getEncargosSettings()
         try {

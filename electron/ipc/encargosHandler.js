@@ -2,12 +2,13 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
+import { canModifyModule } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
-    const user = global.currentUserSession;
-    if (!user) return false;
-    if (user.permisos?.includes("ALL")) return true;
-    return user.permisos?.includes(permission);
+    const user = global.currentUserSession
+    if (!user) return false
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
 }
 
 export const registerEncargosHandlers = () => {
@@ -66,24 +67,25 @@ export const registerEncargosHandlers = () => {
     }
 
     ipcMain.handle("get-encargo-history", (_, encargoId) => {
-        if (!checkPermission("encargos_ver")) return { success: false, error: "No autorizado." };
+        if (!checkPermission("encargos_ver")) return { success: false, error: "No autorizado." }
         try {
             const stmt = db.prepare(`
                 SELECT h.*, 
-                       e1.titulo as estado_anterior_titulo, e1.color as estado_anterior_color, e1.icon_data as estado_anterior_icon,
-                       e2.titulo as estado_nuevo_titulo, e2.color as estado_nuevo_color, e2.icon_data as estado_nuevo_icon
+                    e1.titulo as estado_anterior_titulo, e1.color as estado_anterior_color, e1.icon_data as estado_anterior_icon,
+                    e2.titulo as estado_nuevo_titulo, e2.color as estado_nuevo_color, e2.icon_data as estado_nuevo_icon
                 FROM encargos_history h
                 LEFT JOIN estadoEncargo e1 ON h.estado_anterior_id = e1.id
                 LEFT JOIN estadoEncargo e2 ON h.estado_nuevo_id = e2.id
                 WHERE h.encargo_id = ?
                 ORDER BY h.fecha DESC
-            `);
-            return { success: true, data: stmt.all(encargoId) };
+            `)
+            return { success: true, data: stmt.all(encargoId) }
         } catch (error) {
-            logger.error('ENCARGOS', `Error al obtener el historial del encargo ${encargoId}`, error);
-            return { success: false, error: error.message };
+            logger.error('ENCARGOS', `Error al obtener el historial del encargo ${encargoId}`, error)
+            return { success: false, error: error.message }
         }
-    });
+    })
+
     // ------------------------------------------------
 
     ipcMain.handle("get-encargos-settings", () => {
@@ -97,7 +99,10 @@ export const registerEncargosHandlers = () => {
 
     ipcMain.handle("save-encargos-settings", (_, key, value) => {
         if (!checkPermission("encargos_config_estados")) {
-            return { success: false, error: "No autorizado para configurar el alcance de estados." };
+            return { success: false, error: "No autorizado para configurar el alcance de estados." }
+        }
+        if (!canModifyModule('encargos_config')) {
+            return { success: false, error: "La configuración está bloqueada localmente. La nube controla estos ajustes." }
         }
         try {
             db.prepare("INSERT OR REPLACE INTO encargos_settings (key, value) VALUES (?, ?)").run(key, value)
@@ -118,7 +123,10 @@ export const registerEncargosHandlers = () => {
 
     ipcMain.handle("save-encargos-campos", (_, campos) => {
         if (!checkPermission("encargos_config_campos")) {
-            return { success: false, error: "No autorizado para modificar campos dinámicos." };
+            return { success: false, error: "No autorizado para modificar campos dinámicos." }
+        }
+        if (!canModifyModule('encargos_config')) {
+            return { success: false, error: "Los campos dinámicos están bloqueados localmente. La nube controla estos ajustes." }
         }
         try {
             const transaction = db.transaction(() => {
@@ -138,7 +146,7 @@ export const registerEncargosHandlers = () => {
     })
 
     ipcMain.handle("get-encargos", () => {
-        if (!checkPermission("encargos_ver")) return [];
+        if (!checkPermission("encargos_ver")) return []
         try {
             const stmt = db.prepare(`
                 SELECT en.id,
@@ -174,13 +182,16 @@ export const registerEncargosHandlers = () => {
 
     ipcMain.handle("add-encargo", (_, item) => {
         if (!checkPermission("encargos_crear")) {
-            return { success: false, error: "No autorizado para registrar nuevos encargos." };
+            return { success: false, error: "No autorizado para registrar nuevos encargos." }
+        }
+        if (!canModifyModule('encargos')) {
+            return { success: false, error: "La creación de encargos está bloqueada localmente." }
         }
         try {
             const id = uuidv4()
             const now = new Date().toISOString()
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
-            const usuarioActivo = global.currentUserSession?.nombre_completo || global.currentUserSession?.username || 'Sistema';
+            const usuarioActivo = global.currentUserSession?.nombre_completo || global.currentUserSession?.username || 'Sistema'
 
             let encargoNum = item.encargo_numero
             if (!encargoNum) {
@@ -217,13 +228,13 @@ export const registerEncargosHandlers = () => {
                     db.prepare(`
                         INSERT INTO encargos_history (id, encargo_id, estado_anterior_id, estado_nuevo_id, usuario, fecha)
                         VALUES (?, ?, NULL, ?, ?, ?)
-                    `).run(uuidv4(), id, item.estado_id, usuarioActivo, now);
+                    `).run(uuidv4(), id, item.estado_id, usuarioActivo, now)
                 }
 
-                return info;
-            });
+                return info
+            })
 
-            const info = transaction();
+            const info = transaction()
 
             logger.success('ENCARGOS', `Encargo N° ${encargoNum} creado exitosamente`, `Factura: ${item.factura_numero} | Cliente: ${item.cliente_nombre}`)
             return { success: true, id: id, changes: info.changes }
@@ -236,16 +247,19 @@ export const registerEncargosHandlers = () => {
 
     ipcMain.handle("update-encargo", (_, item) => {
         if (!checkPermission("encargos_editar")) {
-            return { success: false, error: "No autorizado para modificar encargos." };
+            return { success: false, error: "No autorizado para modificar encargos." }
+        }
+        if (!canModifyModule('encargos')) {
+            return { success: false, error: "La edición de encargos está bloqueada localmente." }
         }
         try {
             const now = new Date().toISOString()
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
-            const usuarioActivo = item.modify_by || global.currentUserSession?.nombre_completo || global.currentUserSession?.username || 'Sistema';
+            const usuarioActivo = item.modify_by || global.currentUserSession?.nombre_completo || global.currentUserSession?.username || 'Sistema'
 
             const transaction = db.transaction(() => {
-                const currentEncargo = db.prepare("SELECT estado_id FROM encargos WHERE id = ?").get(item.id);
-                const estadoAnteriorId = currentEncargo?.estado_id;
+                const currentEncargo = db.prepare("SELECT estado_id FROM encargos WHERE id = ?").get(item.id)
+                const estadoAnteriorId = currentEncargo?.estado_id
 
                 const stmt = db.prepare(`
                     UPDATE encargos SET
@@ -272,13 +286,13 @@ export const registerEncargosHandlers = () => {
                     db.prepare(`
                         INSERT INTO encargos_history (id, encargo_id, estado_anterior_id, estado_nuevo_id, usuario, fecha)
                         VALUES (?, ?, ?, ?, ?, ?)
-                    `).run(uuidv4(), item.id, estadoAnteriorId, item.estado_id, usuarioActivo, now);
+                    `).run(uuidv4(), item.id, estadoAnteriorId, item.estado_id, usuarioActivo, now)
                 }
 
-                return info;
-            });
+                return info
+            })
 
-            const info = transaction();
+            const info = transaction()
 
             logger.success('ENCARGOS', `Encargo actualizado con éxito`, `ID Encargo: ${item.id} | Nuevo Estado: ${item.estado_id}`)
             return { success: true, changes: info.changes }
@@ -291,13 +305,16 @@ export const registerEncargosHandlers = () => {
 
     ipcMain.handle("delete-encargo", (_, item) => {
         if (!checkPermission("encargos_eliminar")) {
-            return { success: false, error: "No autorizado para eliminar encargos." };
+            return { success: false, error: "No autorizado para eliminar encargos." }
+        }
+        if (!canModifyModule('encargos')) {
+            return { success: false, error: "La eliminación de encargos está bloqueada localmente." }
         }
         try {
             const now = new Date().toISOString()
             const stmt = db.prepare(`UPDATE encargos SET status = 0, date_modify = @date_modify, modify_by = @modify_by WHERE id = @id`)
             const info = stmt.run({ id: item, date_modify: now, modify_by: 'No user' })
-            if (info.changes > 0) return { success: true, changes: info.changes };
+            if (info.changes > 0) return { success: true, changes: info.changes }
             return { success: false, changes: 0, message: "Product ID not found." }
         } catch (error) {
             return { success: false, error: error.message }

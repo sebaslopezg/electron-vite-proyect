@@ -2,6 +2,7 @@ import { ipcMain } from "electron"
 import db, { appDb } from "../database/index.js"
 import { v4 as uuidv4 } from "uuid"
 import { logger } from "../utils/logger.js"
+import { canModifyModule } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession;
@@ -46,6 +47,9 @@ export const registerEstadoHandlers = () => {
     ipcMain.handle("add-estado", (_, item) => {
         if (!checkPermission("estados_crear")) {
             return { success: false, error: "No autorizado para registrar nuevos estados." };
+        }
+        if (!canModifyModule('estadoEncargo')) {
+            return { success: false, error: "La gestión de estados está bloqueada localmente. La nube controla estos registros." };
         }
         try {
             const now = new Date().toISOString()
@@ -100,6 +104,9 @@ export const registerEstadoHandlers = () => {
         if (!checkPermission("estados_editar")) {
             return { success: false, error: "No autorizado para modificar los estados de encargos." };
         }
+        if (!canModifyModule('estadoEncargo')) {
+            return { success: false, error: "La edición de estados está bloqueada localmente. La nube controla estos registros." };
+        }
         try {
             const now = new Date().toISOString()
             const defaultStatus = 1
@@ -136,7 +143,10 @@ export const registerEstadoHandlers = () => {
 
     ipcMain.handle("delete-estado", (_, item) => {
         if (!checkPermission("estados_eliminar")) {
-            return { success: false, error: "No autorizado para eliminar los estados." };
+            return { success: false, error: "No autorizado para eliminar los estados." }
+        }
+        if (!canModifyModule('estadoEncargo')) {
+            return { success: false, error: "La eliminación de estados está bloqueada localmente." }
         }
         try {
             const now = new Date().toISOString()

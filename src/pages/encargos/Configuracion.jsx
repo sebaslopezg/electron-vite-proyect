@@ -20,10 +20,16 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
     const [activeUser, setActiveUser] = useState(currentUser)
     const [campos, setCampos] = useState([])
     const [alcanceEstados, setAlcanceEstados] = useState('global')
+    const [syncRules, setSyncRules] = useState({})
     
     const [isLoading, setIsLoading] = useState(true)
 
     const loadData = async () => {
+        try {
+            const rules = await encargosService.getSyncRules()
+            setSyncRules(rules || {})
+        } catch (e) {}
+
         try {
             const data = await encargosService.getEncargosCampos()
             setCampos(data || [])
@@ -43,8 +49,8 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
 
             if (currentUser) {
                 setActiveUser(currentUser)
-            } else if (window.api && window.api.getCurrentUser) {
-                const res = await window.api.getCurrentUser()
+            } else {
+                const res = await encargosService.getCurrentUser()
                 if (res && res.success && res.data) {
                     setActiveUser(res.data)
                 }
@@ -64,10 +70,11 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
         return u.permisos?.includes(permissionKey)
     }
 
-    const canEditEstados = hasPermission('encargos_config_estados')
-    const canEditCampos = hasPermission('encargos_config_campos')
+    const canEditEstados = hasPermission('encargos_config_estados') && syncRules['encargos_estados'] !== 'web_to_desktop'
+    const canEditCampos = hasPermission('encargos_config_campos') && syncRules['encargos_config'] !== 'web_to_desktop'
 
     const isFormDisabled = !canEditEstados && !canEditCampos
+    const isCloudManaged = syncRules['encargos_config'] === 'web_to_desktop' || syncRules['encargos_estados'] === 'web_to_desktop'
 
     const handleAddCampo = () => {
         setCampos([...campos, { id: uuidv4(), label: '', type: 'text', options: '', required: false }])
@@ -124,7 +131,7 @@ export const ConfiguracionEncargos = ({ currentUser }) => {
 
     return <>
         <div className="p-3 animate__animated animate__fadeIn">
-            
+
             <div className={`d-flex align-items-center border-bottom pb-2 mb-4 ${!canEditEstados ? 'opacity-75' : ''}`}>
                 <h5 className="card-title m-0 me-3">
                     <i className="bi bi-gear text-primary"></i> Configurar Estados

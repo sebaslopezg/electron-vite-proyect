@@ -183,9 +183,6 @@ export const registerSyncHandlers = () => {
 
             let rules = rulesRow ? JSON.parse(rulesRow.value) : {}
 
-            // =======================================================================
-            // SOLUCIÓN: AUTOFETCH DE REGLAS PARA EVITAR DESFASES CON LA CONFIG WEB
-            // =======================================================================
             try {
                 sendProgress("Verificando permisos y reglas en la nube...", "info")
                 const confRes = await axios.get(`${syncUrl}/api/sync/config`, { headers: { 'x-sync-token': syncToken } })
@@ -210,8 +207,6 @@ export const registerSyncHandlers = () => {
                 { local: 'ventasDetalle', web: 'ventasDetalle', parentRule: 'ventas' },
                 { local: 'nota', web: 'notasMaestro', parentRule: 'ventas' },
                 { local: 'nota_item', web: 'notasDetalle', parentRule: 'ventas' },
-
-                // --- Grupo Encargos Particionado ---
                 { local: 'encargos_config', web: 'encargos_config', parentRule: 'encargos_config' },
                 { local: 'estadoEncargo', web: 'encargos_estados', parentRule: 'encargos_estados' },
                 { local: 'encargos', web: 'encargos', parentRule: 'encargos' }
@@ -309,6 +304,11 @@ export const registerSyncHandlers = () => {
                         
                         db.transaction(() => {
                             db.exec('PRAGMA foreign_keys = OFF;');
+
+                            // REGLA CRÍTICA PARA ESTADOS DE ENCARGO: LIMPIEZA DE TABLA LOCAL
+                            if (localModulo === 'estadoEncargo' || webModulo === 'encargos_estados') {
+                                try { db.prepare(`UPDATE estadoEncargo SET status = 0`).run(); } catch(e){}
+                            }
 
                             for (const row of records) {
                                 let inventarioData = null
@@ -512,6 +512,7 @@ export const registerSyncHandlers = () => {
                 // REGLA: EL ESCRITORIO MANDA (SUBIDA / PUSH)
                 // ==============================================
                 
+                // Excepción: encargos_config NO se sube NUNCA (la web es la fuente de verdad)
                 if (localModulo === 'encargos_config') continue;
 
                 sendProgress(`[${webModulo.toUpperCase()}] Consultando registros pendientes...`, "info")
@@ -595,7 +596,7 @@ export const registerSyncHandlers = () => {
                         else if (webModulo === 'inventario') {
                             newRow.date_created = newRow.fecha 
                         }
-                        else if (webModulo === 'encargos_estados') {
+                        else if (webModulo === 'estadoEncargo' || localModulo === 'encargos_estados') {
                             if (newRow.status !== undefined) newRow.estado = newRow.status
                         }
                         else if (webModulo === 'encargos') {
