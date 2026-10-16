@@ -1,5 +1,5 @@
 import { ipcMain } from "electron"
-import db from "../database/index.js"
+import db, { appDb } from "../database/index.js"
 import { logger } from "../utils/logger.js"
 import axios from "axios"
 import { v4 as uuidv4 } from "uuid"
@@ -143,7 +143,7 @@ export const registerSyncHandlers = () => {
                     
                     sendProgress("Sincronización forzosa. Limpiando caché de fechas...", "warning");
                 } catch (e) {
-                    logger.warn('SYNC', 'No se pudo forzar el Full PULL', e)
+                    logger.warning('SYNC', 'No se pudo forzar el Full PULL', e)
                 }
             }
 
@@ -167,7 +167,7 @@ export const registerSyncHandlers = () => {
                 
                 sendProgress("Escaneo de integridad de esquema y fechas completado.", "success");
             } catch (e) {
-                logger.warn('SYNC', 'Fallo leve en auto-reparación', e)
+                logger.warning('SYNC', 'Fallo leve en auto-reparación', e)
             }
 
             const tokenRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_token'").get()
@@ -268,7 +268,6 @@ export const registerSyncHandlers = () => {
 
                         sendProgress(`[${webModulo.toUpperCase()}] Guardando ${records.length} registros...`, "warning")
 
-                        // CASO ESPECIAL 1: ENCARGOS CONFIGURACIÓN (NO ES TABLA)
                         if (localModulo === 'encargos_config') {
                             const configData = records[0];
                             if (configData) {
@@ -298,14 +297,12 @@ export const registerSyncHandlers = () => {
                             continue;
                         }
 
-                        // PROCESAMIENTO ESTÁNDAR PULL
                         const stmtExists = db.prepare(`SELECT 1 FROM ${localModulo} WHERE id = ?`)
                         const validColumns = db.pragma(`table_info(${localModulo})`).map(c => c.name)
                         
                         db.transaction(() => {
                             db.exec('PRAGMA foreign_keys = OFF;');
 
-                            // REGLA CRÍTICA PARA ESTADOS DE ENCARGO: LIMPIEZA DE TABLA LOCAL
                             if (localModulo === 'estadoEncargo' || webModulo === 'encargos_estados') {
                                 try { db.prepare(`UPDATE estadoEncargo SET status = 0`).run(); } catch(e){}
                             }
@@ -318,7 +315,6 @@ export const registerSyncHandlers = () => {
                                 
                                 const rowStatus = row.estado !== undefined ? Number(row.estado) : (row.status !== undefined ? Number(row.status) : 1);
                                 
-                                // === INTERCEPTOR PULL: WEB -> ESCRITORIO ===
                                 if (localModulo === 'producto') {
                                     if (row.categoriaId !== undefined) row.categoria_id = row.categoriaId;
 
@@ -388,9 +384,6 @@ export const registerSyncHandlers = () => {
                                     row.status = rowStatus;
                                 }
 
-                                // -------------------------------------------------------------
-                                // ELIMINACIÓN (SOFT/HARD DELETE) SI EL SERVIDOR ENVÍA ESTADO 0
-                                // -------------------------------------------------------------
                                 const isDeleted = rowStatus === 0 || (localModulo === 'producto' && rowStatus === 2);
                                 
                                 if (isDeleted) {
@@ -411,7 +404,6 @@ export const registerSyncHandlers = () => {
                                     }
                                     continue; 
                                 }
-                                // -------------------------------------------------------------
 
                                 const cleanRow = {}
                                 for (const key of Object.keys(row)) {
@@ -432,7 +424,6 @@ export const registerSyncHandlers = () => {
                                     db.prepare(`INSERT INTO ${localModulo} (${cols}) VALUES (${placeholders})`).run(cleanRow)
                                 }
 
-                                // === GUARDADO POSTERIOR DE TABLAS PIVOTE ===
                                 if (tagsData !== null) {
                                     db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id)
                                     if (cleanRow.status === 1) {
@@ -512,7 +503,6 @@ export const registerSyncHandlers = () => {
                 // REGLA: EL ESCRITORIO MANDA (SUBIDA / PUSH)
                 // ==============================================
                 
-                // Excepción: encargos_config NO se sube NUNCA (la web es la fuente de verdad)
                 if (localModulo === 'encargos_config') continue;
 
                 sendProgress(`[${webModulo.toUpperCase()}] Consultando registros pendientes...`, "info")
@@ -625,8 +615,15 @@ export const registerSyncHandlers = () => {
                         return newRow
                     })
 
-                    const payload = { [webModulo]: mappedRows }
-                    sendProgress(`[${webModulo.toUpperCase()}] Enviando lote de ${mappedRows.length} registros...`, "warning")
+                    let payload = { [webModulo]: mappedRows }
+
+                    if (webModulo === 'encargos') {
+                        payload.usuarios_locales = appDb.prepare("SELECT id, username, nombre_completo, status FROM usuarios").all()
+                        payload.roles_locales = appDb.prepare("SELECT id, nombre FROM roles").all()
+                        sendProgress(`[${webModulo.toUpperCase()}] Enviando lote de ${mappedRows.length} registros (con usuarios y roles)...`, "warning")
+                    } else {
+                        sendProgress(`[${webModulo.toUpperCase()}] Enviando lote de ${mappedRows.length} registros...`, "warning")
+                    }
                     
                     try {
                         const response = await axios.post(`${syncUrl}/api/sync/push`, payload, { 
@@ -644,7 +641,7 @@ export const registerSyncHandlers = () => {
                             allDetails[webModulo] = moduleDetails.errors
                             
                             sendProgress(`[${webModulo.toUpperCase()}] ADVERTENCIA: Se omitieron ${errorCount} registros por datos inválidos.`, "error")
-                            logger.warn('SYNC', `Omisiones en ${webModulo}:`, moduleDetails.errors)
+                            logger.warning('SYNC', `Omisiones en ${webModulo}:`, moduleDetails.errors)
                         } else {
                             sendProgress(`[${webModulo.toUpperCase()}] Lote aceptado correctamente.`, "success")
                         }

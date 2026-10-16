@@ -1,9 +1,14 @@
 import { Button, Form, InputGroup, Modal, Row, Col } from "react-bootstrap"
 
 const safeParse = (str) => {
-    if (!str) return [];
-    try { return JSON.parse(str); } catch { return []; }
-};
+    if (!str) return []
+    try { 
+        const parsed = JSON.parse(str)
+        return Array.isArray(parsed) ? parsed : [parsed]
+    } catch { 
+        return [{ id: str, nombre: str }]
+    }
+}
 
 export const ModalFormEncargo = ({
     show,
@@ -31,59 +36,70 @@ export const ModalFormEncargo = ({
     }
     
     const isEncargoGeneral = !editingId || (editingId && !form.producto_id)
-    const tieneDinamicos = camposDinamicos && camposDinamicos.length > 0;
+    const tieneDinamicos = camposDinamicos && camposDinamicos.length > 0
 
-    // Evaluamos el estado original del encargo para saber si se puede modificar
-    const originalStateObj = estados.find(e => String(e.id) === String(initialEstadoId));
+    const isGlobalAdmin = currentUser?.permisos?.includes('ALL')
 
-    let canModifyOriginal = true;
-    if (editingId && originalStateObj && alcancePolitica !== 'global' && currentUser) {
-        if (alcancePolitica === 'usuario') {
-            const arr = safeParse(originalStateObj.usuario_asignado);
-            const userMatch = arr.find(u => 
+    const originalStateObj = estados.find(e => String(e.id) === String(initialEstadoId))
+    let canModifyOriginal = true
+
+    if (editingId && originalStateObj && alcancePolitica !== 'global' && currentUser && !isGlobalAdmin) {
+        if (alcancePolitica === 'usuario' && originalStateObj.usuario_asignado) {
+            const arr = safeParse(originalStateObj.usuario_asignado)
+            const isAssigned = arr.some(u => 
+                String(u.id) === String(currentUser.id) || 
                 (u.nombre || '').toLowerCase() === (currentUser.nombre_completo || '').toLowerCase() || 
                 (u.nombre || '').toLowerCase() === (currentUser.username || '').toLowerCase()
-            );
-            if (userMatch) canModifyOriginal = userMatch.can_modify;
-            else canModifyOriginal = false; 
-
-        } else if (alcancePolitica === 'rol') {
-            const arr = safeParse(originalStateObj.rol_asignado);
-            const roleMatch = arr.find(r => (r.nombre || '').toLowerCase() === (currentUser.rol || '').toLowerCase());
-            if (roleMatch) canModifyOriginal = roleMatch.can_modify;
-            else canModifyOriginal = false;
+            )
+            canModifyOriginal = isAssigned
+        } else if (alcancePolitica === 'rol' && originalStateObj.rol_asignado) {
+            const arr = safeParse(originalStateObj.rol_asignado)
+            const isAssigned = arr.some(r => 
+                String(r.id) === String(currentUser.rol_id) || 
+                (r.nombre || '').toLowerCase() === (currentUser.rol || '').toLowerCase()
+            )
+            canModifyOriginal = isAssigned
         }
     }
 
-    const assignableStates = estados.filter(st => {
-        if (alcancePolitica === 'global' || !currentUser) return true;
+    const estadosPermitidos = estados.map(estado => {
+        let disabled = false
         
-        if (alcancePolitica === 'usuario') {
-            const arr = safeParse(st.usuario_asignado);
-            const userMatch = arr.find(u => 
-                (u.nombre || '').toLowerCase() === (currentUser.nombre_completo || '').toLowerCase() || 
-                (u.nombre || '').toLowerCase() === (currentUser.username || '').toLowerCase()
-            );
-            return userMatch ? userMatch.can_assign : false;
+        if (!isGlobalAdmin && alcancePolitica !== 'global') {
+            if (alcancePolitica === 'usuario' && estado.usuario_asignado) {
+                const assignedUsers = safeParse(estado.usuario_asignado)
+                const isAssigned = assignedUsers.some(u => 
+                    String(u.id) === String(currentUser?.id) || 
+                    String(u.nombre || '').toLowerCase() === String(currentUser?.nombre_completo || '').toLowerCase() ||
+                    String(u.nombre || '').toLowerCase() === String(currentUser?.username || '').toLowerCase()
+                )
+                if (!isAssigned) disabled = true
+
+            } else if (alcancePolitica === 'rol' && estado.rol_asignado) {
+                const assignedRoles = safeParse(estado.rol_asignado)
+                const isAssigned = assignedRoles.some(r => 
+                    String(r.id) === String(currentUser?.rol_id) || 
+                    String(r.nombre || '').toLowerCase() === String(currentUser?.rol || '').toLowerCase()
+                );
+                if (!isAssigned) disabled = true;
+            }
         }
         
-        if (alcancePolitica === 'rol') {
-            const arr = safeParse(st.rol_asignado);
-            const roleMatch = arr.find(r => (r.nombre || '').toLowerCase() === (currentUser.rol || '').toLowerCase());
-            return roleMatch ? roleMatch.can_assign : false;
+        if (String(initialEstadoId) === String(estado.id)) {
+            disabled = false
         }
-        
-        return true;
-    });
+
+        return { ...estado, disabled }
+    })
 
     return <>
-            <Modal show={show} onHide={handleClose} size={tieneDinamicos ? "lg" : "md"} centered backdrop="static">
-                <Modal.Header closeButton className="bg-light">
-                    <Modal.Title className="fs-5">
-                        <i className={`bi ${editingId ? 'bi-pencil' : 'bi-plus-circle'} me-2 text-primary`}></i>
-                        {editingId ? 'Completar Encargo' : 'Nuevo Encargo'}
-                    </Modal.Title>
-                </Modal.Header>
+        <Modal show={show} onHide={handleClose} size={tieneDinamicos ? "lg" : "md"} centered backdrop="static">
+            <Modal.Header closeButton className="bg-light">
+                <Modal.Title className="fs-5">
+                    <i className={`bi ${editingId ? 'bi-pencil' : 'bi-plus-circle'} me-2 text-primary`}></i>
+                    {editingId ? 'Completar Encargo' : 'Nuevo Encargo'}
+                </Modal.Title>
+            </Modal.Header>
             <Modal.Body>
                 <Form onSubmit={handleSubmit} id="encargoForm">
                     <Row>
@@ -142,6 +158,7 @@ export const ModalFormEncargo = ({
                                     required
                                 />
                             </Form.Group>
+                            
                             <Form.Group className="mb-3">
                                 <Form.Label htmlFor="estado_select" className="fw-bold small">Estado del Encargo</Form.Label>
                                 <Form.Select 
@@ -152,16 +169,11 @@ export const ModalFormEncargo = ({
                                     disabled={editingId && !canModifyOriginal}
                                 >
                                     <option value="">Seleccione un estado...</option>
-                                    {estados.map(c => {
-                                        const isAssignable = assignableStates.some(s => s.id === c.id);
-                                        const isCurrent = String(form.estado_id) === String(c.id);
-                                        const isInitial = String(initialEstadoId) === String(c.id);
-                                        
-                                        if (isAssignable || isCurrent || isInitial) {
-                                            return <option key={c.id} value={c.id}>{c.titulo}</option>
-                                        }
-                                        return null;
-                                    })}
+                                    {estadosPermitidos.map(e => (
+                                        <option key={e.id} value={e.id} disabled={e.disabled}>
+                                            {e.titulo} {e.disabled ? '(Acceso denegado)' : ''}
+                                        </option>
+                                    ))}
                                 </Form.Select>
                                 {(editingId && !canModifyOriginal) && (
                                     <Form.Text className="text-danger" style={{fontSize:'0.7rem'}}>
@@ -169,6 +181,7 @@ export const ModalFormEncargo = ({
                                     </Form.Text>
                                 )}
                             </Form.Group>
+                            
                             <Form.Group className="mb-3">
                                 <Form.Label htmlFor="descripcion" className="fw-bold small">Instrucciones / Descripción</Form.Label>
                                 <Form.Control
