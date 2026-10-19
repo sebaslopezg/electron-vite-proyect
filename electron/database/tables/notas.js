@@ -41,6 +41,8 @@ export const runV1Notas = () => {
       iva_percent REAL NOT NULL,
       subtotal REAL NOT NULL,
       total REAL NOT NULL,
+      date_created TEXT, 
+      date_modify TEXT,
       
       FOREIGN KEY(id_nota) REFERENCES nota(id) ON DELETE CASCADE,
       FOREIGN KEY(id_producto) REFERENCES producto(id)

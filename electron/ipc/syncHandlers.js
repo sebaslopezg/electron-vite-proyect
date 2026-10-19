@@ -618,9 +618,11 @@ export const registerSyncHandlers = () => {
                     let payload = { [webModulo]: mappedRows }
 
                     if (webModulo === 'encargos') {
-                        payload.usuarios_locales = appDb.prepare("SELECT id, username, nombre_completo, status FROM usuarios").all()
-                        payload.roles_locales = appDb.prepare("SELECT id, nombre FROM roles").all()
-                        sendProgress(`[${webModulo.toUpperCase()}] Enviando lote de ${mappedRows.length} registros (con usuarios y roles)...`, "warning")
+                        const usuariosArr = appDb.prepare("SELECT id, username, nombre_completo, status FROM usuarios").all();
+                        const rolesArr = appDb.prepare("SELECT id, nombre FROM roles").all()
+                        payload.usuarios_locales = usuariosArr;
+                        payload.roles_locales = rolesArr;
+                        sendProgress(`[${webModulo.toUpperCase()}] Enviando lote de ${mappedRows.length} encargos (con ${usuariosArr.length} usuarios y ${rolesArr.length} roles)...`, "warning")
                     } else {
                         sendProgress(`[${webModulo.toUpperCase()}] Enviando lote de ${mappedRows.length} registros...`, "warning")
                     }

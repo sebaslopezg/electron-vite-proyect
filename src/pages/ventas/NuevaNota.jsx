@@ -188,7 +188,7 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
         const payload = {
             tipo_nota: formData.tipo_nota,
             prefijo: formData.tipo_nota === 'Crédito' ? 'NC' : 'ND',
-            numero_nota: Math.floor(Math.random() * 1000) + 1,
+            numero_nota: 0,
             id_factura_origen: facturaCargada.id, 
             numero_factura_origen: facturaCargada.numero_factura.toString(),
 

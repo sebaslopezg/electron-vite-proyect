@@ -13,6 +13,14 @@ const checkPermission = (permission) => {
 
 export const registerNotasHandlers = () => {
 
+  try {
+    db.exec(`ALTER TABLE nota_item ADD COLUMN date_created TEXT;`);
+    db.exec(`ALTER TABLE nota_item ADD COLUMN date_modify TEXT;`);
+    logger.info('MIGRACION', 'Se agregaron columnas de fecha a nota_item');
+  } catch (error) {
+  }
+  // -----------------------------
+
   ipcMain.handle("get-notas", () => {
     if (!checkPermission("notas_gestionar")) return []
     try {
@@ -48,11 +56,16 @@ export const registerNotasHandlers = () => {
       
       const prefijoCalculado = notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND'
       
+      const maxRow = db.prepare('SELECT MAX(numero_nota) as maxNum FROM nota WHERE prefijo = ?').get(prefijoCalculado);
+      const maxInTable = maxRow?.maxNum || 0;
+
       let nuevoNumeroNota = 0
       if (notaData.tipo_nota === 'Crédito') {
-        nuevoNumeroNota = config.consecutivo_nota + 1
+        nuevoNumeroNota = Math.max(config.consecutivo_nota || 0, maxInTable) + 1
+        db.prepare('UPDATE almacen_conf SET consecutivo_nota = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
       } else {
-        nuevoNumeroNota = config.consecutivo_nota_debito + 1
+        nuevoNumeroNota = Math.max(config.consecutivo_nota_debito || 0, maxInTable) + 1
+        db.prepare('UPDATE almacen_conf SET consecutivo_nota_debito = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
       }
 
       const insertNota = db.prepare(`
@@ -87,12 +100,6 @@ export const registerNotasHandlers = () => {
         now: now,
         usuario: currentUser
       })
-
-      if (notaData.tipo_nota === 'Crédito') {
-        db.prepare('UPDATE almacen_conf SET consecutivo_nota = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
-      } else {
-        db.prepare('UPDATE almacen_conf SET consecutivo_nota_debito = ? WHERE id = ?').run(nuevoNumeroNota, config.id)
-      }
 
       const insertItem = db.prepare(`
         INSERT INTO nota_item (
