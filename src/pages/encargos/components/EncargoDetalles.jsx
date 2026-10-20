@@ -44,6 +44,14 @@ export const EncargoDetalles = ({ show, handleClose, encargoData, onVerFactura, 
                             <label className="d-block small">Documento / NIT</label>
                             <span className="fw-medium">{encargoData.cliente_documento}</span>
                         </div>
+
+                        {encargoData.cliente_telefono && (
+                            <div className="mb-3">
+                                <label className="d-block small">Teléfono</label>
+                                <span className="fw-medium">{encargoData.cliente_telefono}</span>
+                            </div>
+                        )}
+
                         <div>
                             <label className="d-block small">N° Factura Relacionada</label>
                             <div className="mb-3">

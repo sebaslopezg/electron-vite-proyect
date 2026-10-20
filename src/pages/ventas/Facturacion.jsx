@@ -882,158 +882,158 @@ export const Facturacion = ({ currentUser: initialUser }) => {
 
       <Col lg={4} xl={3}>
         <div className="card shadow-sm" style={{ position: 'sticky', top: '85px', zIndex: 10 }}>
-            <div className="card-body">
-              <h5 className="card-title mb-3">Resumen de Venta</h5>
+          <div className="card-body">
+            <h5 className="card-title mb-3">Resumen de Venta</h5>
 
-            <div className="d-flex justify-content-between mb-2">
-              <span>Subtotal:</span>
-              <span>{renderCurrency(subtotal)}</span>
-            </div>
-
-            {resumen.totalDescuentos > 0 && (
-              <div className="d-flex justify-content-between mb-2 text-danger font-italic">
-                <span>Total Descuentos:</span>
-                <span>-{renderCurrency(resumen.totalDescuentos)}</span>
-              </div>
-            )}
-
-            <div className="d-flex justify-content-between mb-2 border-top pt-2">
-              <strong>Subtotal Neto:</strong>
-              <strong>{renderCurrency(subtotalNeto)}</strong>
-            </div>
-
-            <div className="d-flex justify-content-between mb-2 text-muted">
-              <span>IVA:</span>
-              <span>{renderCurrency(ivaTotal)}</span>
-            </div>
-
-            <hr />
-            <div className="d-flex justify-content-between mb-3">
-              <span className="h5">Total:</span>
-              <span className="h5 text-primary">{renderCurrency(totalFinal)}</span>
-            </div>
-
-            <Row className="mb-2">
-                <Col xs={12}>
-                    <Form.Group className="mb-2">
-                    <Form.Label><small className="fw-bold">Tipo de Facturación</small></Form.Label>
-                    <Form.Select size="sm" value={tipoPago} onChange={(e) => setTipoPago(e.target.value)}>
-                        <option value="contado">Venta de Contado</option>
-                        <option value="credito">Venta a Crédito / Con Saldo Pendiente</option>
-                    </Form.Select>
-                    </Form.Group>
-                </Col>
-            </Row>
-
-            <div className="bg-light p-2 rounded mb-3 border">
-                <Form.Label className="fw-bold d-block"><small>Métodos de Pago y Dinero Recibido</small></Form.Label>
-                
-                {pagos.map((pago, index) => (
-                    <div key={index} className="p-2 mb-2 bg-white border rounded shadow-sm">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="small text-muted fw-bold">Pago {index + 1}</span>
-                            {pagos.length > 1 && (
-                                <Button variant="link" size="sm" className="text-danger p-0 text-decoration-none" onClick={() => removePago(index)}>
-                                    <i className="bi bi-trash"></i>
-                                </Button>
-                            )}
-                        </div>
-                        <Form.Select 
-                            size="sm" 
-                            className="mb-2"
-                            value={pago.metodo} 
-                            onChange={(e) => updatePago(index, 'metodo', e.target.value)}
-                        >
-                            {listaMetodosPago.length === 0 && <option value="Efectivo">Efectivo</option>}
-                            {listaMetodosPago.map(m => (
-                                <option key={m.id} value={m.nombre}>{m.nombre}</option>
-                            ))}
-                        </Form.Select>
-                        
-                        <InputGroup size="sm">
-                            <InputGroup.Text className="text-muted px-2"><small>{getCurrencySymbol(appConfig.moneda)}</small></InputGroup.Text>
-                            <Form.Control
-                                type="number"
-                                min="0"
-                                placeholder="Monto a recibir"
-                                value={pago.monto}
-                                onChange={(e) => updatePago(index, 'monto', e.target.value)}
-                            />
-                        </InputGroup>
-                    </div>
-                ))}
-                
-                <div className="text-center mt-2">
-                    <Button variant="link" size="sm" className="text-decoration-none p-0 fw-bold" onClick={addPago}>
-                        <i className="bi bi-plus-circle me-1"></i> Añadir método de pago
-                    </Button>
-                </div>
-            </div>
-
-            {recibidoNum > totalFinal && (
-              <div className="d-flex justify-content-between mb-3 text-success">
-                <strong>Cambio a devolver:</strong>
-                <strong className="fs-5">{renderCurrency(cambio)}</strong>
-              </div>
-            )}
-
-            {recibidoNum > 0 && recibidoNum < totalFinal && (
-              <div className="d-flex justify-content-between mb-3 text-warning">
-                <strong>Saldo pendiente (Deuda):</strong>
-                <strong>{renderCurrency(saldoPendiente)}</strong>
-              </div>
-            )}
-
-            <Form.Group className="mb-3 border-top pt-3">
-              <Form.Label><small className="fw-bold">Observaciones en factura</small></Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                size="sm"
-                placeholder=""
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-              />
-            </Form.Group>
-
-            {tipoPago === 'credito' && (
-              <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
-                <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
-                <InputGroup size="sm">
-                  <Form.Control 
-                    type="text" 
-                    inputMode="numeric"
-                    value={cuotas} 
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === '') {
-                        setCuotas('');
-                      } 
-                      else if (/^\d+$/.test(val)) {
-                        setCuotas(parseInt(val, 10));
-                      }
-                    }} 
-                  />
-                  <InputGroup.Text>Días</InputGroup.Text>
-                </InputGroup>
-                <Form.Text className="text-muted">Aplica para saldos pendientes</Form.Text>
-              </Form.Group>
-            )}
-
-            <Button
-              variant="success"
-              size="lg"
-              className="w-100 mt-2 shadow-sm"
-              disabled={carrito.length === 0}
-              onClick={finalizarVenta}
-            >
-              <i className="bi bi-check-circle me-2"></i>
-              Generar Factura
-            </Button>
+          <div className="d-flex justify-content-between mb-2">
+            <span>Subtotal:</span>
+            <span>{renderCurrency(subtotal)}</span>
           </div>
+
+          {resumen.totalDescuentos > 0 && (
+            <div className="d-flex justify-content-between mb-2 text-danger font-italic">
+              <span>Total Descuentos:</span>
+              <span>-{renderCurrency(resumen.totalDescuentos)}</span>
+            </div>
+          )}
+
+          <div className="d-flex justify-content-between mb-2 border-top pt-2">
+            <strong>Subtotal Neto:</strong>
+            <strong>{renderCurrency(subtotalNeto)}</strong>
+          </div>
+
+          <div className="d-flex justify-content-between mb-2 text-muted">
+            <span>IVA:</span>
+            <span>{renderCurrency(ivaTotal)}</span>
+          </div>
+
+          <hr />
+          <div className="d-flex justify-content-between mb-3">
+            <span className="h5">Total:</span>
+            <span className="h5 text-primary">{renderCurrency(totalFinal)}</span>
+          </div>
+
+          <Row className="mb-2">
+              <Col xs={12}>
+                  <Form.Group className="mb-2">
+                  <Form.Label><small className="fw-bold">Tipo de Facturación</small></Form.Label>
+                  <Form.Select size="sm" value={tipoPago} onChange={(e) => setTipoPago(e.target.value)}>
+                      <option value="contado">Venta de Contado</option>
+                      <option value="credito">Venta a Crédito / Con Saldo Pendiente</option>
+                  </Form.Select>
+                  </Form.Group>
+              </Col>
+          </Row>
+
+          <div className="">
+            <Form.Label className="fw-bold d-block"><small>Métodos de Pago</small></Form.Label>
+              
+            {pagos.map((pago, index) => (
+                <div key={index} className="p-2 mb-2 bg-white border rounded shadow-sm">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="small text-muted fw-bold">Pago {index + 1}</span>
+                        {pagos.length > 1 && (
+                            <Button variant="link" size="sm" className="text-danger p-0 text-decoration-none" onClick={() => removePago(index)}>
+                                <i className="bi bi-trash"></i>
+                            </Button>
+                        )}
+                    </div>
+                    <Form.Select 
+                        size="sm" 
+                        className="mb-2"
+                        value={pago.metodo} 
+                        onChange={(e) => updatePago(index, 'metodo', e.target.value)}
+                    >
+                        {listaMetodosPago.length === 0 && <option value="Efectivo">Efectivo</option>}
+                        {listaMetodosPago.map(m => (
+                            <option key={m.id} value={m.nombre}>{m.nombre}</option>
+                        ))}
+                    </Form.Select>
+                    
+                    <InputGroup size="sm">
+                        <InputGroup.Text className="text-muted px-2"><small>{getCurrencySymbol(appConfig.moneda)}</small></InputGroup.Text>
+                        <Form.Control
+                            type="number"
+                            min="0"
+                            placeholder="Monto a recibir"
+                            value={pago.monto}
+                            onChange={(e) => updatePago(index, 'monto', e.target.value)}
+                        />
+                    </InputGroup>
+                </div>
+            ))}
+              
+            <div className="text-center mt-2">
+                <Button variant="link" size="sm" className="text-decoration-none p-0 fw-bold" onClick={addPago}>
+                    <i className="bi bi-plus-circle me-1"></i> Añadir método de pago
+                </Button>
+            </div>
+          </div>
+
+          {recibidoNum > totalFinal && (
+            <div className="d-flex justify-content-between mb-3 text-success">
+              <strong>Cambio a devolver:</strong>
+              <strong className="fs-5">{renderCurrency(cambio)}</strong>
+            </div>
+          )}
+
+          {recibidoNum > 0 && recibidoNum < totalFinal && (
+            <div className="d-flex justify-content-between mb-3 text-warning">
+              <strong>Saldo pendiente (Deuda):</strong>
+              <strong>{renderCurrency(saldoPendiente)}</strong>
+            </div>
+          )}
+
+          <Form.Group className="mb-3 border-top pt-3">
+            <Form.Label><small className="fw-bold">Observaciones en factura</small></Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={2}
+              size="sm"
+              placeholder=""
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+            />
+          </Form.Group>
+
+          {tipoPago === 'credito' && (
+            <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
+              <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
+              <InputGroup size="sm">
+                <Form.Control 
+                  type="text" 
+                  inputMode="numeric"
+                  value={cuotas} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setCuotas('');
+                    } 
+                    else if (/^\d+$/.test(val)) {
+                      setCuotas(parseInt(val, 10));
+                    }
+                  }} 
+                />
+                <InputGroup.Text>Días</InputGroup.Text>
+              </InputGroup>
+              <Form.Text className="text-muted">Aplica para saldos pendientes</Form.Text>
+            </Form.Group>
+          )}
+
+          <Button
+            variant="success"
+            size="lg"
+            className="w-100 mt-2 shadow-sm"
+            disabled={carrito.length === 0}
+            onClick={finalizarVenta}
+          >
+            <i className="bi bi-check-circle me-2"></i>
+            Generar Factura
+          </Button>
         </div>
-      </Col>
-    </Row>
+      </div>
+    </Col>
+  </Row>
 
     <ModalBusquedaVentas
         show={show}

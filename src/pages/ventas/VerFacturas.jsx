@@ -157,7 +157,7 @@ export const VerFacturas = ({ currentUser }) => {
         if (!response.success) return Swal.fire('Error', 'No se pudieron extraer los detalles', 'error')
 
         exportInvoicePDF({
-            factura: factura,
+            factura: response.facturaMaestro || factura, // Usamos la completa si existe
             detalles: response.data,
             configuracion: response.configuracion || {},
             moneda: appConfig.moneda,
@@ -211,14 +211,17 @@ export const VerFacturas = ({ currentUser }) => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [currentUser, isLoading])
 
+    // CORRECCIÓN AQUÍ: Obligamos a que use el objeto maestro completo
     const verDetalle = async (factura) => {
-        setFacturaSeleccionada(factura)
-
         const response = await ventasService.getDetalleFactura(factura.id)
         if (response.success) {
             setDetalleData(response.data)
             setNotasFactura(response.notes || []) 
             setAlmacenConf(response.configuracion || null)
+            setFacturaSeleccionada(response.facturaMaestro || factura)
+            handleShow()
+        } else {
+            setFacturaSeleccionada(factura)
             handleShow()
         }
     }
@@ -228,14 +231,17 @@ export const VerFacturas = ({ currentUser }) => {
             return Swal.fire('Acceso Denegado', 'Tu rol no cuenta con permisos para re-imprimir comprobantes.', 'error')
         }
 
-        setFacturaSeleccionada(factura)
-
         const response = await ventasService.getDetalleFactura(factura.id)
         if (response.success) {
             setDetalleData(response.data)
             setNotasFactura(response.notes || []) 
             setAlmacenConf(response.configuracion || null)
+            setFacturaSeleccionada(response.facturaMaestro || factura)
             
+            setAbiertoDesdeDetalles(false)
+            setShowPreview(true)
+        } else {
+            setFacturaSeleccionada(factura)
             setAbiertoDesdeDetalles(false)
             setShowPreview(true)
         }

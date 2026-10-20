@@ -164,7 +164,21 @@ export const registerVentasHandlers = () => {
 
             const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`)
             const notas = notasStmt.all(facturaId)
-            const maestro = db.prepare('SELECT * FROM ventasMaestro WHERE id = ?').get(facturaId) || {}
+            
+            // CORRECCIÓN: Se elimina t.celular porque no existe en la tabla terceros local.
+            const maestroStmt = db.prepare(`
+                SELECT v.*, t.telefono as telefono_tercero
+                FROM ventasMaestro v
+                LEFT JOIN terceros t ON v.documento_cliente = t.numero_documento
+                WHERE v.id = ?
+            `);
+            const maestro = maestroStmt.get(facturaId) || {}
+
+            // Si la factura no tenía el teléfono guardado, inyectamos el que encontramos en terceros
+            if (maestro && !maestro.telefono_cliente) {
+                maestro.telefono_cliente = maestro.telefono_tercero || '';
+            }
+
             const confStmt = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`)
             const currentConf = confStmt.get() || {}
 
@@ -182,7 +196,13 @@ export const registerVentasHandlers = () => {
                 imprimir_logo_pos: currentConf.imprimir_logo_pos
             }
 
-            return { success: true, data: detalles, notes: notas, configuracion: configuracionSnapshot }
+            return { 
+                success: true, 
+                maestro: maestro, 
+                data: detalles, 
+                notes: notas, 
+                configuracion: configuracionSnapshot 
+            }
         } catch (error) {
             logger.error('VENTAS', `Error obteniendo los detalles de la factura (ID: ${facturaId})`, error)
             return { success: false, error: error.message }
@@ -286,12 +306,12 @@ export const registerVentasHandlers = () => {
                 INSERT INTO ventasMaestro (
                     id, numero_factura, prefijo, separador, resolucion_dian, titulo_documento,
                     nombre_almacen, nit_almacen, direccion_almacen, telefono_almacen,
-                    email_almacen, footer, nombre_cliente, documento_cliente, subtotal,
+                    email_almacen, footer, nombre_cliente, documento_cliente, telefono_cliente, subtotal,
                     descuento, iva, total_factura, total_recibido, saldo_pendiente,
                     total_recibido_original, saldo_pendiente_original, tipo_pago,
                     metodo_pago, pagos_multiples, moneda, formato_numero, date_created, date_modify, status, observaciones
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?
                 )
             `)
             insertMaestro.run(
@@ -308,7 +328,8 @@ export const registerVentasHandlers = () => {
                 config.email_almacen || '', 
                 config.footer_factura || '',
                 maestroData.nombre_cliente, 
-                maestroData.documento_cliente, 
+                maestroData.documento_cliente,
+                maestroData.telefono_cliente || null,
                 maestroData.subtotal, 
                 maestroData.descuento,
                 maestroData.iva, 

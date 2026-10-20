@@ -208,6 +208,9 @@ export const Encargos = ({ currentUser: initialUser }) => {
                 setDetalleData(det.data)
                 setNotasFactura(det.notes || [])
                 setAlmacenConf(det.configuracion || null)
+                if (det.facturaMaestro) {
+                    setFacturaSeleccionada(det.facturaMaestro)
+                }
                 setShowFacturaModal(true)
             }
         } else {
@@ -618,6 +621,7 @@ export const Encargos = ({ currentUser: initialUser }) => {
             notasFactura={notasFactura}
             handlePrepararImpresion={handlePrepararImpresion}
             appConfig={appConfig}
+            canPrint={hasPermission('ventas_imprimir')}
         />
         
         <ImpresorFactura 

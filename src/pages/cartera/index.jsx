@@ -85,6 +85,9 @@ export const Cartera = ({ currentUser }) => {
             if (result && result.success) {
                 setDetalleData(result.data || [])
                 setNotasFactura(result.notes || [])
+                if (result.facturaMaestro) {
+                    setFacturaVer(result.facturaMaestro)
+                }
             } else {
                 setDetalleData([])
                 setNotasFactura([])
@@ -133,7 +136,6 @@ export const Cartera = ({ currentUser }) => {
                 almacenConf={almacenConf}
                 appConfig={appConfig}
                 currentUser={currentUser}
-                onViewFactura={handleViewFactura}
             />
         }
     ].filter(tab => tab.visible)

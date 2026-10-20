@@ -44,6 +44,9 @@ export const TabHistorialAbonos = ({ reloadKey, almacenConf, appConfig, currentU
             if (det.success) {
                 setDetalleFacturaData(det.data || [])
                 setNotasFactura(det.notes || [])
+                if (det.facturaMaestro) {
+                    setFacturaSeleccionada(det.facturaMaestro)
+                }
                 setShowFacturaModal(true)
             }
         } else {

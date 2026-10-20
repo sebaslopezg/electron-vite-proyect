@@ -233,7 +233,7 @@ export const Configuracion = ({ data, onReload, currentUser }) => {
                                 label="Imprimir logo también en facturas de tirilla (POS)"
                                 checked={form.imprimir_logo_pos}
                                 onChange={(e) => setForm({ ...form, imprimir_logo_pos: e.target.checked })}
-                                className="fw-bold text-secondary mt-2"
+                                className="text-secondary mt-2"
                                 disabled={!canEditAlmacen}
                             />
                         )}

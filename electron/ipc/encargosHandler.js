@@ -145,7 +145,7 @@ export const registerEncargosHandlers = () => {
     })
 
     ipcMain.handle("get-encargos", () => {
-        if (!checkPermission("encargos_ver")) return [];
+        if (!checkPermission("encargos_ver")) return []
         try {
             const stmt = db.prepare(`
                 SELECT en.id,
@@ -165,11 +165,13 @@ export const registerEncargosHandlers = () => {
                     es.color as estado_color,
                     es.icon_data as icon,
                     p.ref_name as producto_nombre,
-                    vm.prefijo 
+                    vm.prefijo,
+                    t.telefono as cliente_telefono
                 FROM encargos en
                 LEFT JOIN estadoEncargo es ON en.estado_id = es.id
                 LEFT JOIN producto p ON en.producto_id = p.id
                 LEFT JOIN ventasMaestro vm ON en.factura_id = vm.id
+                LEFT JOIN terceros t ON en.cliente_documento = t.numero_documento
                 WHERE en.status > 0
             `)
             return stmt.all()
@@ -181,16 +183,16 @@ export const registerEncargosHandlers = () => {
 
     ipcMain.handle("add-encargo", (_, item) => {
         if (!checkPermission("encargos_crear")) {
-            return { success: false, error: "No autorizado para registrar nuevos encargos." };
+            return { success: false, error: "No autorizado para registrar nuevos encargos." }
         }
         if (!canModifyModule('encargos')) {
-            return { success: false, error: "La creación de encargos está bloqueada localmente." };
+            return { success: false, error: "La creación de encargos está bloqueada localmente." }
         }
         try {
             const id = uuidv4()
             const now = new Date().toISOString()
             const status = item.status > 0 && item.status <= 2 ? item.status : 1
-            const usuarioActivo = global.currentUserSession?.nombre_completo || global.currentUserSession?.username || 'Sistema';
+            const usuarioActivo = global.currentUserSession?.nombre_completo || global.currentUserSession?.username || 'Sistema'
 
             let encargoNum = item.encargo_numero
             if (!encargoNum) {
@@ -263,7 +265,6 @@ export const registerEncargosHandlers = () => {
                 if (!currentEncargo) throw new Error("Encargo no encontrado localmente.")
                 const estadoAnteriorId = currentEncargo.estado_id
 
-                // 👇 INICIO LÓGICA DE VALIDACIÓN DE PERMISOS DE ESTADO
                 if (item.estado_id && item.estado_id !== estadoAnteriorId) {
                     const targetState = db.prepare("SELECT * FROM estadoEncargo WHERE id = ?").get(item.estado_id)
                     if (!targetState) throw new Error('El estado al que intentas mover el encargo no existe.')
@@ -279,14 +280,12 @@ export const registerEncargosHandlers = () => {
                             if (assignedUser && assignedUser.trim() !== '') {
                                 try {
                                     const parsedUsers = JSON.parse(assignedUser)
-                                    // Compara asumiendo que el nombre de usuario de la DB coincida con la lista
                                     const userExists = parsedUsers.some(u => u.nombre === global.currentUserSession?.nombre_completo || u.nombre === global.currentUserSession?.username)
                                     if(!userExists) {
                                          throw new Error(`Acceso denegado: No estás asignado para usar el estado "${targetState.titulo}".`)
                                     }
                                 } catch(e) {
                                     if(e.message.includes('Acceso denegado')) throw e;
-                                    // Si no era un JSON valido o es un string antiguo:
                                     if(assignedUser !== usuarioActivoId && assignedUser !== global.currentUserSession?.username && assignedUser !== global.currentUserSession?.nombre_completo) {
                                         throw new Error(`Acceso denegado: Solo los usuarios asignados pueden mover el encargo al estado "${targetState.titulo}".`)
                                     }
@@ -299,19 +298,18 @@ export const registerEncargosHandlers = () => {
                                     const parsedRoles = JSON.parse(assignedRole)
                                     const roleExists = parsedRoles.some(r => r.nombre === usuarioActivoRol)
                                     if(!roleExists) {
-                                         throw new Error(`Acceso denegado: No tienes el rol necesario para mover el encargo al estado "${targetState.titulo}".`)
+                                        throw new Error(`Acceso denegado: No tienes el rol necesario para mover el encargo al estado "${targetState.titulo}".`)
                                     }
-                                 } catch (e) {
-                                     if(e.message.includes('Acceso denegado')) throw e;
-                                     if(assignedRole !== usuarioActivoRol) {
-                                         throw new Error(`Acceso denegado: No tienes el rol necesario para mover el encargo al estado "${targetState.titulo}".`)
-                                     }
-                                 }
+                                } catch (e) {
+                                   if(e.message.includes('Acceso denegado')) throw e;
+                                   if(assignedRole !== usuarioActivoRol) {
+                                      throw new Error(`Acceso denegado: No tienes el rol necesario para mover el encargo al estado "${targetState.titulo}".`)
+                                   }
+                                }
                             }
                         }
                     }
                 }
-                // 👆 FIN LÓGICA DE VALIDACIÓN
 
                 const stmt = db.prepare(`
                     UPDATE encargos SET

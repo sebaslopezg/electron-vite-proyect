@@ -85,6 +85,7 @@ export const encargosService = {
                 producto_cantidad: e.quantity,
                 cliente_nombre: e.customerName,
                 cliente_documento: e.customerDocument,
+                cliente_telefono: e.customerPhone || e.cliente_telefono || '', // <-- CORRECCIÓN
                 fecha_entrega: e.deliveryDate || '', 
                 descripcion: e.description || '',
                 estado_id: e.statusId || '',

@@ -190,6 +190,7 @@ export const ventasService = {
 
             const rawData = result.data || []
             
+            // CORRECCIÓN AQUÍ: Nos aseguramos de mapear también el teléfono del cliente
             const mappedData = rawData.map(f => ({
                 id: f.id,
                 date_created: f.createdAt,
@@ -198,6 +199,7 @@ export const ventasService = {
                 separador: f.separador || '-',
                 documento_cliente: f.customerDocument,
                 nombre_cliente: f.customerName,
+                telefono_cliente: f.customerPhone || f.telefono_cliente || f.telefono || '',
                 tipo_pago: f.paymentType,
                 total_recibido: f.amountPaid,
                 saldo_pendiente: f.balance,
@@ -216,7 +218,13 @@ export const ventasService = {
 
     getDetalleFactura: async (id) => {
         if (isElectron()) {
-            return await window.api.getDetalle(id)
+            // Se usa el servicio local de Electron
+            const result = await window.api.getDetalle(id);
+            if (result.success && result.maestro) {
+                // Incorporamos los datos del maestro en el objeto final
+                result.facturaMaestro = result.maestro; 
+            }
+            return result;
         } else {
             try {
                 const response = await api.get(`/sales/${id}/detalle`)
@@ -235,6 +243,7 @@ export const ventasService = {
 
                 return {
                     success: true,
+                    facturaMaestro: resData.maestro || null, // Aseguramos traer el maestro desde la web
                     data: mappedItems,
                     notes: resData.notes || [],
                     configuracion: resData.configuracion || null
