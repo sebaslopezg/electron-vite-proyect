@@ -2,7 +2,7 @@ import { ipcMain } from "electron"
 import db, { appDb } from "../database/index.js"
 import { v4 as uuidv4 } from "uuid"
 import { logger } from "../utils/logger.js"
-import { canModifyModule } from "./syncHandlers.js"
+import { canModifyModule, triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession;
@@ -93,6 +93,9 @@ export const registerEstadoHandlers = () => {
             })
 
             logger.success('ESTADOS_ENCARGO', `Nuevo estado de encargo creado: ${item.titulo}`)
+            
+            triggerBackgroundPush('estadoEncargo').catch(e => logger.error('SYNC', 'Error en push background (estadoEncargo)', e))
+
             return { success: true, id: id, changes: info.changes }
         } catch (error) {
             logger.error('ESTADOS_ENCARGO', `Error al intentar crear el estado de encargo: ${item.titulo}`, error)
@@ -102,7 +105,7 @@ export const registerEstadoHandlers = () => {
 
     ipcMain.handle("update-estado", (_, item) => {
         if (!checkPermission("estados_editar")) {
-            return { success: false, error: "No autorizado para modificar los estados de encargos." };
+            return { success: false, error: "No autorizado para modificar los estados de encargos." }
         }
         if (!canModifyModule('estadoEncargo')) {
             return { success: false, error: "La edición de estados está bloqueada localmente. La nube controla estos registros." };
@@ -134,6 +137,9 @@ export const registerEstadoHandlers = () => {
             })
             
             logger.success('ESTADOS_ENCARGO', `Estado de encargo actualizado: ${item.titulo} (ID: ${item.id})`)
+            
+            triggerBackgroundPush('estadoEncargo').catch(e => logger.error('SYNC', 'Error en push background (estadoEncargo)', e))
+
             return { success: true, id: item.id, changes: info.changes }
         } catch (error) {
             logger.error('ESTADOS_ENCARGO', `Error al intentar actualizar el estado de encargo (ID: ${item.id})`, error)
@@ -166,6 +172,9 @@ export const registerEstadoHandlers = () => {
 
             if (info.changes > 0) {
                 logger.warning('ESTADOS_ENCARGO', `Estado de encargo eliminado (Soft delete) (ID: ${item})`)
+                
+                triggerBackgroundPush('estadoEncargo').catch(e => logger.error('SYNC', 'Error en push background (estadoEncargo)', e))
+
                 return { success: true, changes: info.changes }
             } else {
                 logger.warning('ESTADOS_ENCARGO', `Intento de eliminar un estado de encargo inexistente (ID: ${item})`)

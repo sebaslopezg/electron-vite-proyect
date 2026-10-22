@@ -33,6 +33,7 @@
     "electron-updater": "^6.6.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "pusher-js": "^8.6.0",
     "react": "^19.1.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.1.1",

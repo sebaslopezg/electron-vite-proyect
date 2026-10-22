@@ -2,18 +2,19 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
+import { triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
-    const user = global.currentUserSession;
-    if (!user) return false;
-    if (user.permisos?.includes("ALL")) return true;
-    return user.permisos?.includes(permission);
+    const user = global.currentUserSession
+    if (!user) return false
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
 }
 
 export const registerEtiquetaHandlers = () => {
 
     ipcMain.handle("get-etiquetas", () => {
-        if (!checkPermission("etiquetas_ver") && !checkPermission("productos_ver") && !checkPermission("ventas_crear")) return [];
+        if (!checkPermission("etiquetas_ver") && !checkPermission("productos_ver") && !checkPermission("ventas_crear")) return []
         try {
             const stmt = db.prepare(`
                 SELECT e.*, 
@@ -34,7 +35,7 @@ export const registerEtiquetaHandlers = () => {
 
     ipcMain.handle("add-etiqueta", (_, item) => {
         if (!checkPermission("etiquetas_crear")) {
-            return { success: false, error: "No autorizado para crear etiquetas." };
+            return { success: false, error: "No autorizado para crear etiquetas." }
         }
         const transaction = db.transaction((data) => {
             const id = uuidv4()
@@ -51,6 +52,9 @@ export const registerEtiquetaHandlers = () => {
         try {
             const id = transaction(item)
             logger.success('ETIQUETAS', `Nueva etiqueta creada: ${item.nombre} (ID: ${id})`)
+
+            triggerBackgroundPush('etiqueta').catch(e => logger.error('SYNC', 'Error en push background (etiqueta)', e))
+
             return { success: true, id }
         } catch (error) {
             logger.error('ETIQUETAS', `Error al intentar agregar la etiqueta: ${item?.nombre}`, error)
@@ -60,7 +64,7 @@ export const registerEtiquetaHandlers = () => {
 
     ipcMain.handle("update-etiqueta", (_, item) => {
         if (!checkPermission("etiquetas_editar")) {
-            return { success: false, error: "No autorizado para modificar etiquetas." };
+            return { success: false, error: "No autorizado para modificar etiquetas." }
         }
         const transaction = db.transaction((data) => {
             db.prepare(`UPDATE etiqueta SET nombre = @nombre, descripcion = @descripcion, color = @color WHERE id = @id`).run(data)
@@ -76,6 +80,9 @@ export const registerEtiquetaHandlers = () => {
         try {
             transaction(item)
             logger.success('ETIQUETAS', `Etiqueta modificada correctamente: ${item.nombre} (ID: ${item.id})`)
+
+            triggerBackgroundPush('etiqueta').catch(e => logger.error('SYNC', 'Error en push background (etiqueta)', e))
+
             return { success: true }
         } catch (error) {
             logger.error('ETIQUETAS', `Error al actualizar la etiqueta ID: ${item?.id}`, error)
@@ -92,6 +99,9 @@ export const registerEtiquetaHandlers = () => {
             const info = stmt.run(id)
             
             logger.success('ETIQUETAS', `Etiqueta con ID ${id} fue desactivada lógicamente (Soft Delete)`)
+
+            triggerBackgroundPush('etiqueta').catch(e => logger.error('SYNC', 'Error en push background (etiqueta)', e))
+
             return { success: true, changes: info.changes }
         } catch (error) {
             logger.error('ETIQUETAS', `Error al aplicar Soft Delete a la etiqueta ID: ${id}`, error)

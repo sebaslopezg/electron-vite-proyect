@@ -2,7 +2,7 @@ import { ipcMain } from "electron"
 import db from "../database/index.js"
 import { v4 as uuidv4 } from "uuid"
 import { logger } from "../utils/logger.js"
-import { canModifyModule } from "./syncHandlers.js"
+import { canModifyModule, triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
@@ -47,6 +47,9 @@ export const registerTercerosHandlers = () => {
         
         const identificador = tercero.tipo_persona === 'juridica' ? tercero.razon_social : `${tercero.nombres} ${tercero.apellidos}`
         logger.success('TERCEROS', `Nuevo tercero registrado exitosamente: ${identificador} (Doc: ${tercero.numero_documento})`)
+
+        triggerBackgroundPush('terceros').catch(e => logger.error('SYNC', 'Error en push background (terceros)', e))
+
         return { success: true }
     } catch (error) { 
         logger.error('TERCEROS', `Error al intentar registrar el tercero con documento: ${tercero?.numero_documento}`, error)
@@ -74,6 +77,9 @@ export const registerTercerosHandlers = () => {
         )
         
         logger.success('TERCEROS', `Datos del tercero ID ${tercero.id} actualizados correctamente`)
+
+        triggerBackgroundPush('terceros').catch(e => logger.error('SYNC', 'Error en push background (terceros)', e))
+
         return { success: true }
     } catch (error) { 
         logger.error('TERCEROS', `Error al actualizar la información del tercero ID: ${tercero?.id}`, error)
@@ -87,6 +93,9 @@ export const registerTercerosHandlers = () => {
       try {
           db.prepare("UPDATE terceros SET estado = 0, date_modify = datetime('now', 'localtime') WHERE id = ?").run(id)
           logger.success('TERCEROS', `Tercero con ID ${id} fue desactivado exitosamente`)
+
+          triggerBackgroundPush('terceros').catch(e => logger.error('SYNC', 'Error en push background (terceros)', e))
+
           return { success: true }
       } catch (error) { 
           logger.error('TERCEROS', `Error al desactivar el tercero ID: ${id}`, error)
@@ -100,6 +109,9 @@ export const registerTercerosHandlers = () => {
       try {
           db.prepare("UPDATE terceros SET estado = 1, date_modify = datetime('now', 'localtime') WHERE id = ?").run(id)
           logger.success('TERCEROS', `Tercero con ID ${id} fue reactivado exitosamente`)
+
+          triggerBackgroundPush('terceros').catch(e => logger.error('SYNC', 'Error en push background (terceros)', e))
+
           return { success: true }
       } catch (error) { 
           logger.error('TERCEROS', `Error al reactivar el tercero ID: ${id}`, error)
@@ -113,6 +125,9 @@ export const registerTercerosHandlers = () => {
     try {
         db.prepare("UPDATE terceros SET estado = -1, date_modify = datetime('now', 'localtime') WHERE id = ?").run(id)
         logger.success('TERCEROS', `Tercero con ID ${id} fue dado de baja lógicamente (Soft Delete)`)
+
+        triggerBackgroundPush('terceros').catch(e => logger.error('SYNC', 'Error en push background (terceros)', e))
+
         return { success: true }
     } catch (error) { 
         logger.error('TERCEROS', `Error al aplicar Soft Delete al tercero ID: ${id}`, error)

@@ -2,7 +2,7 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
-import { canModifyModule } from "./syncHandlers.js"
+import { canModifyModule, triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
@@ -165,7 +165,6 @@ export const registerVentasHandlers = () => {
             const notasStmt = db.prepare(`SELECT * FROM nota WHERE id_factura_origen = ?`)
             const notas = notasStmt.all(facturaId)
             
-            // CORRECCIÓN: Se elimina t.celular porque no existe en la tabla terceros local.
             const maestroStmt = db.prepare(`
                 SELECT v.*, t.telefono as telefono_tercero
                 FROM ventasMaestro v
@@ -174,7 +173,6 @@ export const registerVentasHandlers = () => {
             `);
             const maestro = maestroStmt.get(facturaId) || {}
 
-            // Si la factura no tenía el teléfono guardado, inyectamos el que encontramos en terceros
             if (maestro && !maestro.telefono_cliente) {
                 maestro.telefono_cliente = maestro.telefono_tercero || '';
             }
@@ -281,7 +279,7 @@ export const registerVentasHandlers = () => {
         }
     })
 
-    ipcMain.handle("create-venta", (_, { maestro, detalles }) => {
+    ipcMain.handle("create-venta", async (_, { maestro, detalles }) => {
         if (!checkPermission("ventas_crear")) {
             return { success: false, error: "No autorizado para registrar operaciones de venta de mostrador." }
         }
@@ -489,6 +487,11 @@ export const registerVentasHandlers = () => {
         try {
             const result = transaction(maestro, detalles);
             logger.success('VENTAS', `Venta procesada exitosamente: Factura N° ${result.prefijo}${result.numero_factura}`)
+
+            triggerBackgroundPush().catch(err => {
+                logger.error('SYNC', 'Error disparando push en segundo plano tras venta', err)
+            })
+
             return result;
         } catch (error) {
             logger.error('VENTAS', "Error crítico al intentar registrar una nueva venta", error)

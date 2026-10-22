@@ -2,18 +2,19 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
+import { triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
-    const user = global.currentUserSession;
-    if (!user) return false;
-    if (user.permisos?.includes("ALL")) return true;
-    return user.permisos?.includes(permission);
+    const user = global.currentUserSession
+    if (!user) return false
+    if (user.permisos?.includes("ALL")) return true
+    return user.permisos?.includes(permission)
 }
 
 export const registerSubcategoriaHandlers = () => {
 
     ipcMain.handle("get-subcategorias", () => {
-        if (!checkPermission("subcategorias_ver") && !checkPermission("productos_ver")) return [];
+        if (!checkPermission("subcategorias_ver") && !checkPermission("productos_ver")) return []
         try {
             const stmt = db.prepare(`
                 SELECT s.*, 
@@ -35,7 +36,7 @@ export const registerSubcategoriaHandlers = () => {
 
     ipcMain.handle("add-subcategoria", (_, item) => {
         if (!checkPermission("subcategorias_crear")) {
-            return { success: false, error: "No autorizado para registrar nuevas subcategorías." };
+            return { success: false, error: "No autorizado para registrar nuevas subcategorías." }
         }
         const transaction = db.transaction((data) => {
             const id = uuidv4()
@@ -58,6 +59,9 @@ export const registerSubcategoriaHandlers = () => {
         try {
             const id = transaction(item);
             logger.success('SUBCATEGORIAS', `Nueva subcategoría creada: ${item.nombre}`)
+            
+            triggerBackgroundPush('subcategoria').catch(e => logger.error('SYNC', 'Error en push background (subcategoria)', e))
+
             return { success: true, id }
         } catch (error) {
             logger.error('SUBCATEGORIAS', `Error al intentar crear subcategoría: ${item.nombre}`, error)
@@ -67,7 +71,7 @@ export const registerSubcategoriaHandlers = () => {
 
     ipcMain.handle("update-subcategoria", (_, item) => {
         if (!checkPermission("subcategorias_editar")) {
-            return { success: false, error: "No autorizado para modificar subcategorías." };
+            return { success: false, error: "No autorizado para modificar subcategorías." }
         }
         const transaction = db.transaction((data) => {
             const legacyCategoriaId = data.categorias_ids && data.categorias_ids.length > 0 ? data.categorias_ids[0] : 'general'
@@ -93,6 +97,9 @@ export const registerSubcategoriaHandlers = () => {
         try {
             transaction(item)
             logger.success('SUBCATEGORIAS', `Subcategoría modificada correctamente: ${item.nombre} (ID: ${item.id})`)
+
+            triggerBackgroundPush('subcategoria').catch(e => logger.error('SYNC', 'Error en push background (subcategoria)', e))
+
             return { success: true }
         } catch (error) {
             logger.error('SUBCATEGORIAS', `Error al actualizar la subcategoría ID: ${item?.id}`, error)
@@ -102,7 +109,7 @@ export const registerSubcategoriaHandlers = () => {
 
     ipcMain.handle("delete-subcategoria", (_, id) => {
         if (!checkPermission("subcategorias_eliminar")) {
-            return { success: false, error: "No autorizado para eliminar subcategorías." };
+            return { success: false, error: "No autorizado para eliminar subcategorías." }
         }
         try {
             const check = db.prepare("SELECT COUNT(*) as count FROM producto WHERE subcategorias_ids_json LIKE '%' || ? || '%' AND status = 1").get(id)
@@ -113,6 +120,9 @@ export const registerSubcategoriaHandlers = () => {
             db.prepare("UPDATE subcategoria SET status = 0 WHERE id = ?").run(id)
             
             logger.success('SUBCATEGORIAS', `Subcategoría con ID ${id} desactivada del sistema lógicamente (Soft Delete)`)
+
+            triggerBackgroundPush('subcategoria').catch(e => logger.error('SYNC', 'Error en push background (subcategoria)', e))
+
             return { success: true }
         } catch (error) {
             logger.error('SUBCATEGORIAS', `Error al aplicar Soft Delete a la subcategoría ID: ${id}`, error)

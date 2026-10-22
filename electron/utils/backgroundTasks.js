@@ -1,6 +1,8 @@
 import db from "../database/index.js"
 import { v4 as uuidv4 } from "uuid"
 import { logger } from "./logger.js"
+import { runBootstrapOrRecoveryPull, triggerBackgroundPush } from "../ipc/syncHandlers.js"
+import { realtimeSyncService } from "../services/realtimeSyncService.js"
 
 const checkEncargosAlertas = (mainWindow) => {
     try {
@@ -50,9 +52,33 @@ const checkEncargosAlertas = (mainWindow) => {
     }
 }
 
-export const startBackgroundTasks = (mainWindow) => {
+// Controladores de conexión para Pusher y Recovery
+let isOnline = true
+
+const handleNetworkChange = async () => {
+    // Si la propiedad global navigator existiera aquí lo usaríamos, 
+    // pero como estamos en Node.js, confiaremos en los eventos de Pusher
+    // que ya configuramos en realtimeSyncService.js
+    
+    // NOTA: Como alternativa en el backend de Electron, el Recovery 
+    // se maneja nativamente desde Pusher cuando lanza el evento 'connected' 
+    // tras un 'unavailable'.
+}
+
+export const startBackgroundTasks = async (mainWindow) => {
     logger.info('CRON', 'Iniciando tareas en segundo plano...')
 
     checkEncargosAlertas(mainWindow)
     setInterval(() => checkEncargosAlertas(mainWindow), 60 * 60 * 1000)
+
+    setTimeout(async () => {
+        const tokenRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_token'").get()
+        if (tokenRow && tokenRow.value) {
+            logger.info('SYNC', 'Iniciando Sincronización Bootstrap y Conexión en Tiempo Real...')
+            
+            await runBootstrapOrRecoveryPull()
+            await triggerBackgroundPush()
+            realtimeSyncService.init()
+        }
+    }, 5000)
 }

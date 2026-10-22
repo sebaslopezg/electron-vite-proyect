@@ -2,6 +2,7 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
+import { triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
@@ -40,7 +41,7 @@ export const registerCarteraHandlers = () => {
 
     ipcMain.handle("get-cartera-paginada", (_, dtParams) => {
         if (!checkPermission("cartera_ver")) {
-            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] };
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
         try {
             const limit = parseInt(dtParams.length, 10) || 10
@@ -77,7 +78,7 @@ export const registerCarteraHandlers = () => {
 
     ipcMain.handle("add-abono", (_, data) => {
         if (!checkPermission("cartera_abonar")) {
-            return { success: false, error: "No cuentas con privilegios de rol para alterar saldos de cartera." };
+            return { success: false, error: "No cuentas con privilegios de rol para alterar saldos de cartera." }
         }
         
         const transaction = db.transaction((abono) => {
@@ -97,10 +98,11 @@ export const registerCarteraHandlers = () => {
             const updateMaestro = db.prepare(`
                 UPDATE ventasMaestro 
                 SET total_recibido = total_recibido + ?, 
-                    saldo_pendiente = saldo_pendiente - ?
+                    saldo_pendiente = saldo_pendiente - ?,
+                    date_modify = ?
                 WHERE id = ?
             `)
-            updateMaestro.run(abono.valor, abono.valor, abono.maestro_id)
+            updateMaestro.run(abono.valor, abono.valor, now, abono.maestro_id)
 
             if (facturaInfo) {
                 logger.success(
@@ -115,6 +117,9 @@ export const registerCarteraHandlers = () => {
 
         try {
             const id = transaction(data)
+
+            triggerBackgroundPush('ventasMaestro').catch(e => logger.error('SYNC', 'Error en push background (Abono de Cartera)', e))
+
             return { success: true, id }
         } catch (error) {
             logger.error('CARTERA', "Error crítico al intentar guardar un abono", error)
@@ -123,7 +128,7 @@ export const registerCarteraHandlers = () => {
     })
 
     ipcMain.handle("get-abonos", () => {
-        if (!checkPermission("cartera_historial_ver")) return { success: false, data: [], error: "No autorizado" };
+        if (!checkPermission("cartera_historial_ver")) return { success: false, data: [], error: "No autorizado" }
         try {
             const stmt = db.prepare(`
                 SELECT a.*, 

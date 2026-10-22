@@ -2,7 +2,8 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
-import { canModifyModule } from "./syncHandlers.js"
+// Importamos la función para disparar el push en background
+import { canModifyModule, triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
   const user = global.currentUserSession
@@ -14,9 +15,9 @@ const checkPermission = (permission) => {
 export const registerNotasHandlers = () => {
 
   try {
-    db.exec(`ALTER TABLE nota_item ADD COLUMN date_created TEXT;`);
-    db.exec(`ALTER TABLE nota_item ADD COLUMN date_modify TEXT;`);
-    logger.info('MIGRACION', 'Se agregaron columnas de fecha a nota_item');
+    db.exec(`ALTER TABLE nota_item ADD COLUMN date_created TEXT;`)
+    db.exec(`ALTER TABLE nota_item ADD COLUMN date_modify TEXT;`)
+    logger.info('MIGRACION', 'Se agregaron columnas de fecha a nota_item')
   } catch (error) {
   }
   // -----------------------------
@@ -45,8 +46,8 @@ export const registerNotasHandlers = () => {
     if (!canModifyModule('nota')) return { success: false, error: "La emisión de notas está bloqueada por la sincronización web." }
     
     const createNotaTransaction = db.transaction((notaData) => {
-      const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get();
-      const now = nowRow.nowStr;
+      const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get()
+      const now = nowRow.nowStr
       
       const notaId = uuidv4()
       const currentUser = global.currentUserSession?.username || 'system'
@@ -56,8 +57,8 @@ export const registerNotasHandlers = () => {
       
       const prefijoCalculado = notaData.tipo_nota === 'Crédito' ? 'NC' : 'ND'
       
-      const maxRow = db.prepare('SELECT MAX(numero_nota) as maxNum FROM nota WHERE prefijo = ?').get(prefijoCalculado);
-      const maxInTable = maxRow?.maxNum || 0;
+      const maxRow = db.prepare('SELECT MAX(numero_nota) as maxNum FROM nota WHERE prefijo = ?').get(prefijoCalculado)
+      const maxInTable = maxRow?.maxNum || 0
 
       let nuevoNumeroNota = 0
       if (notaData.tipo_nota === 'Crédito') {
@@ -168,6 +169,9 @@ export const registerNotasHandlers = () => {
 
     try {
       const newNotaId = createNotaTransaction(data)
+      
+      triggerBackgroundPush('nota').catch(e => logger.error('SYNC', 'Error disparando push tras crear nota', e))
+
       return { success: true, id: newNotaId }
     } catch (error) {
       logger.error('NOTAS', "Error crítico al intentar generar una Nota", error)

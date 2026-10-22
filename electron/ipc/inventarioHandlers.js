@@ -2,6 +2,7 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
+import { triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
@@ -209,6 +210,10 @@ export const registerInventarioHandler = () => {
         try {
             const result = transaction(item)
             logger.success('INVENTARIO', `Ajuste de inventario realizado: ${item.type.toUpperCase()} - ${item.notes.trim()}`)
+
+            // NUEVA LÍNEA: Disparar la sincronización en segundo plano hacia Pusher
+            triggerBackgroundPush('inventario').catch(e => logger.error('SYNC', 'Error en push background (inventario)', e))
+
             return result
         } catch (error) {
             logger.error('INVENTARIO', "Error crítico en transacción de ajuste de inventario", error)

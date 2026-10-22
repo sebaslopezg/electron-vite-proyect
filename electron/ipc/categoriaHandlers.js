@@ -2,6 +2,7 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
+import { triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
@@ -30,7 +31,7 @@ export const registerCategoriaHandlers = () => {
 
     ipcMain.handle("add-categoria", (_, item) => {
         if (!checkPermission("categorias_crear")) {
-            return { success: false, error: "No autorizado para agregar categorías estructurales." };
+            return { success: false, error: "No autorizado para agregar categorías estructurales." }
         }
         try {
             const id = uuidv4()
@@ -40,6 +41,9 @@ export const registerCategoriaHandlers = () => {
             `)
             const info = stmt.run({ ...item, separador: item.separador || '', id })
             logger.success('CATEGORIAS', `Nueva categoría creada: ${item.nombre}`)
+
+            triggerBackgroundPush('categoria').catch(e => logger.error('SYNC', 'Error en push background (categoria)', e))
+
             return { success: true, id, changes: info.changes }
         } catch (error) {
             logger.error('CATEGORIAS', `Error al intentar agregar la categoría: ${item?.nombre}`, error)
@@ -49,7 +53,7 @@ export const registerCategoriaHandlers = () => {
 
     ipcMain.handle("update-categoria", (_, item) => {
         if (!checkPermission("categorias_editar")) {
-            return { success: false, error: "No autorizado para alterar esquemas de categorías." };
+            return { success: false, error: "No autorizado para alterar esquemas de categorías." }
         }
         try {
             const stmt = db.prepare(`
@@ -59,6 +63,9 @@ export const registerCategoriaHandlers = () => {
             const info = stmt.run({ ...item, separador: item.separador || '' })
             
             logger.success('CATEGORIAS', `Categoría modificada correctamente: ${item.nombre} (ID: ${item.id})`)
+
+            triggerBackgroundPush('categoria').catch(e => logger.error('SYNC', 'Error en push background (categoria)', e))
+
             return { success: true, changes: info.changes }
         } catch (error) {
             logger.error('CATEGORIAS', `Error al actualizar la categoría ID: ${item?.id}`, error)
@@ -82,6 +89,9 @@ export const registerCategoriaHandlers = () => {
             const info = stmt.run(id)
 
             logger.success('CATEGORIAS', `Categoría con ID ${id} fue desactivada del sistema lógicamente (Soft Delete)`)
+
+            triggerBackgroundPush('categoria').catch(e => logger.error('SYNC', 'Error en push background (categoria)', e))
+
             return { success: true, changes: info.changes }
         } catch (error) {
             logger.error('CATEGORIAS', `Error al aplicar Soft Delete a la categoría ID: ${id}`, error)

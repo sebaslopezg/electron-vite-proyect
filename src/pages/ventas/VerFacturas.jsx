@@ -76,10 +76,24 @@ export const VerFacturas = ({ currentUser }) => {
     }
     const handleShow = () => setShow(true)
 
+    // NUEVO: Agregamos el listener para realtime-sync-applied (WebSockets/Pusher)
     useEffect(() => {
         const handleNuevaFactura = () => setReloadTable(prev => prev + 1)
+        const handleRealtimeSync = (e) => {
+            // Recargar tabla automáticamente al recibir actualización en tiempo real
+            setReloadTable(prev => prev + 1)
+        }
+
         window.addEventListener('factura-creada', handleNuevaFactura)
-        return () => window.removeEventListener('factura-creada', handleNuevaFactura)
+        
+        // Asumiendo que has mapeado eventos IPC al objeto window (ej. en preload.js) 
+        // Si usas un bus de eventos CustomEvent, lo escuchamos aquí:
+        window.addEventListener('realtime-sync-applied', handleRealtimeSync)
+
+        return () => {
+            window.removeEventListener('factura-creada', handleNuevaFactura)
+            window.removeEventListener('realtime-sync-applied', handleRealtimeSync)
+        }
     }, [])
 
     const tableContainerRef = useRef(null)
@@ -157,7 +171,7 @@ export const VerFacturas = ({ currentUser }) => {
         if (!response.success) return Swal.fire('Error', 'No se pudieron extraer los detalles', 'error')
 
         exportInvoicePDF({
-            factura: response.facturaMaestro || factura, // Usamos la completa si existe
+            factura: response.facturaMaestro || factura,
             detalles: response.data,
             configuracion: response.configuracion || {},
             moneda: appConfig.moneda,
@@ -211,7 +225,6 @@ export const VerFacturas = ({ currentUser }) => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [currentUser, isLoading])
 
-    // CORRECCIÓN AQUÍ: Obligamos a que use el objeto maestro completo
     const verDetalle = async (factura) => {
         const response = await ventasService.getDetalleFactura(factura.id)
         if (response.success) {
