@@ -4,8 +4,8 @@ ipcRenderer.on('realtime-sync-applied', (_event, data) => {
   window.dispatchEvent(new CustomEvent('electron-sync-applied', { detail: data }))
 })
 
-ipcRenderer.on('chat-event', (_event, payload) => {
-  window.dispatchEvent(new CustomEvent('electron-chat-event', { detail: payload }))
+ipcRenderer.on('local-users-synced', () => {
+  window.dispatchEvent(new CustomEvent('local-users-synced'))
 })
 
 ipcRenderer.on('chat-online-users', (_event, onlineIds) => {

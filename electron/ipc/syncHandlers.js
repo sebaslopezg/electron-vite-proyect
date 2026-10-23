@@ -1,4 +1,4 @@
-import { app, ipcMain } from "electron"
+import { app, ipcMain, BrowserWindow } from "electron"
 import db, { appDb } from "../database/index.js"
 import { logger } from "../utils/logger.js"
 import axios from "axios"
@@ -436,6 +436,13 @@ export const triggerLocalUsersPush = async () => {
         }, { headers })
 
         logger.info('SYNC', `Espejo de usuarios locales (${usuarios_locales.length}) sincronizado con la nube.`)
+        
+        BrowserWindow.getAllWindows().forEach(win => {
+            if (!win.isDestroyed()) {
+                win.webContents.send('local-users-synced')
+            }
+        })
+        
     } catch (error) {
         logger.warning('BACKGROUND_PUSH', `Push de usuarios locales pospuesto: ${error.message}`)
     }

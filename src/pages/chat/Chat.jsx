@@ -142,12 +142,16 @@ export const Chat = ({ currentUser }) => {
             setOnlineUsers(new Set(onlineIds.map(String)))
         }
 
+        const handleUsersSynced = () => { fetchConversationsRef.current() }
+
         window.addEventListener('electron-chat-event', handleChatEvent)
         window.addEventListener('electron-chat-online-users', handleOnlineUsers)
+        window.addEventListener('local-users-synced', handleUsersSynced)
 
         return () => {
             window.removeEventListener('electron-chat-event', handleChatEvent)
             window.removeEventListener('electron-chat-online-users', handleOnlineUsers)
+            window.removeEventListener('local-users-synced', handleUsersSynced)
         }
     }, [])
 

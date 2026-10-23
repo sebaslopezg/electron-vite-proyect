@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Badge } from 'react-bootstrap'
 import defaultLogo from './../../assets/favicon.png'
@@ -60,16 +60,16 @@ export const Header = ({ currentUser, onLogout }) => {
         }
     }
 
-    const loadNotificaciones = async () => {
+    const loadNotificaciones = useCallback(async () => {
         try {
             const data = await notificacionesService.getNotificaciones()
             setNotificaciones(data || [])
         } catch (error) {
             console.error("Error cargando notificaciones:", error)
         }
-    }
+    }, [])
 
-    const loadChats = async () => {
+    const loadChats = useCallback(async () => {
         try {
             const data = await chatService.getConversations()
             const activeOnly = data.filter(c => !c.isNewChat)
@@ -79,7 +79,13 @@ export const Header = ({ currentUser, onLogout }) => {
         } catch (e) { 
             console.error("Error cargando previsualizaciones del chat", e) 
         }
-    }
+    }, [])
+
+    const loadNotificacionesRef = useRef(loadNotificaciones)
+    const loadChatsRef = useRef(loadChats)
+
+    useEffect(() => { loadNotificacionesRef.current = loadNotificaciones; }, [loadNotificaciones])
+    useEffect(() => { loadChatsRef.current = loadChats; }, [loadChats])
 
     useEffect(() => {
         loadConfig()
@@ -88,13 +94,19 @@ export const Header = ({ currentUser, onLogout }) => {
 
         const handleUpdate = () => loadConfig()
         const handleProfileUpdate = (e) => setUserVisual(e.detail)
-        const handleNotifUpdate = () => loadNotificaciones()
-        const handleChatUpdate = () => loadChats()
+        
+        // Callbacks seguros para los eventos
+        const handleNotifUpdate = () => loadNotificacionesRef.current()
+        const handleChatUpdate = () => setTimeout(() => loadChatsRef.current(), 300)
 
         window.addEventListener('config-actualizada', handleUpdate)
         window.addEventListener('perfil-actualizado', handleProfileUpdate)
         window.addEventListener('notificaciones-actualizadas', handleNotifUpdate)
+        
+        // Eventos del Chat
         window.addEventListener('chat-read-sync', handleChatUpdate)
+        window.addEventListener('electron-chat-event', handleChatUpdate)
+        window.addEventListener('local-users-synced', handleChatUpdate) 
 
         const intervalNotif = setInterval(loadNotificaciones, 120000)
         const intervalChat = setInterval(loadChats, 30000)
@@ -104,10 +116,13 @@ export const Header = ({ currentUser, onLogout }) => {
             window.removeEventListener('perfil-actualizado', handleProfileUpdate)
             window.removeEventListener('notificaciones-actualizadas', handleNotifUpdate)
             window.removeEventListener('chat-read-sync', handleChatUpdate)
+            window.removeEventListener('electron-chat-event', handleChatUpdate)            
+            window.removeEventListener('local-users-synced', handleChatUpdate) 
+            
             clearInterval(intervalNotif)
             clearInterval(intervalChat)
         }
-    }, [])
+    }, [loadChats, loadNotificaciones])
 
     useEffect(() => {
         if (currentUser) setUserVisual(currentUser)
@@ -204,7 +219,7 @@ export const Header = ({ currentUser, onLogout }) => {
                     <li className="nav-item dropdown">
                         <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
                             <i className="bi bi-chat-left-text"></i>
-                            {unreadMessagesCount > 0 && <span className="badge bg-success badge-number">{unreadMessagesCount}</span>}
+                            {unreadMessagesCount > 0 && <span className="badge bg-success badge-number animate__animated animate__pulse animate__infinite">{unreadMessagesCount}</span>}
                         </a>
                         <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow messages shadow-sm">
                             <li className="dropdown-header">
