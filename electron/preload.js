@@ -81,7 +81,7 @@ contextBridge.exposeInMainWorld("api", {
   executeImportQuery: (data) => ipcRenderer.invoke('execute-import-query', data),
   executeImportJson: (data) => ipcRenderer.invoke('execute-import-json', data),
 
-// sincronización web
+  // sincronización web
   getSyncConfig: () => ipcRenderer.invoke("get-sync-config"),
   saveSyncConfig: (data) => ipcRenderer.invoke("save-sync-config", data),
   forceSyncNow: (options) => ipcRenderer.invoke("force-sync-now", options),
@@ -89,6 +89,19 @@ contextBridge.exposeInMainWorld("api", {
   getSyncRules: () => ipcRenderer.invoke("get-sync-rules"),
   onSyncProgress: (callback) => ipcRenderer.on("sync-progress", (_event, data) => callback(data)),
   removeSyncProgressListeners: () => ipcRenderer.removeAllListeners("sync-progress"),
+  
+  // === ACTUALIZACIÓN: Lógica de Sincronización en Tiempo Real ===
+  onRealtimeSyncApplied: (callback) => {
+      // 1. Despacha un evento global al objeto window para componentes de React
+      ipcRenderer.on('realtime-sync-applied', (_event, data) => {
+          window.dispatchEvent(new CustomEvent('electron-sync-applied', { detail: data }));
+          // 2. También ejecutamos el callback normal por si algún componente lo prefiere así
+          callback(data);
+      });
+  },
+  removeRealtimeSyncListeners: () => {
+      ipcRenderer.removeAllListeners('realtime-sync-applied');
+  },
 
   // logs
   getSystemLogs: (limit) => ipcRenderer.invoke("get-system-logs", limit),

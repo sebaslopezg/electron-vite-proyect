@@ -1,4 +1,4 @@
-import { ipcMain } from "electron"
+import { app, ipcMain } from "electron"
 import db, { appDb } from "../database/index.js"
 import { logger } from "../utils/logger.js"
 import axios from "axios"
@@ -21,7 +21,6 @@ export const saveConfigValue = (key, value) => {
     }
 }
 
-// Mapeo inverso para bloquear módulos de la Interfaz Gráfica
 const SYNC_MAP = {
     'terceros': 'terceros',
     'categoria': 'productos',
@@ -40,7 +39,6 @@ const SYNC_MAP = {
     'encargos_config': 'encargos_config'
 }
 
-// Mapeo de nombre de módulo en la Web -> Tabla Local en SQLite
 const WEB_TO_LOCAL_TABLE = {
     'terceros': 'terceros',
     'categorias': 'categoria',
@@ -87,15 +85,11 @@ export const canModifyModule = (moduloLocal) => {
     } catch { return true }
 }
 
-/**
- * Función Idempotente de Upsert Local (Usada tanto por GET /pull como por Pusher sync-update)
- */
 export const upsertModuleRecords = (webModulo, records, { isRealtime = false } = {}) => {
     if (!Array.isArray(records) || records.length === 0) return 0
 
     const localModulo = WEB_TO_LOCAL_TABLE[webModulo] || webModulo
 
-    // CASO ESPECIAL: ENCARGOS CONFIGURACIÓN
     if (localModulo === 'encargos_config') {
         const configData = records[0]
         if (configData) {
@@ -133,7 +127,6 @@ export const upsertModuleRecords = (webModulo, records, { isRealtime = false } =
     db.transaction(() => {
         db.exec('PRAGMA foreign_keys = OFF;')
 
-        // Solo desactivamos todos los estados previos si es un PULL completo, no en un evento parcial de Pusher
         if (!isRealtime && (localModulo === 'estadoEncargo' || webModulo === 'encargos_estados')) {
             try { db.prepare(`UPDATE estadoEncargo SET status = 0`).run() } catch(e){}
         }
@@ -147,34 +140,68 @@ export const upsertModuleRecords = (webModulo, records, { isRealtime = false } =
             
             const rowStatus = row.estado !== undefined ? Number(row.estado) : (row.status !== undefined ? Number(row.status) : 1)
             
+            // --- 1. PROCESAMIENTO DE BORRADO LÓGICO Y ELIMINACIONES RÁPIDAS ---
+            const isDeleted = rowStatus === 0 || (localModulo === 'producto' && rowStatus === 2)
+            
+            if (isDeleted) {
+                if (localModulo === 'producto') {
+                    db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id)
+                    db.prepare(`DELETE FROM inventario_saldos WHERE producto_id = ?`).run(row.id)
+                    try { db.prepare(`UPDATE ${localModulo} SET status = 0 WHERE id = ?`).run(row.id) } catch(e){}
+                } else if (localModulo === 'subcategoria') {
+                    try { db.prepare(`DELETE FROM subcategoria_categoria WHERE subcategoria_id = ?`).run(row.id) } catch(e){}
+                    try { db.prepare(`UPDATE ${localModulo} SET status = 0 WHERE id = ?`).run(row.id) } catch(e){}
+                } else if (localModulo === 'etiqueta') {
+                    try { db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(row.id) } catch(e){}
+                    try { db.prepare(`UPDATE ${localModulo} SET status = 0 WHERE id = ?`).run(row.id) } catch(e){}
+                } else if (localModulo === 'estadoEncargo' || localModulo === 'encargos') {
+                    try { db.prepare(`UPDATE ${localModulo} SET status = 0 WHERE id = ?`).run(row.id) } catch(e){}
+                } else {
+                    try { db.prepare(`UPDATE ${localModulo} SET status = 0 WHERE id = ?`).run(row.id) } catch(e){}
+                }
+
+                const deleteDate = row.date_modify || row.date_created || row.fecha
+                if (deleteDate && deleteDate > latestDate) latestDate = deleteDate
+
+                continue
+            }
+
+            // --- 2. PREPARACIÓN DE DATOS RELACIONALES (Solo si no es borrado) ---
             if (localModulo === 'producto') {
                 if (row.categoriaId !== undefined) row.categoria_id = row.categoriaId
                 if (row.name !== undefined && !row.ref_name) row.ref_name = row.name
                 if (row.price !== undefined && row.precio === undefined) row.precio = row.price
 
-                inventarioData = {
-                    producto_id: row.id,
-                    stock: row.stock !== undefined ? row.stock : 0,
-                    min_stock: row.min_stock !== undefined ? row.min_stock : 5,
-                    max_stock: row.max_stock !== undefined ? row.max_stock : 100
+                if (row.stock !== undefined || row.min_stock !== undefined || row.max_stock !== undefined) {
+                    inventarioData = {
+                        producto_id: row.id,
+                        stock: row.stock !== undefined ? row.stock : 0,
+                        min_stock: row.min_stock !== undefined ? row.min_stock : 5,
+                        max_stock: row.max_stock !== undefined ? row.max_stock : 100
+                    }
                 }
+                
                 if (row.impuesto !== undefined) row.iva = row.impuesto
                 row.status = rowStatus
-                if (!row.categoria_id) row.categoria_id = 'general'
-                if (!row.tipo) row.tipo = 'producto'
+                if (row.categoria_id === undefined && !db.prepare(`SELECT 1 FROM ${localModulo} WHERE id = ?`).get(row.id)) row.categoria_id = 'general'
+                if (row.tipo === undefined && !db.prepare(`SELECT 1 FROM ${localModulo} WHERE id = ?`).get(row.id)) row.tipo = 'producto'
 
                 let subRaw = row.subcategorias_ids_json !== undefined ? row.subcategorias_ids_json : row.subcategoriasIdsJson
-                if (subRaw) {
+                if (subRaw !== undefined) {
                     row.subcategorias_ids_json = typeof subRaw === 'string' ? subRaw : JSON.stringify(subRaw)
                 } else if (row.subcategorias_ids && Array.isArray(row.subcategorias_ids)) {
                     row.subcategorias_ids_json = JSON.stringify(row.subcategorias_ids)
                 }
 
                 let tagsRaw = row.etiquetas_ids !== undefined ? row.etiquetas_ids : (row.etiquetasIds !== undefined ? row.etiquetasIds : row.etiquetas)
-                if (typeof tagsRaw === 'string' && tagsRaw.trim() !== '') {
-                    tagsData = tagsRaw.split(',').map(id => id.trim()).filter(Boolean)
-                } else if (Array.isArray(tagsRaw)) {
-                    tagsData = tagsRaw
+                if (tagsRaw !== undefined) {
+                    if (typeof tagsRaw === 'string' && tagsRaw.trim() !== '') {
+                        tagsData = tagsRaw.split(',').map(id => id.trim()).filter(Boolean)
+                    } else if (Array.isArray(tagsRaw)) {
+                        tagsData = tagsRaw
+                    } else {
+                         tagsData = []
+                    }
                 }
 
                 delete row.stock
@@ -184,73 +211,64 @@ export const upsertModuleRecords = (webModulo, records, { isRealtime = false } =
             } else if (localModulo === 'subcategoria') {
                 row.status = rowStatus
                 let catsRaw = row.categorias_ids !== undefined ? row.categorias_ids : row.categoriasIds
-                if (typeof catsRaw === 'string' && catsRaw.trim() !== '') {
-                    subcatCatData = catsRaw.split(',').map(id => id.trim()).filter(Boolean)
-                } else if (Array.isArray(catsRaw)) {
-                    subcatCatData = catsRaw
-                }
+                if (catsRaw !== undefined) {
+                    if (typeof catsRaw === 'string' && catsRaw.trim() !== '') {
+                        subcatCatData = catsRaw.split(',').map(id => id.trim()).filter(Boolean)
+                    } else if (Array.isArray(catsRaw)) {
+                        subcatCatData = catsRaw
+                    } else {
+                        subcatCatData = []
+                    }
 
-                if (subcatCatData && subcatCatData.length > 0) {
-                    row.categoria_id = subcatCatData[0]
-                    row.categorias_ids = subcatCatData.join(',')
-                } else {
-                    row.categoria_id = 'general'
+                    if (subcatCatData && subcatCatData.length > 0) {
+                        row.categoria_id = subcatCatData[0]
+                        row.categorias_ids = subcatCatData.join(',')
+                    } else {
+                        row.categoria_id = 'general'
+                    }
                 }
 
             } else if (localModulo === 'etiqueta') {
                 row.status = rowStatus
                 let catsRaw = row.categorias_ids !== undefined ? row.categorias_ids : (row.categoriasIds !== undefined ? row.categoriasIds : row.categorias)
-                if (typeof catsRaw === 'string' && catsRaw.trim() !== '') {
-                    etiquetaCatData = catsRaw.split(',').map(id => id.trim()).filter(Boolean)
-                } else if (Array.isArray(catsRaw)) {
-                    etiquetaCatData = catsRaw
+                if (catsRaw !== undefined) {
+                    if (typeof catsRaw === 'string' && catsRaw.trim() !== '') {
+                        etiquetaCatData = catsRaw.split(',').map(id => id.trim()).filter(Boolean)
+                    } else if (Array.isArray(catsRaw)) {
+                        etiquetaCatData = catsRaw
+                    } else {
+                        etiquetaCatData = []
+                    }
                 }
             } else {
                 row.status = rowStatus
             }
 
-            const isDeleted = rowStatus === 0 || (localModulo === 'producto' && rowStatus === 2)
-            
-            if (isDeleted) {
-                if (localModulo === 'producto') {
-                    db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id)
-                    db.prepare(`DELETE FROM inventario_saldos WHERE producto_id = ?`).run(row.id)
-                    try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id) } catch(e){}
-                } else if (localModulo === 'subcategoria') {
-                    try { db.prepare(`DELETE FROM subcategoria_categoria WHERE subcategoria_id = ?`).run(row.id) } catch(e){}
-                    try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id) } catch(e){}
-                } else if (localModulo === 'etiqueta') {
-                    try { db.prepare(`DELETE FROM etiqueta_categoria WHERE etiqueta_id = ?`).run(row.id) } catch(e){}
-                    try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id) } catch(e){}
-                } else if (localModulo === 'estadoEncargo' || localModulo === 'encargos') {
-                    try { db.prepare(`UPDATE ${localModulo} SET status = 0 WHERE id = ?`).run(row.id) } catch(e){}
-                } else {
-                    try { db.prepare(`DELETE FROM ${localModulo} WHERE id = ?`).run(row.id) } catch(e){}
-                }
-                continue
-            }
-
+            // --- 3. CONSTRUCCIÓN DINÁMICA DE LA CONSULTA (Parche Parcial) ---
             const cleanRow = {}
             for (const key of Object.keys(row)) {
-                if (validColumns.includes(key)) {
+                if (validColumns.includes(key) && row[key] !== undefined) {
                     cleanRow[key] = row[key]
                 }
             }
 
             if (!cleanRow.id) continue
 
-            const keys = Object.keys(cleanRow)
             const exists = stmtExists.get(cleanRow.id)
+            const keys = Object.keys(cleanRow)
 
             if (exists) {
                 const sets = keys.filter(k => k !== 'id').map(k => `${k} = @${k}`).join(', ')
-                if (sets.length > 0) db.prepare(`UPDATE ${localModulo} SET ${sets} WHERE id = @id`).run(cleanRow)
+                if (sets.length > 0) {
+                    db.prepare(`UPDATE ${localModulo} SET ${sets} WHERE id = @id`).run(cleanRow)
+                }
             } else {
                 const cols = keys.join(', ')
                 const placeholders = keys.map(k => `@${k}`).join(', ')
                 db.prepare(`INSERT INTO ${localModulo} (${cols}) VALUES (${placeholders})`).run(cleanRow)
             }
 
+            // --- 4. ACTUALIZACIÓN DE RELACIONES Y TABLAS ANEXAS ---
             if (tagsData !== null) {
                 db.prepare(`DELETE FROM producto_etiqueta WHERE producto_id = ?`).run(row.id)
                 if (cleanRow.status === 1) {
@@ -312,9 +330,6 @@ export const upsertModuleRecords = (webModulo, records, { isRealtime = false } =
     return records.length
 }
 
-/**
- * Escenario 5.1: Push silencioso en 2do plano cuando se crean datos locales o vuelve el internet
- */
 export const triggerBackgroundPush = async (specificLocalModulo = null) => {
     try {
         const tokenRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_token'").get()
@@ -375,7 +390,6 @@ export const triggerBackgroundPush = async (specificLocalModulo = null) => {
                 'Content-Type': 'application/json',
                 'x-sync-token': syncToken
             }
-            // Incluimos el Socket ID de Pusher para evitar el rebote (Efecto Eco)
             if (realtimeSyncService.getSocketId()) {
                 headers['x-socket-id'] = realtimeSyncService.getSocketId()
             }
@@ -396,9 +410,6 @@ export const triggerBackgroundPush = async (specificLocalModulo = null) => {
     }
 }
 
-/**
- * Escenario 5.2: Pull único para Bootstrap Inicial (al abrir la app) y Recovery (al volver el internet)
- */
 export const runBootstrapOrRecoveryPull = async () => {
     try {
         const tokenRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_token'").get()
@@ -419,11 +430,19 @@ export const runBootstrapOrRecoveryPull = async () => {
                 if (confRes.data.businessId) saveConfigValue('sync_business_id', confRes.data.businessId)
                 if (confRes.data.shopId) saveConfigValue('sync_shop_id', confRes.data.shopId)
                 
-                if (confRes.data.pusherKey) saveConfigValue('pusher_key', confRes.data.pusherKey)
-                if (confRes.data.pusherCluster) saveConfigValue('pusher_cluster', confRes.data.pusherCluster)
+                // NUEVO: Guardamos la config de Pusher que el backend web nos envía dinámicamente
+                if (confRes.data.pusherConfig) {
+                    saveConfigValue('pusher_key', confRes.data.pusherConfig.key)
+                    saveConfigValue('pusher_cluster', confRes.data.pusherConfig.cluster)
+                }
             }
         } catch(e) {
-            logger.warning('BOOTSTRAP', 'No se pudo actualizar la configuración desde la nube. Usando caché local.', e.message)
+            logger.warning('BOOTSTRAP', `No se pudo actualizar la configuración desde la nube. Usando caché local: ${e.message}`)
+        }
+
+        const localPusherKey = db.prepare("SELECT value FROM configuracion WHERE key = 'pusher_key'").get()?.value;
+        if (!localPusherKey) {
+            logger.warning('REALTIME_SYNC', 'Faltan credenciales (pusher_key) en SQLite. Sincroniza desde ajustes primero.');
         }
 
         for (const mod of MODULES_TO_SYNC) {
@@ -565,15 +584,22 @@ export const registerSyncHandlers = () => {
 
             if (response.data.businessId) saveConfigValue('sync_business_id', response.data.businessId)
             if (response.data.shopId) saveConfigValue('sync_shop_id', response.data.shopId)
-            if (response.data.pusherKey) saveConfigValue('pusher_key', response.data.pusherKey)
-            if (response.data.pusherCluster) saveConfigValue('pusher_cluster', response.data.pusherCluster)
 
-            // Reiniciar conexión en tiempo real con Pusher
+            // NUEVO: Guardamos la config de Pusher que el backend nos responde al guardar
+            let envPusherKey = null
+            let envPusherCluster = null
+            if (response.data.pusherConfig) {
+                envPusherKey = response.data.pusherConfig.key
+                envPusherCluster = response.data.pusherConfig.cluster
+                saveConfigValue('pusher_key', envPusherKey)
+                saveConfigValue('pusher_cluster', envPusherCluster)
+            }
+
             realtimeSyncService.init({
                 businessId: response.data.businessId,
                 shopId: response.data.shopId,
-                pusherKey: response.data.pusherKey,
-                pusherCluster: response.data.pusherCluster
+                pusherKey: envPusherKey,
+                pusherCluster: envPusherCluster
             })
 
             logger.success('SYNC', "Configuración y permisos obtenidos exitosamente de la nube.")
@@ -675,7 +701,6 @@ export const registerSyncHandlers = () => {
                     ? '1970-01-01 00:00:00' 
                     : (lastSyncRow ? lastSyncRow.last_sync_time : '1970-01-01 00:00:00')
 
-                // REGLA: LA WEB MANDA (PULL)
                 if (moduleRule === 'web_to_desktop') {
                     sendProgress(`[${webModulo.toUpperCase()}] Descargando actualizaciones...`, "info")
                     try {
@@ -707,7 +732,6 @@ export const registerSyncHandlers = () => {
                     continue
                 }
 
-                // REGLA: EL ESCRITORIO MANDA (PUSH)
                 if (localModulo === 'encargos_config') continue
 
                 sendProgress(`[${webModulo.toUpperCase()}] Consultando registros pendientes...`, "info")

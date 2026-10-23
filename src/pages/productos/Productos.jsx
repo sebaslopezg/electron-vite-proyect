@@ -63,7 +63,6 @@ export const Productos = ({ currentUser }) => {
   
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
-  // === REGLAS DE SINCRONIZACIÓN WEB ===
   const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web'
   const isReadOnly = syncRule === 'web_to_desktop'
 
@@ -137,6 +136,36 @@ export const Productos = ({ currentUser }) => {
         window.removeEventListener('etiquetas-actualizadas', loadSelectsData)
     }
   }, [currentUser, loadSelectsData])
+
+  // === SOLUCIÓN: ESCUCHADOR DE SINCRONIZACIÓN DE ELECTRON ===
+  // Este evento atrapa lo que Electron inserta silenciosamente en SQLite y obliga a React a repintar la tabla
+  useEffect(() => {
+    const handleSyncApplied = (event) => {
+        const data = event.detail; // Extraemos el detalle del CustomEvent
+        if (data?.modules && (data.modules.includes('productos') || data.modules.includes('producto') || data.modules.includes('inventario'))) {
+            console.log("Actualización silenciosa detectada desde Electron, recargando productos...")
+            setReloadTable(prev => prev + 1)
+        }
+    }
+
+    window.addEventListener('electron-sync-applied', handleSyncApplied)
+
+    if (window.api && window.api.onRealtimeSyncApplied) {
+        window.api.onRealtimeSyncApplied((data) => {
+            if (data?.modules && (data.modules.includes('productos') || data.modules.includes('producto') || data.modules.includes('inventario'))) {
+                console.log("🔄 Actualización Pusher detectada, recargando productos...")
+                setReloadTable(prev => prev + 1)
+            }
+        })
+    }
+
+    return () => {
+        window.removeEventListener('electron-sync-applied', handleSyncApplied);
+        if (window.api && window.api.removeRealtimeSyncListeners) {
+            window.api.removeRealtimeSyncListeners()
+        }
+    }
+  }, [])
 
   const tableContainerRef = useRef(null)
 

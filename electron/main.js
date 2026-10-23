@@ -1,3 +1,4 @@
+import dotenv from 'dotenv'
 import {
   app,
   BrowserWindow,
@@ -15,6 +16,12 @@ import { startBackgroundTasks } from "./utils/backgroundTasks.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+if (app.isPackaged) {
+  dotenv.config({ path: path.join(process.resourcesPath, '.env.production') })
+} else {
+  dotenv.config()
+}
 
 const isDev = !app.isPackaged
 const isMac = process.platform === "darwin"

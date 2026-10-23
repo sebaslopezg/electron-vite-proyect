@@ -15,6 +15,7 @@ dist-ssr
 *.local
 *.db
 *.env
+*.env.production
 electron-dist/
 
 # Editor directories and files

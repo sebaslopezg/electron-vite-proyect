@@ -30,6 +30,7 @@
     "datatables.net-bs5": "^2.3.4",
     "datatables.net-dt": "^2.3.4",
     "datatables.net-react": "^1.0.1",
+    "dotenv": "^18.0.8",
     "electron-updater": "^6.6.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

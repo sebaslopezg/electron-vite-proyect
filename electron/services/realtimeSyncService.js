@@ -1,10 +1,9 @@
 import Pusher from "pusher-js"
-import { BrowserWindow } from "electron"
+import { app, BrowserWindow } from "electron"
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
 import { upsertModuleRecords, triggerBackgroundPush, runBootstrapOrRecoveryPull } from "../ipc/syncHandlers.js"
 
-// Módulos que pertenecen a todo el negocio (se sincronizan sin importar qué tienda los originó)
 const GLOBAL_MODULES = [
     'productos',
     'categorias',
@@ -15,7 +14,6 @@ const GLOBAL_MODULES = [
     'encargos_estados'
 ]
 
-// Módulos exclusivos de cada punto de venta/tienda (solo se procesan si coinciden con el shopId local)
 const SHOP_SCOPED_MODULES = [
     'inventario',
     'configuracion',
@@ -59,14 +57,19 @@ class RealtimeSyncService {
             this.businessId = businessId || this.getConfig('sync_business_id')
             this.shopId = shopId || this.getConfig('sync_shop_id')
 
-            const keyToUse = pusherKey || this.getConfig('pusher_key') || process.env.VITE_PUSHER_KEY
-            const clusterToUse = pusherCluster || this.getConfig('pusher_cluster') || process.env.VITE_PUSHER_CLUSTER || 'mt1'
+            const envPusherKey = process.env.VITE_PUSHER_KEY;
+            const envPusherCluster = process.env.VITE_PUSHER_CLUSTER || 'mt1';
+
+            const keyToUse = pusherKey || this.getConfig('pusher_key') || envPusherKey
+            const clusterToUse = pusherCluster || this.getConfig('pusher_cluster') || envPusherCluster
             const tokenToUse = authToken || global.currentUserSession?.token || syncToken
 
-            if (!syncUrl || !this.businessId || !keyToUse) {
-                logger.warning('REALTIME_SYNC', 'Faltan credenciales (pusherKey, businessId o syncUrl) para iniciar Pusher.')
-                return
-            }
+            let missingCredentials = false;
+            if (!syncUrl) { logger.warning('REALTIME_SYNC', 'Conexión pausada: Falta la URL de Sincronización en la configuración local.'); missingCredentials = true; }
+            if (!this.businessId) { logger.warning('REALTIME_SYNC', 'Conexión pausada: Falta el Business ID (Debes vincular la caja web).'); missingCredentials = true; }
+            if (!keyToUse) { logger.warning('REALTIME_SYNC', 'Conexión pausada: Falta Pusher Key en tu .env o base de datos.'); missingCredentials = true; }
+
+            if (missingCredentials) return;
 
             if (this.pusher) {
                 this.disconnect()
@@ -76,7 +79,7 @@ class RealtimeSyncService {
                 cluster: clusterToUse,
                 forceTLS: syncUrl.startsWith('https'),
                 channelAuthorization: {
-                    endpoint: `${syncUrl}/api/pusher/auth`, // Ajustar si tu backend usa otra ruta (ej. /api/broadcasting/auth)
+                    endpoint: `${syncUrl}/api/sync/pusher/auth`,
                     headers: {
                         'Authorization': `Bearer ${tokenToUse}`,
                         'x-sync-token': syncToken || ''
@@ -84,13 +87,11 @@ class RealtimeSyncService {
                 }
             })
 
-            // Monitoreo de estado de conexión y Recovery automático
             this.pusher.connection.bind('connected', async () => {
                 this.socketId = this.pusher.connection.socket_id
                 this.isConnected = true
-                logger.success('REALTIME_SYNC', `Conectado a Pusher (Socket ID: ${this.socketId})`)
+                logger.success('REALTIME_SYNC', `Conectado a Pusher (Socket ID: ${this.socketId}) en entorno: ${app.isPackaged ? 'Producción' : 'Desarrollo'}`)
 
-                // Escenario 5.2: Recovery tras caída de internet
                 if (this.wasDisconnected) {
                     this.wasDisconnected = false
                     logger.info('REALTIME_SYNC', 'Conexión recuperada. Ejecutando sincronización de recuperación (Pull + Push)...')
@@ -109,7 +110,6 @@ class RealtimeSyncService {
                 this.isConnected = false
             })
 
-            // 1. Suscripción al canal de presencia del negocio
             const channelName = `presence-business-${this.businessId}`
             this.channel = this.pusher.subscribe(channelName)
 
@@ -121,7 +121,6 @@ class RealtimeSyncService {
                 logger.error('REALTIME_SYNC', `Error de autorización en el canal ${channelName}`, err)
             })
 
-            // 2. Escuchar el evento sync-update
             this.channel.bind('sync-update', (payload) => {
                 this.handleSyncUpdate(payload)
             })
@@ -134,7 +133,6 @@ class RealtimeSyncService {
     handleSyncUpdate(payload) {
         if (!payload || payload.type !== 'sync_update' || !payload.modules) return
 
-        // 4. Evitar efecto "Eco" si el backend incluye el socket_id emisor
         if (payload.socket_id && this.socketId && payload.socket_id === this.socketId) {
             return
         }
@@ -146,12 +144,10 @@ class RealtimeSyncService {
         for (const [webModulo, records] of Object.entries(modules)) {
             if (!Array.isArray(records) || records.length === 0) continue
 
-            // 3. Regla de Aislamiento: Tienda vs Global
             const isGlobal = GLOBAL_MODULES.includes(webModulo)
             const isShopScoped = SHOP_SCOPED_MODULES.includes(webModulo)
 
             if (isShopScoped && this.shopId && incomingShopId && String(incomingShopId) !== String(this.shopId)) {
-                // Pertenece a otra caja/tienda y no es un catálogo global -> se ignora
                 continue
             }
 
@@ -160,7 +156,6 @@ class RealtimeSyncService {
             }
 
             try {
-                // Upsert idempotente en SQLite
                 const processed = upsertModuleRecords(webModulo, records, { isRealtime: true })
                 if (processed > 0) {
                     updatedAnyModule = true
@@ -171,7 +166,6 @@ class RealtimeSyncService {
             }
         }
 
-        // Notificar a las ventanas abiertas de Electron para refrescar tablas si hubo cambios
         if (updatedAnyModule) {
             BrowserWindow.getAllWindows().forEach(win => {
                 if (!win.isDestroyed()) {
