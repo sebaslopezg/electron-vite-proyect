@@ -410,6 +410,37 @@ export const triggerBackgroundPush = async (specificLocalModulo = null) => {
     }
 }
 
+export const triggerLocalUsersPush = async () => {
+    try {
+        const tokenRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_token'").get()
+        const urlRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_url'").get()
+        if (!tokenRow?.value || !urlRow?.value) return
+
+        const syncToken = tokenRow.value
+        const syncUrl = urlRow.value.replace(/\/$/, '')
+
+        const usuarios_locales = appDb.prepare("SELECT id, username, nombre_completo, status FROM usuarios").all()
+        const roles_locales = appDb.prepare("SELECT id, nombre FROM roles").all()
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'x-sync-token': syncToken
+        }
+        if (realtimeSyncService.getSocketId()) {
+            headers['x-socket-id'] = realtimeSyncService.getSocketId()
+        }
+
+        await axios.post(`${syncUrl}/api/sync/push`, {
+            usuarios_locales,
+            roles_locales
+        }, { headers })
+
+        logger.info('SYNC', `Espejo de usuarios locales (${usuarios_locales.length}) sincronizado con la nube.`)
+    } catch (error) {
+        logger.warning('BACKGROUND_PUSH', `Push de usuarios locales pospuesto: ${error.message}`)
+    }
+}
+
 export const runBootstrapOrRecoveryPull = async () => {
     try {
         const tokenRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_token'").get()
@@ -471,6 +502,7 @@ export const runBootstrapOrRecoveryPull = async () => {
                 }
             }
         }
+        await triggerLocalUsersPush()
     } catch (error) {
         logger.warning('BOOTSTRAP_PULL', `No se pudo completar el Pull de arranque/recuperación: ${error.message}`)
     }

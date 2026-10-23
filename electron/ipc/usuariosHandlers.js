@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid"
 import bcrypt from "bcryptjs"
 import { appDb } from "../database/index.js" 
 import { logger } from "../utils/logger.js"
+import { triggerLocalUsersPush } from "./syncHandlers.js" // <-- Importamos la función
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
@@ -170,6 +171,8 @@ export const registerUsuariosHandlers = () => {
             global.currentUserSession.nombre_completo = data.nombre_completo;
             global.currentUserSession.foto_perfil = data.foto_perfil;
 
+            triggerLocalUsersPush().catch(e => logger.error('SYNC', 'Error sincronizando actualización de perfil', e))
+
             return { success: true, user: global.currentUserSession }
         } catch (error) {
             logger.error('USUARIOS', "Error actualizando perfil personal", error)
@@ -203,6 +206,9 @@ export const registerUsuariosHandlers = () => {
             const id = uuidv4(); const now = new Date().toISOString(); const hash = bcrypt.hashSync(user.password, 10)
             appDb.prepare(`INSERT INTO usuarios (id, nombre_completo, username, password_hash, rol, status, date_created, date_modify) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`).run(id, user.nombre_completo, user.username, hash, user.rol, now, now)
             logger.success('USUARIOS', `Nuevo usuario creado: ${user.nombre_completo}`, `Usuario: ${user.username} | Rol: ${user.rol}`)
+            
+            triggerLocalUsersPush().catch(e => logger.error('SYNC', 'Error sincronizando nuevo usuario', e))
+
             return { success: true, id }
         } catch (error) { return { success: false, error: error.message } }
     })
@@ -219,6 +225,9 @@ export const registerUsuariosHandlers = () => {
                 appDb.prepare(`UPDATE usuarios SET nombre_completo = ?, username = ?, rol = ?, date_modify = ? WHERE id = ?`).run(user.nombre_completo, user.username, user.rol, now, user.id)
                 logger.info('USUARIOS', `Usuario actualizado por admin: ${user.username}`)
             }
+
+            triggerLocalUsersPush().catch(e => logger.error('SYNC', 'Error sincronizando actualización de usuario', e))
+
             return { success: true }
         } catch (error) { return { success: false, error: error.message } }
     })
@@ -229,8 +238,12 @@ export const registerUsuariosHandlers = () => {
             const check = appDb.prepare("SELECT COUNT(*) as count FROM usuarios WHERE status = 1 AND rol = 'Administrador'").get()
             const userToDel = appDb.prepare("SELECT rol, username FROM usuarios WHERE id = ?").get(id)
             if (userToDel && userToDel.rol === 'Administrador' && check.count <= 1) return { success: false, error: "No puedes eliminar al último Administrador del sistema." }
+            
             appDb.prepare("UPDATE usuarios SET status = 0, date_modify = datetime('now') WHERE id = ?").run(id)
             logger.warning('USUARIOS', `Usuario enviado a la papelera (Username: ${userToDel?.username})`)
+            
+            triggerLocalUsersPush().catch(e => logger.error('SYNC', 'Error sincronizando eliminación de usuario', e))
+
             return { success: true }
         } catch (error) { return { success: false, error: error.message } }
     })

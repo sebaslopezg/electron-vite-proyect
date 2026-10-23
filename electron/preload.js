@@ -1,5 +1,21 @@
 const { contextBridge, ipcRenderer } = require("electron")
 
+ipcRenderer.on('realtime-sync-applied', (_event, data) => {
+  window.dispatchEvent(new CustomEvent('electron-sync-applied', { detail: data }))
+})
+
+ipcRenderer.on('chat-event', (_event, payload) => {
+  window.dispatchEvent(new CustomEvent('electron-chat-event', { detail: payload }))
+})
+
+ipcRenderer.on('chat-online-users', (_event, onlineIds) => {
+  window.dispatchEvent(new CustomEvent('electron-chat-online-users', { detail: onlineIds }))
+})
+
+ipcRenderer.on('notification-event', (_event, data) => {
+  window.dispatchEvent(new CustomEvent('notificaciones-actualizadas', { detail: data }))
+})
+
 contextBridge.exposeInMainWorld("api", {
   ping: () => ipcRenderer.invoke("ping"),
   sendMessage: (channel, data) => ipcRenderer.send(channel, data),
@@ -102,6 +118,13 @@ contextBridge.exposeInMainWorld("api", {
   removeRealtimeSyncListeners: () => {
       ipcRenderer.removeAllListeners('realtime-sync-applied');
   },
+
+  // chat
+  getConversations: () => ipcRenderer.invoke("get-conversations"),
+  getChatMessages: (conversationId) => ipcRenderer.invoke("get-chat-messages", conversationId),
+  markChatAsRead: (conversationId) => ipcRenderer.invoke("mark-chat-as-read", conversationId),
+  sendChatMessage: (payload) => ipcRenderer.invoke("send-chat-message", payload),
+  getChatOnlineUsers: () => ipcRenderer.invoke("get-chat-online-users"),
 
   // logs
   getSystemLogs: (limit) => ipcRenderer.invoke("get-system-logs", limit),

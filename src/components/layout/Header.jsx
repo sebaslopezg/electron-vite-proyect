@@ -3,21 +3,22 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button, Badge } from 'react-bootstrap'
 import defaultLogo from './../../assets/favicon.png'
 import { notificacionesService } from '../../services/notificacionesService'
+import { chatService } from '../../services/chatService'
 
 const timeAgo = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHrs = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHrs / 24);
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now - date
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHrs = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHrs / 24)
 
     if (diffMins < 1) return 'Hace un momento';
     if (diffMins < 60) return `Hace ${diffMins} min`;
-    if (diffHrs < 24) return `Hace ${diffHrs} hr${diffHrs > 1 ? 's' : ''}`;
-    if (diffDays === 1) return 'Ayer';
-    return `Hace ${diffDays} días`;
+    if (diffHrs < 24) return `Hace ${diffHrs} hr${diffHrs > 1 ? 's' : ''}`
+    if (diffDays === 1) return 'Ayer'
+    return `Hace ${diffDays} días`
 }
 
 const getTextColor = (hexColor) => {
@@ -37,6 +38,9 @@ export const Header = ({ currentUser, onLogout }) => {
     const [userVisual, setUserVisual] = useState(currentUser)
     
     const [notificaciones, setNotificaciones] = useState([])
+    const [chatPreviews, setChatPreviews] = useState([])
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
+    
     const navigate = useNavigate()
 
     const loadConfig = async () => {
@@ -58,32 +62,50 @@ export const Header = ({ currentUser, onLogout }) => {
 
     const loadNotificaciones = async () => {
         try {
-            const data = await notificacionesService.getNotificaciones();
-            setNotificaciones(data || []);
+            const data = await notificacionesService.getNotificaciones()
+            setNotificaciones(data || [])
         } catch (error) {
-            console.error("Error cargando notificaciones:", error);
+            console.error("Error cargando notificaciones:", error)
+        }
+    }
+
+    const loadChats = async () => {
+        try {
+            const data = await chatService.getConversations()
+            const activeOnly = data.filter(c => !c.isNewChat)
+            setChatPreviews(activeOnly.slice(0, 3))
+            const unread = activeOnly.reduce((acc, chat) => acc + (chat.unread || 0), 0)
+            setUnreadMessagesCount(unread)
+        } catch (e) { 
+            console.error("Error cargando previsualizaciones del chat", e) 
         }
     }
 
     useEffect(() => {
         loadConfig()
         loadNotificaciones()
+        loadChats()
 
         const handleUpdate = () => loadConfig()
         const handleProfileUpdate = (e) => setUserVisual(e.detail)
         const handleNotifUpdate = () => loadNotificaciones()
+        const handleChatUpdate = () => loadChats()
 
         window.addEventListener('config-actualizada', handleUpdate)
         window.addEventListener('perfil-actualizado', handleProfileUpdate)
         window.addEventListener('notificaciones-actualizadas', handleNotifUpdate)
+        window.addEventListener('chat-read-sync', handleChatUpdate)
 
-        const interval = setInterval(loadNotificaciones, 120000)
+        const intervalNotif = setInterval(loadNotificaciones, 120000)
+        const intervalChat = setInterval(loadChats, 30000)
 
         return () => {
             window.removeEventListener('config-actualizada', handleUpdate)
             window.removeEventListener('perfil-actualizado', handleProfileUpdate)
             window.removeEventListener('notificaciones-actualizadas', handleNotifUpdate)
-            clearInterval(interval)
+            window.removeEventListener('chat-read-sync', handleChatUpdate)
+            clearInterval(intervalNotif)
+            clearInterval(intervalChat)
         }
     }, [])
 
@@ -103,44 +125,45 @@ export const Header = ({ currentUser, onLogout }) => {
     const handleMarcarLeida = async (e, notificacion) => {
         e.preventDefault();
         if (notificacion.leida === 0) {
-            await notificacionesService.marcarLeida(notificacion.id);
-            loadNotificaciones();
-            window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'));
+            await notificacionesService.marcarLeida(notificacion.id)
+            loadNotificaciones()
+            window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'))
         }
         if (notificacion.link) {
-            navigate(notificacion.link);
+            navigate(notificacion.link)
         }
     }
 
     const handleMarcarTodasLeidas = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        await notificacionesService.marcarLeida('all');
-        loadNotificaciones();
-        window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'));
+        e.preventDefault()
+        e.stopPropagation()
+        await notificacionesService.marcarLeida('all')
+        loadNotificaciones()
+        window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'))
     }
 
     const handleEliminarUna = async (e, id) => {
-        e.preventDefault();
+        e.preventDefault()
         e.stopPropagation()
-        await notificacionesService.deleteNotificacion(id);
-        loadNotificaciones();
-        window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'));
+        await notificacionesService.deleteNotificacion(id)
+        loadNotificaciones()
+        window.dispatchEvent(new CustomEvent('notificaciones-actualizadas'))
     }
 
     const primerNombre = userVisual?.nombre_completo?.split(' ')[0] || 'Usuario'
     const rolColor = userVisual?.rol_color || '#0d6efd'
     const rolTextColor = getTextColor(rolColor)
     
-    const notificacionesNoLeidas = notificaciones.filter(n => n.leida === 0);
-    const contador = notificacionesNoLeidas.length;
+    const notificacionesNoLeidas = notificaciones.filter(n => n.leida === 0)
+    const contador = notificacionesNoLeidas.length
+    const bgColors = ['bg-primary', 'bg-success', 'bg-info', 'bg-warning', 'bg-danger']
 
     const getIconData = (tipo) => {
         switch(tipo) {
-            case 'success': return { icon: 'bi-check-circle', color: 'text-success' };
-            case 'warning': return { icon: 'bi-exclamation-circle', color: 'text-warning' };
-            case 'danger': return { icon: 'bi-x-circle', color: 'text-danger' };
-            default: return { icon: 'bi-info-circle', color: 'text-primary' };
+            case 'success': return { icon: 'bi-check-circle', color: 'text-success' }
+            case 'warning': return { icon: 'bi-exclamation-circle', color: 'text-warning' }
+            case 'danger': return { icon: 'bi-x-circle', color: 'text-danger' }
+            default: return { icon: 'bi-info-circle', color: 'text-primary' }
         }
     }
 
@@ -176,6 +199,49 @@ export const Header = ({ currentUser, onLogout }) => {
                             <i className="bi bi-search"></i>
                         </a>
                     </li>
+
+                    {/* --- NUEVO: DROPDOWN DE CHAT --- */}
+                    <li className="nav-item dropdown">
+                        <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
+                            <i className="bi bi-chat-left-text"></i>
+                            {unreadMessagesCount > 0 && <span className="badge bg-success badge-number">{unreadMessagesCount}</span>}
+                        </a>
+                        <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow messages shadow-sm">
+                            <li className="dropdown-header">
+                                {unreadMessagesCount > 0 ? `Tienes ${unreadMessagesCount} mensajes nuevos` : 'Bandeja de mensajes'}
+                                <Link to="/chat" className="ms-2"><span className="badge rounded-pill bg-primary p-2">Ver todos</span></Link>
+                            </li>
+                            <li><hr className="dropdown-divider" /></li>
+                            {chatPreviews.length > 0 ? (
+                                chatPreviews.map((chat, index) => {
+                                    const colorClass = bgColors[index % bgColors.length]
+                                    return (
+                                        <div key={chat.id}>
+                                            <li className="message-item">
+                                                <Link to="/chat" className="d-flex align-items-center px-3 py-2 text-decoration-none">
+                                                    <div className={`${colorClass} text-white rounded-circle d-flex align-items-center justify-content-center fw-bold me-3`} style={{ width: '40px', height: '40px', minWidth: '40px' }}>
+                                                        {chat.name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="mb-0 fs-6 text-dark fw-bold">{chat.name}</h4>
+                                                        <p className="mb-0 text-muted small text-truncate" style={{ maxWidth: '200px' }}>{chat.lastMessage}</p>
+                                                        <p className="mb-0 text-secondary" style={{ fontSize: '0.75rem' }}>{typeof chat.time === 'string' && chat.time.includes('T') ? timeAgo(chat.time) : chat.time}</p>
+                                                    </div>
+                                                </Link>
+                                            </li>
+                                            <li><hr className="dropdown-divider" /></li>
+                                        </div>
+                                    )
+                                })
+                            ) : (
+                                <li className="text-center p-3 text-muted small">No hay conversaciones recientes</li>
+                            )}
+                            <li className="dropdown-footer text-center p-2">
+                                <Link to="/chat" className="text-primary text-decoration-none fw-bold small">Mostrar todos los mensajes</Link>
+                            </li>
+                        </ul>
+                    </li>
+                    {/* --- FIN DROPDOWN DE CHAT --- */}
 
                     <li className="nav-item dropdown">
                         <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
@@ -219,7 +285,7 @@ export const Header = ({ currentUser, onLogout }) => {
                                             
                                             <Button 
                                                 variant="link" 
-                                                className="text-secondary p-1 border-0 position-absolute opacity-50" 
+                                                className="text-secondary p-1 border-0 position-absolute opacity-50 hover-opacity" 
                                                 style={{ top: '10px', right: '15px', zIndex: 10 }}
                                                 title="Eliminar notificación"
                                                 onClick={(e) => handleEliminarUna(e, noti.id)}

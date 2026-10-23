@@ -29,11 +29,13 @@ class RealtimeSyncService {
     constructor() {
         this.pusher = null
         this.channel = null
+        this.businessChannel = null
         this.socketId = null
         this.isConnected = false
         this.wasDisconnected = false
         this.businessId = null
         this.shopId = null
+        this.onlineUsers = new Set()
     }
 
     getConfig(key) {
@@ -49,6 +51,18 @@ class RealtimeSyncService {
         return this.socketId
     }
 
+    getOnlineUsers() {
+        return Array.from(this.onlineUsers)
+    }
+
+    broadcastToWindows(channel, data) {
+        BrowserWindow.getAllWindows().forEach(win => {
+            if (!win.isDestroyed()) {
+                win.webContents.send(channel, data)
+            }
+        })
+    }
+
     init({ pusherKey, pusherCluster, businessId, shopId, authToken } = {}) {
         try {
             const syncUrl = this.getConfig('sync_url')?.replace(/\/$/, '')
@@ -57,19 +71,16 @@ class RealtimeSyncService {
             this.businessId = businessId || this.getConfig('sync_business_id')
             this.shopId = shopId || this.getConfig('sync_shop_id')
 
-            const envPusherKey = process.env.VITE_PUSHER_KEY;
-            const envPusherCluster = process.env.VITE_PUSHER_CLUSTER || 'mt1';
-
-            const keyToUse = pusherKey || this.getConfig('pusher_key') || envPusherKey
-            const clusterToUse = pusherCluster || this.getConfig('pusher_cluster') || envPusherCluster
+            const keyToUse = pusherKey || this.getConfig('pusher_key')
+            const clusterToUse = pusherCluster || this.getConfig('pusher_cluster') || 'mt1'
             const tokenToUse = authToken || global.currentUserSession?.token || syncToken
 
-            let missingCredentials = false;
+            let missingCredentials = false
             if (!syncUrl) { logger.warning('REALTIME_SYNC', 'Conexión pausada: Falta la URL de Sincronización en la configuración local.'); missingCredentials = true; }
             if (!this.businessId) { logger.warning('REALTIME_SYNC', 'Conexión pausada: Falta el Business ID (Debes vincular la caja web).'); missingCredentials = true; }
-            if (!keyToUse) { logger.warning('REALTIME_SYNC', 'Conexión pausada: Falta Pusher Key en tu .env o base de datos.'); missingCredentials = true; }
+            if (!keyToUse) { logger.warning('REALTIME_SYNC', 'Conexión pausada: Falta Pusher Key en tu base de datos.'); missingCredentials = true; }
 
-            if (missingCredentials) return;
+            if (missingCredentials) return
 
             if (this.pusher) {
                 this.disconnect()
@@ -82,7 +93,8 @@ class RealtimeSyncService {
                     endpoint: `${syncUrl}/api/sync/pusher/auth`,
                     headers: {
                         'Authorization': `Bearer ${tokenToUse}`,
-                        'x-sync-token': syncToken || ''
+                        'x-sync-token': syncToken || '',
+                        'x-local-user-id': global.currentUserSession?.id ? String(global.currentUserSession.id) : ''
                     }
                 }
             })
@@ -110,24 +122,76 @@ class RealtimeSyncService {
                 this.isConnected = false
             })
 
-            const channelName = `presence-business-${this.businessId}`
-            this.channel = this.pusher.subscribe(channelName)
+            // 1. Canal Presence (Sincronización + Presencia + Chat)
+            const presenceChannelName = `presence-business-${this.businessId}`
+            this.channel = this.pusher.subscribe(presenceChannelName)
 
-            this.channel.bind('pusher:subscription_succeeded', () => {
-                logger.info('REALTIME_SYNC', `Suscrito exitosamente al canal ${channelName}`)
+            this.channel.bind('pusher:subscription_succeeded', (members) => {
+                logger.info('REALTIME_SYNC', `Suscrito exitosamente al canal ${presenceChannelName}`)
+                this.onlineUsers.clear()
+                if (members && typeof members.each === 'function') {
+                    members.each((member) => {
+                        this.onlineUsers.add(String(member.id))
+                    })
+                }
+                this.broadcastToWindows('chat-online-users', this.getOnlineUsers())
+            })
+
+            this.channel.bind('pusher:member_added', (member) => {
+                if (member?.id) {
+                    this.onlineUsers.add(String(member.id))
+                    this.broadcastToWindows('chat-online-users', this.getOnlineUsers())
+                }
+            })
+
+            this.channel.bind('pusher:member_removed', (member) => {
+                if (member?.id) {
+                    this.onlineUsers.delete(String(member.id))
+                    this.broadcastToWindows('chat-online-users', this.getOnlineUsers())
+                }
             })
 
             this.channel.bind('pusher:subscription_error', (err) => {
-                logger.error('REALTIME_SYNC', `Error de autorización en el canal ${channelName}`, err)
+                logger.error('REALTIME_SYNC', `Error de autorización en el canal ${presenceChannelName}`, err)
             })
 
             this.channel.bind('sync-update', (payload) => {
                 this.handleSyncUpdate(payload)
             })
 
+            // Eventos de Chat y Notificaciones en el canal Presence
+            this.bindChatAndNotificationEvents(this.channel)
+
+            // 2. Canal Público/Global de Negocio (business-${businessId})
+            const publicChannelName = `business-${this.businessId}`
+            this.businessChannel = this.pusher.subscribe(publicChannelName)
+            this.bindChatAndNotificationEvents(this.businessChannel)
+
         } catch (error) {
             logger.error('REALTIME_SYNC', 'Error al inicializar RealtimeSyncService', error)
         }
+    }
+
+    bindChatAndNotificationEvents(channelInstance) {
+        if (!channelInstance) return
+
+        channelInstance.bind('new-message', (data) => {
+            this.broadcastToWindows('chat-event', {
+                type: 'new-message',
+                data
+            })
+        })
+
+        channelInstance.bind('messages-read', (data) => {
+            this.broadcastToWindows('chat-event', {
+                type: 'messages-read',
+                data
+            })
+        })
+
+        channelInstance.bind('new-notification', (data) => {
+            this.broadcastToWindows('notification-event', data)
+        })
     }
 
     handleSyncUpdate(payload) {
@@ -167,13 +231,9 @@ class RealtimeSyncService {
         }
 
         if (updatedAnyModule) {
-            BrowserWindow.getAllWindows().forEach(win => {
-                if (!win.isDestroyed()) {
-                    win.webContents.send('realtime-sync-applied', {
-                        modules: Object.keys(modules),
-                        timestamp: new Date().toISOString()
-                    })
-                }
+            this.broadcastToWindows('realtime-sync-applied', {
+                modules: Object.keys(modules),
+                timestamp: new Date().toISOString()
             })
         }
     }
@@ -182,12 +242,15 @@ class RealtimeSyncService {
         if (this.pusher) {
             if (this.businessId) {
                 this.pusher.unsubscribe(`presence-business-${this.businessId}`)
+                this.pusher.unsubscribe(`business-${this.businessId}`)
             }
             this.pusher.disconnect()
             this.pusher = null
             this.channel = null
+            this.businessChannel = null
             this.socketId = null
             this.isConnected = false
+            this.onlineUsers.clear()
         }
     }
 }

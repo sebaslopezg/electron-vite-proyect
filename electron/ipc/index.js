@@ -23,6 +23,7 @@ import { registerRolesHandlers } from "./rolesHandlers.js"
 import { registerActivationHandlers } from "./activationHandlers.js"
 import { registerNotificacionesHandlers } from "./notificacionesHandler.js"
 import { registerSyncHandlers } from "./syncHandlers.js"
+import { registerChatHandlers } from "./chatHandlers.js"
 
 export const registerAllHandlers = () => {
   registerProductoHandlers()
@@ -50,4 +51,5 @@ export const registerAllHandlers = () => {
   registerActivationHandlers()
   registerNotificacionesHandlers()
   registerSyncHandlers()
+  registerChatHandlers()
 }

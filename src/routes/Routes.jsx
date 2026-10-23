@@ -12,6 +12,7 @@ import { Usuarios } from '../pages/usuarios'
 import { Roles } from '../pages/roles'
 import { Perfil } from '../pages/perfil/index'
 import { Notificaciones } from '../pages/notificaciones/index'
+import { Chat } from '../pages/chat/Chat' // <-- IMPORTAMOS EL CHAT
 
 export const MainRoutes = ({ currentUser }) => {
 
@@ -49,7 +50,9 @@ export const MainRoutes = ({ currentUser }) => {
     }
 
     const ProtectedRoute = ({ children, permission }) => {
-        if (!hasPermission(permission)) {
+        // Si permission no existe (es null/undefined), dejamos pasar. 
+        // Si existe, validamos contra los permisos del usuario.
+        if (permission && !hasPermission(permission)) {
             return (
                 <div className="alert alert-danger m-4 text-center shadow-sm">
                     <i className="bi bi-shield-slash fs-1 d-block mb-2"></i>
@@ -137,6 +140,12 @@ export const MainRoutes = ({ currentUser }) => {
 
             <Route path="/notificaciones" element={
                 <Notificaciones />
+            } />
+
+            <Route path="/chat" element={
+                <ProtectedRoute>
+                    <Chat currentUser={currentUser} />
+                </ProtectedRoute>
             } />
         </Routes>
     </>
