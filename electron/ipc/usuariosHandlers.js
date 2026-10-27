@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from "uuid"
 import bcrypt from "bcryptjs"
 import { appDb } from "../database/index.js" 
 import { logger } from "../utils/logger.js"
-import { triggerLocalUsersPush } from "./syncHandlers.js" // <-- Importamos la función
+import { triggerLocalUsersPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession

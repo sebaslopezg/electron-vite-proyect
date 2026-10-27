@@ -90,6 +90,7 @@ contextBridge.exposeInMainWorld("api", {
 
   // configuraciones
   getConfiguracion: () => ipcRenderer.invoke("get-configuracion"),
+  getConfiguracionPublica: () => ipcRenderer.invoke("get-public-config"),
   updateConfiguracion: (item) => ipcRenderer.invoke("update-configuracion", item),
   updateWindow: (data) => ipcRenderer.send("update-window", data),
   importFacturasRelacionadas: (data) => ipcRenderer.invoke('import-facturas-relacionadas', data),

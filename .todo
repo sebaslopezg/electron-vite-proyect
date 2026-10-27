@@ -2,6 +2,9 @@
 
  ## Modificaciones Prioritarias:
 
+- Arreglar Premisos en la app, y probarlos nuevamente
+- Problema con permisos sobre logo que aparece en el header, cuando no tiene el permiso de modificarlo, no puede verlo actualizado.
+
  ### PRIORITARIO
 
  ### Modulo Encargos:

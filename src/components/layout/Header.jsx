@@ -45,15 +45,28 @@ export const Header = ({ currentUser, onLogout }) => {
 
     const loadConfig = async () => {
         try {
-            const data = await window.api.getConfiguracion()
-            const appConf = data.find(r => r.key === 'confApp')
-            if (appConf && appConf.value) {
-                const parsed = JSON.parse(appConf.value)
-                if (parsed.nombre) setAppName(parsed.nombre)
-                if (parsed.logo) setAppLogo(parsed.logo)
+            if (window.api && window.api.getConfiguracionPublica) {
+                const res = await window.api.getConfiguracionPublica()
                 
-                document.title = parsed.nombre || 'Caedro'
-                if (window.api.updateWindow) window.api.updateWindow({ nombre: parsed.nombre, logo: parsed.logo })
+                if (res && res.success && res.data) {
+                    const parsed = res.data
+                    if (parsed.nombre) setAppName(parsed.nombre)
+                    if (parsed.logo) setAppLogo(parsed.logo)
+                    
+                    document.title = parsed.nombre || 'Caedro'
+                    if (window.api.updateWindow) window.api.updateWindow({ nombre: parsed.nombre, logo: parsed.logo })
+                }
+            } else {
+                const data = await window.api.getConfiguracion()
+                const appConf = Array.isArray(data) ? data.find(r => r.key === 'confApp') : null
+                if (appConf && appConf.value) {
+                    const parsed = JSON.parse(appConf.value)
+                    if (parsed.nombre) setAppName(parsed.nombre)
+                    if (parsed.logo) setAppLogo(parsed.logo)
+                    
+                    document.title = parsed.nombre || 'Caedro'
+                    if (window.api.updateWindow) window.api.updateWindow({ nombre: parsed.nombre, logo: parsed.logo })
+                }
             }
         } catch (error) {
             console.error("Error cargando configuración en Header:", error)

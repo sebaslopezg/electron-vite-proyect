@@ -148,6 +148,13 @@ export const Reportes = ({ currentUser }) => {
             } else if (result && (result.success || result.data || result.detalles)) {
                 setDetalleData(result.data || result.detalles || [])
                 setNotasFactura(result.notes || result.notas || [])
+                
+                if (result.facturaMaestro) {
+                    setFacturaVer(result.facturaMaestro)
+                }
+                if (result.configuracion) {
+                    setAlmacenConf(result.configuracion)
+                }
             } else {
                 setDetalleData([])
                 setNotasFactura([])
@@ -370,68 +377,93 @@ export const Reportes = ({ currentUser }) => {
     ]
 
     return <>
-        <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 border-bottom pb-3 gap-3">
-            <div>
-                {canPrint && (
-                    <Button variant="primary" className="me-2" onClick={() => setShowPreview(true)} disabled={transacciones.length === 0}>
-                        <i className="bi bi-printer me-2"></i> Imprimir
-                    </Button>
-                )}
-            </div>
-            <div className="d-flex gap-2">
-                {canDownloadPDF && (
-                    <Button variant="outline-danger" onClick={handleExportPDF} disabled={transacciones.length === 0}>
-                        <i className="bi bi-file-earmark-pdf me-2"></i> Exportar PDF
-                    </Button>
-                )}
-                {canDownloadExcel && (
-                    <Button variant="outline-success" onClick={handleExportExcel} disabled={transacciones.length === 0}>
-                        <i className="bi bi-file-earmark-excel me-2"></i> Exportar Excel
-                    </Button>
-                )}
-            </div>
-        </div>
+        <div className="bg-light p-3 rounded mb-4 border">
+            <Row className="align-items-end">
+                <Col md={3}>
+                    <Form.Group>
+                        <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Desde Fecha/Hora:</small></Form.Label>
+                        <Form.Control type="datetime-local" size="sm" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                    </Form.Group>
+                </Col>
+                <Col md={3}>
+                    <Form.Group>
+                        <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Hasta Fecha/Hora:</small></Form.Label>
+                        <Form.Control type="datetime-local" size="sm" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                    </Form.Group>
+                </Col>
 
-        <Row className="mb-4">
-            <Col md={3}>
-                <Form.Group>
-                    <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Desde Fecha/Hora</Form.Label>
-                    <Form.Control type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                </Form.Group>
-            </Col>
-            <Col md={3}>
-                <Form.Group>
-                    <Form.Label className="fw-bold text-muted small"><i className="bi bi-calendar me-1"></i> Hasta Fecha/Hora</Form.Label>
-                    <Form.Control type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                </Form.Group>
-            </Col>
-        </Row>
+                <Col md={6}>
+                    <div className="d-flex gap-2">
+                        <Button 
+                            variant="outline-secondary" size="sm"
+                            onClick={() => { setStartDate(getLocalDatetime(true)); setEndDate(getLocalDatetime(false)); }}
+                            title="Restablecer Fechas"
+                        >
+                            <i className="bi bi-arrow-counterclockwise me-1"></i> Restablecer
+                        </Button>
+                        
+                        {canPrint && (
+                            <Button 
+                                variant="outline-primary" size="sm" 
+                                onClick={() => setShowPreview(true)} 
+                                disabled={transacciones.length === 0}
+                                title="Imprimir Reporte"
+                            >
+                                <i className="bi bi-printer"></i>
+                            </Button>
+                        )}
+
+                        {canDownloadPDF && (
+                            <Button 
+                                variant="outline-danger" size="sm" 
+                                onClick={handleExportPDF} 
+                                disabled={transacciones.length === 0}
+                                title="Exportar a PDF"
+                            >
+                                <i className="bi bi-file-earmark-pdf"></i>
+                            </Button>
+                        )}
+                        
+                        {canDownloadExcel && (
+                            <Button 
+                                variant="outline-success" size="sm" 
+                                onClick={handleExportExcel} 
+                                disabled={transacciones.length === 0}
+                                title="Exportar a Excel"
+                            >
+                                <i className="bi bi-file-earmark-excel"></i>
+                            </Button>
+                        )}
+                    </div>
+                </Col>
+            </Row>
+        </div>
 
         <Row className="mb-4 g-3">
             <Col xs={12} sm={6} md={4} lg={3}>
-                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 h-100">
-                    <Card.Body className="p-3">
-                        <p className="text-success small mb-1 fw-bold text-uppercase">Total Facturado</p>
-                        <h4 className="m-0 text-success fw-bold">{_formatCurrency(totales.totalFacturado)}</h4>
+                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10">
+                    <Card.Body className="py-2 px-3">
+                        <p className="text-success small mb-0 fw-bold text-uppercase">Total Facturado</p>
+                        <h5 className="m-0 text-success fw-bold">{_formatCurrency(totales.totalFacturado)}</h5>
                     </Card.Body>
                 </Card>
             </Col>
             
             <Col xs={12} sm={6} md={4} lg={3}>
-                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 h-100">
-                    <Card.Body className="p-3">
-                        <p className="text-success small mb-1 fw-bold text-uppercase">Ingreso Caja</p>
-                        <h4 className="m-0 text-success fw-bold">{_formatCurrency(totales.ingresoTotalCaja)}</h4>
+                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10">
+                    <Card.Body className="py-2 px-3">
+                        <p className="text-success small mb-0 fw-bold text-uppercase">Ingreso Caja</p>
+                        <h5 className="m-0 text-success fw-bold">{_formatCurrency(totales.ingresoTotalCaja)}</h5>
                     </Card.Body>
                 </Card>
             </Col>
 
             {Object.entries(totales.metodos).map(([metodo, valor]) => (
                 <Col xs={12} sm={6} md={4} lg={3} key={metodo}>
-                    <Card className="shadow-sm border-0 border-start border-primary border-4 h-100">
-                        <Card.Body className="p-3">
-                            <p className="text-muted small mb-1 fw-bold text-uppercase">{metodo}</p>
-                            <h5 className="m-0 fw-bold">{_formatCurrency(valor)}</h5>
+                    <Card className="shadow-sm border-0 border-start border-primary border-4">
+                        <Card.Body className="py-2 px-3">
+                            <p className="text-muted small mb-0 fw-bold text-uppercase">{metodo}</p>
+                            <h6 className="m-0 fw-bold">{_formatCurrency(valor)}</h6>
                         </Card.Body>
                     </Card>
                 </Col>

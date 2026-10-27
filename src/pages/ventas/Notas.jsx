@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import DataTableComponent from '../../components/DataTableComponent'
 import Swal from 'sweetalert2'
+import { Form, Row, Col, Button } from 'react-bootstrap'
 import { NuevaNota } from './NuevaNota.jsx'
 import { ImpresorNota } from './components/ImpresorNota'
 import { formatCurrency } from '../../utils/currencies'
@@ -22,6 +23,16 @@ const Toast = Swal.mixin({
     }
 })
 
+const getLocalDatetime = (startOfDay = true) => {
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    
+    const time = startOfDay ? '00:00' : '23:59'
+    return `${year}-${month}-${day}T${time}`
+}
+
 export const Notas = ({ currentUser }) => {
     const [activeUser, setActiveUser] = useState(currentUser)
 
@@ -42,6 +53,10 @@ export const Notas = ({ currentUser }) => {
     const [facturaVer, setFacturaVer] = useState(null)
     const [detalleFacturaData, setDetalleFacturaData] = useState([])
     const [notasFacturaList, setNotasFacturaList] = useState([])
+
+    // Filtros de fecha
+    const [startDate, setStartDate] = useState(() => getLocalDatetime(true))
+    const [endDate, setEndDate] = useState(() => getLocalDatetime(false))
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
@@ -121,6 +136,18 @@ export const Notas = ({ currentUser }) => {
         window.addEventListener('config-actualizada', loadConfig)
         return () => window.removeEventListener('config-actualizada', loadConfig)
     }, [])
+
+    const filteredNotas = useMemo(() => {
+        return notasData.filter(nota => {
+            if (!startDate && !endDate) return true;
+            
+            const notaDate = new Date(nota.date_created).getTime();
+            const start = startDate ? new Date(startDate).getTime() : 0;
+            const end = endDate ? new Date(endDate).getTime() : Infinity;
+            
+            return notaDate >= start && notaDate <= end;
+        });
+    }, [notasData, startDate, endDate]);
 
     const handleCloseModal = () => {
         setShowModal(false)
@@ -220,9 +247,9 @@ export const Notas = ({ currentUser }) => {
     }
 
     const handleExportAllExcel = () => {
-        if (notasData.length === 0) return Swal.fire('Error', 'No hay notas para exportar', 'warning')
+        if (filteredNotas.length === 0) return Swal.fire('Error', 'No hay notas para exportar', 'warning')
 
-        const dataToExport = notasData.map(n => ({
+        const dataToExport = filteredNotas.map(n => ({
             'Fecha': new Date(n.date_created).toLocaleString(appConfig.formato_numero),
             'Número Nota': `${n.prefijo || ''}-${n.numero_nota}`,
             'Tipo': `Nota ${n.tipo_nota}`,
@@ -235,10 +262,10 @@ export const Notas = ({ currentUser }) => {
     }
 
     const handleExportAllPDF = () => {
-        if (notasData.length === 0) return Swal.fire('Error', 'No hay notas para exportar', 'warning')
+        if (filteredNotas.length === 0) return Swal.fire('Error', 'No hay notas para exportar', 'warning')
 
         const tableColumn = ["Fecha", "N° Nota", "Tipo", "Factura", "Motivo", "Total"];
-        const tableRows = notasData.map(n => {
+        const tableRows = filteredNotas.map(n => {
             const numFacturaVisual = `${n.prefijo_factura || ''}${almacenConf?.separador || '-'}${n.numero_factura || n.numero_factura_origen || ''}`.replace(/^\D+/, n.prefijo_factura || '');
             const sign = n.tipo_nota === 'Crédito' ? '-' : '+';
             return [
@@ -253,7 +280,7 @@ export const Notas = ({ currentUser }) => {
 
         exportToPDF({
             title: 'Historial General de Notas Crédito / Débito',
-            subtitle: 'Todas las notas registradas en el sistema',
+            subtitle: (startDate && endDate) ? `Periodo: ${startDate.replace('T', ' ')} a ${endDate.replace('T', ' ')}` : 'Todas las notas registradas',
             columns: tableColumn,
             data: tableRows,
             filename: `Historial_Notas_${new Date().toISOString().split('T')[0]}`
@@ -354,28 +381,66 @@ export const Notas = ({ currentUser }) => {
 
     return <>
         <div className="container-fluid mt-3">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="card-title m-0">Gestión de Notas Crédito / Débito</h5>
-                <div className="d-flex gap-2">
-                    <button className="btn btn-outline-danger" onClick={handleExportAllPDF} disabled={notasData.length === 0} title="Exportar Todo a PDF">
-                        <i className="bi bi-file-earmark-pdf"></i>
-                    </button>
-                    <button className="btn btn-outline-success" onClick={handleExportAllExcel} disabled={notasData.length === 0} title="Exportar Todo a Excel">
-                        <i className="bi bi-file-earmark-excel"></i>
-                    </button>
-                    {canCreateAnyNota && (
-                        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-                            <i className="bi bi-plus-circle me-2"></i>Nueva Nota
-                        </button>
-                    )}
-                </div>
+            
+            {/* NUEVO PANEL SUPERIOR CON FILTROS Y BOTONES */}
+            <div className="bg-light p-3 rounded mb-4 border">
+                <Row className="align-items-end">
+                    <Col md={3}>
+                        <Form.Group>
+                            <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Desde Fecha/Hora:</small></Form.Label>
+                            <Form.Control type="datetime-local" size="sm" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                        </Form.Group>
+                    </Col>
+                    <Col md={3}>
+                        <Form.Group>
+                            <Form.Label className="fw-bold text-muted mb-1"><small><i className="bi bi-calendar-event me-1"></i>Hasta Fecha/Hora:</small></Form.Label>
+                            <Form.Control type="datetime-local" size="sm" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                        </Form.Group>
+                    </Col>
+
+                    <Col md={6}>
+                        <div className="d-flex gap-2">
+                            <Button 
+                                variant="outline-secondary" size="sm"
+                                onClick={() => { setStartDate(getLocalDatetime(true)); setEndDate(getLocalDatetime(false)); }}
+                                title="Restablecer Fechas"
+                            >
+                                <i className="bi bi-arrow-counterclockwise me-1"></i> Restablecer
+                            </Button>
+                            
+                            <Button 
+                                variant="outline-danger" size="sm" 
+                                onClick={handleExportAllPDF} 
+                                disabled={filteredNotas.length === 0}
+                                title="Exportar a PDF"
+                            >
+                                <i className="bi bi-file-earmark-pdf"></i>
+                            </Button>
+                            
+                            <Button 
+                                variant="outline-success" size="sm" 
+                                onClick={handleExportAllExcel} 
+                                disabled={filteredNotas.length === 0}
+                                title="Exportar a Excel"
+                            >
+                                <i className="bi bi-file-earmark-excel"></i>
+                            </Button>
+
+                            {canCreateAnyNota && (
+                                <Button variant="primary" size="sm" onClick={() => setShowForm(true)}>
+                                    <i className="bi bi-plus-circle me-2"></i>Nueva Nota
+                                </Button>
+                            )}
+                        </div>
+                    </Col>
+                </Row>
             </div>
 
-            <div ref={tableContainerRef} className="w-100">
+            <div ref={tableContainerRef} className="w-100 bg-white">
                 <DataTableComponent 
                     tableId="dt-gestion-notas-maestro"
-                    key={`notas-main-${appConfig.moneda}-${appConfig.formato_numero}-${almacenConf?.separador}`}
-                    data={notasData}
+                    key={`notas-main-${appConfig.moneda}-${appConfig.formato_numero}-${almacenConf?.separador}-${startDate}-${endDate}`}
+                    data={filteredNotas}
                     columns={[
                         { 
                             data: null, 
@@ -421,7 +486,8 @@ export const Notas = ({ currentUser }) => {
                             render: (data) => {
                                 if (!data) return '-';
                                 return new Date(data).toLocaleString(appConfig.formato_numero, {
-                                    day: '2-digit', month: '2-digit', year: 'numeric'
+                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                    hour: '2-digit', minute: '2-digit'
                                 });
                             }
                         },

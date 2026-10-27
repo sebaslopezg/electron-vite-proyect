@@ -15,6 +15,16 @@ export const registerConfigurarHandlers = () => {
     try { return db.prepare(`SELECT * FROM configurar`).all() } catch (error) { return [] }
   })
 
+  ipcMain.handle("get-public-config", () => {
+    try {
+      const row = db.prepare(`SELECT value FROM configurar WHERE key = 'confApp'`).get()
+      return { success: true, data: row && row.value ? JSON.parse(row.value) : null }
+    } catch (error) {
+      logger.error('SISTEMA', "Error obteniendo la configuración pública visual", error)
+      return { success: false, data: null }
+    }
+  })
+
   ipcMain.handle("update-configuracion", (_, item) => {
     if (!checkPermission("configuracion_general")) return { success: false, error: "No autorizado." }
     try {

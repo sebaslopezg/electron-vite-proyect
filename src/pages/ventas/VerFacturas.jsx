@@ -76,18 +76,12 @@ export const VerFacturas = ({ currentUser }) => {
     }
     const handleShow = () => setShow(true)
 
-    // NUEVO: Agregamos el listener para realtime-sync-applied (WebSockets/Pusher)
     useEffect(() => {
         const handleNuevaFactura = () => setReloadTable(prev => prev + 1)
         const handleRealtimeSync = (e) => {
-            // Recargar tabla automáticamente al recibir actualización en tiempo real
             setReloadTable(prev => prev + 1)
         }
-
         window.addEventListener('factura-creada', handleNuevaFactura)
-        
-        // Asumiendo que has mapeado eventos IPC al objeto window (ej. en preload.js) 
-        // Si usas un bus de eventos CustomEvent, lo escuchamos aquí:
         window.addEventListener('realtime-sync-applied', handleRealtimeSync)
 
         return () => {

@@ -136,12 +136,28 @@ export const Calendario = () => {
     const result = await ventasService.searchFactura(numFactura)
     if (result.success) {
       setFacturaSeleccionada(result.maestro)
+      
       const det = await ventasService.getDetalleFactura(result.maestro.id)
       if (det.success) {
         setDetalleFacturaData(det.data || [])
         setNotasFactura(det.notes || [])
         setAlmacenConf(det.configuracion || null)
+
+        if (det.facturaMaestro) {
+            setFacturaSeleccionada(det.facturaMaestro)
+        }
+
         setShowFacturaModal(true)
+      } else {
+        if (Array.isArray(det)) {
+            setDetalleFacturaData(det)
+            setNotasFactura([])
+            setShowFacturaModal(true)
+        } else if (det && det.detalles) {
+            setDetalleFacturaData(det.detalles || [])
+            setNotasFactura([])
+            setShowFacturaModal(true)
+        }
       }
     } else {
       Swal.fire('Error', 'La factura no existe o fue eliminada', 'error')
@@ -167,24 +183,22 @@ export const Calendario = () => {
       )}
 
       <div style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.4s ease-in-out', pointerEvents: isLoading ? 'none' : 'auto' }}>
-        <div className="card p-4 shadow-sm border-0">
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            locale={esLocale}
-            events={eventos}
-            eventContent={renderEventContent}
-            eventClick={handleEventClick}
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,dayGridWeek",
-            }}
-            height="75vh"
-            eventClassNames="p-1 shadow-sm"
-          />
-        </div>
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          locale={esLocale}
+          events={eventos}
+          eventContent={renderEventContent}
+          eventClick={handleEventClick}
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,dayGridWeek",
+          }}
+          height="75vh"
+          eventClassNames="p-1 shadow-sm"
+        />
       </div>
     </div>
       
