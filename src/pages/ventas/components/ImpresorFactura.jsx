@@ -67,6 +67,9 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 {(factura.telefono_cliente || factura.telefono) && (
                     <div><strong>Teléfono:</strong> {factura.telefono_cliente || factura.telefono}</div>
                 )}
+                {factura.vendedor && (
+                    <div className="mt-1"><strong>Vendedor:</strong> <span className="text-capitalize">{factura.vendedor}</span></div>
+                )}
             </div>
 
             <table>
@@ -156,16 +159,25 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                 </div>
             </div>
 
-            <div className="card border-dark mb-4">
-                <div className="card-body py-2">
+            <div className="mb-4">
+                <div className="border border-dark p-3 rounded">
                     <Row>
                         <Col sm={4}><strong>Cliente:</strong> {factura.nombre_cliente}</Col>
                         <Col sm={3}><strong>CC/NIT:</strong> {factura.documento_cliente}</Col>
                         {(factura.telefono_cliente || factura.telefono) && (
-                            <Col sm={3}><strong>Tel:</strong> {factura.telefono_cliente || factura.telefono}</Col>
+                            <Col sm={2}><strong>Tel:</strong> {factura.telefono_cliente || factura.telefono}</Col>
                         )}
-                        <Col sm={(factura.telefono_cliente || factura.telefono) ? 2 : 5}><strong>Estado:</strong> <span className="text-capitalize">{factura.tipo_pago}</span></Col>
+                        <Col sm={(factura.telefono_cliente || factura.telefono) ? 3 : 5} className="text-end">
+                            <strong>Estado:</strong> <span className="text-capitalize">{factura.tipo_pago}</span>
+                        </Col>
                     </Row>
+                    {factura.vendedor && (
+                        <Row className="mt-2 border-top border-secondary pt-1 border-opacity-25">
+                            <Col sm={12}>
+                                <strong className="text-muted">Vendedor(a):</strong> <span className="text-capitalize">{factura.vendedor}</span>
+                            </Col>
+                        </Row>
+                    )}
                 </div>
             </div>
 
@@ -221,7 +233,7 @@ export const ImpresorFactura = ({ show, onClose, factura, detalles, almacenConf,
                             <tr><td><strong>Subtotal:</strong></td><td>{renderCurrency(factura.subtotal)}</td></tr>
                             {factura.descuento > 0 && <tr><td><strong>Descuento:</strong></td><td className="text-danger">-{renderCurrency(factura.descuento)}</td></tr>}
                             <tr><td><strong>IVA:</strong></td><td>{renderCurrency(factura.iva)}</td></tr>
-                            <tr className="border-top border-dark border-2"><td className="fs-5 pt-2"><strong>Total:</strong></td><td className="fs-5 fw-bold pt-2">{renderCurrency(factura.total_factura)}</td></tr>
+                            <tr className="border border-dark p-3 rounded"><td className="fs-5 pt-2"><strong>Total:</strong></td><td className="fs-5 fw-bold pt-2">{renderCurrency(factura.total_factura)}</td></tr>
                             <tr><td><strong className="text-muted fs-6">Cambio / Saldo:</strong></td><td className="text-muted fs-6">{renderCurrency(saldoPendienteReal)}</td></tr>
                         </tbody>
                     </table>

@@ -307,17 +307,17 @@ export const VerFacturas = ({ currentUser }) => {
                     badges += '<span class="badge bg-secondary me-1">Anulada</span>'
                 } else {
                     if (row.tipo_pago === 'credito') {
-                        if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge bg-danger me-1">Crédito</span>'
-                        else if (row.saldo_pendiente > 0) badges += '<span class="badge bg-warning text-dark me-1">Crédito</span>'
-                        else badges += '<span class="badge bg-success me-1">Crédito</span>'
+                        if (!row.total_recibido || row.total_recibido === 0) badges += '<span class="badge border border-danger text-danger me-1">Crédito</span>'
+                        else if (row.saldo_pendiente > 0) badges += '<span class="badge border border-warning text-dark me-1">Crédito</span>'
+                        else badges += '<span class="badge border border-success text-success me-1">Crédito</span>'
                     } else {
-                        badges += '<span class="badge bg-primary me-1">Contado</span>'
+                        badges += '<span class="badge border border-primary text-primary me-1">Contado</span>'
                     }
                 }
 
                 if (row.notas_aplicadas) {
-                    if (row.notas_aplicadas.includes('Crédito')) badges += '<span class="badge bg-info text-dark me-1">Nota Crédito</span>'
-                    if (row.notas_aplicadas.includes('Débito')) badges += '<span class="badge bg-secondary me-1">Nota Débito</span>'
+                    if (row.notas_aplicadas.includes('Crédito')) badges += '<span class="badge border border-info text-dark me-1">Nota Crédito</span>'
+                    if (row.notas_aplicadas.includes('Débito')) badges += '<span class="badge border border-secondary text-dark me-1">Nota Débito</span>'
                 }
                 return badges
             }

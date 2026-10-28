@@ -1,6 +1,6 @@
 import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
-import db from "../database/index.js"
+import db, { appDb } from "../database/index.js"
 import { logger } from "../utils/logger.js"
 import { canModifyModule, triggerBackgroundPush } from "./syncHandlers.js"
 
@@ -14,6 +14,22 @@ const checkPermission = (permission) => {
 export const registerVentasHandlers = () => {
 
     try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN pagos_multiples TEXT;") } catch (e) {}
+    try { db.exec("ALTER TABLE ventasMaestro ADD COLUMN vendedor TEXT;") } catch (e) {}
+    
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS factura_notas_adicionales (
+                id TEXT PRIMARY KEY,
+                factura_id TEXT NOT NULL,
+                usuario_id TEXT NOT NULL,
+                usuario_nombre TEXT NOT NULL,
+                contenido TEXT NOT NULL,
+                date_created TEXT NOT NULL
+            )
+        `)
+    } catch (e) {
+        logger.error('VENTAS', "Error al crear la tabla factura_notas_adicionales", e)
+    }
 
     ipcMain.handle("get-maestro", () => {
         if (!checkPermission("ventas_historial")) {
@@ -235,12 +251,30 @@ export const registerVentasHandlers = () => {
 
             const queryVentas = `
                 SELECT v.*,
-                (SELECT separador FROM almacen_conf LIMIT 1) AS separador
+                (SELECT separador FROM almacen_conf LIMIT 1) AS separador,
+                (SELECT GROUP_CONCAT(tipo_nota, ' y ') FROM nota WHERE id_factura_origen = v.id AND status = 1) AS notas_aplicadas,
+                (SELECT SUM(CASE WHEN tipo_nota = 'Crédito' THEN total_final ELSE 0 END) FROM nota WHERE id_factura_origen = v.id AND status = 1) as valor_restar_nota,
+                (SELECT SUM(CASE WHEN tipo_nota = 'Débito' THEN total_final ELSE 0 END) FROM nota WHERE id_factura_origen = v.id AND status = 1) as valor_sumar_nota
                 ${baseQueryVentas}
                 ORDER BY v.date_created ASC
             `
             
-            const dataVentas = db.prepare(queryVentas).all(...queryParams)
+            const rawDataVentas = db.prepare(queryVentas).all(...queryParams)
+
+            const dataVentas = rawDataVentas.map(fv => {
+                let tempTotal = fv.total_factura || 0;
+                
+                if (fv.valor_restar_nota) {
+                    tempTotal = tempTotal - fv.valor_restar_nota;
+                }
+                if (fv.valor_sumar_nota) {
+                    tempTotal = tempTotal + fv.valor_sumar_nota;
+                }
+                fv.total_factura = Math.max(0, tempTotal);
+
+                return fv;
+            });
+
 
             let abonosWhere = `WHERE 1=1`
             let abonosParams = []
@@ -293,6 +327,7 @@ export const registerVentasHandlers = () => {
             
             const maestroId = uuidv4()
             const currentUser = global.currentUserSession?.username || 'system'
+            const currentFullName = global.currentUserSession?.nombre_completo || 'Sistema'
 
             const config = db.prepare('SELECT * FROM almacen_conf LIMIT 1').get()
             if (!config) throw new Error("No se encontró configuración del almacén")
@@ -307,9 +342,9 @@ export const registerVentasHandlers = () => {
                     email_almacen, footer, nombre_cliente, documento_cliente, telefono_cliente, subtotal,
                     descuento, iva, total_factura, total_recibido, saldo_pendiente,
                     total_recibido_original, saldo_pendiente_original, tipo_pago,
-                    metodo_pago, pagos_multiples, moneda, formato_numero, date_created, date_modify, status, observaciones
+                    metodo_pago, pagos_multiples, moneda, formato_numero, date_created, date_modify, status, observaciones, vendedor
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?
                 )
             `)
             insertMaestro.run(
@@ -343,7 +378,8 @@ export const registerVentasHandlers = () => {
                 maestroData.formato_numero, 
                 now, 
                 now, 
-                maestroData.observaciones || ''
+                maestroData.observaciones || '',
+                currentFullName 
             )
 
             db.prepare('UPDATE almacen_conf SET consecutivo = ? WHERE id = ?').run(nuevoNumeroFactura, config.id)
@@ -496,6 +532,57 @@ export const registerVentasHandlers = () => {
         } catch (error) {
             logger.error('VENTAS', "Error crítico al intentar registrar una nueva venta", error)
             return { success: false, error: error.message }
+        }
+    })
+
+    ipcMain.handle("get-factura-notas-adicionales", (_, facturaId) => {
+        try {
+            const notas = db.prepare(`
+                SELECT *
+                FROM factura_notas_adicionales
+                WHERE factura_id = ?
+                ORDER BY date_created DESC
+            `).all(facturaId);
+
+            const resultConFotos = notas.map(nota => {
+                let foto_perfil = null;
+                try {
+                    const user = appDb.prepare("SELECT foto_perfil FROM usuarios WHERE id = ?").get(nota.usuario_id);
+                    if (user) foto_perfil = user.foto_perfil;
+                } catch (e) {}
+                
+                return {
+                    ...nota,
+                    foto_perfil: foto_perfil
+                };
+            });
+
+            return { success: true, data: resultConFotos };
+        } catch (error) {
+            logger.error('VENTAS', "Error al obtener las notas adicionales de la factura", error);
+            return { success: false, error: error.message };
+        }
+    })
+
+    ipcMain.handle("add-factura-nota-adicional", (_, { facturaId, contenido }) => {
+        const user = global.currentUserSession;
+        if (!user) return { success: false, error: "Debes iniciar sesión para añadir notas." };
+
+        try {
+            const id = uuidv4();
+            const now = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get().nowStr;
+
+            db.prepare(`
+                INSERT INTO factura_notas_adicionales (id, factura_id, usuario_id, usuario_nombre, contenido, date_created)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(id, facturaId, user.id, user.nombre_completo || user.username, contenido, now);
+
+            logger.info('VENTAS', `Nota adicional añadida a la factura ${facturaId} por @${user.username}`);
+            
+            return { success: true, notaId: id, date_created: now };
+        } catch (error) {
+            logger.error('VENTAS', "Error al añadir la nota adicional", error);
+            return { success: false, error: error.message };
         }
     })
 }

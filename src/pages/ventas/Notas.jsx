@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import DataTableComponent from '../../components/DataTableComponent'
-import Swal from 'sweetalert2'
 import { Form, Row, Col, Button } from 'react-bootstrap'
+import Swal from 'sweetalert2'
+import DataTableComponent from '../../components/DataTableComponent'
+import { formatCurrency } from '../../utils/currencies'
 import { NuevaNota } from './NuevaNota.jsx'
 import { ImpresorNota } from './components/ImpresorNota'
-import { formatCurrency } from '../../utils/currencies'
 import { ModalDetalleNota } from './components/ModalDetalleNota'
 import { ModalDetalleFactura } from './components/ModalDetalleFactura'
 import { ImpresorFactura } from './components/ImpresorFactura'
@@ -22,16 +22,6 @@ const Toast = Swal.mixin({
         toast.addEventListener('mouseleave', Swal.resumeTimer)
     }
 })
-
-const getLocalDatetime = (startOfDay = true) => {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-    
-    const time = startOfDay ? '00:00' : '23:59'
-    return `${year}-${month}-${day}T${time}`
-}
 
 export const Notas = ({ currentUser }) => {
     const [activeUser, setActiveUser] = useState(currentUser)
@@ -54,9 +44,8 @@ export const Notas = ({ currentUser }) => {
     const [detalleFacturaData, setDetalleFacturaData] = useState([])
     const [notasFacturaList, setNotasFacturaList] = useState([])
 
-    // Filtros de fecha
-    const [startDate, setStartDate] = useState(() => getLocalDatetime(true))
-    const [endDate, setEndDate] = useState(() => getLocalDatetime(false))
+    const [startDate, setStartDate] = useState('')
+    const [endDate, setEndDate] = useState('')
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
@@ -83,6 +72,9 @@ export const Notas = ({ currentUser }) => {
     const canCrearDebito = hasPermission('notas_debito_crear');
     
     const canCreateAnyNota = canCrearCredito || canCrearDebito;
+    const canPrint = hasPermission('ventas_imprimir')
+    const canDownloadPDF = hasPermission('ventas_descargar_pdf')
+    const canDownloadExcel = hasPermission('ventas_descargar_excel')
 
     const loadConfig = async () => {
         const configData = await ventasService.getConfiguracion()
@@ -157,12 +149,18 @@ export const Notas = ({ currentUser }) => {
 
     const handleViewDetails = async (row) => {
         setNotaSeleccionada(row)
+        setShowModal(true)
         
         const response = await ventasService.getNotaDetalle(row.id)
         if (response.success) {
             setDetalleData(response.data)
             setAlmacenConf(response.configuracion || null)
-            setShowModal(true)
+
+            if (response.notaMaestro) {
+                setNotaSeleccionada(response.notaMaestro)
+            } else if (response.facturaMaestro) { 
+                setNotaSeleccionada({ ...row, ...response.facturaMaestro, id: row.id })
+            }
         } else {
             Toast.fire({ icon: 'error', title: 'No se pudieron cargar los detalles de la nota' })
         }
@@ -176,6 +174,12 @@ export const Notas = ({ currentUser }) => {
             setDetalleData(response.data)
             setAlmacenConf(response.configuracion || null)
             
+            if (response.notaMaestro) {
+                setNotaSeleccionada(response.notaMaestro)
+            } else if (response.facturaMaestro) { 
+                setNotaSeleccionada({ ...row, ...response.facturaMaestro, id: row.id })
+            }
+
             setAbiertoDesdeDetalles(false)
             setShowPreview(true)
         }
@@ -219,6 +223,10 @@ export const Notas = ({ currentUser }) => {
                 } else if (result && (result.success || result.data || result.detalles)) {
                     setDetalleFacturaData(result.data || result.detalles || []);
                     setNotasFacturaList(result.notes || result.notas || []);
+                    
+                    if (result.facturaMaestro) {
+                        setFacturaVer(result.facturaMaestro)
+                    }
                 } else {
                     setDetalleFacturaData(searchRes.detalles || []);
                     setNotasFacturaList([]);
@@ -319,8 +327,10 @@ export const Notas = ({ currentUser }) => {
 
         if (!response.success) return Swal.fire('Error', 'No se pudieron extraer los detalles', 'error')
 
+        const notaCompleta = response.notaMaestro || { ...nota, ...response.facturaMaestro, id: nota.id }
+
         exportNotaPDF({
-            nota: nota,
+            nota: notaCompleta,
             detalles: response.data,
             configuracion: response.configuracion || almacenConf || {},
             moneda: appConfig.moneda,
@@ -382,7 +392,6 @@ export const Notas = ({ currentUser }) => {
     return <>
         <div className="container-fluid mt-3">
             
-            {/* NUEVO PANEL SUPERIOR CON FILTROS Y BOTONES */}
             <div className="bg-light p-3 rounded mb-4 border">
                 <Row className="align-items-end">
                     <Col md={3}>
@@ -402,29 +411,34 @@ export const Notas = ({ currentUser }) => {
                         <div className="d-flex gap-2">
                             <Button 
                                 variant="outline-secondary" size="sm"
-                                onClick={() => { setStartDate(getLocalDatetime(true)); setEndDate(getLocalDatetime(false)); }}
-                                title="Restablecer Fechas"
+                                onClick={() => { setStartDate(''); setEndDate(''); }}
+                                disabled={!startDate && !endDate}
+                                title="Limpiar Filtros de Fecha"
                             >
-                                <i className="bi bi-arrow-counterclockwise me-1"></i> Restablecer
+                                <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
                             </Button>
                             
-                            <Button 
-                                variant="outline-danger" size="sm" 
-                                onClick={handleExportAllPDF} 
-                                disabled={filteredNotas.length === 0}
-                                title="Exportar a PDF"
-                            >
-                                <i className="bi bi-file-earmark-pdf"></i>
-                            </Button>
+                            {canDownloadPDF && (
+                                <Button 
+                                    variant="outline-danger" size="sm" 
+                                    onClick={handleExportAllPDF} 
+                                    disabled={filteredNotas.length === 0}
+                                    title="Exportar a PDF"
+                                >
+                                    <i className="bi bi-file-earmark-pdf"></i>
+                                </Button>
+                            )}
                             
-                            <Button 
-                                variant="outline-success" size="sm" 
-                                onClick={handleExportAllExcel} 
-                                disabled={filteredNotas.length === 0}
-                                title="Exportar a Excel"
-                            >
-                                <i className="bi bi-file-earmark-excel"></i>
-                            </Button>
+                            {canDownloadExcel && (
+                                <Button 
+                                    variant="outline-success" size="sm" 
+                                    onClick={handleExportAllExcel} 
+                                    disabled={filteredNotas.length === 0}
+                                    title="Exportar a Excel"
+                                >
+                                    <i className="bi bi-file-earmark-excel"></i>
+                                </Button>
+                            )}
 
                             {canCreateAnyNota && (
                                 <Button variant="primary" size="sm" onClick={() => setShowForm(true)}>
@@ -519,22 +533,28 @@ export const Notas = ({ currentUser }) => {
                                                     <i class="bi bi-eye me-2 text-secondary"></i> Ver Detalles
                                                 </button>
                                             </li>
+                                            ${canPrint ? `
                                             <li>
                                                 <button class="dropdown-item btn-print" data-alldata="${safeData}">
                                                     <i class="bi bi-printer me-2 text-primary"></i> Imprimir Tirilla
                                                 </button>
                                             </li>
-                                            <li><hr class="dropdown-divider"></li>
+                                            ` : ''}
+                                            ${canDownloadPDF || canDownloadExcel ? `<li><hr class="dropdown-divider"></li>` : ''}
+                                            ${canDownloadPDF ? `
                                             <li>
                                                 <button class="dropdown-item btn-export-single-pdf" data-alldata="${safeData}">
                                                     <i class="bi bi-file-earmark-pdf me-2 text-danger"></i> Descargar en PDF
                                                 </button>
                                             </li>
+                                            ` : ''}
+                                            ${canDownloadExcel ? `
                                             <li>
                                                 <button class="dropdown-item btn-export-single-excel" data-alldata="${safeData}">
                                                     <i class="bi bi-file-earmark-excel me-2 text-success"></i> Exportar a Excel
                                                 </button>
                                             </li>
+                                            ` : ''}
                                         </ul>
                                     </div>
                                 `
@@ -552,6 +572,7 @@ export const Notas = ({ currentUser }) => {
                 handlePrepararImpresion={handlePrepararImpresion}
                 appConfig={appConfig}
                 almacenConf={almacenConf}
+                canPrint={canPrint}
             />
             
             <ImpresorNota 
@@ -571,6 +592,7 @@ export const Notas = ({ currentUser }) => {
                 notasFactura={notasFacturaList}
                 handlePrepararImpresion={handlePrepararImpresionFactura}
                 appConfig={appConfig}
+                canPrint={canPrint}
             />
 
             <ImpresorFactura 

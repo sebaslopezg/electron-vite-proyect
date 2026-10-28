@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import Modal from 'react-bootstrap/Modal'
 import { Button, Row, Col } from 'react-bootstrap'
 import DataTableComponent from '../../../components/DataTableComponent'
 import { formatCurrency } from '../../../utils/currencies'
+import { ModalNotasAdicionales } from './ModalNotasAdicionales'
 
 export const ModalDetalleFactura = ({ 
     show, 
@@ -13,6 +15,8 @@ export const ModalDetalleFactura = ({
     appConfig,
     canPrint
 }) => {
+
+    const [showNotasAdicionales, setShowNotasAdicionales] = useState(false)
 
     const _formatCurrency = (val) => {
         return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
@@ -31,7 +35,8 @@ export const ModalDetalleFactura = ({
     const pagosArray = facturaSeleccionada?.pagos_multiples ? JSON.parse(facturaSeleccionada.pagos_multiples) : []
 
     return <>
-        <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
+        {/* Usamos backdrop="static" y un zIndex menor que el de la sub-modal para evitar conflictos visuales */}
+        <Modal show={show} onHide={handleClose} size="lg" centered scrollable style={{ zIndex: 1050 }}>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
                     <i className="bi bi-receipt-cutoff me-2 text-primary"></i>
@@ -39,7 +44,12 @@ export const ModalDetalleFactura = ({
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-4">
-                <div className="d-flex justify-content-end mb-3">
+                <div className="d-flex justify-content-end mb-3 gap-2">
+                    {/* Botón de Notas Adicionales */}
+                    <Button variant="outline-info" onClick={() => setShowNotasAdicionales(true)} className="shadow-sm fw-medium">
+                        <i className="bi bi-chat-dots-fill me-2"></i> Notas Internas
+                    </Button>
+
                     {canPrint && (
                         <Button variant="primary" onClick={handlePrepararImpresion} className="shadow-sm">
                             <i className="bi bi-printer me-2"></i> Imprimir Copia
@@ -55,6 +65,11 @@ export const ModalDetalleFactura = ({
                                 <p className="mb-0"><span className="text-muted">Documento:</span> <strong>{facturaSeleccionada.documento_cliente}</strong></p>
                                 {(facturaSeleccionada.telefono_cliente || facturaSeleccionada.telefono) && (
                                     <p className="mb-0 mt-1"><span className="text-muted">Teléfono:</span> <strong>{facturaSeleccionada.telefono_cliente || facturaSeleccionada.telefono}</strong></p>
+                                )}
+                                {facturaSeleccionada.vendedor && (
+                                    <p className="mb-0 mt-2 border-top pt-1 border-secondary border-opacity-25">
+                                        <span className="text-muted">Vendedor(a):</span> <strong className="text-capitalize text-primary">{facturaSeleccionada.vendedor}</strong>
+                                    </p>
                                 )}
                             </Col>
                             <Col md={6} className="text-end border-start">
@@ -127,7 +142,7 @@ export const ModalDetalleFactura = ({
 
                 {facturaSeleccionada && facturaSeleccionada.observaciones && (
                     <div className="mt-4">
-                        <h6 className="fw-bold text-secondary mb-2">Observaciones</h6>
+                        <h6 className="fw-bold text-secondary mb-2">Observaciones Generales</h6>
                         <div className="p-3 bg-light rounded border fst-italic text-muted">
                             {facturaSeleccionada.observaciones}
                         </div>
@@ -219,5 +234,12 @@ export const ModalDetalleFactura = ({
                 <Button variant="secondary" onClick={handleClose}>Cerrar</Button>
             </Modal.Footer>
         </Modal>
+
+        {/* SUB-MODAL DE NOTAS ADICIONALES */}
+        <ModalNotasAdicionales 
+            show={showNotasAdicionales}
+            handleClose={() => setShowNotasAdicionales(false)}
+            factura={facturaSeleccionada}
+        />
     </>
 }

@@ -218,7 +218,30 @@ export const registerNotasHandlers = () => {
         LEFT JOIN categoria c ON p.categoria_id = c.id
         WHERE ni.id_nota = ?
       `)
-      return { success: true, data: stmt.all(notaId), configuracion: db.prepare(`SELECT * FROM almacen_conf LIMIT 1`).get() }
+      const detalles = stmt.all(notaId)
+
+      const notaMaestroStmt = db.prepare(`SELECT * FROM nota WHERE id = ?`)
+      let notaMaestro = notaMaestroStmt.get(notaId)
+
+      if (notaMaestro) {
+          const facturaOrigen = db.prepare(`
+              SELECT v.documento_cliente, t.telefono as telefono_tercero
+              FROM ventasMaestro v
+              LEFT JOIN terceros t ON v.documento_cliente = t.numero_documento
+              WHERE v.id = ?
+          `).get(notaMaestro.id_factura_origen)
+
+          if (facturaOrigen && facturaOrigen.telefono_tercero) {
+              notaMaestro.telefono_cliente = facturaOrigen.telefono_tercero
+          }
+      }
+
+      return { 
+          success: true, 
+          data: detalles, 
+          notaMaestro: notaMaestro,
+          configuracion: db.prepare(`SELECT * FROM almacen_conf LIMIT 1`).get() 
+      }
     } catch (error) {
       return { success: false, error: error.message }
     }

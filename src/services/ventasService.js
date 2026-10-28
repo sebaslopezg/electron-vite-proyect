@@ -190,7 +190,6 @@ export const ventasService = {
 
             const rawData = result.data || []
             
-            // CORRECCIÓN AQUÍ: Nos aseguramos de mapear también el teléfono del cliente
             const mappedData = rawData.map(f => ({
                 id: f.id,
                 date_created: f.createdAt,
@@ -218,10 +217,8 @@ export const ventasService = {
 
     getDetalleFactura: async (id) => {
         if (isElectron()) {
-            // Se usa el servicio local de Electron
             const result = await window.api.getDetalle(id);
             if (result.success && result.maestro) {
-                // Incorporamos los datos del maestro en el objeto final
                 result.facturaMaestro = result.maestro; 
             }
             return result;
@@ -243,7 +240,7 @@ export const ventasService = {
 
                 return {
                     success: true,
-                    facturaMaestro: resData.maestro || null, // Aseguramos traer el maestro desde la web
+                    facturaMaestro: resData.maestro || null,
                     data: mappedItems,
                     notes: resData.notes || [],
                     configuracion: resData.configuracion || null
@@ -261,7 +258,6 @@ export const ventasService = {
             let rawAbonos = [];
             let configuracion = null;
 
-            // Extraemos los datos dependiendo de si es Electron o Web
             if (isElectron()) {
                 const res = await window.api.getReporteVentas({ startDate, endDate });
                 if (!res.success) throw new Error(res.error || 'Error local');
@@ -275,7 +271,6 @@ export const ventasService = {
                 configuracion = response.data.configuracion || null;
             }
 
-            // Mapeo seguro conservando todas las propiedades nativas
             const mappedFacturas = rawFacturas.map(f => ({
                 ...f, 
                 tipo_transaccion: 'venta',
@@ -291,7 +286,6 @@ export const ventasService = {
                 nombre_cliente: a.cliente_nombre || 'Desconocido'
             }));
 
-            // Combinamos las listas y ordenamos descendentemente por fecha
             const transaccionesUnificadas = [...mappedFacturas, ...mappedAbonos].sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
 
             return {
@@ -385,6 +379,35 @@ export const ventasService = {
             const response = await api.get('/shop-config/all')
             const data = response.data.data || response.data || {}
             return Array.isArray(data) ? data : [data]
+        }
+    },
+
+    // AÑADIDO: MÉTODOS PARA NOTAS ADICIONALES DE FACTURA
+    getFacturaNotasAdicionales: async (facturaId) => {
+        if (isElectron() && window.api.getFacturaNotasAdicionales) {
+            return await window.api.getFacturaNotasAdicionales(facturaId);
+        } else {
+            // Fallback web en caso de existir luego
+            try {
+                const response = await api.get(`/sales/${facturaId}/notas-adicionales`);
+                return { success: true, data: response.data.data || [] };
+            } catch (error) {
+                return { success: false, error: 'Función no disponible en entorno web' };
+            }
+        }
+    },
+
+    addFacturaNotaAdicional: async (facturaId, contenido) => {
+        if (isElectron() && window.api.addFacturaNotaAdicional) {
+            return await window.api.addFacturaNotaAdicional({ facturaId, contenido });
+        } else {
+            // Fallback web en caso de existir luego
+            try {
+                const response = await api.post(`/sales/${facturaId}/notas-adicionales`, { contenido });
+                return { success: true, data: response.data };
+            } catch (error) {
+                return { success: false, error: 'Función no disponible en entorno web' };
+            }
         }
     }
 }

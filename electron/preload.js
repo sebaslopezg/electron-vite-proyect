@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld("api", {
   createVenta: (data) => ipcRenderer.invoke("create-venta", data),
   getFacturasPaginadas: (params) => ipcRenderer.invoke('get-maestro-paginados', params),
   getReporteVentas: (data) => ipcRenderer.invoke("get-reporte-ventas", data),
+  getFacturaNotasAdicionales: (id) => ipcRenderer.invoke('get-factura-notas-adicionales', id),
+  addFacturaNotaAdicional: (data) => ipcRenderer.invoke('add-factura-nota-adicional', data),
 
   // inventario
   getInventario: () => ipcRenderer.invoke("get-inventario"),

@@ -231,6 +231,11 @@ export const Reportes = ({ currentUser }) => {
                 }
             }
 
+            if (t.tipo_transaccion === 'venta' && t.notas_aplicadas) {
+                if (t.notas_aplicadas.includes('Crédito')) {
+                }
+            }
+
             return acc
         }, { totalFacturado: 0, ingresoTotalCaja: 0, metodos: {} })
     }, [transacciones])
@@ -240,12 +245,15 @@ export const Reportes = ({ currentUser }) => {
             const dataToExport = transacciones.map(t => {
                 const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0))
                 const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0)
+                
+                let concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`);
+                if (t.notas_aplicadas) concepto += ` (${t.notas_aplicadas})`;
 
                 return {
                     'Fecha y Hora': new Date(t.date_created).toLocaleString(appConfig.formato_numero),
                     'Documento': t.tipo_transaccion === 'abono' ? `Abono a F-${t.factura_numero || ''}` : `${t.prefijo || ''}${t.separador || ''}${t.numero_factura || ''}`,
                     'Cliente': t.nombre_cliente,
-                    'Concepto / Método': t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`),
+                    'Concepto / Método': concepto,
                     'Venta (Total)': venta,
                     'Ingreso Real': ingreso
                 }
@@ -275,7 +283,9 @@ export const Reportes = ({ currentUser }) => {
             transacciones.forEach(t => {
                 const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0))
                 const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0);
-                const concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`)
+                
+                let concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`);
+                if (t.notas_aplicadas) concepto += `\n(${t.notas_aplicadas})`;
 
                 const rowData = [
                     new Date(t.date_created).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' }),
@@ -330,27 +340,39 @@ export const Reportes = ({ currentUser }) => {
         { 
             data: null, title: 'Concepto / Método',
             render: (data, type, row) => {
+                let htmlReturn = '';
+
                 if (row.tipo_transaccion === 'abono') {
-                    return `<span class="badge bg-success me-1">Abono</span> <span class="badge border border-success text-success">${row.metodo_pago}</span>`
+                    htmlReturn += `<span class="badge bg-success me-1">Abono</span> <span class="badge border border-success text-success">${row.metodo_pago}</span>`
+                } else if (row.tipo_pago === 'credito') {
+                    htmlReturn += `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-warning text-warning text-dark">Crédito</span>`
+                } else {
+                    let badges = `<span class="badge bg-primary me-1">Venta</span>`
+                    if (row.pagos_multiples) {
+                        try {
+                            const pagosArray = JSON.parse(row.pagos_multiples)
+                            pagosArray.forEach(p => {
+                                if (parseFloat(p.monto) > 0) {
+                                    badges += ` <span class="badge border border-primary text-primary mx-1" title="${p.metodo}: ${_formatCurrency(p.monto)}">${p.metodo}</span>`
+                                }
+                            })
+                            htmlReturn += badges;
+                        } catch(e) {}
+                    } else {
+                        htmlReturn += badges + ` <span class="badge border border-primary text-primary mx-1">${row.metodo_pago || 'Contado'}</span>`
+                    }
                 }
-                if (row.tipo_pago === 'credito') {
-                    return `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-warning text-warning text-dark">Crédito</span>`
+
+                if (row.tipo_transaccion === 'venta' && row.notas_aplicadas) {
+                    if (row.notas_aplicadas.includes('Crédito')) {
+                        htmlReturn += ` <span class="badge border border-info text-dark" title="Factura modificada con Nota de Crédito">Nota Crédito</span>`
+                    }
+                    if (row.notas_aplicadas.includes('Débito')) {
+                        htmlReturn += ` <span class="badge border border-secondary" title="Factura modificada con Nota de Débito">Nota Débito</span>`
+                    }
                 }
-                
-                let badges = `<span class="badge bg-primary me-1">Venta</span>`
-                if (row.pagos_multiples) {
-                    try {
-                        const pagosArray = JSON.parse(row.pagos_multiples)
-                        pagosArray.forEach(p => {
-                            if (parseFloat(p.monto) > 0) {
-                                badges += ` <span class="badge border border-primary text-primary mx-1" title="${p.metodo}: ${_formatCurrency(p.monto)}">${p.metodo}</span>`
-                            }
-                        })
-                        return badges
-                    } catch(e) {}
-                }
-                
-                return badges + ` <span class="badge border border-primary text-primary mx-1">${row.metodo_pago || 'Contado'}</span>`
+
+                return htmlReturn;
             }
         },
         { 
@@ -396,10 +418,11 @@ export const Reportes = ({ currentUser }) => {
                     <div className="d-flex gap-2">
                         <Button 
                             variant="outline-secondary" size="sm"
-                            onClick={() => { setStartDate(getLocalDatetime(true)); setEndDate(getLocalDatetime(false)); }}
-                            title="Restablecer Fechas"
+                            onClick={() => { setStartDate(''); setEndDate(''); }}
+                            disabled={!startDate && !endDate}
+                            title="Limpiar Filtros de Fecha"
                         >
-                            <i className="bi bi-arrow-counterclockwise me-1"></i> Restablecer
+                            <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
                         </Button>
                         
                         {canPrint && (
@@ -506,7 +529,7 @@ export const Reportes = ({ currentUser }) => {
             notasFactura={notasFactura}
             handlePrepararImpresion={handlePrepararImpresionFactura}
             appConfig={appConfig}
-            canPrint={hasPermission('ventas_imprimir')}
+            canPrint={canPrint}
         />
 
         <ImpresorFactura 
