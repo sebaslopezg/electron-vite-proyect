@@ -11,7 +11,7 @@ export const ModalDetalleFactura = ({
     facturaSeleccionada, 
     detalleData, 
     notasFactura, 
-    handlePrepararImpresion, 
+    handlePrepararImpresion,
     appConfig,
     canPrint
 }) => {
@@ -35,8 +35,7 @@ export const ModalDetalleFactura = ({
     const pagosArray = facturaSeleccionada?.pagos_multiples ? JSON.parse(facturaSeleccionada.pagos_multiples) : []
 
     return <>
-        {/* Usamos backdrop="static" y un zIndex menor que el de la sub-modal para evitar conflictos visuales */}
-        <Modal show={show} onHide={handleClose} size="lg" centered scrollable style={{ zIndex: 1050 }}>
+        <Modal show={show} onHide={handleClose} size="lg" centered scrollable>
             <Modal.Header closeButton className="bg-light">
                 <Modal.Title className="fs-5">
                     <i className="bi bi-receipt-cutoff me-2 text-primary"></i>
@@ -46,8 +45,8 @@ export const ModalDetalleFactura = ({
             <Modal.Body className="p-4">
                 <div className="d-flex justify-content-end mb-3 gap-2">
                     {/* Botón de Notas Adicionales */}
-                    <Button variant="outline-info" onClick={() => setShowNotasAdicionales(true)} className="shadow-sm fw-medium">
-                        <i className="bi bi-chat-dots-fill me-2"></i> Notas Internas
+                    <Button variant="outline-secondary" onClick={() => setShowNotasAdicionales(true)} className="shadow-sm fw-medium">
+                        <i className="bi bi-journal-text me-2"></i> Notas Adicionales
                     </Button>
 
                     {canPrint && (
