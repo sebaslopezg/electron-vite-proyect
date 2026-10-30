@@ -2,7 +2,7 @@ import { ipcMain } from "electron"
 import { v4 as uuidv4 } from 'uuid'
 import db from "../database/index.js"
 import { logger } from "../utils/logger.js"
-import { triggerBackgroundPush } from "./syncHandlers.js"
+import { canModifyModule, triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession;
@@ -193,7 +193,10 @@ export const registerProductoHandlers = () => {
       const recordsFiltered = filteredRow.count
 
       const dataQuery = `
-        SELECT p.*, c.sku_prefix as cat_prefix, c.separador as cat_separador
+        SELECT p.*,
+          c.nombre as categoria_nombre,
+          c.sku_prefix as cat_prefix, c.separador as cat_separador,
+          (SELECT GROUP_CONCAT(pe.etiqueta_id, ',') FROM producto_etiqueta pe WHERE p.id = pe.producto_id) as etiquetas_ids
         ${baseQuery}
         ORDER BY ${orderCol} ${orderDir} 
         LIMIT ? OFFSET ?
@@ -247,6 +250,10 @@ export const registerProductoHandlers = () => {
 
   ipcMain.handle("add-producto", (_, item) => {
     const tipoItem = item.tipo || 'producto'
+
+    if (!canModifyModule('producto')) {
+      return { success: false, error: "El sistema está configurado para sincronizar con la nube. Los productos deben gestionarse desde la plataforma principal." }
+    }
 
     if (tipoItem === 'servicio' && !checkPermission("servicios_crear")) {
         return { success: false, error: "No tienes permisos para crear servicios." }
@@ -326,6 +333,10 @@ export const registerProductoHandlers = () => {
   ipcMain.handle("update-producto", (_, item) => {
     const tipoItem = item.tipo || 'producto'
 
+    if (!canModifyModule('producto')) {
+      return { success: false, error: "El sistema está configurado para sincronizar con la nube. Los productos deben modificarse desde la plataforma principal." }
+    }
+
     if (tipoItem === 'servicio' && !checkPermission("servicios_editar")) {
       return { success: false, error: "No tienes permisos para modificar servicios." }
     } else if (tipoItem === 'producto' && !checkPermission("productos_editar")) {
@@ -388,6 +399,10 @@ export const registerProductoHandlers = () => {
   })
 
   ipcMain.handle("delete-producto", (_, item) => {
+    if (!canModifyModule('producto')) {
+      return { success: false, error: "El sistema está configurado para sincronizar con la nube. Los productos deben eliminarse desde la plataforma principal." }
+    }
+
     try {
       const prodData = db.prepare("SELECT tipo FROM producto WHERE id = ?").get(item)
       if (!prodData) return { success: false, error: "Registro no encontrado en la base de datos." }
@@ -405,8 +420,8 @@ export const registerProductoHandlers = () => {
       `).run(now, user, item)
 
       if (info.changes > 0) {
-          triggerBackgroundPush('producto').catch(e => logger.error('SYNC', 'Error disparando push tras eliminar producto', e))
-          return { success: true, changes: info.changes }
+        triggerBackgroundPush('producto').catch(e => logger.error('SYNC', 'Error disparando push tras eliminar producto', e))
+        return { success: true, changes: info.changes }
       }
       return { success: false, changes: 0 }
     } catch (error) {

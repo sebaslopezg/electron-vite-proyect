@@ -6,12 +6,24 @@ import { ProductoDetalles } from './components/ProductoDetalles'
 import { formatCurrency } from '../../utils/currencies'
 import { productosService } from '../../services/productosService'
 
+// Configuración global del Toast importado de SweetAlert2
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const Servicios = ({ currentUser }) => {
     const [show, setShow] = useState(false)
     const [showDetalles, setShowDetalles] = useState(false)
 
     const [activeUser, setActiveUser] = useState(currentUser)
-    
     const [isLoading, setIsLoading] = useState(true)
 
     const handleClose = () => setShow(false)
@@ -34,6 +46,7 @@ export const Servicios = ({ currentUser }) => {
         status: 1,
         tipo: 'servicio',
         categoria_id: 'general',
+        subcategorias_ids: [],
         etiquetas: []
     }
 
@@ -41,13 +54,15 @@ export const Servicios = ({ currentUser }) => {
     const [editingId, setEditingId] = useState(null)
     const [prodSel, setProdSel] = useState(null)
     const [categorias, setCategorias] = useState([])
+    const [subcategorias, setSubcategorias] = useState([])
     const [etiquetas, setEtiquetas] = useState([])
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+    const [isSyncConfigured, setIsSyncConfigured] = useState(false)
 
     // === REGLAS DE SINCRONIZACIÓN WEB ===
     const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web'
-    const isReadOnly = syncRule === 'web_to_desktop'
+    const isReadOnly = (syncRule === 'web_to_desktop') || isSyncConfigured
 
     const hasPermission = (permissionKey) => {
         const u = activeUser || currentUser
@@ -62,6 +77,19 @@ export const Servicios = ({ currentUser }) => {
 
     const loadConfig = async () => {
         const configData = await productosService.getConfiguracion()
+
+        const syncConfRaw = configData.find(c => c.key === 'syncConf')
+        if (syncConfRaw) {
+            try {
+                const parsedSync = JSON.parse(syncConfRaw.value)
+                if (parsedSync.negocio_id && parsedSync.token) {
+                    setIsSyncConfigured(true)
+                } else {
+                    setIsSyncConfigured(false)
+                }
+            } catch(e) {}
+        }
+
         const confAppRaw = configData.find(c => c.key === 'confApp')
         if (confAppRaw) {
             try {
@@ -79,12 +107,14 @@ export const Servicios = ({ currentUser }) => {
     }
 
     const loadExtras = useCallback(async () => {
-        const [cats, tags] = await Promise.all([
+        const [cats, tags, subcats] = await Promise.all([
             productosService.getCategorias(),
-            productosService.getEtiquetas()
-        ]);
+            productosService.getEtiquetas(),
+            productosService.getSubcategorias()
+        ])
         setCategorias(cats || [])
         setEtiquetas(tags || [])
+        setSubcategorias(subcats || [])
     }, [])
 
     useEffect(() => {
@@ -111,29 +141,43 @@ export const Servicios = ({ currentUser }) => {
         initData()
         
         window.addEventListener('config-actualizada', loadConfig)
-        return () => window.removeEventListener('config-actualizada', loadConfig)
+        window.addEventListener('categorias-actualizadas', loadExtras)
+        window.addEventListener('subcategorias-actualizadas', loadExtras)
+        window.addEventListener('etiquetas-actualizadas', loadExtras)
+
+        return () => {
+            window.removeEventListener('config-actualizada', loadConfig)
+            window.removeEventListener('categorias-actualizadas', loadExtras)
+            window.removeEventListener('subcategorias-actualizadas', loadExtras)
+            window.removeEventListener('etiquetas-actualizadas', loadExtras)
+        }
     }, [currentUser, loadExtras])
 
     const cleanForm = () => setForm({ ...emptyForm })
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e, finalSkuArmado) => {
         e.preventDefault()
         if (isReadOnly) return
 
+        const payload = { ...form }
+        if (finalSkuArmado) payload.sku = finalSkuArmado
+
         let result
         if (editingId) {
-            result = await productosService.updateProducto({ ...form, id: editingId })
+            result = await productosService.updateProducto({ ...payload, id: editingId })
         } else {
-            result = await productosService.addProducto(form)
+            result = await productosService.addProducto(payload)
         }
 
         if (result && result.success) {
-            Swal.fire({ title: '¡Éxito!', text: 'Servicio guardado correctamente', icon: 'success', timer: 1500 })
+            // CAMBIADO: Usando Toast en vez de Swal normal
+            Toast.fire({ icon: 'success', title: 'Servicio guardado correctamente' })
             cleanForm()
             handleClose()
             setReloadTable(prev => prev + 1)
         } else {
-            Swal.fire('Error', result?.error || 'No se pudo guardar el servicio', 'error')
+            // CAMBIADO: Usando Toast para el error
+            Toast.fire({ icon: 'error', title: result?.error || 'No se pudo guardar el servicio' })
         }
     }
 
@@ -151,9 +195,11 @@ export const Servicios = ({ currentUser }) => {
             const res = await productosService.deleteProducto(id)
             if (res.success) {
                 setReloadTable(prev => prev + 1)
-                Swal.fire({ title: 'Eliminado', text: 'Registro eliminado', icon: 'success', timer: 1500 })
+                // CAMBIADO: Usando Toast en vez de Swal normal
+                Toast.fire({ icon: 'success', title: 'Servicio eliminado' })
             } else {
-                Swal.fire('Error', res?.error || 'No se pudo eliminar', 'error')
+                // CAMBIADO: Usando Toast para el error
+                Toast.fire({ icon: 'error', title: res?.error || 'Error al eliminar' })
             }
         }
     }
@@ -173,6 +219,11 @@ export const Servicios = ({ currentUser }) => {
                     const item = JSON.parse(rawData)
                     const tagsArray = item.etiquetas_ids ? item.etiquetas_ids.split(',').filter(id => id) : []
                     
+                    let subcatIds = []
+                    if (item.subcategorias_ids_json) {
+                        try { subcatIds = JSON.parse(item.subcategorias_ids_json) } catch (e) {}
+                    }
+
                     setForm({
                         ref_name: item.ref_name || '', 
                         sku: item.sku || '', 
@@ -185,6 +236,7 @@ export const Servicios = ({ currentUser }) => {
                         status: item.status || 1, 
                         tipo: item.tipo || 'servicio',
                         categoria_id: item.categoria_id || 'general', 
+                        subcategorias_ids: subcatIds,
                         etiquetas: tagsArray
                     })
                     setEditingId(item.id)
@@ -221,8 +273,9 @@ export const Servicios = ({ currentUser }) => {
             title: 'SKU', 
             render: (data, type, row) => {
                 if (!data) return '-'
-                const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}` : ''
-                const fullSku = `${prefix}${data.toUpperCase()}`
+                const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : ''
+                const skuVal = String(data).toUpperCase()
+                const fullSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
                 const safeData = encodeURIComponent(JSON.stringify(row))
                 return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view" data-alldata="${safeData}">${fullSku}</a>`
             } 
@@ -343,6 +396,7 @@ export const Servicios = ({ currentUser }) => {
             setForm={setForm}
             editingId={editingId}
             categorias={categorias}
+            subcategorias={subcategorias}
             etiquetas={etiquetas}
         />
 
@@ -351,6 +405,8 @@ export const Servicios = ({ currentUser }) => {
             handleClose={handleCloseDetalles}
             productoData={prodSel}
             appConfig={appConfig}
+            subcategoriasDisponibles={subcategorias}
+            etiquetasDisponibles={etiquetas}
         />
     </>
 }

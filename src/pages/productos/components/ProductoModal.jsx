@@ -5,24 +5,35 @@ import Form from 'react-bootstrap/Form'
 import InputGroup from 'react-bootstrap/InputGroup'
 import { Row, Col, ListGroup } from 'react-bootstrap'
 
-const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
+const formatItemLabel = (item) => {
+    if (!item) return ''
+    return `${item.nombre}${item.sku_prefix ? ` (${item.sku_prefix})` : ''}`
+}
+
+const BuscadorListas = ({ items, value, onChange, placeholder, disabled, emptyMessage = 'Sin coincidencias.' }) => {
     const [query, setQuery] = useState('')
     const [showDropdown, setShowDropdown] = useState(false)
     const [activeIndex, setActiveIndex] = useState(-1)
 
+    const selectedItem = items.find(i => String(i.id) === String(value))
+    const selectedLabel = formatItemLabel(selectedItem)
+
     useEffect(() => {
-        const selectedItem = items.find(i => i.id === value)
         if (selectedItem) {
-            setQuery(`${selectedItem.nombre} ${selectedItem.sku_prefix ? `(${selectedItem.sku_prefix})` : ''}`)
+            setQuery(formatItemLabel(selectedItem))
         } else {
             setQuery('')
         }
     }, [value, items])
 
+    // Si el texto actual coincide exactamente con el ítem ya seleccionado, mostramos toda la lista al abrir
+    const effectiveSearch = (selectedItem && query === selectedLabel) ? '' : query.trim().toLowerCase()
+
     const filteredItems = items.filter(item => {
-        const searchStr = query.toLowerCase()
-        return item.nombre.toLowerCase().includes(searchStr) || 
-               (item.sku_prefix && item.sku_prefix.toLowerCase().includes(searchStr))
+        if (!effectiveSearch) return true
+        const nombre = (item.nombre || '').toLowerCase()
+        const prefix = (item.sku_prefix || '').toLowerCase()
+        return nombre.includes(effectiveSearch) || prefix.includes(effectiveSearch)
     }).slice(0, 15)
 
     useEffect(() => {
@@ -68,13 +79,13 @@ const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
                     if (e.target.value === '') onChange('')
                 }}
                 onKeyDown={handleKeyDown}
-                onFocus={() => { if (!disabled && items.length > 0) setShowDropdown(true) }}
+                onFocus={() => { if (!disabled) setShowDropdown(true) }}
                 onBlur={() => {
                     setTimeout(() => {
                         setShowDropdown(false)
-                        const selectedItem = items.find(i => i.id === value)
-                        if (selectedItem) {
-                            setQuery(`${selectedItem.nombre} ${selectedItem.sku_prefix ? `(${selectedItem.sku_prefix})` : ''}`)
+                        const currentSel = items.find(i => String(i.id) === String(value))
+                        if (currentSel) {
+                            setQuery(formatItemLabel(currentSel))
                         } else {
                             setQuery('')
                         }
@@ -108,10 +119,12 @@ const BuscadorListas = ({ items, value, onChange, placeholder, disabled }) => {
                     ))}
                 </ListGroup>
             )}
-            {showDropdown && filteredItems.length === 0 && query !== '' && !disabled && (
-                 <ListGroup className="position-absolute shadow w-100" style={{ zIndex: 9999, top: '100%', left: 0 }}>
-                     <ListGroup.Item className="py-2 text-center text-muted small bg-white">Sin coincidencias.</ListGroup.Item>
-                 </ListGroup>
+            {showDropdown && filteredItems.length === 0 && !disabled && (
+                <ListGroup className="position-absolute shadow w-100" style={{ zIndex: 9999, top: '100%', left: 0, marginTop: '4px' }}>
+                    <ListGroup.Item className="py-2 text-center text-muted small bg-white">
+                        {items.length === 0 ? emptyMessage : 'Sin coincidencias.'}
+                    </ListGroup.Item>
+                </ListGroup>
             )}
         </div>
     </>
@@ -140,20 +153,37 @@ export default function ProductModal(
         return (yiq >= 128) ? '#000000' : '#ffffff'
     }
 
-    const etiquetasFiltradas = etiquetas.filter(tag => {
-        if (!tag.categorias_ids) return false;
-        const catIds = tag.categorias_ids.split(',')
-        return catIds.includes(form.categoria_id)
-    })
+    const targetCatId = String(form.categoria_id || '').trim()
+
+    const perteneceACategoria = (recordCategoriasIds, directCategoriaId) => {
+        if (!targetCatId) return false
+        if (directCategoriaId !== undefined && directCategoriaId !== null && String(directCategoriaId).trim() === targetCatId) {
+            return true
+        }
+        if (!recordCategoriasIds) return false
+        if (Array.isArray(recordCategoriasIds)) {
+            return recordCategoriasIds.map(id => String(id).trim()).includes(targetCatId)
+        }
+        const str = String(recordCategoriasIds).trim()
+        if (str.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(str)
+                return Array.isArray(parsed) && parsed.map(id => String(id).trim()).includes(targetCatId)
+            } catch (e) {}
+        }
+        return str.split(',').map(id => id.trim()).includes(targetCatId)
+    }
+
+    const etiquetasFiltradas = etiquetas.filter(tag => perteneceACategoria(tag.categorias_ids, tag.categoria_id))
 
     const selectedSubIds = form.subcategorias_ids || []
-    const selectedCategory = categorias.find(cat => cat.id === form.categoria_id)
+    const selectedCategory = categorias.find(cat => String(cat.id) === targetCatId)
     
     let combinedPrefix = selectedCategory?.sku_prefix || ''
     let currentSeparator = selectedCategory?.separador || ''
 
     selectedSubIds.forEach(id => {
-        const sub = subcategorias.find(s => s.id === id)
+        const sub = subcategorias.find(s => String(s.id) === String(id))
         if (sub && sub.sku_prefix) {
             if (combinedPrefix) {
                 combinedPrefix += (currentSeparator ? currentSeparator : '') + sub.sku_prefix
@@ -238,6 +268,7 @@ export default function ProductModal(
                                     items={categorias}
                                     value={form.categoria_id}
                                     placeholder="Buscar categoría..."
+                                    emptyMessage="No hay categorías registradas."
                                     onChange={(val) => setForm({ 
                                         ...form, 
                                         categoria_id: val, 
@@ -251,14 +282,18 @@ export default function ProductModal(
                     <div className="bg-light p-3 border rounded mb-3" style={{ overflow: 'visible' }}>
                         <div className="d-flex justify-content-between align-items-center mb-2">
                             <Form.Label className="fw-bold m-0 text-primary">Subcategorías Anidadas</Form.Label>
-                            <Button variant="outline-primary" size="sm" onClick={addSubcategoriaRow} disabled={!form.categoria_id}>
+                            <Button variant="outline-primary" size="sm" onClick={addSubcategoriaRow} disabled={!selectedCategory}>
                                 <i className="bi bi-plus-circle me-1"></i> Añadir Nivel
                             </Button>
                         </div>
                         {selectedSubIds.length === 0 && <span className="text-muted small">No hay subcategorías asignadas.</span>}
                         
                         {selectedSubIds.map((subId, index) => {
-                            const subcatsValidas = subcategorias.filter(s => s.categorias_ids && s.categorias_ids.split(',').includes(form.categoria_id))
+                            const subcatsValidas = subcategorias.filter(s => {
+                                const esDeCategoria = perteneceACategoria(s.categorias_ids ?? s.categorias_ids_json, s.categoria_id)
+                                const usadaEnOtroNivel = selectedSubIds.some((otroId, i) => i !== index && otroId && String(otroId) === String(s.id))
+                                return esDeCategoria && !usadaEnOtroNivel
+                            })
                             
                             return (
                                 <Row key={index} className="mb-2 align-items-center" style={{ overflow: 'visible' }}>
@@ -270,6 +305,7 @@ export default function ProductModal(
                                                     items={subcatsValidas}
                                                     value={subId}
                                                     placeholder="Buscar subcategoría..."
+                                                    emptyMessage="Esta categoría no tiene subcategorías asociadas."
                                                     onChange={(val) => updateSubcategoriaId(index, val)}
                                                 />
                                             </div>
@@ -416,7 +452,7 @@ export default function ProductModal(
                             <Form.Label className="fw-bold d-block mb-2 text-primary">Etiquetas Especiales</Form.Label>
                             <div className="d-flex flex-wrap gap-3">
                                 {etiquetasFiltradas.map(tag => {
-                                    const textColor = getContrastText(tag.color);
+                                    const textColor = getContrastText(tag.color)
                                     
                                     return (
                                         <Form.Check 
@@ -426,7 +462,7 @@ export default function ProductModal(
                                             label={
                                                 <span 
                                                     className="badge border" 
-                                                    style={{ backgroundColor: tag.color, color: textColor, borderColor: 'rgba(0,0,0,0.1) !important' }} 
+                                                    style={{ backgroundColor: tag.color, color: textColor, borderColor: 'rgba(0,0,0,0.1)' }} 
                                                 >
                                                     {tag.nombre}
                                                 </span>
@@ -434,7 +470,7 @@ export default function ProductModal(
                                             checked={(form.etiquetas || []).includes(tag.id)}
                                             onChange={() => handleTagToggle(tag.id)}
                                         />
-                                    );
+                                    )
                                 })}
                             </div>
                         </div>

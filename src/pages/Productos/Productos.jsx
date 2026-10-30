@@ -62,9 +62,10 @@ export const Productos = ({ currentUser }) => {
   const [prodSel, setProdSel] = useState(null)
   
   const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
+  const [isSyncConfigured, setIsSyncConfigured] = useState(false)
 
   const syncRule = activeUser?.syncRules?.productos || 'desktop_to_web'
-  const isReadOnly = syncRule === 'web_to_desktop'
+  const isReadOnly = (syncRule === 'web_to_desktop') || isSyncConfigured
 
   const hasPermission = (permissionKey) => {
     const u = activeUser || currentUser
@@ -77,6 +78,19 @@ export const Productos = ({ currentUser }) => {
 
   const loadConfig = async () => {
     const configData = await productosService.getConfiguracion()
+    
+    const syncConfRaw = configData.find(c => c.key === 'syncConf')
+    if (syncConfRaw) {
+        try {
+            const parsedSync = JSON.parse(syncConfRaw.value)
+            if (parsedSync.negocio_id && parsedSync.token) {
+                setIsSyncConfigured(true)
+            } else {
+                setIsSyncConfigured(false)
+            }
+        } catch(e) {}
+    }
+
     const confAppRaw = configData.find(c => c.key === 'confApp')
     if (confAppRaw) {
       try {
@@ -137,11 +151,9 @@ export const Productos = ({ currentUser }) => {
     }
   }, [currentUser, loadSelectsData])
 
-  // === SOLUCIÓN: ESCUCHADOR DE SINCRONIZACIÓN DE ELECTRON ===
-  // Este evento atrapa lo que Electron inserta silenciosamente en SQLite y obliga a React a repintar la tabla
   useEffect(() => {
     const handleSyncApplied = (event) => {
-        const data = event.detail; // Extraemos el detalle del CustomEvent
+        const data = event.detail
         if (data?.modules && (data.modules.includes('productos') || data.modules.includes('producto') || data.modules.includes('inventario'))) {
             console.log("Actualización silenciosa detectada desde Electron, recargando productos...")
             setReloadTable(prev => prev + 1)
