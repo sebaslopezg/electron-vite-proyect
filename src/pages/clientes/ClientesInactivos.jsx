@@ -5,6 +5,19 @@ import { ModalTercero } from '../contabilidad/components/ModalTercero'
 import { ModalDetalleTercero } from '../contabilidad/components/ModalDetalleTercero'
 import { clientesService } from '../../services/clientesService'
 
+// Configuración global del Toast importado de SweetAlert2
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const ClientesInactivos = ({ activeUser }) => {
     const [showModal, setShowModal] = useState(false)
     const [terceroAEditar, setTerceroAEditar] = useState(null)
@@ -50,10 +63,10 @@ export const ClientesInactivos = ({ activeUser }) => {
             if (result.isConfirmed) {
                 const res = await clientesService.reactivarTercero(id)
                 if (res.success) {
-                    Swal.fire('¡Reactivado!', 'El cliente está activo nuevamente.', 'success')
+                    Toast.fire({ icon: 'success', title: 'Cliente reactivado exitosamente.' })
                     setReloadTable(prev => prev + 1)
                 } else {
-                    Swal.fire('Error', res.error, 'error')
+                    Toast.fire({ icon: 'error', title: res.error || 'No se pudo reactivar el cliente.' })
                 }
             }
         })
@@ -68,10 +81,10 @@ export const ClientesInactivos = ({ activeUser }) => {
             if (result.isConfirmed) {
                 const res = await clientesService.eliminarTercero(id)
                 if (res.success) {
-                    Swal.fire('¡Eliminado!', 'El cliente ha sido borrado.', 'success')
+                    Toast.fire({ icon: 'success', title: 'Cliente borrado.' })
                     setReloadTable(prev => prev + 1)
                 } else {
-                    Swal.fire('Error', res.error, 'error')
+                    Toast.fire({ icon: 'error', title: res.error || 'No se pudo eliminar.' })
                 }
             }
         })

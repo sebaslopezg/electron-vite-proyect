@@ -5,6 +5,18 @@ import { ModalTercero } from '../contabilidad/components/ModalTercero'
 import { ModalDetalleTercero } from '../contabilidad/components/ModalDetalleTercero'
 import { clientesService } from '../../services/clientesService'
 
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const ClientesActivos = ({ activeUser }) => {
     const [showModal, setShowModal] = useState(false)
     const [terceroAEditar, setTerceroAEditar] = useState(null)
@@ -65,10 +77,10 @@ export const ClientesActivos = ({ activeUser }) => {
             if (result.isConfirmed) {
                 const res = await clientesService.desactivarTercero(id)
                 if (res.success) {
-                    Swal.fire('¡Desactivado!', 'El cliente ha sido desactivado exitosamente.', 'success')
+                    Toast.fire({ icon: 'success', title: 'Cliente desactivado exitosamente.' })
                     setReloadTable(prev => prev + 1)
                 } else {
-                    Swal.fire('Error', res.error, 'error')
+                    Toast.fire({ icon: 'error', title: res.error || 'No se pudo desactivar el cliente.' })
                 }
             }
         })
@@ -83,10 +95,10 @@ export const ClientesActivos = ({ activeUser }) => {
             if (result.isConfirmed) {
                 const res = await clientesService.eliminarTercero(id)
                 if (res.success) {
-                    Swal.fire('¡Eliminado!', 'El cliente ha sido borrado del sistema.', 'success')
+                    Toast.fire({ icon: 'success', title: 'Cliente eliminado del sistema.' })
                     setReloadTable(prev => prev + 1)
                 } else {
-                    Swal.fire('Error', res.error, 'error')
+                    Toast.fire({ icon: 'error', title: res.error || 'No se pudo eliminar el cliente.' })
                 }
             }
         })
@@ -224,6 +236,7 @@ export const ClientesActivos = ({ activeUser }) => {
             </div>
         </div>
         
+        {/* MODALES FUERA DEL CONTENEDOR */}
         <ModalTercero show={showModal} handleClose={() => setShowModal(false)} onSuccess={() => setReloadTable(prev => prev + 1)} editData={terceroAEditar} forceCliente={true} />
         <ModalDetalleTercero show={showDetalle} handleClose={() => setShowDetalle(false)} terceroData={terceroVer} />
     </>

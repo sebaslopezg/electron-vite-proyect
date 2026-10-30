@@ -6,6 +6,19 @@ import Form from 'react-bootstrap/Form'
 import { Row, Col } from 'react-bootstrap'
 import { contabilidadService } from '../../../services/contabilidadService'
 
+// Configuración global del Toast importado de SweetAlert2
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 5000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer)
+        toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+})
+
 export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceCliente, initialDocument = '' }) => {
     const defaultData = {
         id: '', tipo_documento: 'CC',
@@ -44,17 +57,16 @@ export const ModalTercero = ({ show, handleClose, onSuccess, editData, forceClie
         }
 
         if (res.success) {
-            Swal.fire({ 
-                title: formData.id || editData ? '¡Actualizado!' : '¡Creado!', 
-                text: 'Tercero guardado correctamente.', 
+            // CAMBIADO: Usando Toast en vez de Swal normal
+            Toast.fire({ 
                 icon: 'success', 
-                timer: 1500,
-                showConfirmButton: false 
+                title: formData.id || editData ? 'Tercero actualizado correctamente' : 'Tercero creado correctamente'
             });
             onSuccess()
             handleClose()
         } else {
-            Swal.fire('Error', res.error, 'error')
+            // CAMBIADO: Usando Toast para el error
+            Toast.fire({ icon: 'error', title: res.error || 'Ocurrió un error al guardar' })
         }
     }
 

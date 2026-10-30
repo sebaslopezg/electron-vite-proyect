@@ -6,7 +6,7 @@ import { canModifyModule, triggerBackgroundPush } from "./syncHandlers.js"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
-    if (!user) return false;
+    if (!user) return false
     if (user.permisos?.includes("ALL")) return true
     return user.permisos?.includes(permission)
 }
@@ -14,7 +14,7 @@ const checkPermission = (permission) => {
 export const registerTercerosHandlers = () => {
 
   ipcMain.handle("get-terceros", () => {
-    if (!checkPermission("terceros_ver") && !checkPermission("ventas_crear")) {
+    if (!checkPermission("terceros_ver") && !checkPermission("clientes_ver") && !checkPermission("ventas_crear")) {
         return { success: false, error: "No autorizado" }
     }
     try {
@@ -27,7 +27,7 @@ export const registerTercerosHandlers = () => {
   })
 
   ipcMain.handle("crear-tercero", async (event, tercero) => {
-    if (!checkPermission("terceros_crear") && !checkPermission("ventas_crear")) return { success: false, error: "No autorizado" }
+    if (!checkPermission("terceros_crear") && !checkPermission("clientes_crear") && !checkPermission("ventas_crear")) return { success: false, error: "No autorizado" }
     if (!canModifyModule('terceros')) return { success: false, error: 'Acción bloqueada. Sincronización web activa en modo solo lectura.' }
     
     try {
@@ -58,7 +58,7 @@ export const registerTercerosHandlers = () => {
   })
 
   ipcMain.handle("actualizar-tercero", async (event, tercero) => {
-    if (!checkPermission("terceros_editar")) return { success: false, error: "No autorizado" };
+    if (!checkPermission("terceros_editar") && !checkPermission("clientes_editar")) return { success: false, error: "No autorizado" };
     if (!canModifyModule('terceros')) return { success: false, error: 'Acción bloqueada. Sincronización web activa en modo solo lectura.' }
     
     try {
@@ -88,7 +88,7 @@ export const registerTercerosHandlers = () => {
   })
 
   ipcMain.handle("desactivar-tercero", async (event, id) => {
-      if (!checkPermission("clientes_desactivar")) return { success: false, error: "No autorizado" }
+      if (!checkPermission("terceros_desactivar") && !checkPermission("clientes_desactivar")) return { success: false, error: "No autorizado" }
       if (!canModifyModule('terceros')) return { success: false, error: 'Acción bloqueada. Sincronización web activa.' }
       try {
           db.prepare("UPDATE terceros SET estado = 0, date_modify = datetime('now', 'localtime') WHERE id = ?").run(id)
@@ -104,7 +104,7 @@ export const registerTercerosHandlers = () => {
   })
 
   ipcMain.handle("reactivar-tercero", async (event, id) => {
-      if (!checkPermission("clientes_editar")) return { success: false, error: "No autorizado" }
+      if (!checkPermission("terceros_editar") && !checkPermission("clientes_editar")) return { success: false, error: "No autorizado" }
       if (!canModifyModule('terceros')) return { success: false, error: 'Acción bloqueada. Sincronización web activa.' }
       try {
           db.prepare("UPDATE terceros SET estado = 1, date_modify = datetime('now', 'localtime') WHERE id = ?").run(id)
@@ -120,7 +120,7 @@ export const registerTercerosHandlers = () => {
   })
 
   ipcMain.handle("eliminar-tercero", async (event, id) => {
-    if (!checkPermission("terceros_eliminar")) return { success: false, error: "No autorizado" }
+    if (!checkPermission("terceros_eliminar") && !checkPermission("clientes_eliminar")) return { success: false, error: "No autorizado" }
     if (!canModifyModule('terceros')) return { success: false, error: 'Acción bloqueada. Sincronización web activa.' }
     try {
         db.prepare("UPDATE terceros SET estado = -1, date_modify = datetime('now', 'localtime') WHERE id = ?").run(id)
@@ -144,7 +144,7 @@ export const registerTercerosHandlers = () => {
         if (estadoFinal === 1 && !checkPermission("terceros_ver") && !checkPermission("clientes_ver")) {
             return { draw: params.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
-        if (estadoFinal === 0 && !checkPermission("clientes_inactivos_ver")) {
+        if (estadoFinal === 0 && !checkPermission("terceros_inactivos_ver") && !checkPermission("clientes_inactivos_ver")) {
             return { draw: params.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
         
