@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
+import { ModalExportConfig } from "../../components/ModalExportConfig"
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
 import { ModalDetalleFactura } from "./components/ModalDetalleFactura"
@@ -21,8 +22,14 @@ export const VerFacturas = ({ currentUser }) => {
     const [endDate, setEndDate] = useState(() => localStorage.getItem('ventas_filtro_fin') || '')
 
     const [todasLasFacturas, setTodasLasFacturas] = useState([])
+    const [totalRecords, setTotalRecords] = useState(0)
+    const [totalFiltered, setTotalFiltered] = useState(0)
 
     const [isLoading, setIsLoading] = useState(true)
+
+    // Nuevos estados para la Modal de Exportación
+    const [showExportModal, setShowExportModal] = useState(false)
+    const [exportFormat, setExportFormat] = useState(null) // 'excel' o 'pdf'
 
     useEffect(() => {
         localStorage.setItem('ventas_filtro_inicio', startDate)
@@ -92,46 +99,111 @@ export const VerFacturas = ({ currentUser }) => {
 
     const tableContainerRef = useRef(null)
 
-    const handleExportAllExcel = () => {
-        if (todasLasFacturas.length === 0) return Swal.fire('Error', 'No hay facturas para exportar', 'warning')
+    // === DEFINICIÓN DINÁMICA DE COLUMNAS A EXPORTAR ===
+    const exportColumnsDef = [
+        { key: 'fecha', label: 'Fecha y Hora', defaultChecked: true },
+        { key: 'factura', label: 'Factura N°', defaultChecked: true },
+        { key: 'doc_cliente', label: 'Doc Cliente', defaultChecked: true },
+        { key: 'cliente', label: 'Nombre Cliente', defaultChecked: true },
+        { key: 'telefono', label: 'Teléfono Cliente', defaultChecked: false },
+        { key: 'metodo_pago', label: 'Método Pago', defaultChecked: true },
+        { key: 'estado', label: 'Estado / Notas', defaultChecked: false },
+        { key: 'subtotal', label: 'Subtotal Neto', defaultChecked: false },
+        { key: 'descuento', label: 'Descuento', defaultChecked: false },
+        { key: 'iva', label: 'IVA', defaultChecked: false },
+        { key: 'total', label: 'Total', defaultChecked: true },
+        { key: 'pagado', label: 'Pagado', defaultChecked: false },
+        { key: 'deuda', label: 'Deuda / Saldo', defaultChecked: true }
+    ]
 
-        const dataToExport = todasLasFacturas.map(f => ({
-            'Fecha y Hora': new Date(f.date_created).toLocaleString(appConfig.formato_numero),
-            'Factura N°': `${f.prefijo || ''}${f.separador || ''}${f.numero_factura}`,
-            'Doc Cliente': f.documento_cliente,
-            'Cliente': f.nombre_cliente,
-            'Método Pago': f.tipo_pago === 'credito' ? 'Crédito' : 'Contado',
-            'Subtotal': (f.total_factura || 0) + (f.descuento || 0) - (f.iva || 0),
-            'Descuento': f.descuento || 0,
-            'IVA': f.iva || 0,
-            'Total': f.total_factura || 0,
-            'Pagado': f.total_recibido || 0,
-            'Saldo Pendiente': f.saldo_pendiente || 0
-        }))
-
-        exportToExcel(dataToExport, `Historial_Facturas_${new Date().toISOString().split('T')[0]}`, "Facturas")
+    const openExportModal = (format) => {
+        if (totalRecords === 0) {
+            return Swal.fire('Error', 'No hay registros en el sistema para exportar', 'warning')
+        }
+        setExportFormat(format)
+        setShowExportModal(true)
     }
 
-    const handleExportAllPDF = () => {
-        if (todasLasFacturas.length === 0) return Swal.fire('Error', 'No hay facturas para exportar', 'warning')
+    // Procesamos la exportación
+    const handleProcessExport = async (limit, selectedColumnKeys, customFileName, exportTypeSelection) => {
+        
+        Swal.fire({
+            title: 'Generando archivo...',
+            text: 'Extrayendo registros, por favor espera.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading() }
+        });
 
-        const tableColumn = ["Fecha", "Factura", "Cliente", "Método", "Total", "Deuda"];
-        const tableRows = todasLasFacturas.map(f => [
-            new Date(f.date_created).toLocaleDateString(appConfig.formato_numero),
-            `${f.prefijo || ''}${f.separador || ''}${f.numero_factura}`,
-            f.nombre_cliente,
-            f.tipo_pago === 'credito' ? 'Crédito' : 'Contado',
-            _formatCurrency(f.total_factura || 0),
-            _formatCurrency(f.saldo_pendiente || 0)
-        ]);
+        let facturasParaExportar = todasLasFacturas;
 
-        exportToPDF({
-            title: 'Historial General de Facturas',
-            subtitle: (startDate && endDate) ? `Desde: ${startDate.replace('T', ' ')}  Hasta: ${endDate.replace('T', ' ')}` : 'Todas las facturas registradas',
-            columns: tableColumn,
-            data: tableRows,
-            filename: `Historial_Facturas_${new Date().toISOString().split('T')[0]}`
-        })
+        // Si el usuario eligió 'all', traemos TODOS los registros de la DB (ignorando paginación actual)
+        if (exportTypeSelection === 'all') {
+            const rawAll = await ventasService.getFacturasPaginadas({ start: 0, length: 999999 });
+            facturasParaExportar = rawAll.data || [];
+        } 
+        else if (limit) {
+            facturasParaExportar = [...todasLasFacturas]
+                .sort((a, b) => new Date(b.date_created) - new Date(a.date_created))
+                .slice(0, limit);
+        }
+
+        const extractValue = (f, key) => {
+            switch(key) {
+                case 'fecha': return new Date(f.date_created).toLocaleString(appConfig.formato_numero);
+                case 'factura': return `${f.prefijo || ''}${f.separador || ''}${f.numero_factura}`;
+                case 'doc_cliente': return f.documento_cliente;
+                case 'cliente': return f.nombre_cliente;
+                case 'telefono': return f.telefono_cliente || f.telefono || '';
+                case 'metodo_pago': return f.tipo_pago === 'credito' ? 'Crédito' : 'Contado';
+                case 'estado': return f.notas_aplicadas ? f.notas_aplicadas : 'OK';
+                case 'subtotal': return (f.total_factura || 0) + (f.descuento || 0) - (f.iva || 0);
+                case 'descuento': return f.descuento || 0;
+                case 'iva': return f.iva || 0;
+                case 'total': return exportFormat === 'pdf' ? _formatCurrency(f.total_factura || 0) : (f.total_factura || 0);
+                case 'pagado': return f.total_recibido || 0;
+                case 'deuda': return exportFormat === 'pdf' ? _formatCurrency(f.saldo_pendiente || 0) : (f.saldo_pendiente || 0);
+                default: return '';
+            }
+        }
+
+        const safeFileName = customFileName || `Historial_Facturas_${new Date().toISOString().split('T')[0]}`;
+
+        if (exportFormat === 'excel') {
+            const dataToExport = facturasParaExportar.map(f => {
+                const row = {};
+                exportColumnsDef.forEach(colDef => {
+                    if (selectedColumnKeys.includes(colDef.key)) {
+                        row[colDef.label] = extractValue(f, colDef.key);
+                    }
+                });
+                return row;
+            });
+            
+            exportToExcel(dataToExport, safeFileName, "Facturas")
+            Swal.close();
+        } 
+        else if (exportFormat === 'pdf') {
+            const tableColumn = exportColumnsDef
+                .filter(col => selectedColumnKeys.includes(col.key))
+                .map(col => col.label);
+            
+            const tableRows = facturasParaExportar.map(f => {
+                return exportColumnsDef
+                    .filter(col => selectedColumnKeys.includes(col.key))
+                    .map(col => extractValue(f, col.key));
+            });
+
+            exportToPDF({
+                title: 'Historial General de Facturas',
+                subtitle: exportTypeSelection === 'all' 
+                          ? 'Historial Completo' 
+                          : ((startDate && endDate) ? `Desde: ${startDate.replace('T', ' ')}  Hasta: ${endDate.replace('T', ' ')}` : 'Reporte de facturas registradas'),
+                columns: tableColumn,
+                data: tableRows,
+                filename: safeFileName
+            })
+            Swal.close();
+        }
     }
 
     const handleExportSingleExcel = async (factura) => {
@@ -412,9 +484,9 @@ export const VerFacturas = ({ currentUser }) => {
                                 {canDownloadPDF && (
                                     <Button 
                                         variant="outline-danger" size="sm" 
-                                        onClick={handleExportAllPDF} 
-                                        disabled={todasLasFacturas.length === 0}
-                                        title="Exportar Todo a PDF"
+                                        onClick={() => openExportModal('pdf')} 
+                                        disabled={totalRecords === 0}
+                                        title="Exportar Reporte PDF"
                                     >
                                         <i className="bi bi-file-earmark-pdf"></i>
                                     </Button>
@@ -423,9 +495,9 @@ export const VerFacturas = ({ currentUser }) => {
                                 {canDownloadExcel && (
                                     <Button 
                                         variant="outline-success" size="sm" 
-                                        onClick={handleExportAllExcel} 
-                                        disabled={todasLasFacturas.length === 0}
-                                        title="Exportar Todo a Excel"
+                                        onClick={() => openExportModal('excel')} 
+                                        disabled={totalRecords === 0}
+                                        title="Exportar Reporte a Excel"
                                     >
                                         <i className="bi bi-file-earmark-excel"></i>
                                     </Button>
@@ -446,6 +518,8 @@ export const VerFacturas = ({ currentUser }) => {
                                 params.endDate = endDate
                                 const result = await ventasService.getFacturasPaginadas(params)
                                 setTodasLasFacturas(result.data || [])
+                                setTotalRecords(result.recordsTotal || 0)
+                                setTotalFiltered(result.recordsFiltered || 0)
                                 return result;
                             }}
                             columns={columnasTabla}
@@ -473,6 +547,17 @@ export const VerFacturas = ({ currentUser }) => {
             detalles={detalleData} 
             almacenConf={almacenConf} 
             textoVolver={abiertoDesdeDetalles ? 'Volver a Detalles' : 'Cerrar'} 
+        />
+
+        <ModalExportConfig 
+            show={showExportModal}
+            handleClose={() => setShowExportModal(false)}
+            onExport={handleProcessExport}
+            title="Historial de Ventas"
+            defaultFilename={`Historial_Facturas_${new Date().toISOString().split('T')[0]}`}
+            totalRecords={totalRecords}
+            totalFiltered={totalFiltered}
+            availableColumns={exportColumnsDef}
         />
     </>
 }
