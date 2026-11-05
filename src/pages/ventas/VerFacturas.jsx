@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
 import { ModalExportConfig } from "../../components/ModalExportConfig"
+import { ModalExportSingleFactura } from "./components/ModalExportSingleFactura"
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
 import { ModalDetalleFactura } from "./components/ModalDetalleFactura"
@@ -27,9 +28,12 @@ export const VerFacturas = ({ currentUser }) => {
 
     const [isLoading, setIsLoading] = useState(true)
 
-    // Nuevos estados para la Modal de Exportación
     const [showExportModal, setShowExportModal] = useState(false)
-    const [exportFormat, setExportFormat] = useState(null) // 'excel' o 'pdf'
+    const [exportFormat, setExportFormat] = useState(null)
+
+    // Estado para la modal de exportación individual
+    const [showSingleExportModal, setShowSingleExportModal] = useState(false)
+    const [facturaParaExportar, setFacturaParaExportar] = useState(null)
 
     useEffect(() => {
         localStorage.setItem('ventas_filtro_inicio', startDate)
@@ -99,7 +103,6 @@ export const VerFacturas = ({ currentUser }) => {
 
     const tableContainerRef = useRef(null)
 
-    // === DEFINICIÓN DINÁMICA DE COLUMNAS A EXPORTAR ===
     const exportColumnsDef = [
         { key: 'fecha', label: 'Fecha y Hora', defaultChecked: true },
         { key: 'factura', label: 'Factura N°', defaultChecked: true },
@@ -124,9 +127,7 @@ export const VerFacturas = ({ currentUser }) => {
         setShowExportModal(true)
     }
 
-    // Procesamos la exportación
     const handleProcessExport = async (limit, selectedColumnKeys, customFileName, exportTypeSelection) => {
-        
         Swal.fire({
             title: 'Generando archivo...',
             text: 'Extrayendo registros, por favor espera.',
@@ -134,17 +135,27 @@ export const VerFacturas = ({ currentUser }) => {
             didOpen: () => { Swal.showLoading() }
         });
 
-        let facturasParaExportar = todasLasFacturas;
+        let facturasParaExportar = [];
 
-        // Si el usuario eligió 'all', traemos TODOS los registros de la DB (ignorando paginación actual)
         if (exportTypeSelection === 'all') {
             const rawAll = await ventasService.getFacturasPaginadas({ start: 0, length: 999999 });
             facturasParaExportar = rawAll.data || [];
         } 
-        else if (limit) {
-            facturasParaExportar = [...todasLasFacturas]
-                .sort((a, b) => new Date(b.date_created) - new Date(a.date_created))
-                .slice(0, limit);
+        else {
+            const rawFiltered = await ventasService.getFacturasPaginadas({ 
+                start: 0, 
+                length: totalFiltered, 
+                startDate: startDate, 
+                endDate: endDate 
+            });
+            
+            facturasParaExportar = rawFiltered.data || [];
+
+            if (limit && exportTypeSelection === 'limit') {
+                facturasParaExportar = [...facturasParaExportar]
+                    .sort((a, b) => new Date(b.date_created) - new Date(a.date_created))
+                    .slice(0, limit);
+            }
         }
 
         const extractValue = (f, key) => {
@@ -206,44 +217,51 @@ export const VerFacturas = ({ currentUser }) => {
         }
     }
 
-    const handleExportSingleExcel = async (factura) => {
-        Swal.fire({ title: 'Procesando...', text: 'Extrayendo detalles', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
-        const response = await ventasService.getDetalleFactura(factura.id)
+    const openSingleExportModal = (factura) => {
+        setFacturaParaExportar(factura)
+        setShowSingleExportModal(true)
+    }
+
+    // Esta es la función que llama la ModalExportSingleFactura
+    const handleProcessSingleExport = async (type, pdfFormat, customFileName) => {
+        if (!facturaParaExportar) return;
+        
+        Swal.fire({ title: 'Generando Documento...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+        const response = await ventasService.getDetalleFactura(facturaParaExportar.id)
         Swal.close()
 
         if (!response.success) return Swal.fire('Error', 'No se pudieron extraer los detalles de la factura', 'error')
+        
+        const safeFileName = customFileName || `Factura_${facturaParaExportar.prefijo || ''}${facturaParaExportar.numero_factura}`;
 
-        const itemsExport = response.data.map(d => ({
-            'Ref / Artículo': d.nombre_producto,
-            'Cantidad': d.cantidad_producto,
-            'Precio Unitario': d.precio_producto,
-            'Subtotal': d.precio_producto * d.cantidad_producto,
-            'Descuento': d.descuento || 0,
-            'IVA': d.iva || 0,
-            'Total': d.total
-        }))
+        if (type === 'excel') {
+            const itemsExport = response.data.map(d => ({
+                'Ref / Artículo': d.nombre_producto,
+                'Cantidad': d.cantidad_producto,
+                'Precio Unitario': d.precio_producto,
+                'Subtotal': d.precio_producto * d.cantidad_producto,
+                'Descuento': d.descuento || 0,
+                'IVA': d.iva || 0,
+                'Total': d.total
+            }))
 
-        itemsExport.push({ 'Ref / Artículo': '', 'Cantidad': '', 'Precio Unitario': '', 'Subtotal': '', 'Descuento': '', 'IVA': '', 'Total': '' })
-        itemsExport.push({ 'Ref / Artículo': 'TOTALES', 'Cantidad': '', 'Precio Unitario': '', 'Subtotal': '', 'Descuento': '', 'IVA': '', 'Total': factura.total_factura })
+            itemsExport.push({ 'Ref / Artículo': '', 'Cantidad': '', 'Precio Unitario': '', 'Subtotal': '', 'Descuento': '', 'IVA': '', 'Total': '' })
+            itemsExport.push({ 'Ref / Artículo': 'TOTALES', 'Cantidad': '', 'Precio Unitario': '', 'Subtotal': '', 'Descuento': '', 'IVA': '', 'Total': facturaParaExportar.total_factura })
 
-        exportToExcel(itemsExport, `Factura_${factura.prefijo || ''}${factura.numero_factura}`, "Detalle")
+            exportToExcel(itemsExport, safeFileName, "Detalle")
+        } else if (type === 'pdf') {
+            exportInvoicePDF({
+                factura: response.facturaMaestro || facturaParaExportar,
+                detalles: response.data,
+                configuracion: response.configuracion || {},
+                moneda: appConfig.moneda,
+                formato_numero: appConfig.formato_numero,
+                format: pdfFormat,
+                filename: safeFileName
+            });
+        }
     }
 
-    const handleExportSinglePDF = async (factura) => {
-        Swal.fire({ title: 'Generando Documento...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
-        const response = await ventasService.getDetalleFactura(factura.id)
-        Swal.close()
-
-        if (!response.success) return Swal.fire('Error', 'No se pudieron extraer los detalles', 'error')
-
-        exportInvoicePDF({
-            factura: response.facturaMaestro || factura,
-            detalles: response.data,
-            configuracion: response.configuracion || {},
-            moneda: appConfig.moneda,
-            formato_numero: appConfig.formato_numero
-        });
-    }
 
     useEffect(() => {
         const container = tableContainerRef.current
@@ -268,21 +286,12 @@ export const VerFacturas = ({ currentUser }) => {
                 } catch(err) { console.error(err) }
             }
 
-            const btnExcel = e.target.closest('.btn-export-single-excel')
-            if (btnExcel) {
+            const btnDownload = e.target.closest('.btn-export-single')
+            if (btnDownload) {
                 e.preventDefault()
                 try {
-                    const item = JSON.parse(decodeURIComponent(btnExcel.dataset.alldata))
-                    handleExportSingleExcel(item)
-                } catch(err) { console.error(err) }
-            }
-
-            const btnPDF = e.target.closest('.btn-export-single-pdf')
-            if (btnPDF) {
-                e.preventDefault()
-                try {
-                    const item = JSON.parse(decodeURIComponent(btnPDF.dataset.alldata))
-                    handleExportSinglePDF(item)
+                    const item = JSON.parse(decodeURIComponent(btnDownload.dataset.alldata))
+                    openSingleExportModal(item)
                 } catch(err) { console.error(err) }
             }
         }
@@ -419,21 +428,14 @@ export const VerFacturas = ({ currentUser }) => {
                             ${canPrint ? `
                             <li>
                                 <button class="dropdown-item btn-print-item" data-alldata="${safeData}">
-                                    <i class="bi bi-printer me-2 text-primary"></i> Imprimir
+                                    <i class="bi bi-printer me-2 text-primary"></i> Imprimir Ticket
                                 </button>
                             </li>
                             ` : ''}
-                            ${canDownloadPDF ? `
+                            ${(canDownloadPDF || canDownloadExcel) ? `
                             <li>
-                                <button class="dropdown-item btn-export-single-pdf" data-alldata="${safeData}">
-                                    <i class="bi bi-file-earmark-pdf me-2 text-danger"></i> Descargar en PDF
-                                </button>
-                            </li>
-                            ` : ''}
-                            ${canDownloadExcel ? `
-                            <li>
-                                <button class="dropdown-item btn-export-single-excel" data-alldata="${safeData}">
-                                    <i class="bi bi-file-earmark-excel me-2 text-success"></i> Exportar a Excel
+                                <button class="dropdown-item btn-export-single" data-alldata="${safeData}">
+                                    <i class="bi bi-download me-2 text-success"></i> Exportar Archivo
                                 </button>
                             </li>
                             ` : ''}
@@ -549,6 +551,7 @@ export const VerFacturas = ({ currentUser }) => {
             textoVolver={abiertoDesdeDetalles ? 'Volver a Detalles' : 'Cerrar'} 
         />
 
+        {/* Modal para exportar historial completo */}
         <ModalExportConfig 
             show={showExportModal}
             handleClose={() => setShowExportModal(false)}
@@ -558,6 +561,15 @@ export const VerFacturas = ({ currentUser }) => {
             totalRecords={totalRecords}
             totalFiltered={totalFiltered}
             availableColumns={exportColumnsDef}
+        />
+
+        {/* Modal para exportar una sola factura */}
+        <ModalExportSingleFactura 
+            show={showSingleExportModal}
+            handleClose={() => setShowSingleExportModal(false)}
+            onExport={handleProcessSingleExport}
+            factura={facturaParaExportar}
+            defaultFilename={facturaParaExportar ? `Factura_${facturaParaExportar.prefijo || ''}${facturaParaExportar.numero_factura}` : ''}
         />
     </>
 }
