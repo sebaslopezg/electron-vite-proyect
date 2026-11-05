@@ -578,7 +578,7 @@ const mapDesktopRowToWeb = (row, webModulo, localModulo) => {
 export const registerSyncHandlers = () => {
 
     ipcMain.handle('get-sync-config', () => {
-        if (!checkPermission("configuracion_general")) return null
+        if (!checkPermission("configuracion_general")) return { syncToken: '', syncUrl: '' }
         try {
             const tokenRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_token'").get()
             const urlRow = db.prepare("SELECT value FROM configuracion WHERE key = 'sync_url'").get()
@@ -883,5 +883,9 @@ export const registerSyncHandlers = () => {
 
             return { success: false, error: error.message }
         }
+    })
+
+    ipcMain.handle('get-ws-connection-status', () => {
+        return realtimeSyncService.getSyncState()
     })
 }

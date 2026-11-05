@@ -81,7 +81,8 @@
         "deb"
       ],
       "icon": "assets/favicon.png",
-      "category": "Office"
+      "category": "Office",
+      "executableName": "caedro-erp"
     }
   },
   "devDependencies": {

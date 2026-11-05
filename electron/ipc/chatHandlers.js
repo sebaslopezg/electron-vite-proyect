@@ -55,19 +55,18 @@ const getChatSyncContext = () => {
 
 export const registerChatHandlers = () => {
 
-    // A.1 Obtener lista de conversaciones
     ipcMain.handle('get-conversations', async () => {
         try {
             const ctx = getChatSyncContext()
-            if (!ctx) return { success: false, data: [] }
+            if (!ctx) return { success: false, data: [], error: 'Sincronización no configurada' }
 
-            // CORRECCIÓN AXIOS GET: Pasamos headers y params en el MISMO objeto de configuración
             const response = await axios.get(`${ctx.syncUrl}/api/chat/conversations`, {
                 headers: ctx.headers,
                 params: {
                     localUserId: ctx.currentUser?.id,
                     shopId: ctx.shopId
-                }
+                },
+                timeout: 5000 // Importante poner timeout para que falle rápido si el servidor está apagado
             })
 
             return {
@@ -75,27 +74,26 @@ export const registerChatHandlers = () => {
                 data: response.data?.data || response.data || []
             }
         } catch (error) {
-            // Hacemos el error más descriptivo
             const status = error.response?.status
             const msg = error.response?.data?.message || error.message
             logger.error('CHAT', `Error obteniendo conversaciones (Status: ${status || 'N/A'}): ${msg}`)
-            return { success: false, data: [], error: msg }
+            // ES CRÍTICO DEVOLVER EXPRESAMENTE ÉXITO: FALSO PARA QUE EL FRONTEND LO SEPA
+            return { success: false, error: msg } 
         }
     })
 
-    // A.2 Obtener mensajes de una conversación
     ipcMain.handle('get-chat-messages', async (_, conversationId) => {
         try {
             const ctx = getChatSyncContext()
-            if (!ctx || !conversationId) return { success: false, data: [] }
+            if (!ctx || !conversationId) return { success: false, data: [], error: 'Sin contexto' }
 
-            // CORRECCIÓN AXIOS GET
             const response = await axios.get(`${ctx.syncUrl}/api/chat/conversations/${conversationId}/messages`, {
                 headers: ctx.headers,
                 params: {
                     localUserId: ctx.currentUser?.id,
                     shopId: ctx.shopId
-                }
+                },
+                timeout: 5000
             })
 
             return {
@@ -106,22 +104,21 @@ export const registerChatHandlers = () => {
             const status = error.response?.status
             const msg = error.response?.data?.message || error.message
             logger.error('CHAT', `Error obteniendo mensajes (Status: ${status || 'N/A'}): ${msg}`)
-            return { success: false, data: [], error: msg }
+            return { success: false, error: msg }
         }
     })
 
-    // A.3 Marcar conversación como leída
     ipcMain.handle('mark-chat-as-read', async (_, conversationId) => {
         try {
             const ctx = getChatSyncContext()
             if (!ctx || !conversationId) return { success: false }
 
-            // CORRECCIÓN AXIOS POST: (url, body, config)
             await axios.post(`${ctx.syncUrl}/api/chat/conversations/${conversationId}/read`, {
                 localUserId: ctx.currentUser?.id,
                 shopId: ctx.shopId
             }, {
-                headers: ctx.headers
+                headers: ctx.headers,
+                timeout: 5000
             })
 
             return { success: true }
@@ -131,7 +128,6 @@ export const registerChatHandlers = () => {
         }
     })
 
-    // D. Enviar un nuevo mensaje vía REST
     ipcMain.handle('send-chat-message', async (_, payload) => {
         try {
             const ctx = getChatSyncContext()
@@ -149,9 +145,9 @@ export const registerChatHandlers = () => {
                 body.recipientData = payload.recipientData
             }
 
-            // CORRECCIÓN AXIOS POST
             const response = await axios.post(`${ctx.syncUrl}/api/chat/message`, body, {
-                headers: ctx.headers
+                headers: ctx.headers,
+                timeout: 5000
             })
 
             return {
@@ -164,7 +160,6 @@ export const registerChatHandlers = () => {
         }
     })
 
-    // Obtener usuarios conectados actualmente en el canal presence
     ipcMain.handle('get-chat-online-users', () => {
         return {
             success: true,

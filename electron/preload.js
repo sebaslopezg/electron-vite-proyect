@@ -16,6 +16,15 @@ ipcRenderer.on('notification-event', (_event, data) => {
   window.dispatchEvent(new CustomEvent('notificaciones-actualizadas', { detail: data }))
 })
 
+ipcRenderer.on('chat-event', (_event, data) => {
+  window.dispatchEvent(new CustomEvent('electron-chat-event', { detail: data }))
+})
+
+// PUENTE CRÍTICO: Reenvía el estado real de conexión del Backend a React
+ipcRenderer.on('sync-connection-status', (_event, data) => {
+  window.dispatchEvent(new CustomEvent('sync-connection-status', { detail: data }))
+})
+
 contextBridge.exposeInMainWorld("api", {
   ping: () => ipcRenderer.invoke("ping"),
   sendMessage: (channel, data) => ipcRenderer.send(channel, data),
@@ -106,20 +115,19 @@ contextBridge.exposeInMainWorld("api", {
   forceSyncNow: (options) => ipcRenderer.invoke("force-sync-now", options),
   getSyncHistory: () => ipcRenderer.invoke("get-sync-history"),
   getSyncRules: () => ipcRenderer.invoke("get-sync-rules"),
+  getWsConnectionStatus: () => ipcRenderer.invoke("get-ws-connection-status"),
   onSyncProgress: (callback) => ipcRenderer.on("sync-progress", (_event, data) => callback(data)),
   removeSyncProgressListeners: () => ipcRenderer.removeAllListeners("sync-progress"),
   
   // === ACTUALIZACIÓN: Lógica de Sincronización en Tiempo Real ===
   onRealtimeSyncApplied: (callback) => {
-      // 1. Despacha un evento global al objeto window para componentes de React
-      ipcRenderer.on('realtime-sync-applied', (_event, data) => {
-          window.dispatchEvent(new CustomEvent('electron-sync-applied', { detail: data }));
-          // 2. También ejecutamos el callback normal por si algún componente lo prefiere así
-          callback(data);
-      });
+    ipcRenderer.on('realtime-sync-applied', (_event, data) => {
+      window.dispatchEvent(new CustomEvent('electron-sync-applied', { detail: data }))
+      callback(data)
+    })
   },
   removeRealtimeSyncListeners: () => {
-      ipcRenderer.removeAllListeners('realtime-sync-applied');
+    ipcRenderer.removeAllListeners('realtime-sync-applied');
   },
 
   // chat

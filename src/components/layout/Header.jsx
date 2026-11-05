@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Button, Badge } from 'react-bootstrap'
+import { Button } from 'react-bootstrap'
 import defaultLogo from './../../assets/favicon.png'
 import { notificacionesService } from '../../services/notificacionesService'
 import { chatService } from '../../services/chatService'
@@ -41,13 +41,32 @@ export const Header = ({ currentUser, onLogout }) => {
     const [chatPreviews, setChatPreviews] = useState([])
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
     
+    const [isSyncConfigured, setIsSyncConfigured] = useState(false)
+    const [isWsConnected, setIsWsConnected] = useState(false)
+    const [isBrowserOnline, setIsBrowserOnline] = useState(navigator.onLine)
+    const [syncErrorReason, setSyncErrorReason] = useState('')
+
     const navigate = useNavigate()
 
     const loadConfig = async () => {
         try {
+            // AHORA LEEMOS EL ESTADO DIRECTO SIN PEDIR EL TOKEN SECRETO AL BACKEND
+            // Esto soluciona que los usuarios NO admin no veían la nube.
+            if (window.api && window.api.getWsConnectionStatus) {
+                const status = await window.api.getWsConnectionStatus()
+                if (status && status.configured) {
+                    setIsSyncConfigured(true)
+                    setIsWsConnected(status.connected === true)
+                    setSyncErrorReason(status.error || '')
+                } else {
+                    setIsSyncConfigured(false)
+                    setIsWsConnected(false)
+                    setSyncErrorReason('')
+                }
+            }
+
             if (window.api && window.api.getConfiguracionPublica) {
                 const res = await window.api.getConfiguracionPublica()
-                
                 if (res && res.success && res.data) {
                     const parsed = res.data
                     if (parsed.nombre) setAppName(parsed.nombre)
@@ -76,23 +95,46 @@ export const Header = ({ currentUser, onLogout }) => {
     const loadNotificaciones = useCallback(async () => {
         try {
             const data = await notificacionesService.getNotificaciones()
-            setNotificaciones(data || [])
+            setNotificaciones(Array.isArray(data) ? data : [])
         } catch (error) {
             console.error("Error cargando notificaciones:", error)
         }
     }, [])
 
     const loadChats = useCallback(async () => {
+        if (!isSyncConfigured) return;
+
         try {
-            const data = await chatService.getConversations()
-            const activeOnly = data.filter(c => !c.isNewChat)
-            setChatPreviews(activeOnly.slice(0, 3))
-            const unread = activeOnly.reduce((acc, chat) => acc + (chat.unread || 0), 0)
-            setUnreadMessagesCount(unread)
+            const response = await chatService.getConversations()
+            
+            if (response && response.success === false) {
+                setIsWsConnected(false)
+                setSyncErrorReason(response.error || 'Fallo API')
+            } else if (response && response.success === true) {
+                setIsWsConnected(true)
+                setSyncErrorReason('')
+                const chatData = Array.isArray(response.data) ? response.data : []
+                const activeOnly = chatData.filter(c => c && !c.isNewChat)
+                setChatPreviews(activeOnly.slice(0, 3))
+                const unread = activeOnly.reduce((acc, chat) => acc + (chat.unread || 0), 0)
+                setUnreadMessagesCount(unread)
+            } else if (Array.isArray(response)) {
+                setIsWsConnected(true)
+                setSyncErrorReason('')
+                const activeOnly = response.filter(c => c && !c.isNewChat)
+                setChatPreviews(activeOnly.slice(0, 3))
+                const unread = activeOnly.reduce((acc, chat) => acc + (chat.unread || 0), 0)
+                setUnreadMessagesCount(unread)
+            } else {
+                setIsWsConnected(false)
+                setSyncErrorReason('Formato de respuesta desconocido')
+            }
         } catch (e) { 
-            console.error("Error cargando previsualizaciones del chat", e) 
+            console.error("Error fatal UI cargando chat", e) 
+            setIsWsConnected(false)
+            setSyncErrorReason('Excepción en Frontend')
         }
-    }, [])
+    }, [isSyncConfigured])
 
     const loadNotificacionesRef = useRef(loadNotificaciones)
     const loadChatsRef = useRef(loadChats)
@@ -103,31 +145,59 @@ export const Header = ({ currentUser, onLogout }) => {
     useEffect(() => {
         loadConfig()
         loadNotificaciones()
-        loadChats()
-
+        
         const handleUpdate = () => loadConfig()
         const handleProfileUpdate = (e) => setUserVisual(e.detail)
-        
-        // Callbacks seguros para los eventos
         const handleNotifUpdate = () => loadNotificacionesRef.current()
         const handleChatUpdate = () => setTimeout(() => loadChatsRef.current(), 300)
+
+        const handleSyncConnectionStatus = (e) => {
+            const payload = e.detail || {}
+            
+            if (payload.configured !== undefined) {
+                setIsSyncConfigured(payload.configured === true)
+            }
+            
+            const connected = payload.connected === true
+            setIsWsConnected(connected)
+            setSyncErrorReason(payload.error || '')
+
+            if (connected) {
+                loadChatsRef.current()
+            }
+        }
+
+        const handleOnline = () => setIsBrowserOnline(true)
+        const handleOffline = () => setIsBrowserOnline(false)
+
+        window.addEventListener('sync-connection-status', handleSyncConnectionStatus)
+        window.addEventListener('online', handleOnline)
+        window.addEventListener('offline', handleOffline)
 
         window.addEventListener('config-actualizada', handleUpdate)
         window.addEventListener('perfil-actualizado', handleProfileUpdate)
         window.addEventListener('notificaciones-actualizadas', handleNotifUpdate)
+        window.addEventListener('sync-rules-updated', handleUpdate)
         
-        // Eventos del Chat
         window.addEventListener('chat-read-sync', handleChatUpdate)
         window.addEventListener('electron-chat-event', handleChatUpdate)
         window.addEventListener('local-users-synced', handleChatUpdate) 
 
         const intervalNotif = setInterval(loadNotificaciones, 120000)
-        const intervalChat = setInterval(loadChats, 30000)
+        
+        const intervalChat = setInterval(() => {
+            if (isSyncConfigured) loadChatsRef.current()
+        }, 15000)
 
         return () => {
+            window.removeEventListener('sync-connection-status', handleSyncConnectionStatus)
+            window.removeEventListener('online', handleOnline)
+            window.removeEventListener('offline', handleOffline)
+            
             window.removeEventListener('config-actualizada', handleUpdate)
             window.removeEventListener('perfil-actualizado', handleProfileUpdate)
             window.removeEventListener('notificaciones-actualizadas', handleNotifUpdate)
+            window.removeEventListener('sync-rules-updated', handleUpdate)
             window.removeEventListener('chat-read-sync', handleChatUpdate)
             window.removeEventListener('electron-chat-event', handleChatUpdate)            
             window.removeEventListener('local-users-synced', handleChatUpdate) 
@@ -135,20 +205,18 @@ export const Header = ({ currentUser, onLogout }) => {
             clearInterval(intervalNotif)
             clearInterval(intervalChat)
         }
-    }, [loadChats, loadNotificaciones])
+    }, [loadNotificaciones, isSyncConfigured])
+
+    useEffect(() => {
+        if (isSyncConfigured) loadChats()
+    }, [isSyncConfigured, loadChats])
 
     useEffect(() => {
         if (currentUser) setUserVisual(currentUser)
     }, [currentUser])
 
-    const handleSidebarToggle = () => {
-        document.body.classList.toggle('toggle-sidebar')
-    }
-
-    const handleSearchBarToggle = (e) => {
-        e.preventDefault()
-        setSearchBarShow(!searchBarShow)
-    }
+    const handleSidebarToggle = () => document.body.classList.toggle('toggle-sidebar')
+    const handleSearchBarToggle = (e) => { e.preventDefault(); setSearchBarShow(!searchBarShow) }
 
     const handleMarcarLeida = async (e, notificacion) => {
         e.preventDefault();
@@ -182,7 +250,7 @@ export const Header = ({ currentUser, onLogout }) => {
     const rolColor = userVisual?.rol_color || '#0d6efd'
     const rolTextColor = getTextColor(rolColor)
     
-    const notificacionesNoLeidas = notificaciones.filter(n => n.leida === 0)
+    const notificacionesNoLeidas = Array.isArray(notificaciones) ? notificaciones.filter(n => n.leida === 0) : []
     const contador = notificacionesNoLeidas.length
     const bgColors = ['bg-primary', 'bg-success', 'bg-info', 'bg-warning', 'bg-danger']
 
@@ -195,12 +263,33 @@ export const Header = ({ currentUser, onLogout }) => {
         }
     }
 
+    const isCloudOnline = isWsConnected && isBrowserOnline
+    const avatarBorderClass = isSyncConfigured
+        ? `avatar-status-border ${isCloudOnline ? 'border-success' : 'border-danger'}`
+        : ''
+
+    const avatarSize = isSyncConfigured ? '40px' : '36px'
+
+    const tooltipStatus = isSyncConfigured 
+        ? (isCloudOnline ? 'Conectado a la Nube' : (!isBrowserOnline ? 'Sin conexión a Internet' : (syncErrorReason || 'Sin Conexión / Servidor Caído'))) 
+        : ''
+
     return <>
         <style>
             {`
-                /* Corrección para el deslizamiento del header al abrir modales */
                 #header.fixed-top {
                     transition: left 0.5s, top 0.5s, width 0.5s, background-color 0.5s !important;
+                }
+                .avatar-status-border {
+                    border: 3px solid transparent;
+                    padding: 2px;
+                    transition: border-color 0.3s ease-in-out;
+                }
+                .avatar-status-border.border-success {
+                    border-color: #198754 !important;
+                }
+                .avatar-status-border.border-danger {
+                    border-color: #dc3545 !important;
                 }
             `}
         </style>
@@ -228,48 +317,48 @@ export const Header = ({ currentUser, onLogout }) => {
                         </a>
                     </li>
 
-                    {/* --- NUEVO: DROPDOWN DE CHAT --- */}
-                    <li className="nav-item dropdown">
-                        <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
-                            <i className="bi bi-chat-left-text"></i>
-                            {unreadMessagesCount > 0 && <span className="badge bg-success badge-number animate__animated animate__pulse animate__infinite">{unreadMessagesCount}</span>}
-                        </a>
-                        <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow messages shadow-sm">
-                            <li className="dropdown-header">
-                                {unreadMessagesCount > 0 ? `Tienes ${unreadMessagesCount} mensajes nuevos` : 'Bandeja de mensajes'}
-                                <Link to="/chat" className="ms-2"><span className="badge rounded-pill bg-primary p-2">Ver todos</span></Link>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-                            {chatPreviews.length > 0 ? (
-                                chatPreviews.map((chat, index) => {
-                                    const colorClass = bgColors[index % bgColors.length]
-                                    return (
-                                        <div key={chat.id}>
-                                            <li className="message-item">
-                                                <Link to="/chat" className="d-flex align-items-center px-3 py-2 text-decoration-none">
-                                                    <div className={`${colorClass} text-white rounded-circle d-flex align-items-center justify-content-center fw-bold me-3`} style={{ width: '40px', height: '40px', minWidth: '40px' }}>
-                                                        {chat.name.charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="mb-0 fs-6 text-dark fw-bold">{chat.name}</h4>
-                                                        <p className="mb-0 text-muted small text-truncate" style={{ maxWidth: '200px' }}>{chat.lastMessage}</p>
-                                                        <p className="mb-0 text-secondary" style={{ fontSize: '0.75rem' }}>{typeof chat.time === 'string' && chat.time.includes('T') ? timeAgo(chat.time) : chat.time}</p>
-                                                    </div>
-                                                </Link>
-                                            </li>
-                                            <li><hr className="dropdown-divider" /></li>
-                                        </div>
-                                    )
-                                })
-                            ) : (
-                                <li className="text-center p-3 text-muted small">No hay conversaciones recientes</li>
-                            )}
-                            <li className="dropdown-footer text-center p-2">
-                                <Link to="/chat" className="text-primary text-decoration-none fw-bold small">Mostrar todos los mensajes</Link>
-                            </li>
-                        </ul>
-                    </li>
-                    {/* --- FIN DROPDOWN DE CHAT --- */}
+                    {isSyncConfigured && (
+                        <li className="nav-item dropdown">
+                            <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
+                                <i className="bi bi-chat-left-text"></i>
+                                {unreadMessagesCount > 0 && <span className="badge bg-success badge-number animate__animated animate__pulse animate__infinite">{unreadMessagesCount}</span>}
+                            </a>
+                            <ul className="dropdown-menu dropdown-menu-end dropdown-menu-arrow messages shadow-sm">
+                                <li className="dropdown-header">
+                                    {unreadMessagesCount > 0 ? `Tienes ${unreadMessagesCount} mensajes nuevos` : 'Bandeja de mensajes'}
+                                    <Link to="/chat" className="ms-2"><span className="badge rounded-pill bg-primary p-2">Ver todos</span></Link>
+                                </li>
+                                <li><hr className="dropdown-divider" /></li>
+                                {chatPreviews.length > 0 ? (
+                                    chatPreviews.map((chat, index) => {
+                                        const colorClass = bgColors[index % bgColors.length]
+                                        return (
+                                            <div key={chat.id}>
+                                                <li className="message-item">
+                                                    <Link to="/chat" className="d-flex align-items-center px-3 py-2 text-decoration-none">
+                                                        <div className={`${colorClass} text-white rounded-circle d-flex align-items-center justify-content-center fw-bold me-3`} style={{ width: '40px', height: '40px', minWidth: '40px' }}>
+                                                            {chat?.name ? chat.name.charAt(0).toUpperCase() : 'U'}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="mb-0 fs-6 text-dark fw-bold">{chat?.name || 'Desconocido'}</h4>
+                                                            <p className="mb-0 text-muted small text-truncate" style={{ maxWidth: '200px' }}>{chat?.lastMessage || ''}</p>
+                                                            <p className="mb-0 text-secondary" style={{ fontSize: '0.75rem' }}>{chat?.time && typeof chat.time === 'string' && chat.time.includes('T') ? timeAgo(chat.time) : (chat?.time || '')}</p>
+                                                        </div>
+                                                    </Link>
+                                                </li>
+                                                <li><hr className="dropdown-divider" /></li>
+                                            </div>
+                                        )
+                                    })
+                                ) : (
+                                    <li className="text-center p-3 text-muted small">No hay conversaciones recientes</li>
+                                )}
+                                <li className="dropdown-footer text-center p-2">
+                                    <Link to="/chat" className="text-primary text-decoration-none fw-bold small">Mostrar todos los mensajes</Link>
+                                </li>
+                            </ul>
+                        </li>
+                    )}
 
                     <li className="nav-item dropdown">
                         <a className="nav-link nav-icon" href="#" data-bs-toggle="dropdown">
@@ -336,11 +425,18 @@ export const Header = ({ currentUser, onLogout }) => {
                     <li className="nav-item dropdown pe-4">
                         <a className="nav-link nav-profile d-flex align-items-center pe-0" href="#" data-bs-toggle="dropdown">
                             {userVisual?.foto_perfil ? (
-                                <img src={userVisual.foto_perfil} alt="Profile" className="rounded-circle" style={{ width: '36px', height: '36px', objectFit: 'cover' }} />
+                                <img 
+                                    src={userVisual.foto_perfil} 
+                                    alt="Profile" 
+                                    className={`rounded-circle ${avatarBorderClass}`} 
+                                    style={{ width: avatarSize, height: avatarSize, maxHeight: avatarSize, objectFit: 'cover' }} 
+                                    title={tooltipStatus}
+                                />
                             ) : (
                                 <div 
-                                    className="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" 
-                                    style={{ width: '36px', height: '36px', fontSize: '0.95rem', minWidth: '36px', backgroundColor: rolColor, color: rolTextColor }}
+                                    className={`rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm ${avatarBorderClass}`} 
+                                    style={{ width: avatarSize, height: avatarSize, fontSize: '0.95rem', minWidth: avatarSize, backgroundColor: rolColor, color: rolTextColor }}
+                                    title={tooltipStatus}
                                 >
                                     {userVisual?.nombre_completo ? userVisual.nombre_completo.charAt(0).toUpperCase() : 'U'}
                                 </div>
@@ -354,6 +450,18 @@ export const Header = ({ currentUser, onLogout }) => {
                                 <span className="badge shadow-sm" style={{ backgroundColor: rolColor, color: rolTextColor }}>
                                     {userVisual?.rol || 'No asignado'}
                                 </span>
+                                
+                                {isSyncConfigured ? (
+                                    <div className="mt-2" style={{ fontSize: '0.78rem' }}>
+                                        <span className={`fw-bold ${isCloudOnline ? 'text-success' : 'text-danger'}`}>
+                                            <i className="bi bi-circle-fill me-1" style={{ fontSize: '0.45rem', verticalAlign: 'middle' }}></i>
+                                            {isCloudOnline ? 'En línea' : 'Desconectado'}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="mt-2" style={{ fontSize: '0.78rem' }}>
+                                    </div>
+                                )}
                             </li>
                             <li><hr className="dropdown-divider m-0" /></li>
 
