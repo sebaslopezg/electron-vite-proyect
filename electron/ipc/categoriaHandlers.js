@@ -62,7 +62,7 @@ export const registerCategoriaHandlers = () => {
             `)
             const info = stmt.run({ ...item, separador: item.separador || '' })
             
-            logger.success('CATEGORIAS', `Categoría modificada correctamente: ${item.nombre} (ID: ${item.id})`)
+            logger.success('CATEGORIAS', `Categoría modificada correctamente: ${item.nombre} (ID:${item.id})`)
 
             triggerBackgroundPush('categoria').catch(e => logger.error('SYNC', 'Error en push background (categoria)', e))
 
@@ -115,6 +115,25 @@ export const registerCategoriaHandlers = () => {
             return stmt.all(categoriaId)
         } catch (error) {
             logger.error('CATEGORIAS', `Error al obtener productos para la categoría ${categoriaId}`, error)
+            return []
+        }
+    })
+
+    ipcMain.handle("get-subcategorias-por-categoria", (_, categoriaId) => {
+        if (!checkPermission("categorias_ver") && !checkPermission("subcategorias_ver")) return []
+        try {
+            const stmt = db.prepare(`
+                SELECT s.id, s.nombre, s.sku_prefix, s.separador, s.descripcion,
+                       (SELECT COUNT(*) FROM producto WHERE subcategorias_ids_json LIKE '%' || s.id || '%' AND status = 1) as cant_productos
+                FROM subcategoria s
+                LEFT JOIN subcategoria_categoria sc ON s.id = sc.subcategoria_id
+                WHERE (sc.categoria_id = ? OR s.categoria_id = ?) AND s.status > 0
+                GROUP BY s.id
+                ORDER BY s.nombre ASC
+            `)
+            return stmt.all(categoriaId, categoriaId)
+        } catch (error) {
+            logger.error('CATEGORIAS', `Error al obtener subcategorías para la categoría ${categoriaId}`, error)
             return []
         }
     })

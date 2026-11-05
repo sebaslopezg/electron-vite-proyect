@@ -6,7 +6,6 @@ export const Activation = ({ hardwareId, onActivationSuccess }) => {
     const [key, setKey] = useState('')
     const [loading, setLoading] = useState(false)
     
-    // Mostrar diagnóstico si el ID es genérico (falló HWID real)
     const [showDebug, setShowDebug] = useState(() => hardwareId?.includes('GEN-HWID'))
 
     const handleSubmit = async (e) => {
@@ -27,7 +26,7 @@ export const Activation = ({ hardwareId, onActivationSuccess }) => {
                 onActivationSuccess()
             })
         } else {
-            setShowDebug(true) // Mostrar el botón de diagnóstico si la clave falla
+            setShowDebug(true)
             Swal.fire('Error de Validación', res.error || 'Clave inválida', 'error')
         }
     }

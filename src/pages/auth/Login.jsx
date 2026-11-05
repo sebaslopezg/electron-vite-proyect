@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Form, Button, Card, InputGroup, Col } from 'react-bootstrap'
 import Swal from 'sweetalert2'
+import defaultLogo from './../../assets/favicon.png'
 
 const Toast = Swal.mixin({
     toast: true,
@@ -19,6 +20,7 @@ export const Login = ({ onLoginSuccess }) => {
     const [password, setPassword] = useState('')
     const [rememberMe, setRememberMe] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [appLogo] = useState(defaultLogo)
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -52,7 +54,7 @@ export const Login = ({ onLoginSuccess }) => {
 
                                 <div className="d-flex justify-content-center py-4">
                                     <div className="logo d-flex align-items-center w-auto border-0 bg-transparent text-decoration-none">
-                                        <i className="bi bi-box-seam-fill text-primary fs-3 me-2"></i>
+                                        <img src={appLogo} alt="Logo" style={{ maxHeight: '35px', objectFit: 'contain' }} className="me-2" />
                                         <span className="d-none d-lg-block fs-4 fw-bold text-dark m-0">Caedro</span>
                                     </div>
                                 </div>

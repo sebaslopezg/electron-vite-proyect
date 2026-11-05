@@ -136,7 +136,7 @@ export const Perfil = ({ currentUser }) => {
                                         <button className="nav-link active" data-bs-toggle="tab" data-bs-target="#profile-edit">Editar Perfil</button>
                                     </li>
                                     <li className="nav-item">
-                                        <button className="nav-link text-danger" data-bs-toggle="tab" data-bs-target="#profile-change-password"><i className="bi bi-shield-lock me-1"></i>Cambiar Contraseña</button>
+                                        <button className="nav-link" data-bs-toggle="tab" data-bs-target="#profile-change-password"><i className="bi bi-shield-lock me-1"></i>Cambiar Contraseña</button>
                                     </li>
                                 </ul>
 
@@ -209,7 +209,7 @@ export const Perfil = ({ currentUser }) => {
                                             </div>
 
                                             <div className="text-end mt-4 border-top pt-3">
-                                                <button type="submit" className="btn btn-danger px-4"><i className="bi bi-key me-2"></i>Actualizar Contraseña</button>
+                                                <button type="submit" className="btn btn-primary px-4">Actualizar Contraseña</button>
                                             </div>
                                         </form>
                                     </div>

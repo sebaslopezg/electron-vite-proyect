@@ -796,11 +796,19 @@ export const Facturacion = ({ currentUser: initialUser }) => {
               {
                 data: 'ref_name',
                 title: 'Stk.',
-                render: (data, type, row) => `
-                  <span class="badge ${row.stock < 5 ? 'bg-danger' : 'bg-info'}">
+                render: (data, type, row) => {
+                  if (row.tipo === 'servicio') {
+                    return `<span class="badge bg-secondary">-</span>`
+                  }
+                  
+                  const umbralMinimo = row.min_stock !== undefined ? row.min_stock : 5
+                  const colorBadge = row.stock <= umbralMinimo ? 'bg-danger' : 'bg-success'
+                  
+                  return `
+                  <span class="badge ${colorBadge}">
                     ${row.stock}
                   </span>
-                `
+                `}
               },
               {
                 data: null,
@@ -849,9 +857,9 @@ export const Facturacion = ({ currentUser: initialUser }) => {
                 title: 'Tipo',
                 render: function (data, type, row) {
                   let badges = ''
-                  if (row.tipo === 'producto') badges += '<span class="badge bg-primary me-1">Producto</span>'
-                  else badges += '<span class="badge bg-success me-1">Servicio</span>'
-                  if (row.isEncargo > 0) badges += '<span class="badge bg-warning text-dark me-1">Encargo</span>'
+                  if (row.tipo === 'producto') badges += '<span class="badge border border-primary text-primary me-1">Producto</span>'
+                  else badges += '<span class="badge border border-success text-success me-1">Servicio</span>'
+                  if (row.isEncargo > 0) badges += '<span class="badge border border-warning text-dark me-1">Encargo</span>'
                   return badges
                 }
               },
@@ -869,7 +877,7 @@ export const Facturacion = ({ currentUser: initialUser }) => {
                 title: '',
                 orderable: false,
                 render: (data, type, row) => `
-                  <button class="btn btn-sm btn-danger btn-remove-item" 
+                  <button class="btn btn-sm btn-outline-danger btn-remove-item" 
                           data-id="${row.id}" data-encargo="${row.isEncargo}">
                     <i class="bi bi-trash"></i>
                   </button>

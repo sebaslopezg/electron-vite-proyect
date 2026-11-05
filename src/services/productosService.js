@@ -303,6 +303,19 @@ export const productosService = {
         if (isElectron() && window.api.getProductosPorCategoria) {
             return await window.api.getProductosPorCategoria(categoriaId)
         }
-        return []
+        try {
+            const response = await api.get(`/categorias/${categoriaId}/productos`)
+            return response.data.data || response.data || []
+        } catch (e) { return [] }
+    },
+
+    getSubcategoriasPorCategoria: async (categoriaId) => {
+        if (isElectron() && window.api.getSubcategoriasPorCategoria) {
+            return await window.api.getSubcategoriasPorCategoria(categoriaId)
+        }
+        try {
+            const response = await api.get(`/categorias/${categoriaId}/subcategorias`)
+            return response.data.data || response.data || []
+        } catch (e) { return [] }
     }
 }
