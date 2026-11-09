@@ -44,7 +44,6 @@ export const exportToPDF = ({ title, subtitle, columns, data, filename }) => {
     doc.save(`${filename}.pdf`)
 }
 
-// CORRECCIÓN: Agregado el parámetro 'filename' a la desestructuración de exportInvoicePDF
 export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'COP', formato_numero = 'es-CO', format = 'a4', filename }) => {
     
     const formatCurr = (val) => {
@@ -61,12 +60,10 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
     const totalRecibidoReal = factura.total_recibido_original ?? factura.total_recibido
     const saldoPendienteReal = factura.saldo_pendiente_original ?? factura.saldo_pendiente
 
-    // Construir un nombre de archivo seguro si no nos lo proporcionan
     const finalFileName = filename || `Factura_${numFactura}`
 
     if (format === 'pos') {
         // --- FORMATO TIRILLA (POS) ---
-        // Ancho estándar POS 80mm
         const doc = new jsPDF('p', 'mm', [80, 297])
         let currentY = 10
         const marginX = 4
@@ -80,6 +77,14 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
         const centerText = (text, y, size) => {
             doc.setFontSize(size)
             doc.text(text, center, y, { align: 'center' })
+        }
+
+        if (configuracion.logo_almacen && configuracion.imprimir_logo_pos === 1) {
+            try {
+                // Ajuste de tamaño y posición del logo en la tirilla
+                doc.addImage(configuracion.logo_almacen, 'JPEG', 25, currentY, 30, 30)
+                currentY += 32
+            } catch (e) {}
         }
 
         centerText(configuracion.nombre_almacen?.toUpperCase() || 'MI EMPRESA', currentY, 14); currentY += 5;
@@ -97,7 +102,6 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
             currentY += (resLines.length * 3.5) + 2
         }
 
-        // Línea divisora
         doc.setLineWidth(0.3)
         doc.line(marginX, currentY, rightMargin, currentY)
         currentY += 5
@@ -110,7 +114,6 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
         doc.line(marginX, currentY, rightMargin, currentY)
         currentY += 5
 
-        // Cliente
         doc.setFontSize(9)
         doc.setFont('helvetica', 'bold')
         doc.text('Cliente:', marginX, currentY); doc.setFont('helvetica', 'normal'); doc.text(factura.nombre_cliente, marginX + 13, currentY); currentY += 4;
@@ -129,7 +132,6 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
 
         currentY += 2
         
-        // Tabla de productos adaptada para POS
         const tableColumn = ["Cant", "Producto", "Total"]
         const tableRows = detalles.map(d => [
             d.cantidad_producto,
@@ -157,7 +159,6 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
         doc.line(marginX, currentY, rightMargin, currentY)
         currentY += 5
 
-        // Totales
         doc.setFontSize(9)
         const subtotal = factura.subtotal || 0
         const descuento = factura.descuento || 0
@@ -177,7 +178,6 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
         doc.setFontSize(11)
         doc.text('TOTAL:', marginX, currentY); doc.text(formatCurr(total), rightMargin, currentY, { align: 'right' }); currentY += 6;
 
-        // Pagos
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(9)
         doc.text(`Estado: ${factura.tipo_pago === 'credito' ? 'CRÉDITO' : 'CONTADO'}`, marginX, currentY); currentY += 5;
@@ -223,80 +223,143 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
              doc.setPage(i);
         }
 
-        // CORRECCIÓN: Usamos finalFileName, no importan si es POS
         doc.save(`${finalFileName}.pdf`)
 
     } else {
-        // --- FORMATO A4 ---
+        // --- FORMATO A4 (IDÉNTICO AL IMPRESOR WEB) ---
         const doc = new jsPDF('p', 'mm', 'a4')
         const pageWidth = doc.internal.pageSize.getWidth()
+        
+        const textDark = [33, 37, 41]
+        const textMuted = [108, 117, 125]
+        const borderColor = [108, 117, 125] 
 
+        let currentY = 15;
+        let startX = 14;
+
+        // --- HEADER ---
+        // Logo (Posicionado a la izquierda del texto)
+        if (configuracion.logo_almacen) {
+            try {
+                doc.addImage(configuracion.logo_almacen, 'JPEG', startX, currentY, 25, 25)
+                startX += 30; 
+            } catch (e) {}
+        }
+
+        // Datos Almacén
         doc.setFontSize(22)
         doc.setFont('helvetica', 'bold')
-        doc.setTextColor(33, 37, 41)
-        doc.text(configuracion.nombre_almacen?.toUpperCase() || 'MI EMPRESA', 14, 22)
+        doc.setTextColor(...textDark)
+        doc.text(configuracion.nombre_almacen?.toUpperCase() || 'MI EMPRESA', startX, currentY + 7)
 
         doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(108, 117, 125)
-        let currentY = 28
-        if (configuracion.nit_almacen) { doc.text(`NIT: ${configuracion.nit_almacen}`, 14, currentY); currentY += 5; }
-        if (configuracion.direccion_almacen) { doc.text(`Dirección: ${configuracion.direccion_almacen}`, 14, currentY); currentY += 5; }
-        if (configuracion.telefono_almacen) { doc.text(`Teléfono: ${configuracion.telefono_almacen}`, 14, currentY); currentY += 5; }
-        if (configuracion.email_almacen) { doc.text(`Email: ${configuracion.email_almacen}`, 14, currentY); currentY += 5; }
+        let textY = currentY + 13
+        
+        if (configuracion.nit_almacen) { 
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...textDark)
+            doc.text('NIT:', startX, textY); 
+            doc.setFont('helvetica', 'normal'); 
+            doc.text(configuracion.nit_almacen, startX + 7, textY); 
+            textY += 5; 
+        }
+        
+        if (configuracion.direccion_almacen || configuracion.telefono_almacen) { 
+            doc.setFont('helvetica', 'normal'); 
+            doc.setTextColor(...textDark)
+            let direccionTel = `${configuracion.direccion_almacen || ''}`;
+            if (configuracion.direccion_almacen && configuracion.telefono_almacen) direccionTel += ' | ';
+            if (configuracion.telefono_almacen) direccionTel += `Tel: ${configuracion.telefono_almacen}`;
+            doc.text(direccionTel, startX, textY); 
+            textY += 5; 
+        }
+        
+        if (configuracion.email_almacen) { 
+            doc.text(configuracion.email_almacen, startX, textY); 
+            textY += 5; 
+        }
+        
+        if (configuracion.resolucionDian) {
+            doc.setFontSize(9)
+            doc.setTextColor(...textMuted)
+            doc.text(configuracion.resolucionDian, startX, textY)
+        }
 
+        // Datos Factura (Esquina superior derecha)
         const rightMargin = pageWidth - 14
+        
+        doc.setFontSize(20)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(108, 117, 125) 
+        // Usamos una posición X basada en el margen derecho y alineación derecha para evitar solapamientos
+        doc.text(`FACTURA DE VENTA`, rightMargin, currentY + 7, { align: 'right' })
         
         doc.setFontSize(16)
         doc.setFont('helvetica', 'bold')
-        doc.setTextColor(33, 37, 41)
-        doc.text(`FACTURA DE VENTA`, rightMargin, 22, { align: 'right' })
-        
-        doc.setFontSize(14)
-        doc.setTextColor(220, 53, 69)
-        doc.text(`N° ${numFactura}`, rightMargin, 29, { align: 'right' })
+        doc.setTextColor(220, 53, 69) // Color rojo N° VF...
+        doc.text(`N° ${numFactura}`, rightMargin, currentY + 15, { align: 'right' })
 
         doc.setFontSize(10)
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(33, 37, 41)
-        doc.text(`Fecha: ${fechaFormat}`, rightMargin, 36, { align: 'right' })
-        
-        if (configuracion.resolucionDian) {
-            doc.setFontSize(8)
-            doc.setTextColor(108, 117, 125)
-            const textLines = doc.splitTextToSize(`Resolución DIAN: ${configuracion.resolucionDian}`, 70)
-            doc.text(textLines, rightMargin, 42, { align: 'right' })
-        }
+        doc.setTextColor(...textDark)
+        doc.text(`Fecha Emisión: ${fechaFormat}`, rightMargin, currentY + 23, { align: 'right' })
 
-        currentY = Math.max(currentY, 50)
-        doc.setDrawColor(222, 226, 230)
-        doc.setLineWidth(0.5)
+        // Línea gruesa divisora
+        // Nos aseguramos de que la línea se dibuje debajo del texto más bajo (sea el logo, la info de empresa o la fecha)
+        currentY = Math.max(textY + 5, currentY + 30)
+        doc.setDrawColor(33, 37, 41)
+        doc.setLineWidth(0.6)
         doc.line(14, currentY, rightMargin, currentY)
         currentY += 8
 
-        doc.setFontSize(11)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(33, 37, 41)
-        doc.text('FACTURAR A:', 14, currentY)
-        currentY += 6
-
+        // --- CAJA DE CLIENTE ---
+        doc.setDrawColor(...borderColor)
+        doc.setLineWidth(0.2)
+        
+        const boxHeight = factura.vendedor ? 22 : 15;
+        doc.roundedRect(14, currentY, pageWidth - 28, boxHeight, 3, 3)
+        
         doc.setFontSize(10)
-        doc.setFont('helvetica', 'normal')
-        doc.text(`Cliente: ${factura.nombre_cliente}`, 14, currentY)
-        doc.text(`CC/NIT: ${factura.documento_cliente || 'N/A'}`, 14, currentY + 5)
+        let innerY = currentY + 7
         
-        doc.text(`Método de Pago: ${factura.metodo_pago}`, pageWidth / 2, currentY)
-        doc.text(`Tipo: ${factura.tipo_pago === 'credito' ? 'CRÉDITO' : 'CONTADO'}`, pageWidth / 2, currentY + 5)
-        
-        currentY += 12
+        // Fila 1: Cliente, CC/NIT, Tel, Estado
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(...textDark); doc.text('Cliente:', 18, innerY)
+        doc.setFont('helvetica', 'normal'); 
+        // Truncar nombre del cliente si es muy largo
+        let nombreCliente = factura.nombre_cliente;
+        if (doc.getTextWidth(nombreCliente) > 40) {
+            nombreCliente = doc.splitTextToSize(nombreCliente, 40)[0] + '...';
+        }
+        doc.text(nombreCliente, 33, innerY)
 
-        const tableColumn = ["Cant.", "Descripción", "V. Unitario", "IVA", "Dscto.", "Subtotal"]
+        doc.setFont('helvetica', 'bold'); doc.text('CC/NIT:', 75, innerY)
+        doc.setFont('helvetica', 'normal'); doc.text(factura.documento_cliente || 'N/A', 90, innerY)
+        
+        doc.setFont('helvetica', 'bold'); doc.text('Tel:', 130, innerY)
+        doc.setFont('helvetica', 'normal'); doc.text(factura.telefono_cliente || factura.telefono || '', 138, innerY)
+        
+        doc.setFont('helvetica', 'bold'); doc.text('Estado:', 160, innerY)
+        doc.setFont('helvetica', 'normal'); doc.text(factura.tipo_pago === 'credito' ? 'Crédito' : 'Contado', 175, innerY)
+
+        // Fila 2: Vendedor (con línea separadora tenue)
+        if (factura.vendedor) {
+            innerY += 7
+            doc.setDrawColor(222, 226, 230) 
+            doc.line(15, innerY - 4, rightMargin - 1, innerY - 4) // linea dentro del cuadro
+
+            doc.setFont('helvetica', 'bold'); doc.setTextColor(...textMuted); doc.text('Vendedor(a):', 18, innerY)
+            doc.setFont('helvetica', 'normal'); doc.setTextColor(...textDark); doc.text(factura.vendedor, 42, innerY)
+        }
+        
+        currentY += boxHeight + 8
+
+        // --- TABLA DE PRODUCTOS ---
+        const tableColumn = ["SKU", "Producto", "Cant.", "V. Unitario", "Total"]
         const tableRows = detalles.map(d => [
-            d.cantidad_producto,
+            `${d.sku_prefix || ''}${d.separador || ''}${d.sku}`,
             d.nombre_producto,
+            d.cantidad_producto,
             formatCurr(d.precio_producto),
-            formatCurr(d.iva || 0),
-            formatCurr(d.descuento || 0),
             formatCurr(d.total)
         ])
 
@@ -305,19 +368,53 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
             body: tableRows,
             startY: currentY,
             theme: 'grid',
-            headStyles: { fillColor: [13, 110, 253], textColor: 255, fontStyle: 'bold' },
-            styles: { fontSize: 9, textColor: [33, 37, 41] },
-            alternateRowStyles: { fillColor: [248, 249, 250] },
+            headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0] },
+            styles: { fontSize: 10, textColor: [0, 0, 0], font: 'helvetica', lineColor: [0, 0, 0], lineWidth: 0.3, cellPadding: 3 },
+            bodyStyles: { fillColor: [255, 255, 255] },
+            alternateRowStyles: { fillColor: [255, 255, 255] },
             columnStyles: {
-                0: { halign: 'center', cellWidth: 15 },
-                2: { halign: 'right', cellWidth: 30 },
-                3: { halign: 'right', cellWidth: 25 },
-                4: { halign: 'right', cellWidth: 25 },
-                5: { halign: 'right', cellWidth: 30 }
+                0: { halign: 'center', cellWidth: 35 },
+                1: { halign: 'left' },
+                2: { halign: 'center', cellWidth: 20 },
+                3: { halign: 'right', cellWidth: 35 },
+                4: { halign: 'right', cellWidth: 35, fontStyle: 'bold' } 
             }
         })
 
-        let finalY = doc.lastAutoTable.finalY + 8
+        // --- CAJA DE PAGOS Y TOTALES ---
+        let finalY = doc.lastAutoTable.finalY + 12
+        
+        // Caja de pagos (Lado izquierdo)
+        const leftBoxWidth = 85;
+        doc.setDrawColor(...borderColor)
+        doc.setLineWidth(0.2)
+        
+        let pagosHeight = (pagosArray.length > 0 ? (pagosArray.length * 6) : 6) + 15
+        doc.roundedRect(14, finalY, leftBoxWidth, pagosHeight, 3, 3)
+        
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...textDark)
+        doc.text('DETALLE DE PAGOS RECIBIDOS:', 18, finalY + 7)
+        
+        doc.setFont('helvetica', 'normal')
+        let payY = finalY + 14
+        if (pagosArray.length > 0) {
+            pagosArray.forEach(p => {
+                doc.text(p.metodo, 18, payY)
+                doc.setFont('helvetica', 'bold')
+                doc.text(formatCurr(p.monto || 0), 14 + leftBoxWidth - 4, payY, { align: 'right' })
+                doc.setFont('helvetica', 'normal')
+                payY += 6
+            })
+        } else {
+            doc.text(factura.metodo_pago || '', 18, payY)
+            doc.setFont('helvetica', 'bold')
+            doc.text(formatCurr(totalRecibidoReal || 0), 14 + leftBoxWidth - 4, payY, { align: 'right' })
+            doc.setFont('helvetica', 'normal')
+        }
+
+        // Totales (Lado derecho)
         const rightColX = pageWidth - 45
         const valueColX = rightMargin
 
@@ -326,60 +423,106 @@ export const exportInvoicePDF = ({ factura, detalles, configuracion, moneda = 'C
         const iva = factura.iva || 0
         const total = factura.total_factura || 0
 
-        doc.setFontSize(10)
+        doc.setFontSize(12)
         doc.setTextColor(33, 37, 41)
         
-        doc.text('Subtotal:', rightColX, finalY); doc.text(formatCurr(subtotal), valueColX, finalY, { align: 'right' }); finalY += 6
-        if (descuento > 0) {
-            doc.text('Descuento:', rightColX, finalY); doc.text(`-${formatCurr(descuento)}`, valueColX, finalY, { align: 'right' }); finalY += 6
-        }
-        if (iva > 0) {
-            doc.text('IVA:', rightColX, finalY); doc.text(formatCurr(iva), valueColX, finalY, { align: 'right' }); finalY += 6
-        }
-
-        doc.setFillColor(248, 249, 250)
-        doc.rect(rightColX - 5, finalY - 4, 50, 10, 'F')
+        let sumY = finalY + 5
         doc.setFont('helvetica', 'bold')
-        doc.setFontSize(12)
-        doc.text('TOTAL:', rightColX, finalY + 3)
-        doc.text(formatCurr(total), valueColX, finalY + 3, { align: 'right' })
-        finalY += 12
-
+        doc.text('Subtotal:', rightColX, sumY, { align: 'right' }); 
         doc.setFont('helvetica', 'normal')
-        doc.setFontSize(10)
-        doc.text('Pagado:', rightColX, finalY); doc.text(formatCurr(totalRecibidoReal), valueColX, finalY, { align: 'right' }); finalY += 6
-        if (saldoPendienteReal > 0) {
-            doc.setTextColor(220, 53, 69)
-            doc.text('Saldo Pendiente:', rightColX, finalY); doc.text(formatCurr(saldoPendienteReal), valueColX, finalY, { align: 'right' })
-            doc.setTextColor(33, 37, 41)
-        }
-
-        finalY = doc.lastAutoTable.finalY + 10
+        doc.text(formatCurr(subtotal), valueColX, sumY, { align: 'right' }); 
+        sumY += 8
         
-        if (factura.observaciones) {
+        if (descuento > 0) {
             doc.setFont('helvetica', 'bold')
-            doc.text('Observaciones:', 14, finalY)
+            doc.text('Descuento:', rightColX, sumY, { align: 'right' }); 
             doc.setFont('helvetica', 'normal')
-            doc.setFontSize(9)
-            const splitObs = doc.splitTextToSize(factura.observaciones, 100)
-            doc.text(splitObs, 14, finalY + 5)
+            doc.setTextColor(220, 53, 69)
+            doc.text(`-${formatCurr(descuento)}`, valueColX, sumY, { align: 'right' }); 
+            doc.setTextColor(33, 37, 41)
+            sumY += 8
+        }
+        
+        if (iva > 0) {
+            doc.setFont('helvetica', 'bold')
+            doc.text('IVA:', rightColX, sumY, { align: 'right' }); 
+            doc.setFont('helvetica', 'normal')
+            doc.text(formatCurr(iva), valueColX, sumY, { align: 'right' }); 
+            sumY += 8
         }
 
+        // Caja bordeada para el TOTAL
+        doc.setDrawColor(...borderColor)
+        // Se dibuja el rectángulo de forma que el texto "Total:" y el valor queden dentro
+        doc.roundedRect(rightColX - 15, sumY - 5, rightMargin - (rightColX - 15) + 3, 10, 3, 3)
+        
+        doc.setFontSize(14)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Total:', rightColX, sumY + 2, { align: 'right' })
+        doc.text(formatCurr(total), valueColX, sumY + 2, { align: 'right' })
+        
+        sumY += 12
+
+        doc.setFontSize(11)
+        doc.setTextColor(...textMuted)
+        doc.text('Cambio / Saldo:', rightColX, sumY, { align: 'right' }); 
+        doc.text(formatCurr(saldoPendienteReal), valueColX, sumY, { align: 'right' })
+
+        // --- OBSERVACIONES ---
+        let bottomY = Math.max(finalY + pagosHeight, sumY) + 10
+        if (factura.observaciones) {
+            // Limpiamos los \n literales si los hay y dejamos el texto en bruto
+            const cleanObs = factura.observaciones.replace(/\\n/g, ' ')
+            
+            // Calculamos el alto de la caja dinámicamente según el texto
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'normal')
+            
+            // El maxTextWidth debe contemplar el margen izquierdo (14) + margen interno (4)
+            // + el ancho que ocupa "Observaciones:" (aprox 28) + margen interno final.
+            const textStartX = 45;
+            const maxTextWidth = pageWidth - textStartX - 18; 
+            
+            // splitTextToSize divide el texto en líneas que caben en maxTextWidth
+            const splitObs = doc.splitTextToSize(cleanObs, maxTextWidth)
+            
+            // Evaluamos si el cuadro de observaciones y el footer caben en la página actual
+            // Cada línea ocupa unos 5 mm, más 6 mm de padding de la caja
+            const obsBoxHeight = Math.max(15, (splitObs.length * 5) + 6)
+            
+            // Verificamos salto de página (agregando un margen de seguridad para el footer de unos 20mm)
+            const pageHeight = doc.internal.pageSize.getHeight();
+            if (bottomY + obsBoxHeight + 20 > pageHeight) {
+                doc.addPage();
+                bottomY = 15; // Reiniciar Y al top de la nueva página
+            }
+
+            doc.setDrawColor(...borderColor)
+            doc.roundedRect(14, bottomY, pageWidth - 28, obsBoxHeight, 3, 3)
+            
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(...textDark)
+            doc.text('Observaciones:', 18, bottomY + 7)
+            
+            doc.setFont('helvetica', 'normal')
+            doc.text(splitObs, textStartX, bottomY + 7)
+        }
+
+        // Footer
         if (configuracion.footer_factura) {
-            doc.setFontSize(8)
-            doc.setTextColor(108, 117, 125)
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(...textDark)
             const pageHeight = doc.internal.pageSize.getHeight()
             const splitFooter = doc.splitTextToSize(configuracion.footer_factura, pageWidth - 28)
             doc.text(splitFooter, pageWidth / 2, pageHeight - 15, { align: 'center' })
         }
 
-        // CORRECCIÓN: Usamos finalFileName
         doc.save(`${finalFileName}.pdf`)
     }
 }
 
 export const exportNotaPDF = ({ nota, detalles, configuracion, moneda = 'COP', formato_numero = 'es-CO' }) => {
-    // ... [código original de exportNotaPDF]
     const doc = new jsPDF('p', 'mm', 'a4')
     const pageWidth = doc.internal.pageSize.getWidth()
     
