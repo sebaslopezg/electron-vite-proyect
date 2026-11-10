@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Form, Row, Col, Button, Card } from 'react-bootstrap'
 import Swal from 'sweetalert2'
 import DataTableComponent from '../../components/DataTableComponent'
+import { ModalExportConfig } from '../../components/ModalExportConfig'
 import { formatCurrency } from '../../utils/currencies'
 import { ImpresorReporte } from './components/ImpresorReporte'
 import { ModalDetalleFactura } from './components/ModalDetalleFactura'
@@ -48,6 +49,10 @@ export const Reportes = ({ currentUser }) => {
     const [facturaVer, setFacturaVer] = useState(null)
     const [detalleData, setDetalleData] = useState([])
     const [notasFactura, setNotasFactura] = useState([])
+
+    // Estados para la Modal de Exportación general
+    const [showExportModal, setShowExportModal] = useState(false)
+    const [exportFormat, setExportFormat] = useState(null)
 
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
@@ -231,89 +236,125 @@ export const Reportes = ({ currentUser }) => {
                 }
             }
 
-            if (t.tipo_transaccion === 'venta' && t.notas_aplicadas) {
-                if (t.notas_aplicadas.includes('Crédito')) {
-                }
-            }
-
             return acc
         }, { totalFacturado: 0, ingresoTotalCaja: 0, metodos: {} })
     }, [transacciones])
 
-    const handleExportExcel = () => {
-        try {
-            const dataToExport = transacciones.map(t => {
-                const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0))
-                const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0)
-                
-                let concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`);
-                if (t.notas_aplicadas) concepto += ` (${t.notas_aplicadas})`;
+    const exportColumnsDef = [
+        { key: 'hora', label: 'Hora', defaultChecked: true },
+        { key: 'documento', label: 'Documento', defaultChecked: true },
+        { key: 'cliente', label: 'Cliente', defaultChecked: true },
+        { key: 'concepto', label: 'Concepto / Método', defaultChecked: true },
+        { key: 'venta', label: 'Venta (Total)', defaultChecked: true },
+        { key: 'ingreso', label: 'Ingreso Real', defaultChecked: true }
+    ]
 
-                return {
-                    'Fecha y Hora': new Date(t.date_created).toLocaleString(appConfig.formato_numero),
-                    'Documento': t.tipo_transaccion === 'abono' ? `Abono a F-${t.factura_numero || ''}` : `${t.prefijo || ''}${t.separador || ''}${t.numero_factura || ''}`,
-                    'Cliente': t.nombre_cliente,
-                    'Concepto / Método': concepto,
-                    'Venta (Total)': venta,
-                    'Ingreso Real': ingreso
-                }
-            })
-
-            dataToExport.push({
-                'Fecha y Hora': '',
-                'Documento': '',
-                'Cliente': '',
-                'Concepto / Método': 'TOTALES GLOBALES',
-                'Venta (Total)': totales.totalFacturado,
-                'Ingreso Real': totales.ingresoTotalCaja
-            })
-
-            exportToExcel(dataToExport, `Reporte_Financiero_${startDate.split('T')[0]}`, "Transacciones")
-        } catch (error) {
-            console.error("Error exportando a Excel:", error)
-            Swal.fire('Error', 'No se pudo generar el archivo Excel: ' + error.message, 'error')
+    const openExportModal = (format) => {
+        if (transacciones.length === 0) {
+            return Swal.fire('Error', 'No hay registros para exportar', 'warning')
         }
+        setExportFormat(format)
+        setShowExportModal(true)
     }
 
-    const handleExportPDF = () => {
-        try {
-            const tableColumn = ["Hora", "Documento", "Cliente", "Concepto / Método", "Venta", "Ingreso"]
-            const tableRows = [];
+    const handleProcessExport = (limit, selectedColumnKeys, customFileName, exportTypeSelection) => {
+        let dataToProcess = transacciones
+        
+        if (limit && exportTypeSelection === 'limit') {
+            dataToProcess = [...transacciones]
+                .sort((a, b) => new Date(b.date_created) - new Date(a.date_created))
+                .slice(0, limit);
+        }
 
-            transacciones.forEach(t => {
-                const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0))
-                const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0);
-                
-                let concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`);
-                if (t.notas_aplicadas) concepto += `\n(${t.notas_aplicadas})`;
+        const extractValue = (t, key) => {
+            const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0))
+            const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0);
+            let concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`);
+            
+            if (t.notas_aplicadas) {
+                concepto += exportFormat === 'pdf' ? `\n(${t.notas_aplicadas})` : ` (${t.notas_aplicadas})`;
+            }
 
-                const rowData = [
-                    new Date(t.date_created).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' }),
-                    t.tipo_transaccion === 'abono' ? `Abono a F-${t.factura_numero || ''}` : `${t.prefijo || ''}${t.separador || ''}${t.numero_factura || ''}`,
-                    t.nombre_cliente,
-                    concepto,
-                    venta > 0 ? _formatCurrency(venta) : '-',
-                    ingreso > 0 ? _formatCurrency(ingreso) : '$0'
-                ]
-                tableRows.push(rowData)
-            })
+            switch(key) {
+                case 'hora': return new Date(t.date_created).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' });
+                case 'documento': return t.tipo_transaccion === 'abono' ? `Abono a F-${t.factura_numero || ''}` : `${t.prefijo || ''}${t.separador || ''}${t.numero_factura || ''}`;
+                case 'cliente': return t.nombre_cliente;
+                case 'concepto': return concepto;
+                case 'venta': return exportFormat === 'pdf' ? (venta > 0 ? _formatCurrency(venta) : '-') : venta;
+                case 'ingreso': return exportFormat === 'pdf' ? (ingreso > 0 ? _formatCurrency(ingreso) : '$0') : ingreso;
+                default: return '';
+            }
+        }
 
-            tableRows.push([
-                "", "", "", "TOTALES GLOBALES",
-                _formatCurrency(totales.totalFacturado),
-                _formatCurrency(totales.ingresoTotalCaja)
-            ])
+        const safeFileName = customFileName || `Reporte_Financiero_${startDate.split('T')[0]}`;
+
+        if (exportFormat === 'excel') {
+            const dataToExport = dataToProcess.map(t => {
+                const row = {};
+                exportColumnsDef.forEach(colDef => {
+                    if (selectedColumnKeys.includes(colDef.key)) {
+                        row[colDef.label] = extractValue(t, colDef.key);
+                    }
+                });
+                return row;
+            });
+            
+            // Insertamos fila separadora y fila de totales
+            const emptyRow = {};
+            const totalsRow = {};
+            exportColumnsDef.forEach(colDef => {
+                if (selectedColumnKeys.includes(colDef.key)) {
+                    emptyRow[colDef.label] = '';
+                    if (colDef.key === 'concepto') totalsRow[colDef.label] = 'TOTALES GLOBALES';
+                    else if (colDef.key === 'venta') totalsRow[colDef.label] = totales.totalFacturado;
+                    else if (colDef.key === 'ingreso') totalsRow[colDef.label] = totales.ingresoTotalCaja;
+                    else totalsRow[colDef.label] = '';
+                }
+            });
+            dataToExport.push(emptyRow, totalsRow);
+
+            exportToExcel(dataToExport, safeFileName, "Transacciones");
+        } 
+        else if (exportFormat === 'pdf') {
+            const tableColumn = exportColumnsDef
+                .filter(col => selectedColumnKeys.includes(col.key))
+                .map(col => col.label);
+            
+            const tableRows = dataToProcess.map(t => {
+                return exportColumnsDef
+                    .filter(col => selectedColumnKeys.includes(col.key))
+                    .map(col => extractValue(t, col.key))
+            });
+
+            const stats = dataToProcess.reduce((acc, f) => {
+                if (f.tipo_transaccion === 'venta') {
+                    acc.subtotal += f.subtotal || 0;
+                    acc.descuentos += f.descuento || 0;
+                    acc.iva += f.iva || 0;
+                    if (f.tipo_pago === 'contado') acc.contado += f.total_factura || 0;
+                    if (f.tipo_pago === 'credito') acc.credito += f.total_factura || 0;
+                }
+                return acc;
+            }, { subtotal: 0, descuentos: 0, iva: 0, contado: 0, credito: 0 });
 
             exportToPDF({
-                title: 'Reporte Financiero de Transacciones',
-                subtitle: `Periodo: ${startDate.replace('T', ' ')} a ${endDate.replace('T', ' ')}`,
+                title: 'Reporte de Ventas',
+                subtitle: `Desde: ${startDate.replace('T', ' ')} | Hasta: ${endDate.replace('T', ' ')}`,
                 columns: tableColumn,
                 data: tableRows,
-                filename: `Reporte_Financiero_${startDate.split('T')[0]}`
-            })
-        } catch (error) {
-            console.error("Error exportando a PDF:", error);
-            Swal.fire('Error', 'No se pudo generar el archivo PDF: ' + error.message, 'error')
+                filename: safeFileName,
+                configuracion: almacenConf,
+                totales: {
+                    ...totales,
+                    subtotal: stats.subtotal,
+                    descuentos: stats.descuentos,
+                    iva: stats.iva,
+                    contado: stats.contado,
+                    credito: stats.credito
+                },
+                moneda: appConfig.moneda,
+                formato_numero: appConfig.formato_numero
+            });
         }
     }
 
@@ -439,7 +480,7 @@ export const Reportes = ({ currentUser }) => {
                         {canDownloadPDF && (
                             <Button 
                                 variant="outline-danger" size="sm" 
-                                onClick={handleExportPDF} 
+                                onClick={() => openExportModal('pdf')} 
                                 disabled={transacciones.length === 0}
                                 title="Exportar a PDF"
                             >
@@ -450,7 +491,7 @@ export const Reportes = ({ currentUser }) => {
                         {canDownloadExcel && (
                             <Button 
                                 variant="outline-success" size="sm" 
-                                onClick={handleExportExcel} 
+                                onClick={() => openExportModal('excel')} 
                                 disabled={transacciones.length === 0}
                                 title="Exportar a Excel"
                             >
@@ -539,6 +580,17 @@ export const Reportes = ({ currentUser }) => {
             detalles={detalleData}
             almacenConf={almacenConf}
             textoVolver="Volver a Reportes"
+        />
+
+        <ModalExportConfig 
+            show={showExportModal}
+            handleClose={() => setShowExportModal(false)}
+            onExport={handleProcessExport}
+            title="Reporte Financiero"
+            defaultFilename={`Reporte_Financiero_${startDate.split('T')[0]}`}
+            totalRecords={transacciones.length}
+            totalFiltered={transacciones.length}
+            availableColumns={exportColumnsDef}
         />
     </>
 }

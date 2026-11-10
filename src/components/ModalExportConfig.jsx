@@ -69,7 +69,7 @@ export const ModalExportConfig = ({ show, handleClose, onExport, title, defaultF
                 <div className="mb-4 bg-white p-3 border rounded shadow-sm">
                     <Form.Group>
                         <Form.Label className="fw-bold text-secondary mb-1">
-                            <i className="bi bi-fonts me-2"></i>Nombre del archivo
+                            Nombre del archivo
                         </Form.Label>
                         <InputGroup>
                             <Form.Control 
@@ -115,7 +115,7 @@ export const ModalExportConfig = ({ show, handleClose, onExport, title, defaultF
                                     <span>
                                         Todos los filtrados
                                         {totalFiltered !== undefined && (
-                                            <Badge bg="info" className="ms-2 text-dark">{totalFiltered}</Badge>
+                                            <Badge bg="secondary" className="ms-2">{totalFiltered}</Badge>
                                         )}
                                     </span>
                                 }

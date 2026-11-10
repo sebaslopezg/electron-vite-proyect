@@ -32,7 +32,7 @@ export const ModalExportSingleFactura = ({ show, handleClose, onExport, factura,
                 <div className="mb-4 bg-white p-3 border rounded shadow-sm">
                     <Form.Group>
                         <Form.Label className="fw-bold text-secondary mb-1">
-                            <i className="bi bi-fonts me-2"></i>Nombre del archivo
+                            Nombre del archivo
                         </Form.Label>
                         <InputGroup>
                             <Form.Control 
@@ -54,7 +54,7 @@ export const ModalExportSingleFactura = ({ show, handleClose, onExport, factura,
                         <Row>
                             <Col xs={6}>
                                 <div 
-                                    className={`border rounded p-3 text-center ${pdfFormat === 'a4' ? 'border-danger bg-light' : ''}`}
+                                    className={`border rounded p-3 text-center ${pdfFormat === 'a4' ? 'border-primary bg-light' : ''}`}
                                     style={{ cursor: 'pointer' }}
                                     onClick={() => setPdfFormat('a4')}
                                 >
@@ -72,7 +72,7 @@ export const ModalExportSingleFactura = ({ show, handleClose, onExport, factura,
                             </Col>
                             <Col xs={6}>
                                 <div 
-                                    className={`border rounded p-3 text-center ${pdfFormat === 'pos' ? 'border-danger bg-light' : ''}`}
+                                    className={`border rounded p-3 text-center ${pdfFormat === 'pos' ? 'border-primary bg-light' : ''}`}
                                     style={{ cursor: 'pointer' }}
                                     onClick={() => setPdfFormat('pos')}
                                 >
@@ -92,10 +92,6 @@ export const ModalExportSingleFactura = ({ show, handleClose, onExport, factura,
                      </Form>
                 </div>
 
-                <Alert variant="info" className="mb-0 py-2 small">
-                    <i className="bi bi-info-circle-fill me-2"></i>
-                    El archivo se generará con el formato de documento seleccionado.
-                </Alert>
             </Modal.Body>
             <Modal.Footer className="bg-light border-0 justify-content-between">
                 <Button variant="secondary" onClick={handleClose}>
@@ -107,7 +103,7 @@ export const ModalExportSingleFactura = ({ show, handleClose, onExport, factura,
                     </Button>
                     {/* CORRECCIÓN DE TEXTO EN EL BOTÓN */}
                     <Button variant="danger" onClick={() => handleExport('pdf')}>
-                        <i className="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
+                        <i className="bi bi-file-earmark-pdf me-2"></i>PDF
                     </Button>
                 </div>
             </Modal.Footer>

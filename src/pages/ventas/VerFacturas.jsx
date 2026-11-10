@@ -428,14 +428,14 @@ export const VerFacturas = ({ currentUser }) => {
                             ${canPrint ? `
                             <li>
                                 <button class="dropdown-item btn-print-item" data-alldata="${safeData}">
-                                    <i class="bi bi-printer me-2 text-primary"></i> Imprimir Ticket
+                                    <i class="bi bi-printer me-2 text-primary"></i> Imprimir
                                 </button>
                             </li>
                             ` : ''}
                             ${(canDownloadPDF || canDownloadExcel) ? `
                             <li>
                                 <button class="dropdown-item btn-export-single" data-alldata="${safeData}">
-                                    <i class="bi bi-download me-2 text-success"></i> Exportar Archivo
+                                    <i class="bi bi-download me-2 text-success"></i> Exportar
                                 </button>
                             </li>
                             ` : ''}
