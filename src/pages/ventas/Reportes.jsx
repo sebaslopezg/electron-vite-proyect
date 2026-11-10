@@ -586,8 +586,8 @@ export const Reportes = ({ currentUser }) => {
             show={showExportModal}
             handleClose={() => setShowExportModal(false)}
             onExport={handleProcessExport}
-            title="Reporte Financiero"
-            defaultFilename={`Reporte_Financiero_${startDate.split('T')[0]}`}
+            title="Reporte de ventas"
+            defaultFilename={`Reporte_Ventas_${startDate.split('T')[0]}`}
             totalRecords={transacciones.length}
             totalFiltered={transacciones.length}
             availableColumns={exportColumnsDef}

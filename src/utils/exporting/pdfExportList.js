@@ -18,7 +18,7 @@ export const exportToPDF = ({
             style: 'currency',
             currency: moneda,
             minimumFractionDigits: 0
-        }).format(val);
+        }).format(val)
     }
 
     const doc = new jsPDF('p', 'mm', 'a4')
@@ -28,19 +28,19 @@ export const exportToPDF = ({
     const textMuted = [108, 117, 125]
     const borderColor = [108, 117, 125] 
 
-    let currentY = 15;
-    let startX = 14;
+    let currentY = 15
+    let startX = 14
     const rightMargin = pageWidth - 14
 
     if (configuracion) {
         if (configuracion.logo_almacen) {
             try {
-                let imgFormat = 'JPEG';
-                if (configuracion.logo_almacen.includes('image/png')) imgFormat = 'PNG';
-                else if (configuracion.logo_almacen.includes('image/webp')) imgFormat = 'WEBP';
+                let imgFormat = 'JPEG'
+                if (configuracion.logo_almacen.includes('image/png')) imgFormat = 'PNG'
+                else if (configuracion.logo_almacen.includes('image/webp')) imgFormat = 'WEBP'
                 
                 doc.addImage(configuracion.logo_almacen, imgFormat, startX, currentY, 20, 20)
-                startX += 25; 
+                startX += 25
             } catch (e) {}
         }
 
@@ -53,7 +53,7 @@ export const exportToPDF = ({
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(...textMuted)
         
-        const subtitleLines = doc.splitTextToSize(subtitle, 80);
+        const subtitleLines = doc.splitTextToSize(subtitle, 80)
         doc.text(subtitleLines, rightMargin, currentY + 13, { align: 'right' })
         
         doc.setFontSize(9)
@@ -62,17 +62,19 @@ export const exportToPDF = ({
         doc.setFontSize(20)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(...textDark)
-        const maxNombreWidth = (pageWidth / 2) - startX + 10;
-        const nombreLineas = doc.splitTextToSize(configuracion.nombre_almacen?.toUpperCase() || 'MI EMPRESA', maxNombreWidth);
+        const maxNombreWidth = (pageWidth / 2) - startX + 10
+        const nombreLineas = doc.splitTextToSize(configuracion.nombre_almacen?.toUpperCase() || 'MI EMPRESA', maxNombreWidth)
         doc.text(nombreLineas, startX, currentY + 7)
         
         let textY = currentY + 7 + ((nombreLineas.length - 1) * 7) + 6
 
         doc.setFontSize(10)
         if (configuracion.nit_almacen) { 
-            doc.setFont('helvetica', 'bold'); doc.setTextColor(...textDark)
-            doc.text('NIT:', startX, textY); 
-            doc.setFont('helvetica', 'normal'); doc.text(configuracion.nit_almacen, startX + 8, textY); 
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(...textDark)
+            doc.text('NIT:', startX, textY)
+            doc.setFont('helvetica', 'normal') 
+            doc.text(configuracion.nit_almacen, startX + 8, textY)
         }
 
         currentY = Math.max(textY + 10, currentY + 28) 
@@ -89,12 +91,12 @@ export const exportToPDF = ({
             
             const metodos = Object.entries(totales.metodos || {})
             const reqHeightByMethods = 22 + (metodos.length * 6)
-            const boxHeight = Math.max(47, reqHeightByMethods) // Incrementé un poquito la altura base para acomodar mejor
+            const boxHeight = Math.max(47, reqHeightByMethods) 
 
             doc.setDrawColor(...borderColor)
             doc.setLineWidth(0.2)
 
-            // CAJA 1: RESUMEN FINANCIERO
+            // --- CAJA 1: RESUMEN FINANCIERO ---
             doc.roundedRect(box1X, currentY, boxWidth, boxHeight, 2, 2)
             doc.setFontSize(11)
             doc.setFont('helvetica', 'bold')
@@ -102,32 +104,52 @@ export const exportToPDF = ({
             doc.line(box1X + 4, currentY + 10, box1X + boxWidth - 4, currentY + 10)
             
             doc.setFontSize(10)
-            let inY1 = currentY + 16;
+            let inY1 = currentY + 16
             
-            const countFacturas = data.filter(r => !r[r.length-1]?.toString().includes('TOTALES')).length;
-            doc.setFont('helvetica', 'normal'); doc.text("Facturas Emitidas:", box1X + 4, inY1); doc.setFont('helvetica', 'bold'); doc.text(countFacturas.toString(), box1X + boxWidth - 4, inY1, { align: 'right' }); inY1 += 6;
+            const countFacturas = data.filter(r => !r[r.length-1]?.toString().includes('TOTALES')).length
+            doc.setFont('helvetica', 'normal')
+            doc.text("Facturas Emitidas:", box1X + 4, inY1)
+            doc.setFont('helvetica', 'bold')
+            doc.text(countFacturas.toString(), box1X + boxWidth - 4, inY1, { align: 'right' })
+            inY1 += 6
             
-            doc.setFont('helvetica', 'normal'); doc.text("Subtotal Neto:", box1X + 4, inY1); doc.setFont('helvetica', 'bold'); doc.text(formatCurr(totales.subtotal || 0), box1X + boxWidth - 4, inY1, { align: 'right' }); inY1 += 6;
-            doc.setFont('helvetica', 'normal'); doc.text("Descuentos:", box1X + 4, inY1); doc.setFont('helvetica', 'bold'); doc.setTextColor(220, 53, 69); doc.text(`-${formatCurr(totales.descuentos || 0)}`, box1X + boxWidth - 4, inY1, { align: 'right' }); doc.setTextColor(...textDark); inY1 += 6;
-            doc.setFont('helvetica', 'normal'); doc.text("Impuestos (IVA):", box1X + 4, inY1); doc.setFont('helvetica', 'bold'); doc.text(formatCurr(totales.iva || 0), box1X + boxWidth - 4, inY1, { align: 'right' }); inY1 += 4;
+            doc.setFont('helvetica', 'normal')
+            doc.text("Subtotal Neto:", box1X + 4, inY1)
+            doc.setFont('helvetica', 'bold')
+            doc.text(formatCurr(totales.subtotal || 0), box1X + boxWidth - 4, inY1, { align: 'right' })
+            inY1 += 6
+            doc.setFont('helvetica', 'normal')
+            doc.text("Descuentos:", box1X + 4, inY1)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(220, 53, 69)
+            doc.text(`-${formatCurr(totales.descuentos || 0)}`, box1X + boxWidth - 4, inY1, { align: 'right' })
+            doc.setTextColor(...textDark)
+            inY1 += 6
+            doc.setFont('helvetica', 'normal')
+            doc.text("Impuestos (IVA):", box1X + 4, inY1)
+            doc.setFont('helvetica', 'bold')
+            doc.text(formatCurr(totales.iva || 0), box1X + boxWidth - 4, inY1, { align: 'right' })
+            inY1 += 6
 
-            // --- SECCIÓN TOTAL CORREGIDA ---
-            // Le damos formato al TOTAL VENTAS para que no se salga de la caja (boxWidth)
             doc.setFontSize(11)
-            doc.setTextColor(13, 110, 253) // Azul principal
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(13, 110, 253)
             
-            // Creamos una separación visual
-            inY1 += 2
+            doc.text("TOTAL", box1X + 4, inY1 + 1) 
+            doc.text("VENTAS:", box1X + 4, inY1 + 6)
             
-            // Dibujamos "TOTAL" y "VENTAS:" alineados a la izquierda
-            doc.text("TOTAL", box1X + 4, inY1 + 5); 
-            doc.text("VENTAS:", box1X + 4, inY1 + 10);
+            const valorTotalStr = formatCurr(totales.totalFacturado || 0)
             
-            // Dibujamos el valor de la moneda alineado totalmente a la derecha, en una sola línea y centrado respecto a los dos textos de la izquierda
-            doc.setFontSize(11) 
-            doc.text(formatCurr(totales.totalFacturado || 0), box1X + boxWidth - 4, inY1 + 7.5, { align: 'right' });
+            let finalFontSize = 12
+            if (doc.getTextWidth(valorTotalStr) > 28) {
+            } else if (doc.getTextWidth(valorTotalStr) > 24) {
+                 finalFontSize = 10
+            }
             
-            doc.setTextColor(...textDark) // Restauramos color
+            doc.setFontSize(finalFontSize)
+            doc.text(valorTotalStr, box1X + boxWidth - 4, inY1 + 3.5, { align: 'right' })
+            
+            doc.setTextColor(...textDark)
 
             // CAJA 2: TIPO DE VENTA
             doc.roundedRect(box2X, currentY, boxWidth, boxHeight, 2, 2)
@@ -137,8 +159,13 @@ export const exportToPDF = ({
             doc.line(box2X + 4, currentY + 10, box2X + boxWidth - 4, currentY + 10)
             
             doc.setFontSize(11)
-            let inY2 = currentY + 20;
-            doc.setFont('helvetica', 'normal'); doc.text("Contado:", box2X + 4, inY2); doc.setFont('helvetica', 'bold'); doc.setTextColor(25, 135, 84); doc.text(formatCurr(totales.contado || 0), box2X + boxWidth - 4, inY2, { align: 'right' }); doc.setTextColor(...textDark); inY2 += 12;
+            let inY2 = currentY + 20
+            doc.setFont('helvetica', 'normal')
+            doc.text("Contado:", box2X + 4, inY2)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(25, 135, 84)
+            doc.text(formatCurr(totales.contado || 0), box2X + boxWidth - 4, inY2, { align: 'right' })
+            doc.setTextColor(...textDark); inY2 += 12;
             doc.setFont('helvetica', 'normal'); doc.text("Crédito:", box2X + 4, inY2); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 193, 7); doc.text(formatCurr(totales.credito || 0), box2X + boxWidth - 4, inY2, { align: 'right' }); doc.setTextColor(...textDark);
 
             // CAJA 3: MÉTODOS DE PAGO
