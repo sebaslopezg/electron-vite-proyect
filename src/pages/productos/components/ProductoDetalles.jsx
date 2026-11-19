@@ -1,50 +1,153 @@
+import { useState, useEffect, useMemo } from "react"
 import { Button, Col, Modal, Row, Badge } from "react-bootstrap"
 import { formatCurrency } from '../../../utils/currencies'
+import { productosService } from '../../../services/productosService'
 
-export const ProductoDetalles = ({ show, handleClose, productoData, appConfig, subcategoriasDisponibles = [], etiquetasDisponibles = [] }) => {
+const getTextColor = (hexColor) => {
+    if (!hexColor) return '#ffffff'
+    const cleanHex = hexColor.replace('#', '')
+    if (cleanHex.length !== 6) return '#ffffff'
+    const red = parseInt(cleanHex.slice(0, 2), 16)
+    const green = parseInt(cleanHex.slice(2, 4), 16)
+    const blue = parseInt(cleanHex.slice(4, 6), 16)
+    const yiq = ((red * 299) + (green * 587) + (blue * 114)) / 1000
+    return yiq >= 128 ? '#000000' : '#ffffff'
+}
+
+export const ProductoDetalles = ({
+    show,
+    handleClose,
+    productoData,
+    appConfig,
+    categoriasDisponibles = [],
+    subcategoriasDisponibles = [],
+    etiquetasDisponibles = []
+}) => {
+    const [localCategories, setLocalCategories] = useState([])
+    const [localSubcategories, setLocalSubcategories] = useState([])
+    const [localTags, setLocalTags] = useState([])
+
+    const hasCategoriesProp = Array.isArray(categoriasDisponibles) && categoriasDisponibles.length > 0
+    const hasSubcategoriesProp = Array.isArray(subcategoriasDisponibles) && subcategoriasDisponibles.length > 0
+    const hasTagsProp = Array.isArray(etiquetasDisponibles) && etiquetasDisponibles.length > 0
+
+    useEffect(() => {
+        if (!show) return
+        if (hasCategoriesProp && hasSubcategoriesProp && hasTagsProp) return
+
+        let isMounted = true
+
+        const loadMissingCatalogs = async () => {
+            try {
+                const [categoriesRes, subcategoriesRes, tagsRes] = await Promise.all([
+                    hasCategoriesProp ? Promise.resolve(null) : productosService.getCategorias(),
+                    hasSubcategoriesProp ? Promise.resolve(null) : productosService.getSubcategorias(),
+                    hasTagsProp ? Promise.resolve(null) : productosService.getEtiquetas()
+                ])
+
+                if (!isMounted) return
+                if (Array.isArray(categoriesRes)) setLocalCategories(categoriesRes)
+                if (Array.isArray(subcategoriesRes)) setLocalSubcategories(subcategoriesRes)
+                if (Array.isArray(tagsRes)) setLocalTags(tagsRes)
+            } catch (err) {
+                console.error('Error loading product catalogs in detail modal', err)
+            }
+        }
+
+        loadMissingCatalogs()
+        return () => { isMounted = false }
+    }, [show, hasCategoriesProp, hasSubcategoriesProp, hasTagsProp])
+
+    const categoriesSource = hasCategoriesProp ? categoriasDisponibles : localCategories
+    const subcategoriesSource = hasSubcategoriesProp ? subcategoriasDisponibles : localSubcategories
+    const tagsSource = hasTagsProp ? etiquetasDisponibles : localTags
+
+    const categoryName = useMemo(() => {
+        if (!productoData) return 'General'
+        if (productoData.categoria_nombre) return productoData.categoria_nombre
+
+        if (productoData.categoria_id) {
+            const matchedCategory = categoriesSource.find(
+                cat => String(cat.id) === String(productoData.categoria_id)
+            )
+            if (matchedCategory?.nombre) return matchedCategory.nombre
+        }
+
+        return 'General'
+    }, [productoData, categoriesSource])
+
+    const subcategoryNames = useMemo(() => {
+        if (!productoData) return []
+
+        let rawIds = []
+        if (productoData.subcategorias_ids_json) {
+            try {
+                const parsed = typeof productoData.subcategorias_ids_json === 'string'
+                    ? JSON.parse(productoData.subcategorias_ids_json)
+                    : productoData.subcategorias_ids_json
+                if (Array.isArray(parsed)) rawIds = parsed
+            } catch (err) {
+                console.error('Error parsing product subcategories JSON', err)
+            }
+        } else if (Array.isArray(productoData.subcategorias_ids)) {
+            rawIds = productoData.subcategorias_ids
+        } else if (typeof productoData.subcategorias_ids === 'string') {
+            rawIds = productoData.subcategorias_ids.split(',').map(s => s.trim()).filter(Boolean)
+        } else if (productoData.subcategoria_id) {
+            rawIds = [productoData.subcategoria_id]
+        }
+
+        if (rawIds.length === 0) return []
+
+        return rawIds
+            .map(id => {
+                const matchedSub = subcategoriesSource.find(sub => String(sub.id) === String(id))
+                return matchedSub ? matchedSub.nombre : null
+            })
+            .filter(Boolean)
+    }, [productoData, subcategoriesSource])
+
+    const resolvedTags = useMemo(() => {
+        if (!productoData) return []
+
+        if (Array.isArray(productoData.etiquetas) && productoData.etiquetas.length > 0) {
+            return productoData.etiquetas
+                .map(tagItem => {
+                    if (typeof tagItem === 'object' && tagItem !== null && tagItem.nombre) {
+                        return tagItem
+                    }
+                    return tagsSource.find(tag => String(tag.id) === String(tagItem))
+                })
+                .filter(Boolean)
+        }
+
+        if (productoData.etiquetas_ids) {
+            const tagIds = String(productoData.etiquetas_ids)
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
+
+            return tagIds
+                .map(id => tagsSource.find(tag => String(tag.id) === String(id)))
+                .filter(Boolean)
+        }
+
+        return []
+    }, [productoData, tagsSource])
+
     if (!productoData) return null
 
-    const renderCurrency = (val) => formatCurrency(val, appConfig?.formato_numero || 'es-CO', appConfig?.moneda || 'COP')
+    const formatMoney = (val) => formatCurrency(
+        val,
+        appConfig?.formato_numero || 'es-CO',
+        appConfig?.moneda || 'COP'
+    )
 
-    const prefix = productoData.sku_prefix ? `${productoData.sku_prefix}${productoData.separador || ''}`.toUpperCase() : ''
+    const skuPrefix = productoData.sku_prefix
+        ? `${productoData.sku_prefix}${productoData.separador || ''}`.toUpperCase()
+        : ''
     const rawSku = String(productoData.sku || '').toUpperCase()
-    const finalSku = rawSku.startsWith(prefix) ? rawSku : `${prefix}${rawSku}`
-
-    let subcatsNombres = []
-    if (productoData.subcategorias_ids_json) {
-        try {
-            const subIds = typeof productoData.subcategorias_ids_json === 'string' 
-                ? JSON.parse(productoData.subcategorias_ids_json) 
-                : productoData.subcategorias_ids_json
-            
-            if (Array.isArray(subIds) && subIds.length > 0) {
-                subcatsNombres = subIds.map(id => {
-                    const sub = subcategoriasDisponibles.find(s => s.id === id)
-                    return sub ? sub.nombre : null
-                }).filter(Boolean)
-            }
-        } catch (e) {
-            console.error("Error parseando subcategorías", e)
-        }
-    }
-
-    let etiquetasObjs = []
-    if (productoData.etiquetas_ids) {
-        const tagIds = String(productoData.etiquetas_ids).split(',').map(s => s.trim()).filter(Boolean)
-        etiquetasObjs = tagIds.map(id => {
-            return etiquetasDisponibles.find(t => t.id === id)
-        }).filter(Boolean)
-    }
-
-    const getTextColor = (hexColor) => {
-        if (!hexColor) return '#ffffff'
-        const hex = hexColor.replace('#', '')
-        const r = parseInt(hex.substr(0, 2), 16)
-        const g = parseInt(hex.substr(2, 2), 16)
-        const b = parseInt(hex.substr(4, 2), 16)
-        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
-        return (yiq >= 128) ? '#000000' : '#ffffff'
-    }
+    const finalSku = skuPrefix && rawSku.startsWith(skuPrefix) ? rawSku : `${skuPrefix}${rawSku}`
 
     return <>
         <Modal show={show} onHide={handleClose} size="lg" centered className="shadow">
@@ -82,34 +185,39 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig, s
                 <Row>
                     <Col md={6} className="border-end">
                         <h6 className="text-uppercase small fw-bold mb-3 text-secondary">Información General</h6>
-                        
+
                         <div className="mb-3">
                             <label className="d-block small text-muted">Categoría Principal</label>
-                            <span className="fw-medium">{productoData.categoria_nombre || 'General'}</span>
+                            <span className="fw-medium">{categoryName}</span>
                         </div>
 
-                        {subcatsNombres.length > 0 && (
+                        {subcategoryNames.length > 0 && (
                             <div className="mb-3">
                                 <label className="d-block small text-muted mb-1">Subcategorías</label>
                                 <div>
-                                    {subcatsNombres.map((nombre, idx) => (
-                                        <Badge key={idx} bg="secondary" className="me-1 mb-1 fw-normal">{nombre}</Badge>
+                                    {subcategoryNames.map((name, idx) => (
+                                        <Badge key={idx} bg="secondary" className="me-1 mb-1 fw-normal">{name}</Badge>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        {etiquetasObjs.length > 0 && (
+                        {resolvedTags.length > 0 && (
                             <div className="mb-3">
                                 <label className="d-block small text-muted mb-1">Etiquetas (Tags)</label>
                                 <div>
-                                    {etiquetasObjs.map((tag, idx) => {
-                                        const color = tag.color || '#6c757d'
+                                    {resolvedTags.map((tag, idx) => {
+                                        const tagColor = tag.color || '#6c757d'
                                         return (
-                                            <span 
-                                                key={idx} 
-                                                className="badge shadow-sm me-1 mb-1" 
-                                                style={{ backgroundColor: color, color: getTextColor(color), padding: '5px 10px', borderRadius: '12px' }}
+                                            <span
+                                                key={tag.id || idx}
+                                                className="badge shadow-sm me-1 mb-1"
+                                                style={{
+                                                    backgroundColor: tagColor,
+                                                    color: getTextColor(tagColor),
+                                                    padding: '5px 10px',
+                                                    borderRadius: '12px'
+                                                }}
                                             >
                                                 <i className="bi bi-tag-fill me-1"></i>{tag.nombre}
                                             </span>
@@ -121,7 +229,7 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig, s
 
                         <div className="mb-3">
                             <label className="d-block small text-muted">Precio Unitario</label>
-                            <span className="fw-bold fs-5 text-success">{renderCurrency(productoData.precio)}</span>
+                            <span className="fw-bold fs-5 text-success">{formatMoney(productoData.precio)}</span>
                         </div>
 
                         <Row className="mb-3">
@@ -145,7 +253,9 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig, s
                                 {productoData.allow_encargo === 1 && (
                                     <li className="mb-1 ps-4 text-muted">
                                         <i className="bi bi-arrow-return-right me-1"></i>
-                                        {productoData.encargo_solo_sin_stock === 1 ? 'Requerir agotamiento previo de stock físico' : 'Se puede encargar en cualquier momento'}
+                                        {productoData.encargo_solo_sin_stock === 1
+                                            ? 'Requerir agotamiento previo de stock físico'
+                                            : 'Se puede encargar en cualquier momento'}
                                     </li>
                                 )}
                             </ul>
@@ -164,7 +274,10 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig, s
                             <>
                                 <div className="d-flex align-items-center mb-3 p-3 rounded bg-light border">
                                     <div className="me-3">
-                                        <div className={`rounded-circle d-flex align-items-center justify-content-center text-white bg-${productoData.stock <= productoData.min_stock ? 'danger' : 'success'}`} style={{ width: '45px', height: '45px', fontSize: '1.2rem' }}>
+                                        <div
+                                            className={`rounded-circle d-flex align-items-center justify-content-center text-white bg-${productoData.stock <= productoData.min_stock ? 'danger' : 'success'}`}
+                                            style={{ width: '45px', height: '45px', fontSize: '1.2rem' }}
+                                        >
                                             <i className={`bi bi-${productoData.stock <= productoData.min_stock ? 'exclamation-triangle' : 'check-lg'}`}></i>
                                         </div>
                                     </div>
@@ -197,7 +310,7 @@ export const ProductoDetalles = ({ show, handleClose, productoData, appConfig, s
                                 </div>
                             </>
                         )}
-                        
+
                         <div className="bg-light p-3 rounded border mt-3">
                             <label className="text-muted fw-bold d-block small mb-1">Descripción / Notas</label>
                             <p className="mb-0" style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>

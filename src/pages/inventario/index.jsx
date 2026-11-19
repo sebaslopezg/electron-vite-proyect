@@ -531,11 +531,14 @@ export const Inventario = ({ currentUser }) => {
             onVerFactura={handleVerFactura}
         />
 
-        <ProductoDetalles 
+        <ProductoDetalles
             show={showDetalles}
             handleClose={handleCloseDetalles}
             productoData={prodSel}
             appConfig={appConfig}
+            categoriasDisponibles={categoriasList}
+            subcategoriasDisponibles={subcategoriasTotales}
+            etiquetasDisponibles={etiquetasList}
         />
 
         <ModalDetalleFactura 
