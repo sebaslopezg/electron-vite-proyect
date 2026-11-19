@@ -22,7 +22,8 @@ export const registerClientesHandlers = () => {
                     numero_documento as documento, 
                     (CASE WHEN tipo_persona = 'juridica' THEN razon_social ELSE nombres || ' ' || apellidos END) as nombre,
                     telefono, 
-                    direccion 
+                    direccion,
+                    COALESCE(saldo_favor, 0) as saldo_favor
                 FROM terceros 
                 WHERE es_cliente = 1 AND estado = 1
             `)

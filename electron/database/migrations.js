@@ -256,6 +256,17 @@ const migrations = [
                 );
             `)
         }
+    },
+    {
+        version: 20,
+        up: () => {
+            console.log("Applying migration V20: Agregando saldo_favor a terceros")
+            try {
+                db.exec(`ALTER TABLE terceros ADD COLUMN saldo_favor REAL DEFAULT 0;`)
+            } catch (error) {
+                if (!error.message.includes('duplicate column name')) throw error
+            }
+        }
     }
 ]
 

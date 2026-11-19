@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ClientesActivos } from './ClientesActivos'
 import { ClientesInactivos } from './ClientesInactivos'
+import { ClientesSaldos } from './ClientesSaldos'
 import { clientesService } from '../../services/clientesService'
 
 export const Clientes = ({ currentUser }) => {
@@ -48,11 +49,22 @@ export const Clientes = ({ currentUser }) => {
                                 <i className="bi bi-person-x-fill me-2"></i> Clientes Inactivos
                             </button>
                         </li>
+                        <li className="nav-item" role="presentation">
+                            <button 
+                                className={`nav-link ${activeTab === 'saldos' ? 'active text-primary' : 'text-muted'}`}
+                                onClick={() => setActiveTab('saldos')}
+                                type="button" 
+                                role="tab"
+                            >
+                                <i className="bi bi-wallet2 me-2"></i> Saldos
+                            </button>
+                        </li>
                     </ul>
 
                     <div className="tab-content animate__animated animate__fadeIn">
                         {activeTab === 'activos' && <ClientesActivos activeUser={activeUser} />}
                         {activeTab === 'inactivos' && <ClientesInactivos activeUser={activeUser} />}
+                        {activeTab === 'saldos' && <ClientesSaldos activeUser={activeUser} />}
                     </div>
                 </div>
             </div>

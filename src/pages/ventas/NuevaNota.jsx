@@ -30,124 +30,145 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                     moneda: parsed.moneda || 'COP',
                     formato_numero: parsed.formato_numero || 'es-CO'
                 })
-            } catch(e) {}
+            } catch (e) {}
         }
     }
 
     useEffect(() => { loadConfig() }, [])
 
-    const valorInicialTipo = canCrearCredito ? 'Crédito' : (canCrearDebito ? 'Débito' : '')
+    const initialNoteType = canCrearCredito ? 'Crédito' : (canCrearDebito ? 'Débito' : '')
 
     const [formData, setFormData] = useState({
-        tipo_nota: valorInicialTipo,
-        motivo_dian: valorInicialTipo === 'Crédito' ? 'Devolución de parte de los bienes' : 'Intereses',
+        tipo_nota: initialNoteType,
+        motivo_dian: initialNoteType === 'Crédito' ? 'Devolución de parte de los bienes' : 'Intereses',
         numero_factura_origen: '',
         observaciones: '',
-        afecta_inventario: true
+        afecta_inventario: true,
+        generar_saldo_favor: initialNoteType === 'Crédito'
     })
 
-    const [facturaCargada, setFacturaCargada] = useState(null)
-    const [productosDisponibles, setProductosDisponibles] = useState([])
+    const [loadedInvoice, setLoadedInvoice] = useState(null)
+    const [clientBalance, setClientBalance] = useState(null)
+    const [availableProducts, setAvailableProducts] = useState([])
     const [items, setItems] = useState([])
-    
+
     const [showModal, setShowModal] = useState(false)
     const [itemForm, setItemForm] = useState({ id_producto: '', cantidad: 1 })
 
-    const motivosCredito = [
-        "Devolución de parte de los bienes", 
-        "Anulación de factura electrónica", 
-        "Rebaja total", 
+    const creditReasons = [
+        "Devolución de parte de los bienes",
+        "Anulación de factura electrónica",
+        "Rebaja total",
         "Descuento parcial"
     ]
-    const motivosDebito = [
-        "Intereses", 
-        "Gastos por cobrar", 
+    const debitReasons = [
+        "Intereses",
+        "Gastos por cobrar",
         "Cambio del valor"
     ]
 
-    const totales = items.reduce((acc, item) => {
+    const totals = items.reduce((acc, item) => {
         return {
             base: acc.base + (item.subtotal || 0),
             iva: acc.iva + ((item.subtotal * item.iva_percent) || 0),
             final: acc.final + (item.total || 0)
-        };
+        }
     }, { base: 0, iva: 0, final: 0 })
+
+    // Live calculation of debt discount and credit balance excess
+    const isCreditNote = formData.tipo_nota === 'Crédito'
+    const hasRegisteredClient = Boolean(clientBalance?.id)
+    const currentClientCredit = Number(clientBalance?.saldo_favor) || 0
+    const invoicePendingDebt = Math.max(0, Number(loadedInvoice?.saldo_pendiente) || 0)
+    const debtToDiscount = isCreditNote ? Math.min(invoicePendingDebt, totals.final) : 0
+    const creditExcess = isCreditNote ? Math.max(0, totals.final - debtToDiscount) : 0
+    const willAddCreditBalance = isCreditNote && hasRegisteredClient && formData.generar_saldo_favor && creditExcess > 0
+    const projectedClientCredit = currentClientCredit + (willAddCreditBalance ? creditExcess : 0)
+
+    const formatMoney = (value) => formatCurrency(value, appConfig.formato_numero, appConfig.moneda)
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target
-        
+
         if (name === 'tipo_nota') {
-            setFormData({ 
-                ...formData, 
+            setFormData({
+                ...formData,
                 [name]: value,
-                motivo_dian: value === 'Crédito' ? motivosCredito[0] : motivosDebito[0]
+                motivo_dian: value === 'Crédito' ? creditReasons[0] : debitReasons[0],
+                generar_saldo_favor: value === 'Crédito'
             })
         } else {
             setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value })
         }
     }
 
-    const handleSearchFactura = async () => {
-        const busquedaExacta = formData.numero_factura_origen.trim()
+    const handleSearchInvoice = async () => {
+        const exactSearch = formData.numero_factura_origen.trim()
 
-        if (!busquedaExacta) {
+        if (!exactSearch) {
             Toast.fire({ icon: 'warning', title: 'Ingrese un número de factura' })
             return
         }
 
-        const result = await ventasService.searchFactura(busquedaExacta)
-        
+        const result = await ventasService.searchFactura(exactSearch)
+
         if (result.success) {
-            setFacturaCargada(result.maestro)
-            setProductosDisponibles(result.detalles)
+            setLoadedInvoice(result.maestro)
+            setClientBalance(result.clienteSaldo || null)
+            setAvailableProducts(result.detalles)
             setItems([])
+            setFormData(prev => ({
+                ...prev,
+                generar_saldo_favor: prev.tipo_nota === 'Crédito' && Boolean(result.clienteSaldo?.id)
+            }))
             Toast.fire({ icon: 'success', title: 'Factura Encontrada', text: `Cliente: ${result.maestro.nombre_cliente}` })
         } else {
             Toast.fire({ icon: 'error', title: result.message || 'Factura no encontrada' })
-            setFacturaCargada(null)
-            setProductosDisponibles([])
+            setLoadedInvoice(null)
+            setClientBalance(null)
+            setAvailableProducts([])
         }
     }
 
     const handleCloseModal = () => setShowModal(false)
-    
+
     const handleOpenModal = () => {
-        if(productosDisponibles.length > 0) {
-            setItemForm({ id_producto: productosDisponibles[0].id_producto, cantidad: 1 })
+        if (availableProducts.length > 0) {
+            setItemForm({ id_producto: availableProducts[0].id_producto, cantidad: 1 })
         }
         setShowModal(true)
     }
 
     const handleConfirmAddItem = () => {
-        const prodFactura = productosDisponibles.find(p => p.id_producto === itemForm.id_producto)
-        if (!prodFactura) return
+        const invoiceProduct = availableProducts.find(p => p.id_producto === itemForm.id_producto)
+        if (!invoiceProduct) return
 
-        const cantAAgregar = parseFloat(itemForm.cantidad)
+        const qtyToAdd = parseFloat(itemForm.cantidad)
 
-        if (cantAAgregar <= 0) {
+        if (qtyToAdd <= 0) {
             Toast.fire({ icon: 'error', title: 'La cantidad debe ser mayor a 0' })
             return
         }
-        if (cantAAgregar > prodFactura.cantidad_producto) {
-            Toast.fire({ icon: 'error', title: `La cantidad supera lo vendido (${prodFactura.cantidad_producto})` })
+        if (qtyToAdd > invoiceProduct.cantidad_producto) {
+            Toast.fire({ icon: 'error', title: `La cantidad supera lo vendido (${invoiceProduct.cantidad_producto})` })
             return
         }
-        if (items.some(i => i.id_producto === prodFactura.id_producto)) {
+        if (items.some(i => i.id_producto === invoiceProduct.id_producto)) {
             Toast.fire({ icon: 'warning', title: 'Este producto ya está en la nota' })
             return
         }
 
         const newItem = {
-            id: prodFactura.id_producto, 
-            id_producto: prodFactura.id_producto,
-            sku: prodFactura.sku,
-            sku_prefix: prodFactura.sku_prefix,
-            separador: prodFactura.separador,
-            nombre_producto: prodFactura.nombre_producto,
-            amount: cantAAgregar,
-            cantidad: cantAAgregar,
-            precio_unitario: prodFactura.precio_producto,
-            iva_percent: Number(prodFactura.iva ?? 0) / 100,
+            id: invoiceProduct.id_producto,
+            id_producto: invoiceProduct.id_producto,
+            sku: invoiceProduct.sku,
+            sku_prefix: invoiceProduct.sku_prefix,
+            separador: invoiceProduct.separador,
+            nombre_producto: invoiceProduct.nombre_producto,
+            amount: qtyToAdd,
+            cantidad: qtyToAdd,
+            precio_unitario: invoiceProduct.precio_producto,
+            iva_percent: Number(invoiceProduct.iva ?? 0) / 100,
             get subtotal() { return this.cantidad * this.precio_unitario },
             get total() { return this.subtotal * (1 + this.iva_percent) }
         }
@@ -156,8 +177,8 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
         handleCloseModal()
     }
 
-    const handleDeleteItem = (id_producto_eliminar) => {
-        setItems(prevItems => prevItems.filter(item => item.id !== id_producto_eliminar))
+    const handleDeleteItem = (productIdToRemove) => {
+        setItems(prevItems => prevItems.filter(item => item.id !== productIdToRemove))
     }
 
     const tableContainerRef = useRef(null)
@@ -167,9 +188,9 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
         if (!container) return
 
         const handleTableClick = (e) => {
-            const delBtn = e.target.closest('.btn-delete-item')
-            if (delBtn) {
-                const id = delBtn.dataset.id
+            const deleteBtn = e.target.closest('.btn-delete-item')
+            if (deleteBtn) {
+                const id = deleteBtn.dataset.id
                 handleDeleteItem(id)
             }
         }
@@ -189,20 +210,19 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
             tipo_nota: formData.tipo_nota,
             prefijo: formData.tipo_nota === 'Crédito' ? 'NC' : 'ND',
             numero_nota: 0,
-            id_factura_origen: facturaCargada.id, 
-            numero_factura_origen: facturaCargada.numero_factura.toString(),
-
-            documento_cliente: facturaCargada.documento_cliente || '',
-            nombre_cliente: facturaCargada.nombre_cliente || 'Cliente Mostrador',
-
+            id_factura_origen: loadedInvoice.id,
+            numero_factura_origen: loadedInvoice.numero_factura.toString(),
+            documento_cliente: loadedInvoice.documento_cliente || '',
+            nombre_cliente: loadedInvoice.nombre_cliente || 'Cliente Mostrador',
             motivo_dian: formData.motivo_dian,
             observaciones: formData.observaciones,
-            total_base: totales.base,
-            total_iva: totales.iva,
-            total_final: totales.final,
+            total_base: totals.base,
+            total_iva: totals.iva,
+            total_final: totals.final,
             moneda: appConfig.moneda,
             formato_numero: appConfig.formato_numero,
             afecta_inventario: formData.afecta_inventario,
+            generar_saldo_favor: isCreditNote && hasRegisteredClient && formData.generar_saldo_favor,
             usuario: "Admin",
             items: items.map(item => ({
                 id_producto: item.id_producto,
@@ -217,7 +237,11 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
 
         const result = await ventasService.addNota(payload)
         if (result.success) {
-            Toast.fire({ icon: 'success', title: 'La nota ha sido registrada con éxito' })
+            window.dispatchEvent(new Event('factura-creada'))
+            const extraMsg = result.creditBalanceAdded > 0
+                ? `Saldo a favor abonado: ${formatMoney(result.creditBalanceAdded)}`
+                : undefined
+            Toast.fire({ icon: 'success', title: 'La nota ha sido registrada con éxito', text: extraMsg })
             onSuccess()
         } else {
             Toast.fire({ icon: 'error', title: result.error || 'No se pudo guardar la nota' })
@@ -230,7 +254,7 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                 <h5 className="mb-0 text-primary">Nueva Nota</h5>
                 <button className="btn btn-outline-secondary btn-sm" onClick={onBack}>Volver</button>
             </div>
-            
+
             <div className="card-body">
                 <form onSubmit={handleSubmit}>
                     <div className="row g-3 mb-4">
@@ -244,22 +268,22 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                         <div className="col-md-3">
                             <label className="form-label fw-bold">N° Factura Origen</label>
                             <div className="input-group">
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
-                                    name="numero_factura_origen" 
-                                    value={formData.numero_factura_origen} 
-                                    onChange={handleChange} 
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    name="numero_factura_origen"
+                                    value={formData.numero_factura_origen}
+                                    onChange={handleChange}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             e.preventDefault()
-                                            handleSearchFactura()
+                                            handleSearchInvoice()
                                         }
                                     }}
                                     placeholder="Ej: F-123"
-                                    required 
+                                    required
                                 />
-                                <button className="btn btn-primary" type="button" onClick={handleSearchFactura}>
+                                <button className="btn btn-primary" type="button" onClick={handleSearchInvoice}>
                                     <i className="bi bi-search"></i>
                                 </button>
                             </div>
@@ -267,58 +291,120 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                         <div className="col-md-6">
                             <label className="form-label fw-bold">Motivo (DIAN)</label>
                             <select className="form-select" name="motivo_dian" value={formData.motivo_dian} onChange={handleChange}>
-                                {(formData.tipo_nota === 'Crédito' ? motivosCredito : motivosDebito).map((m, i) => <option key={i} value={m}>{m}</option>)}
+                                {(isCreditNote ? creditReasons : debitReasons).map((reason, idx) => (
+                                    <option key={idx} value={reason}>{reason}</option>
+                                ))}
                             </select>
                         </div>
-                        
-                        {facturaCargada && (
+
+                        {loadedInvoice && (
                             <div className="col-12 mt-2">
-                                <div className="alert alert-info py-2 m-0">
-                                    <strong>Factura Seleccionada:</strong> {facturaCargada.prefijo || ''}{facturaCargada.separador || ''}{facturaCargada.numero_factura} | 
-                                    <strong> Cliente:</strong> {facturaCargada.nombre_cliente} | 
-                                    <strong> Total Original:</strong> {
-                                        formatCurrency(
-                                            productosDisponibles.reduce((sum, item) => sum + (item.total || 0), 0),
-                                            appConfig.formato_numero,
-                                            appConfig.moneda
-                                        )
-                                    }
+                                <div className="alert alert-info py-2 m-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <div>
+                                        <strong>Factura Seleccionada:</strong> {loadedInvoice.prefijo || ''}{loadedInvoice.separador || ''}{loadedInvoice.numero_factura} |
+                                        <strong> Cliente:</strong> {loadedInvoice.nombre_cliente} |
+                                        <strong> Total Original:</strong> {formatMoney(availableProducts.reduce((sum, item) => sum + (item.total || 0), 0))}
+                                    </div>
+                                    <div className="d-flex gap-3">
+                                        <span>
+                                            <strong>Saldo Pendiente:</strong>{' '}
+                                            <span className={invoicePendingDebt > 0 ? 'text-danger fw-bold' : 'text-muted'}>
+                                                {formatMoney(invoicePendingDebt)}
+                                            </span>
+                                        </span>
+                                        <span>
+                                            <strong>Saldo a Favor Actual:</strong>{' '}
+                                            {hasRegisteredClient ? (
+                                                <span className="text-success fw-bold">{formatMoney(currentClientCredit)}</span>
+                                            ) : (
+                                                <span className="badge bg-warning text-dark">No registrado en Terceros</span>
+                                            )}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         )}
 
-                        <div className="col-md-9">
+                        <div className="col-md-6">
                             <label className="form-label fw-bold">Observaciones</label>
                             <input type="text" className="form-control" name="observaciones" value={formData.observaciones} onChange={handleChange} />
                         </div>
+
                         <div className="col-md-3 d-flex align-items-end">
                             <div className="form-check form-switch fs-5">
                                 <input className="form-check-input" type="checkbox" name="afecta_inventario" id="inventarioSwitch" checked={formData.afecta_inventario} onChange={handleChange} />
                                 <label className="form-check-label fs-6 ms-2" htmlFor="inventarioSwitch">Afecta Inventario</label>
                             </div>
                         </div>
+
+                        {isCreditNote && (
+                            <div className="col-md-3 d-flex align-items-end">
+                                <div className="form-check form-switch fs-5">
+                                    <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        name="generar_saldo_favor"
+                                        id="creditBalanceSwitch"
+                                        checked={formData.generar_saldo_favor && hasRegisteredClient}
+                                        disabled={!loadedInvoice || !hasRegisteredClient}
+                                        onChange={handleChange}
+                                    />
+                                    <label className="form-check-label fs-6 ms-2" htmlFor="creditBalanceSwitch">
+                                        Dar Saldo a Favor
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+
+                        {isCreditNote && loadedInvoice && totals.final > 0 && (
+                            <div className="col-12">
+                                <div className={`alert py-2 m-0 small ${willAddCreditBalance ? 'alert-success' : 'alert-secondary'}`}>
+                                    <i className={`bi ${willAddCreditBalance ? 'bi-wallet2' : 'bi-info-circle'} me-2`}></i>
+                                    {debtToDiscount > 0 && (
+                                        <span className="me-2">
+                                            Se descontarán <strong>{formatMoney(debtToDiscount)}</strong> de la deuda pendiente de esta factura.
+                                        </span>
+                                    )}
+                                    {creditExcess > 0 ? (
+                                        !hasRegisteredClient ? (
+                                            <span>El cliente no está registrado en Terceros; el excedente de <strong>{formatMoney(creditExcess)}</strong> no se puede asignar como saldo a favor.</span>
+                                        ) : formData.generar_saldo_favor ? (
+                                            <span>
+                                                Se abonarán <strong>{formatMoney(creditExcess)}</strong> al saldo a favor del cliente (Nuevo saldo a favor: <strong>{formatMoney(projectedClientCredit)}</strong>).
+                                            </span>
+                                        ) : (
+                                            <span>
+                                                El excedente de <strong>{formatMoney(creditExcess)}</strong> no se guardará como saldo a favor (devolución directa).
+                                            </span>
+                                        )
+                                    ) : (
+                                        <span>La nota cubre deuda pendiente; no genera excedente como saldo a favor.</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="mb-4">
                         <div className="d-flex justify-content-between align-items-end mb-2">
                             <h6 className="fw-bold mb-0">Detalle de la Nota</h6>
-                            <button type="button" className="btn btn-success btn-sm" disabled={!facturaCargada} onClick={handleOpenModal}>
+                            <button type="button" className="btn btn-success btn-sm" disabled={!loadedInvoice} onClick={handleOpenModal}>
                                 <i className="bi bi-plus me-1"></i> Agregar Ítem
                             </button>
                         </div>
-                        
+
                         <div ref={tableContainerRef}>
-                            <DataTableComponent 
+                            <DataTableComponent
                                 data={items}
                                 columns={[
-                                    { 
-                                        data: 'sku', 
+                                    {
+                                        data: 'sku',
                                         title: 'SKU',
                                         render: (data, type, row) => {
                                             if (!data) return '-'
                                             const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : ''
                                             const skuVal = String(data).toUpperCase()
-                                            
+
                                             const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
                                             return `<strong>${finalSku}</strong>`
                                         }
@@ -328,9 +414,9 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                                     { data: 'precio_unitario', title: 'V. Unitario' },
                                     { data: 'iva_percent', title: 'IVA' },
                                     { data: 'total', title: 'Total' },
-                                    { 
-                                        data: null, 
-                                        title: 'Acciones', 
+                                    {
+                                        data: null,
+                                        title: 'Acciones',
                                         orderable: false,
                                         render: function (data, type, row) {
                                             return `
@@ -342,9 +428,9 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                                     }
                                 ]}
                                 customRenders={{
-                                    precio_unitario: (data) => formatCurrency(data, appConfig.formato_numero, appConfig.moneda),
+                                    precio_unitario: (data) => formatMoney(data),
                                     iva_percent: (data) => `${(parseFloat(data) * 100).toFixed(0)}%`,
-                                    total: (data) => `<strong>${formatCurrency(data, appConfig.formato_numero, appConfig.moneda)}</strong>`
+                                    total: (data) => `<strong>${formatMoney(data)}</strong>`
                                 }}
                             />
                         </div>
@@ -354,10 +440,10 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                         <div className="col-md-4">
                             <table className="table table-sm table-borderless text-end fs-5">
                                 <tbody>
-                                    <tr><td className="fw-bold">Subtotal:</td><td>{formatCurrency(totales.base, appConfig.formato_numero, appConfig.moneda)}</td></tr>
-                                    <tr><td className="fw-bold">IVA:</td><td>{formatCurrency(totales.iva, appConfig.formato_numero, appConfig.moneda)}</td></tr>
+                                    <tr><td className="fw-bold">Subtotal:</td><td>{formatMoney(totals.base)}</td></tr>
+                                    <tr><td className="fw-bold">IVA:</td><td>{formatMoney(totals.iva)}</td></tr>
                                     <tr className="border-top border-2 border-dark">
-                                        <td className="fw-bold fs-4">Total:</td><td className="fw-bold fs-4 text-primary">{formatCurrency(totales.final, appConfig.formato_numero, appConfig.moneda)}</td>
+                                        <td className="fw-bold fs-4">Total:</td><td className="fw-bold fs-4 text-primary">{formatMoney(totals.final)}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -369,10 +455,10 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                 </form>
             </div>
 
-            <ModalSeleccionItemNota 
+            <ModalSeleccionItemNota
                 show={showModal}
                 handleClose={handleCloseModal}
-                productosDisponibles={productosDisponibles}
+                productosDisponibles={availableProducts}
                 itemForm={itemForm}
                 setItemForm={setItemForm}
                 handleConfirmAddItem={handleConfirmAddItem}

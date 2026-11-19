@@ -98,6 +98,8 @@ contextBridge.exposeInMainWorld("api", {
   addCliente: (item) => ipcRenderer.invoke("add-cliente", item),
   updateCliente: (item) => ipcRenderer.invoke("update-cliente", item),
   deleteCliente: (item) => ipcRenderer.invoke("delete-cliente", item),
+  getClienteSaldo: (params) => ipcRenderer.invoke('get-cliente-saldo', params),
+  getClientesSaldosPaginados: (params) => ipcRenderer.invoke('get-clientes-saldos-paginados', params),
 
   // configuraciones
   getConfiguracion: () => ipcRenderer.invoke("get-configuracion"),

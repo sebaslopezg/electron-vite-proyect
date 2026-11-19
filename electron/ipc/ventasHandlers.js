@@ -321,21 +321,68 @@ export const registerVentasHandlers = () => {
             return { success: false, error: "La facturación local está bloqueada. La nube controla las ventas." }
         }
 
-        const transaction = db.transaction((maestroData, detallesData) => {
-            const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get();
-            const now = nowRow.nowStr;
-            
-            const maestroId = uuidv4()
+        const transaction = db.transaction((masterData, detailsData) => {
+            const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get()
+            const now = nowRow.nowStr
+
+            const masterId = uuidv4()
             const currentUser = global.currentUserSession?.username || 'system'
             const currentFullName = global.currentUserSession?.nombre_completo || 'Sistema'
 
             const config = db.prepare('SELECT * FROM almacen_conf LIMIT 1').get()
-            if (!config) throw new Error("No se encontró configuración del almacén")
+            if (!config) throw new Error("Store configuration not found")
 
-            const nuevoNumeroFactura = config.consecutivo + 1
-            const prefijoFactura = config.prefijo || ''
+            const requestedCreditUsed = Math.max(0, Number(masterData.saldo_favor_usado) || 0)
+            let creditBalanceUsed = 0
+            let remainingCreditBalance = 0
 
-            const insertMaestro = db.prepare(`
+            if (requestedCreditUsed > 0) {
+                const clientDoc = (masterData.documento_cliente || '').trim()
+                if (!clientDoc) {
+                    throw new Error("Client document is required to apply credit balance")
+                }
+
+                const clientRecord = db.prepare(`
+                    SELECT id, COALESCE(saldo_favor, 0) as saldo_favor
+                    FROM terceros
+                    WHERE numero_documento = ? AND estado != -1
+                    LIMIT 1
+                `).get(clientDoc)
+
+                if (!clientRecord) {
+                    throw new Error("Client not found in terceros to apply credit balance")
+                }
+
+                const availableCredit = Number(clientRecord.saldo_favor) || 0
+                const invoiceTotal = Number(masterData.total) || 0
+
+                if (requestedCreditUsed > availableCredit + 0.01) {
+                    throw new Error("Insufficient client credit balance for this sale")
+                }
+
+                if (requestedCreditUsed > invoiceTotal + 0.01) {
+                    throw new Error("Credit balance applied cannot exceed invoice total")
+                }
+
+                creditBalanceUsed = Math.min(requestedCreditUsed, availableCredit, invoiceTotal)
+                remainingCreditBalance = Math.max(0, availableCredit - creditBalanceUsed)
+
+                db.prepare(`
+                    UPDATE terceros
+                    SET saldo_favor = ?, date_modify = ?
+                    WHERE id = ?
+                `).run(remainingCreditBalance, now, clientRecord.id)
+
+                logger.info(
+                    'SALES',
+                    `Applied credit balance ${creditBalanceUsed} for client ID ${clientRecord.id}. Remaining credit balance: ${remainingCreditBalance}`
+                )
+            }
+
+            const newInvoiceNumber = config.consecutivo + 1
+            const invoicePrefix = config.prefijo || ''
+
+            const insertMaster = db.prepare(`
                 INSERT INTO ventasMaestro (
                     id, numero_factura, prefijo, separador, resolucion_dian, titulo_documento,
                     nombre_almacen, nit_almacen, direccion_almacen, telefono_almacen,
@@ -347,94 +394,98 @@ export const registerVentasHandlers = () => {
                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?
                 )
             `)
-            insertMaestro.run(
-                maestroId, 
-                nuevoNumeroFactura, 
-                prefijoFactura, 
-                config.separador || '', 
+            insertMaster.run(
+                masterId,
+                newInvoiceNumber,
+                invoicePrefix,
+                config.separador || '',
                 config.resolucionDian || '',
-                config.nombreFactura || '', 
-                config.nombre_almacen || '', 
-                config.nit_almacen || '', 
+                config.nombreFactura || '',
+                config.nombre_almacen || '',
+                config.nit_almacen || '',
                 config.direccion_almacen || '',
-                config.telefono_almacen || '', 
-                config.email_almacen || '', 
+                config.telefono_almacen || '',
+                config.email_almacen || '',
                 config.footer_factura || '',
-                maestroData.nombre_cliente, 
-                maestroData.documento_cliente,
-                maestroData.telefono_cliente || null,
-                maestroData.subtotal, 
-                maestroData.descuento,
-                maestroData.iva, 
-                maestroData.total, 
-                maestroData.total_recibido, 
-                maestroData.saldo_pendiente,
-                maestroData.total_recibido, 
-                maestroData.saldo_pendiente, 
-                maestroData.tipo_pago, 
-                maestroData.metodo_pago,
-                maestroData.pagos_multiples || null,
-                maestroData.moneda, 
-                maestroData.formato_numero, 
-                now, 
-                now, 
-                maestroData.observaciones || '',
-                currentFullName 
+                masterData.nombre_cliente,
+                masterData.documento_cliente,
+                masterData.telefono_cliente || null,
+                masterData.subtotal,
+                masterData.descuento,
+                masterData.iva,
+                masterData.total,
+                masterData.total_recibido,
+                masterData.saldo_pendiente,
+                masterData.total_recibido,
+                masterData.saldo_pendiente,
+                masterData.tipo_pago,
+                masterData.metodo_pago,
+                masterData.pagos_multiples || null,
+                masterData.moneda,
+                masterData.formato_numero,
+                now,
+                now,
+                masterData.observaciones || '',
+                currentFullName
             )
 
-            db.prepare('UPDATE almacen_conf SET consecutivo = ? WHERE id = ?').run(nuevoNumeroFactura, config.id)
+            db.prepare('UPDATE almacen_conf SET consecutivo = ? WHERE id = ?').run(newInvoiceNumber, config.id)
 
-            for (const item of detallesData) {
-                const detalleId = uuidv4()
-                const insertDetalle = db.prepare(`
+            for (const item of detailsData) {
+                const detailId = uuidv4()
+                const insertDetail = db.prepare(`
                     INSERT INTO ventasDetalle (
                         id, maestro_id, id_producto, nombre_producto, cantidad_producto, 
                         precio_producto, total, is_encargo, date_created
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `)
-                insertDetalle.run(
-                    detalleId, maestroId, item.id, item.ref_name, item.cantidad,
+                insertDetail.run(
+                    detailId, masterId, item.id, item.ref_name, item.cantidad,
                     item.precio, item.cantidad * item.precio, item.isEncargo, now
                 )
 
                 if (item.isEncargo === '0' && item.tipo !== "servicio") {
-                    const producto = db.prepare("SELECT stock FROM inventario_saldos WHERE producto_id = ?").get(item.id)
-                    const stockAnterior = producto ? producto.stock : 0
-                    const stockNuevo = stockAnterior - item.cantidad
+                    const productStock = db.prepare("SELECT stock FROM inventario_saldos WHERE producto_id = ?").get(item.id)
+                    const previousStock = productStock ? productStock.stock : 0
+                    const newStock = previousStock - item.cantidad
 
-                    db.prepare("UPDATE inventario_saldos SET stock = ? WHERE producto_id = ?").run(stockNuevo, item.id)
+                    db.prepare("UPDATE inventario_saldos SET stock = ? WHERE producto_id = ?").run(newStock, item.id)
 
-                    const insertInventario = db.prepare(`
-                    INSERT INTO inventario (
-                        id, producto_id, tipo_movimiento, modulo_movimiento, cantidad, 
-                        stock_anterior, stock_nuevo, fecha, usuario, notas
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    const insertInventory = db.prepare(`
+                        INSERT INTO inventario (
+                            id, producto_id, tipo_movimiento, modulo_movimiento, cantidad, 
+                            stock_anterior, stock_nuevo, fecha, usuario, notas
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `)
-                    const numF = `${prefijoFactura}${config.separador || ''}${nuevoNumeroFactura}`
-                    const htmlNota = `Venta <a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura-global" data-fullnum="${numF}">Factura ${numF}</a>`
-                    
-                    insertInventario.run(
-                        uuidv4(), item.id, 'SALIDA', 'VENTA', item.cantidad, 
-                        stockAnterior, stockNuevo, now, currentUser, htmlNota
+                    const fullInvoiceNum = `${invoicePrefix}${config.separador || ''}${newInvoiceNumber}`
+                    const htmlNote = `Venta <a href="#" class="text-primary fw-bold text-decoration-underline btn-view-factura-global" data-fullnum="${fullInvoiceNum}">Factura ${fullInvoiceNum}</a>`
+
+                    insertInventory.run(
+                        uuidv4(), item.id, 'SALIDA', 'VENTA', item.cantidad,
+                        previousStock, newStock, now, currentUser, htmlNote
                     )
                 } else if (item.isEncargo === '1') {
                     try {
-                        const prevNum = db.prepare('SELECT COUNT(*) as count FROM encargos').get()
-                        const newNum = prevNum.count + 1
-                        const insertEncargo = db.prepare(
-                            `INSERT INTO encargos(
+                        const prevCount = db.prepare('SELECT COUNT(*) as count FROM encargos').get()
+                        const newOrderNum = prevCount.count + 1
+                        const insertOrder = db.prepare(`
+                            INSERT INTO encargos(
                                 id, factura_id, producto_id, estado_id, cliente_nombre, cliente_documento,
                                 factura_numero, producto_cantidad, encargo_numero, date_created, status
-                            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
-                        )
-                        
-                        let estadoIdObj = db.prepare("SELECT id FROM estadoEncargo WHERE titulo COLLATE NOCASE = 'Pendiente'").get()
-                        let estadoId = estadoIdObj ? estadoIdObj.id : 'pendiente'
+                            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                        `)
 
-                        insertEncargo.run(uuidv4(), maestroId, item.id, estadoId, maestroData.nombre_cliente, maestroData.documento_cliente, nuevoNumeroFactura, item.cantidad, newNum, now)
+                        const statusObj = db.prepare("SELECT id FROM estadoEncargo WHERE titulo COLLATE NOCASE = 'Pendiente'").get()
+                        const statusId = statusObj ? statusObj.id : 'pendiente'
+
+                        insertOrder.run(
+                            uuidv4(), masterId, item.id, statusId,
+                            masterData.nombre_cliente, masterData.documento_cliente,
+                            newInvoiceNumber, item.cantidad, newOrderNum, now
+                        )
                     } catch (err) {
                         if (err.message.includes('FOREIGN KEY')) {
-                            throw new Error("Fallo en Sistema de Encargos. Los estados de configuración base están corruptos.")
+                            throw new Error("Order system failure: base status configuration is corrupted")
                         }
                         throw err
                     }
@@ -442,95 +493,106 @@ export const registerVentasHandlers = () => {
             }
 
             try {
-                const configContable = db.prepare('SELECT * FROM configuracionContable WHERE id = 1').get()
-                
-                if (configContable && configContable.cuenta_caja && configContable.cuenta_ingresos) {
-                    const tercero = db.prepare('SELECT id FROM terceros WHERE numero_documento = ?').get(maestroData.documento_cliente)
-                    const terceroId = tercero ? tercero.id : null
+                const accountingConfig = db.prepare('SELECT * FROM configuracionContable WHERE id = 1').get()
 
-                    const comprobanteId = uuidv4()
-                    const lastComp = db.prepare("SELECT MAX(numero_comprobante) as maxNum FROM comprobantes").get()
-                    const numeroComprobante = (lastComp.maxNum || 0) + 1
-                    
-                    const conceptoFactura = `Venta ${prefijoFactura}${config.separador || ''}${nuevoNumeroFactura} - ${maestroData.nombre_cliente}`
+                if (accountingConfig && accountingConfig.cuenta_caja && accountingConfig.cuenta_ingresos) {
+                    const thirdParty = db.prepare('SELECT id FROM terceros WHERE numero_documento = ?').get(masterData.documento_cliente)
+                    const thirdPartyId = thirdParty ? thirdParty.id : null
+
+                    const voucherId = uuidv4()
+                    const lastVoucher = db.prepare("SELECT MAX(numero_comprobante) as maxNum FROM comprobantes").get()
+                    const voucherNumber = (lastVoucher.maxNum || 0) + 1
+
+                    const invoiceConcept = `Venta ${invoicePrefix}${config.separador || ''}${newInvoiceNumber} - ${masterData.nombre_cliente}`
 
                     db.prepare(`
                         INSERT INTO comprobantes (id, numero_comprobante, fecha, concepto, documento_referencia, estado, date_created, modify_by)
                         VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-                    `).run(comprobanteId, numeroComprobante, now, conceptoFactura, `${prefijoFactura}${nuevoNumeroFactura}`, now, currentUser)
+                    `).run(voucherId, voucherNumber, now, invoiceConcept, `${invoicePrefix}${newInvoiceNumber}`, now, currentUser)
 
-                    const insertDetalleContable = db.prepare(`
+                    const insertAccountingDetail = db.prepare(`
                         INSERT INTO comprobantesDetalle (id, comprobante_id, cuenta_id, tercero_id, descripcion_linea, debito, credito)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     `)
 
-                    const tieneCuentaDesc = configContable.cuenta_descuento ? true : false;
-                    const valorIngreso = tieneCuentaDesc ? maestroData.subtotal : (maestroData.subtotal - maestroData.descuento)
-                    if (valorIngreso > 0) {
-                        insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_ingresos, terceroId, 'Ingresos por Venta', 0, valorIngreso)
+                    const hasDiscountAccount = Boolean(accountingConfig.cuenta_descuento)
+                    const incomeAmount = hasDiscountAccount ? masterData.subtotal : (masterData.subtotal - masterData.descuento)
+                    if (incomeAmount > 0) {
+                        insertAccountingDetail.run(uuidv4(), voucherId, accountingConfig.cuenta_ingresos, thirdPartyId, 'Ingresos por Venta', 0, incomeAmount)
                     }
 
-                    if (maestroData.iva > 0 && configContable.cuenta_iva) {
-                        insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_iva, terceroId, 'IVA Generado', 0, maestroData.iva)
+                    if (masterData.iva > 0 && accountingConfig.cuenta_iva) {
+                        insertAccountingDetail.run(uuidv4(), voucherId, accountingConfig.cuenta_iva, thirdPartyId, 'IVA Generado', 0, masterData.iva)
                     }
 
-                    if (maestroData.descuento > 0 && tieneCuentaDesc) {
-                        insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_descuento, terceroId, 'Descuento Concedido', maestroData.descuento, 0)
+                    if (masterData.descuento > 0 && hasDiscountAccount) {
+                        insertAccountingDetail.run(uuidv4(), voucherId, accountingConfig.cuenta_descuento, thirdPartyId, 'Descuento Concedido', masterData.descuento, 0)
                     }
 
-                    let montoFaltantePorRegistrar = maestroData.total - maestroData.saldo_pendiente
-                    let pagosMultiplesArray = []
+                    let remainingAmountToRecord = masterData.total - masterData.saldo_pendiente
+                    let multiplePaymentsList = []
                     try {
-                        if (maestroData.pagos_multiples) pagosMultiplesArray = JSON.parse(maestroData.pagos_multiples)
-                    } catch(e){}
+                        if (masterData.pagos_multiples) multiplePaymentsList = JSON.parse(masterData.pagos_multiples)
+                    } catch (e) {}
 
-                    if (montoFaltantePorRegistrar > 0 && pagosMultiplesArray.length > 0) {
-                        for (const p of pagosMultiplesArray) {
-                            if (montoFaltantePorRegistrar <= 0) break
-                            let montoAAplicar = parseFloat(p.monto) || 0
-                            if (montoAAplicar > montoFaltantePorRegistrar) {
-                                montoAAplicar = montoFaltantePorRegistrar
+                    if (remainingAmountToRecord > 0 && multiplePaymentsList.length > 0) {
+                        for (const payment of multiplePaymentsList) {
+                            if (remainingAmountToRecord <= 0) break
+                            let amountToApply = parseFloat(payment.monto) || 0
+                            if (amountToApply > remainingAmountToRecord) {
+                                amountToApply = remainingAmountToRecord
                             }
-                            if (montoAAplicar > 0) {
-                                const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(p.metodo)
-                                const cuentaDestinoEfectivo = (metodoInfo && metodoInfo.cuenta_id) ? metodoInfo.cuenta_id : configContable.cuenta_caja
-                                insertDetalleContable.run(uuidv4(), comprobanteId, cuentaDestinoEfectivo, terceroId, `Ingreso por ${p.metodo}`, montoAAplicar, 0)
-                                montoFaltantePorRegistrar -= montoAAplicar
+                            if (amountToApply > 0) {
+                                const methodInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(payment.metodo)
+                                const targetAccount = (methodInfo && methodInfo.cuenta_id) ? methodInfo.cuenta_id : accountingConfig.cuenta_caja
+                                const lineDescription = payment.metodo === 'Saldo a Favor'
+                                    ? 'Aplicación Saldo a Favor'
+                                    : `Ingreso por ${payment.metodo}`
+                                insertAccountingDetail.run(uuidv4(), voucherId, targetAccount, thirdPartyId, lineDescription, amountToApply, 0)
+                                remainingAmountToRecord -= amountToApply
                             }
                         }
-                    } else if (montoFaltantePorRegistrar > 0) {
-                        const metodoInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(maestroData.metodo_pago)
-                        const cuentaDestinoEfectivo = (metodoInfo && metodoInfo.cuenta_id) ? metodoInfo.cuenta_id : configContable.cuenta_caja
-                        insertDetalleContable.run(uuidv4(), comprobanteId, cuentaDestinoEfectivo, terceroId, `Ingreso por ${maestroData.metodo_pago}`, montoFaltantePorRegistrar, 0)
+                    } else if (remainingAmountToRecord > 0) {
+                        const methodInfo = db.prepare('SELECT cuenta_id FROM metodos_pago WHERE nombre = ?').get(masterData.metodo_pago)
+                        const targetAccount = (methodInfo && methodInfo.cuenta_id) ? methodInfo.cuenta_id : accountingConfig.cuenta_caja
+                        insertAccountingDetail.run(uuidv4(), voucherId, targetAccount, thirdPartyId, `Ingreso por ${masterData.metodo_pago}`, remainingAmountToRecord, 0)
                     }
 
-                    if (maestroData.saldo_pendiente > 0 && configContable.cuenta_cartera) {
-                        insertDetalleContable.run(uuidv4(), comprobanteId, configContable.cuenta_cartera, terceroId, 'Cuenta por Cobrar (Crédito)', maestroData.saldo_pendiente, 0)
+                    if (masterData.saldo_pendiente > 0 && accountingConfig.cuenta_cartera) {
+                        insertAccountingDetail.run(uuidv4(), voucherId, accountingConfig.cuenta_cartera, thirdPartyId, 'Cuenta por Cobrar (Crédito)', masterData.saldo_pendiente, 0)
                     }
                 }
             } catch (err) {
-                logger.warning('CONTABILIDAD', "Aviso: Comprobante contable automático cancelado por error de configuración de cuentas.", err.message)
+                logger.warning('ACCOUNTING', "Auto accounting voucher skipped due to account configuration error", err.message)
             }
 
             return {
                 success: true,
-                maestroId,
-                numero_factura: nuevoNumeroFactura,
-                prefijo: prefijoFactura
+                maestroId: masterId,
+                numero_factura: newInvoiceNumber,
+                prefijo: invoicePrefix,
+                creditBalanceUsed,
+                remainingCreditBalance
             }
         })
 
         try {
-            const result = transaction(maestro, detalles);
-            logger.success('VENTAS', `Venta procesada exitosamente: Factura N° ${result.prefijo}${result.numero_factura}`)
+            const result = transaction(maestro, detalles)
+            logger.success('SALES', `Sale processed successfully: Invoice N° ${result.prefijo}${result.numero_factura}`)
 
             triggerBackgroundPush().catch(err => {
-                logger.error('SYNC', 'Error disparando push en segundo plano tras venta', err)
+                logger.error('SYNC', 'Error triggering background push after sale', err)
             })
 
-            return result;
+            if (result.creditBalanceUsed > 0) {
+                triggerBackgroundPush('terceros').catch(err => {
+                    logger.error('SYNC', 'Error triggering background push for terceros after credit deduction', err)
+                })
+            }
+
+            return result
         } catch (error) {
-            logger.error('VENTAS', "Error crítico al intentar registrar una nueva venta", error)
+            logger.error('SALES', "Critical error while creating a new sale", error)
             return { success: false, error: error.message }
         }
     })

@@ -85,5 +85,13 @@ export const clientesService = {
                 }
             }
         }
-    }
+    },
+
+    getClienteSaldo: async (params) => {
+        return await window.api.getClienteSaldo(params)
+    },
+    
+    getClientesSaldosPaginados: async (params) => {
+        return await window.api.getClientesSaldosPaginados(params)
+    },
 }

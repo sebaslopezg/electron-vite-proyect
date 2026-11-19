@@ -2,11 +2,21 @@
 
  ## Modificaciones Prioritarias:
 
-- Arreglar Premisos en la app, y probarlos nuevamente
-- Problema con permisos sobre logo que aparece en el header, cuando no tiene el permiso de modificarlo, no puede verlo actualizado.
+ - Notas credito con descuento (tener en cuenta)
+ - Permitir cambiar fecha a las facturas para que estas no aparezcan un dia que no es (sobre todo cuando es correccion por nota credito)
+ - Cierres de caja (permitir hacer un registro de cierre de caja)
 
  ### PRIORITARIO
-
+ 
+ - Hacer que en la modal productos aparezca todos los datos (sobre todo en modulos fuera de producto)
+ - Procesos con nota credito y DEBITO, revisar completamente y corregir
+ - Agregar permiso para crear comentarios en facturas
+ - Crear una seña para saber que factura tiene comentarios
+ - Informe de inventarios
+ - Crear filtros mejorados de productos
+ - Crear un componente de filtros para que se pueda usar en todos los modulos
+ - Historial de facturas en modal cliente
+ 
  ### Modulo Encargos:
  - > Habilitar cuadro de firma para que un usuario tenga que cambiar un estado.  
 

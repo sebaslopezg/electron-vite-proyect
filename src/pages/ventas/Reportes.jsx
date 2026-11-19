@@ -505,7 +505,7 @@ export const Reportes = ({ currentUser }) => {
 
         <Row className="mb-4 g-3">
             <Col xs={12} sm={6} md={4} lg={3}>
-                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10">
+                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 mb-0">
                     <Card.Body className="py-2 px-3">
                         <p className="text-success small mb-0 fw-bold text-uppercase">Total Facturado</p>
                         <h5 className="m-0 text-success fw-bold">{_formatCurrency(totales.totalFacturado)}</h5>
@@ -514,7 +514,7 @@ export const Reportes = ({ currentUser }) => {
             </Col>
             
             <Col xs={12} sm={6} md={4} lg={3}>
-                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10">
+                <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 mb-0">
                     <Card.Body className="py-2 px-3">
                         <p className="text-success small mb-0 fw-bold text-uppercase">Ingreso Caja</p>
                         <h5 className="m-0 text-success fw-bold">{_formatCurrency(totales.ingresoTotalCaja)}</h5>
@@ -524,7 +524,7 @@ export const Reportes = ({ currentUser }) => {
 
             {Object.entries(totales.metodos).map(([metodo, valor]) => (
                 <Col xs={12} sm={6} md={4} lg={3} key={metodo}>
-                    <Card className="shadow-sm border-0 border-start border-primary border-4">
+                    <Card className="shadow-sm border-0 border-start border-primary border-4 mb-0">
                         <Card.Body className="py-2 px-3">
                             <p className="text-muted small mb-0 fw-bold text-uppercase">{metodo}</p>
                             <h6 className="m-0 fw-bold">{_formatCurrency(valor)}</h6>

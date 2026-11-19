@@ -10,15 +10,15 @@ import { ProductoDetalles } from '../productos/components/ProductoDetalles'
 import { ventasService } from '../../services/ventasService'
 
 const Toast = Swal.mixin({
-    toast: true,
-    position: 'bottom-end',
-    showConfirmButton: false,
-    timer: 3000,
-    timerProgressBar: true,
-    didOpen: (toast) => {
-      toast.addEventListener('mouseenter', Swal.stopTimer)
-      toast.addEventListener('mouseleave', Swal.resumeTimer)
-    }
+  toast: true,
+  position: 'bottom-end',
+  showConfirmButton: false,
+  timer: 3000,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.addEventListener('mouseenter', Swal.stopTimer)
+    toast.addEventListener('mouseleave', Swal.resumeTimer)
+  }
 })
 
 const DRAFT_KEY = 'ventas_draft_invoice'
@@ -36,39 +36,44 @@ export const Facturacion = ({ currentUser: initialUser }) => {
   const draft = getInitialDraft()
 
   const [isLoading, setIsLoading] = useState(true)
-  const [productos, setProductos] = useState([])
-  const [clientes, setClientes] = useState([])
-  
-  const [carrito, setCarrito] = useState(draft.carrito || [])
-  const [cliente, setCliente] = useState(draft.cliente || null)
-  const [descuento, setDescuento] = useState(draft.descuento || 0)
-  const [esPorcentaje, setEsPorcentaje] = useState(draft.esPorcentaje ?? true)
-  
-  const [tipoPago, setTipoPago] = useState(draft.tipoPago || 'contado')
-  const [cuotas, setCuotas] = useState(draft.cuotas || 1)
-  const [observaciones, setObservaciones] = useState(draft.observaciones || '')
+  const [products, setProducts] = useState([])
+  const [clients, setClients] = useState([])
 
-  const [pagos, setPagos] = useState(draft.pagos || [{ metodo: 'Efectivo', monto: '' }])
+  const [cart, setCart] = useState(draft.carrito || [])
+  const [client, setClient] = useState(draft.cliente || null)
+  const [discount, setDiscount] = useState(draft.descuento || 0)
+  const [isPercentage, setIsPercentage] = useState(draft.esPorcentaje ?? true)
 
-  const [listaMetodosPago, setListaMetodosPago] = useState([])
-  
+  const [paymentType, setPaymentType] = useState(draft.tipoPago || 'contado')
+  const [installments, setInstallments] = useState(draft.cuotas || 1)
+  const [notes, setNotes] = useState(draft.observaciones || '')
+
+  const [payments, setPayments] = useState(draft.pagos || [{ metodo: 'Efectivo', monto: '' }])
+
+  // Store credit states
+  const [availableCredit, setAvailableCredit] = useState(Number(draft.cliente?.saldo_favor) || 0)
+  const [useCreditBalance, setUseCreditBalance] = useState(Boolean(draft.useCreditBalance))
+  const [creditAmountInput, setCreditAmountInput] = useState(draft.creditAmountInput ?? '')
+
+  const [paymentMethodsList, setPaymentMethodsList] = useState([])
+
   const [show, setShow] = useState(false)
   const [showTerceroModal, setShowTerceroModal] = useState(false)
   const [modalData, setModalData] = useState({ title: '', columns: [], type: '' })
-  
+
   const [skuInput, setSkuInput] = useState('')
   const [docInput, setDocInput] = useState('')
 
-  const [showPreviewImpresion, setShowPreviewImpresion] = useState(false)
-  const [facturaParaImprimir, setFacturaParaImprimir] = useState(null)
-  const [detallesParaImprimir, setDetallesParaImprimir] = useState([])
-  const [almacenConfParaImprimir, setAlmacenConfParaImprimir] = useState(null)
+  const [showPrintPreview, setShowPrintPreview] = useState(false)
+  const [invoiceToPrint, setInvoiceToPrint] = useState(null)
+  const [detailsToPrint, setDetailsToPrint] = useState([])
+  const [storeConfToPrint, setStoreConfToPrint] = useState(null)
 
-  const [showDetalleProd, setShowDetalleProd] = useState(false)
-  const [productoSeleccionado, setProductoSeleccionado] = useState(null)
+  const [showProdDetail, setShowProdDetail] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState(null)
 
-  const [categoriasList, setCategoriasList] = useState([])
-  const [etiquetasList, setEtiquetasList] = useState([])
+  const [categoriesList, setCategoriesList] = useState([])
+  const [tagsList, setTagsList] = useState([])
   const [filterCategory, setFilterCategory] = useState('')
   const [filterTag, setFilterTag] = useState('')
 
@@ -80,23 +85,69 @@ export const Facturacion = ({ currentUser: initialUser }) => {
   }, [initialUser])
 
   useEffect(() => {
-    if (carrito.length === 0 && !cliente && pagos.every(p => !p.monto) && !observaciones) {
+    if (cart.length === 0 && !client && payments.every(p => !p.monto) && !notes) {
       localStorage.removeItem(DRAFT_KEY)
       return
     }
 
     const currentDraft = {
-      carrito, 
-      cliente, 
-      descuento, 
-      esPorcentaje, 
-      tipoPago, 
-      pagos, 
-      cuotas, 
-      observaciones
+      carrito: cart,
+      cliente: client,
+      descuento: discount,
+      esPorcentaje: isPercentage,
+      tipoPago: paymentType,
+      pagos: payments,
+      cuotas: installments,
+      observaciones: notes,
+      useCreditBalance,
+      creditAmountInput
     }
     localStorage.setItem(DRAFT_KEY, JSON.stringify(currentDraft))
-  }, [carrito, cliente, descuento, esPorcentaje, tipoPago, pagos, cuotas, observaciones])
+  }, [cart, client, discount, isPercentage, paymentType, payments, installments, notes, useCreditBalance, creditAmountInput])
+
+  // Fetch fresh store credit whenever selected client changes
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchClientCredit = async () => {
+      if (!client?.documento) {
+        setAvailableCredit(0)
+        setUseCreditBalance(false)
+        setCreditAmountInput('')
+        return
+      }
+
+      let freshCredit = Number(client.saldo_favor) || 0
+
+      try {
+        if (window.api?.getClienteSaldo) {
+          const res = await window.api.getClienteSaldo({ documento: client.documento })
+          if (res?.success && res.data) {
+            freshCredit = Number(res.data.saldo_favor) || 0
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching client credit balance', err)
+      }
+
+      if (isMounted) {
+        setAvailableCredit(freshCredit)
+        if (freshCredit <= 0) {
+          setUseCreditBalance(false)
+          setCreditAmountInput('')
+        }
+      }
+    }
+
+    fetchClientCredit()
+    return () => { isMounted = false }
+  }, [client?.documento])
+
+  const selectClient = (newClient) => {
+    setClient(newClient)
+    setUseCreditBalance(false)
+    setCreditAmountInput('')
+  }
 
   const hasPermission = (permissionKey) => {
     if (!currentUser) return false
@@ -114,17 +165,17 @@ export const Facturacion = ({ currentUser: initialUser }) => {
           moneda: parsed.moneda || 'COP',
           formato_numero: parsed.formato_numero || 'es-CO'
         })
-      } catch(e) {}
+      } catch (e) {}
     }
   }
 
-  const loadMetodosDePago = async () => {
-    const metodos = await ventasService.getMetodosPago()
-    setListaMetodosPago(metodos || [])
-    
-    setPagos(prev => {
-      if (prev.length === 1 && (!prev[0].metodo || prev[0].metodo === 'Efectivo') && metodos && metodos.length > 0) {
-        return [{ ...prev[0], metodo: metodos[0].nombre }]
+  const loadPaymentMethods = async () => {
+    const methods = await ventasService.getMetodosPago()
+    setPaymentMethodsList(methods || [])
+
+    setPayments(prev => {
+      if (prev.length === 1 && (!prev[0].metodo || prev[0].metodo === 'Efectivo') && methods && methods.length > 0) {
+        return [{ ...prev[0], metodo: methods[0].nombre }]
       }
       return prev
     })
@@ -132,34 +183,34 @@ export const Facturacion = ({ currentUser: initialUser }) => {
 
   const loadInitialData = async () => {
     setIsLoading(true)
-    
+
     if (!initialUser && window.api && window.api.getCurrentUser) {
       const userRes = await window.api.getCurrentUser()
       if (userRes?.success) setCurrentUser(userRes.data)
     }
 
     const prods = await ventasService.getAllProductos()
-    setProductos(prods)
+    setProducts(prods)
     const clis = await ventasService.getClientes()
-    setClientes(clis)
+    setClients(clis)
     const cats = await ventasService.getCategorias()
     const tags = await ventasService.getEtiquetas()
-    setCategoriasList(cats || [])
-    setEtiquetasList(tags || [])
-    
+    setCategoriesList(cats || [])
+    setTagsList(tags || [])
+
     await loadConfig()
-    await loadMetodosDePago()
-    
-    setIsLoading(false);
+    await loadPaymentMethods()
+
+    setIsLoading(false)
   }
 
   useEffect(() => {
     loadInitialData()
     window.addEventListener('config-actualizada', loadConfig)
-    window.addEventListener('metodos-pago-actualizados', loadMetodosDePago)
+    window.addEventListener('metodos-pago-actualizados', loadPaymentMethods)
     return () => {
       window.removeEventListener('config-actualizada', loadConfig)
-      window.removeEventListener('metodos-pago-actualizados', loadMetodosDePago)
+      window.removeEventListener('metodos-pago-actualizados', loadPaymentMethods)
     }
   }, [])
 
@@ -167,46 +218,93 @@ export const Facturacion = ({ currentUser: initialUser }) => {
     return formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
   }
 
-  const addPago = () => {
-    setPagos([...pagos, { metodo: listaMetodosPago.length > 0 ? listaMetodosPago[0].nombre : 'Efectivo', monto: '' }])
+  const addPayment = () => {
+    setPayments([...payments, { metodo: paymentMethodsList.length > 0 ? paymentMethodsList[0].nombre : 'Efectivo', monto: '' }])
   }
 
-  const removePago = (index) => {
-    const nuevosPagos = [...pagos]
-    nuevosPagos.splice(index, 1)
-    setPagos(nuevosPagos)
+  const removePayment = (index) => {
+    const updatedPayments = [...payments]
+    updatedPayments.splice(index, 1)
+    setPayments(updatedPayments)
   }
 
-  const updatePago = (index, campo, valor) => {
-    const nuevosPagos = [...pagos]
-    nuevosPagos[index][campo] = valor
-    setPagos(nuevosPagos)
+  const updatePayment = (index, field, value) => {
+    const updatedPayments = [...payments]
+    updatedPayments[index][field] = value
+    setPayments(updatedPayments)
   }
 
-  const recibidoNum = pagos.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0)
+  const subtotal = cart.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
 
-  const subtotal = carrito.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
-  const valorDescuento = esPorcentaje ? subtotal * (descuento / 100) : descuento
+  const summary = cart.reduce((acc, item) => {
+    const gross = item.precio * item.cantidad
+    const savings = item.tipoDescuento === 'porcentaje' ? gross * (item.descuento / 100) : item.descuento * item.cantidad
+    const itemBase = gross - savings
+    const taxRate = (Number(item.iva) || 0) / 100
+    const itemTax = itemBase * taxRate
 
-  const resumen = carrito.reduce((acc, item) => {
-    const bruto = item.precio * item.cantidad;
-    const ahorro = item.tipoDescuento === 'porcentaje' ? bruto * (item.descuento / 100) : item.descuento * item.cantidad
-    const baseIndividual = bruto - ahorro
-    const tasaIva = (Number(item.iva) || 0) / 100
-    const ivaIndividual = baseIndividual * tasaIva
-
-    acc.subtotal += bruto
-    acc.totalDescuentos += ahorro
-    acc.totalIva += ivaIndividual
-    acc.totalFinal += (baseIndividual + ivaIndividual)
+    acc.subtotal += gross
+    acc.totalDiscounts += savings
+    acc.totalTax += itemTax
+    acc.totalFinal += (itemBase + itemTax)
     return acc
-  }, { subtotal: 0, totalDescuentos: 0, totalIva: 0, totalFinal: 0 })
+  }, { subtotal: 0, totalDiscounts: 0, totalTax: 0, totalFinal: 0 })
 
-  const subtotalNeto = resumen.subtotal - resumen.totalDescuentos
-  const ivaTotal = resumen.totalIva
-  const totalFinal = resumen.totalFinal
-  const cambio = recibidoNum >= totalFinal ? recibidoNum - totalFinal : 0
-  const saldoPendiente = recibidoNum < totalFinal ? totalFinal - recibidoNum : 0
+  const netSubtotal = summary.subtotal - summary.totalDiscounts
+  const totalTax = summary.totalTax
+  const totalFinal = summary.totalFinal
+
+  // Store credit & payment totals calculation
+  const maxUsableCredit = Math.min(availableCredit, totalFinal)
+  const parsedCreditInput = parseFloat(creditAmountInput) || 0
+  const effectiveCreditUsed = useCreditBalance
+    ? Math.min(Math.max(0, parsedCreditInput), maxUsableCredit)
+    : 0
+  const remainingCreditAfterSale = Math.max(0, availableCredit - effectiveCreditUsed)
+  const remainingAfterCredit = Math.max(0, totalFinal - effectiveCreditUsed)
+
+  const otherPaymentsReceived = remainingAfterCredit > 0
+    ? payments.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0)
+    : 0
+
+  const totalReceived = effectiveCreditUsed + otherPaymentsReceived
+  const changeAmount = otherPaymentsReceived > remainingAfterCredit
+    ? otherPaymentsReceived - remainingAfterCredit
+    : 0
+  const pendingBalance = totalReceived < totalFinal ? totalFinal - totalReceived : 0
+
+  // Keep credit input clamped when cart total decreases
+  useEffect(() => {
+    if (useCreditBalance && creditAmountInput !== '') {
+      const numericVal = parseFloat(creditAmountInput)
+      if (!isNaN(numericVal) && numericVal > maxUsableCredit) {
+        setCreditAmountInput(maxUsableCredit > 0 ? String(maxUsableCredit) : '0')
+      }
+    }
+  }, [maxUsableCredit, useCreditBalance])
+
+  const handleToggleCreditBalance = (checked) => {
+    setUseCreditBalance(checked)
+    if (checked) {
+      setCreditAmountInput(maxUsableCredit > 0 ? String(maxUsableCredit) : '0')
+    } else {
+      setCreditAmountInput('')
+    }
+  }
+
+  const handleCreditInputChange = (rawVal) => {
+    if (rawVal === '') {
+      setCreditAmountInput('')
+      return
+    }
+    const numericVal = parseFloat(rawVal)
+    if (isNaN(numericVal) || numericVal < 0) return
+    if (numericVal > maxUsableCredit) {
+      setCreditAmountInput(String(maxUsableCredit))
+      return
+    }
+    setCreditAmountInput(rawVal)
+  }
 
   const handleClose = () => {
     setShow(false)
@@ -215,11 +313,11 @@ export const Facturacion = ({ currentUser: initialUser }) => {
   }
   const handleShow = () => setShow(true)
 
-  const handleClosePreviewImpresion = () => {
-    setShowPreviewImpresion(false)
-    setFacturaParaImprimir(null)
-    setDetallesParaImprimir([])
-    setAlmacenConfParaImprimir(null)
+  const handleClosePrintPreview = () => {
+    setShowPrintPreview(false)
+    setInvoiceToPrint(null)
+    setDetailsToPrint([])
+    setStoreConfToPrint(null)
   }
 
   const handleSearchProduct = async () => {
@@ -227,11 +325,11 @@ export const Facturacion = ({ currentUser: initialUser }) => {
       handleAddProduct()
       return
     }
-    
-    let currentProducts = productos
+
+    let currentProducts = products
     if (currentProducts.length === 0) {
       currentProducts = await ventasService.getAllProductos()
-      setProductos(currentProducts)
+      setProducts(currentProducts)
     }
 
     const searchStr = skuInput.trim().toLowerCase()
@@ -241,9 +339,9 @@ export const Facturacion = ({ currentUser: initialUser }) => {
       const fullSku = p.sku_prefix ? `${p.sku_prefix}${p.separador || ''}${p.sku}` : p.sku
       return fullSku.toLowerCase() === searchStr || p.sku.toLowerCase() === searchStr
     })
-    
+
     if (found) {
-      agregarAlCarrito(found)
+      addToCart(found)
       setSkuInput('')
     } else {
       handleAddProduct()
@@ -256,16 +354,16 @@ export const Facturacion = ({ currentUser: initialUser }) => {
       return
     }
 
-    let currentClients = clientes
+    let currentClients = clients
     if (currentClients.length === 0) {
       currentClients = await ventasService.getClientes()
-      setClientes(currentClients)
+      setClients(currentClients)
     }
 
     const found = currentClients.find(c => c.documento === docInput.trim())
-    
+
     if (found) {
-      setCliente(found)
+      selectClient(found)
       setDocInput('')
     } else {
       Swal.fire({
@@ -293,25 +391,25 @@ export const Facturacion = ({ currentUser: initialUser }) => {
       title: 'Catálogo de Productos',
       columns: [
         { data: 'ref_name', title: 'Nombre Referencia' },
-        { 
-          data: 'sku', 
+        {
+          data: 'sku',
           title: 'SKU',
           render: (data, type, row) => {
-            if (!data) return '-';
-            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
-            const skuVal = String(data).toUpperCase();
-            
-            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
-            const safeData = encodeURIComponent(JSON.stringify(row));
-            
-            return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-product" data-alldata="${safeData}">${finalSku}</a>`;
+            if (!data) return '-'
+            const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : ''
+            const skuVal = String(data).toUpperCase()
+
+            const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
+            const safeData = encodeURIComponent(JSON.stringify(row))
+
+            return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-product" data-alldata="${safeData}">${finalSku}</a>`
           }
         },
         { data: 'stock', title: 'Stock' },
-        { 
-          data: 'precio', 
+        {
+          data: 'precio',
           title: 'Precio',
-          render: (data, type, row) => renderCurrency(row.precio) 
+          render: (data, type, row) => renderCurrency(row.precio)
         },
         {
           data: null,
@@ -320,33 +418,28 @@ export const Facturacion = ({ currentUser: initialUser }) => {
           render: function (data, type, row) {
             const safeData = encodeURIComponent(JSON.stringify(row))
             let buttons = ''
-            
-            const allowEncargo = (row.allow_encargo === undefined || row.allow_encargo === null) 
-              ? 1 
-              : (String(row.allow_encargo) === '1' || String(row.allow_encargo).toLowerCase() === 'true' ? 1 : 0);
 
-            const encargoSoloSinStock = (row.encargo_solo_sin_stock === undefined || row.encargo_solo_sin_stock === null) 
-              ? 1 
-              : (String(row.encargo_solo_sin_stock) === '1' || String(row.encargo_solo_sin_stock).toLowerCase() === 'true' ? 1 : 0);
+            const allowOrder = (row.allow_encargo === undefined || row.allow_encargo === null)
+              ? 1
+              : (String(row.allow_encargo) === '1' || String(row.allow_encargo).toLowerCase() === 'true' ? 1 : 0)
+
+            const orderOnlyOutOfStock = (row.encargo_solo_sin_stock === undefined || row.encargo_solo_sin_stock === null)
+              ? 1
+              : (String(row.encargo_solo_sin_stock) === '1' || String(row.encargo_solo_sin_stock).toLowerCase() === 'true' ? 1 : 0)
 
             if (Number(row.stock) > 0 || row.tipo === 'servicio') {
               buttons += `<button class="btn btn-sm btn-primary btn-select-product me-1 mb-1" data-alldata="${safeData}" data-force-encargo="0">
                 <i class="bi bi-cart-plus me-1"></i> Agregar
               </button>`
             }
-            
-            if (allowEncargo === 1 && row.tipo === 'producto') {
-              if (Number(row.stock) <= 0) {
-                buttons += `<button class="btn btn-sm btn-warning text-dark btn-select-product mb-1" data-alldata="${safeData}" data-force-encargo="1">
-                <i class="bi bi-box-seam me-1"></i> Encargar
-                </button>`
-              } 
-              else if (encargoSoloSinStock === 1) {
+
+            if (allowOrder === 1 && row.tipo === 'producto') {
+              if (Number(row.stock) <= 0 || orderOnlyOutOfStock === 1) {
                 buttons += `<button class="btn btn-sm btn-warning text-dark btn-select-product mb-1" data-alldata="${safeData}" data-force-encargo="1">
                 <i class="bi bi-box-seam me-1"></i> Encargar
                 </button>`
               }
-            } else if (allowEncargo === 0 && Number(row.stock) <= 0) {
+            } else if (allowOrder === 0 && Number(row.stock) <= 0) {
               buttons += `<button class="btn btn-sm btn-secondary disabled mb-1"><i class="bi bi-x-circle me-1"></i> Agotado</button>`
             }
             return buttons
@@ -359,13 +452,13 @@ export const Facturacion = ({ currentUser: initialUser }) => {
 
   const handleAddClient = () => {
     if (!hasPermission('clientes_ver')) {
-        return Swal.fire({
-            icon: 'warning',
-            title: 'Acceso Restringido',
-            text: 'Tu rol no tiene permisos para explorar el directorio general de clientes. Por favor, busca digitando el número de documento exacto.',
-            confirmButtonColor: '#3085d6',
-            confirmButtonText: 'Entendido'
-        });
+      return Swal.fire({
+        icon: 'warning',
+        title: 'Acceso Restringido',
+        text: 'Tu rol no tiene permisos para explorar el directorio general de clientes. Por favor, busca digitando el número de documento exacto.',
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Entendido'
+      })
     }
 
     setModalData({
@@ -374,7 +467,17 @@ export const Facturacion = ({ currentUser: initialUser }) => {
       columns: [
         { data: 'nombre', title: 'Nombre' },
         { data: 'documento', title: 'Documento' },
-        { data: 'telefono', title: 'Telefono' },
+        { data: 'telefono', title: 'Teléfono' },
+        {
+          data: 'saldo_favor',
+          title: 'Saldo a Favor',
+          render: (data) => {
+            const val = Number(data) || 0
+            return val > 0
+              ? `<span class="badge bg-success">${renderCurrency(val)}</span>`
+              : `<span class="text-muted">${renderCurrency(0)}</span>`
+          }
+        },
         {
           data: null,
           title: 'Agregar',
@@ -392,8 +495,8 @@ export const Facturacion = ({ currentUser: initialUser }) => {
     handleShow()
   }
 
-  const aplicarDescuentoMasivo = () => {
-    if (carrito.length === 0) return
+  const applyBulkDiscount = () => {
+    if (cart.length === 0) return
     Swal.fire({
       title: 'Descuento General',
       text: 'Ingresa el porcentaje de descuento para todos los productos:',
@@ -405,15 +508,15 @@ export const Facturacion = ({ currentUser: initialUser }) => {
     }).then((result) => {
       if (result.isConfirmed && result.value) {
         const pct = parseFloat(result.value)
-        setCarrito(prev => prev.map(item => ({
+        setCart(prev => prev.map(item => ({
           ...item, descuento: pct, tipoDescuento: 'porcentaje'
-        })));
+        })))
         Toast.fire({ icon: 'success', title: `Descuento masivo del ${pct}% aplicado` })
       }
     })
   }
 
-  const vaciarCarrito = () => {
+  const clearCart = () => {
     Swal.fire({
       title: '¿Reiniciar Módulo?',
       text: "Se vaciarán todos los productos, clientes y pagos ingresados.",
@@ -425,77 +528,77 @@ export const Facturacion = ({ currentUser: initialUser }) => {
       cancelButtonText: 'Cancelar'
     }).then((result) => {
       if (result.isConfirmed) {
-        cleanForm();
+        cleanForm()
         Toast.fire({ icon: 'info', title: 'Facturación limpia' })
       }
     })
   }
 
-  const agregarAlCarrito = (prod, forceEncargo = false) => {
-    setCarrito((prev) => {
+  const addToCart = (prod, forceOrder = false) => {
+    setCart((prev) => {
       const unitsInCartWithStock = prev
         .filter(item => item.id === prod.id && item.isEncargo === '0')
         .reduce((acc, item) => acc + item.cantidad, 0)
-      let isEncargoVal = forceEncargo ? '1' : '0'
+      let isOrderVal = forceOrder ? '1' : '0'
 
-      if (!forceEncargo && prod.tipo === "producto" && unitsInCartWithStock >= prod.stock) {
-        const allowEncargo = prod.allow_encargo !== undefined ? Number(prod.allow_encargo) : 1;
-        if (allowEncargo === 0) {
-          Toast.fire({ 
-            icon: 'warning', 
-            title: 'Agotado', 
-            text: 'Stock físico agotado y el producto no permite encargos.' 
+      if (!forceOrder && prod.tipo === "producto" && unitsInCartWithStock >= prod.stock) {
+        const allowOrder = prod.allow_encargo !== undefined ? Number(prod.allow_encargo) : 1
+        if (allowOrder === 0) {
+          Toast.fire({
+            icon: 'warning',
+            title: 'Agotado',
+            text: 'Stock físico agotado y el producto no permite encargos.'
           })
           return prev
         }
-        isEncargoVal = '1'
+        isOrderVal = '1'
       }
 
-      const existe = prev.find(item => item.id === prod.id && item.isEncargo === isEncargoVal)
+      const existing = prev.find(item => item.id === prod.id && item.isEncargo === isOrderVal)
 
-      if (existe) {
-        if (isEncargoVal === '0' && (existe.cantidad + 1) > prod.stock) {
-          const allowEncargo = prod.allow_encargo !== undefined ? Number(prod.allow_encargo) : 1
-          if (allowEncargo === 0) {
-              Toast.fire({ icon: 'warning', title: 'Agotado', text: 'Alcanzaste el límite de stock y el producto no permite encargos.' })
-              return prev
+      if (existing) {
+        if (isOrderVal === '0' && (existing.cantidad + 1) > prod.stock) {
+          const allowOrder = prod.allow_encargo !== undefined ? Number(prod.allow_encargo) : 1
+          if (allowOrder === 0) {
+            Toast.fire({ icon: 'warning', title: 'Agotado', text: 'Alcanzaste el límite de stock y el producto no permite encargos.' })
+            return prev
           }
           return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: '1' }]
         }
 
         return prev.map(item =>
-          (item.id === prod.id && item.isEncargo === isEncargoVal)
+          (item.id === prod.id && item.isEncargo === isOrderVal)
             ? { ...item, cantidad: item.cantidad + 1 }
             : item
         )
       } else {
-        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: isEncargoVal }]
+        return [...prev, { ...prod, cantidad: 1, descuento: 0, tipoDescuento: 'porcentaje', iva: prod.iva, isEncargo: isOrderVal }]
       }
     })
   }
 
-  const finalizarVenta = async () => {
-    if (carrito.length === 0) return
+  const finalizeSale = async () => {
+    if (cart.length === 0) return
 
-    if (!cliente) {
-      Toast.fire({ 
-        icon: 'warning', 
-        title: 'Falta el Cliente', 
-        text: 'Por favor seleccione o busque un cliente.' 
+    if (!client) {
+      Toast.fire({
+        icon: 'warning',
+        title: 'Falta el Cliente',
+        text: 'Por favor seleccione o busque un cliente.'
       })
       return
     }
 
-    if (recibidoNum < totalFinal) {
-      if (tipoPago === 'contado') {
-        Toast.fire({ 
-          icon: 'warning', 
-          title: 'Monto Incompleto', 
-          text: 'El cliente no ha entregado el monto completo. Si es un abono, cambie el Tipo de Pago a Crédito.' 
+    if (totalReceived < totalFinal) {
+      if (paymentType === 'contado') {
+        Toast.fire({
+          icon: 'warning',
+          title: 'Monto Incompleto',
+          text: 'El cliente no ha entregado el monto completo. Si es un abono, cambie el Tipo de Pago a Crédito.'
         })
         return
       }
-      if (tipoPago === 'credito') {
+      if (paymentType === 'credito') {
         const confirm = await Swal.fire({
           title: 'Venta con saldo pendiente',
           text: '¿Esta venta irá a la sección de cartera, seguro que desea guardar la factura?',
@@ -506,70 +609,96 @@ export const Facturacion = ({ currentUser: initialUser }) => {
           confirmButtonText: 'Sí, guardar',
           cancelButtonText: 'Cancelar'
         })
-        if (!confirm.isConfirmed) return;
+        if (!confirm.isConfirmed) return
       }
     }
 
-    const metodosUtilizados = pagos.map(p => p.metodo).filter(Boolean).join(', ')
-
-    const data = {
-      maestro: {
-        nombre_cliente: cliente?.nombre, 
-        documento_cliente: cliente?.documento,
-        subtotal: subtotal, 
-        descuento: resumen.totalDescuentos, 
-        iva: ivaTotal, total: totalFinal,
-        total_recibido: recibidoNum, 
-        saldo_pendiente: saldoPendiente,
-        tipo_pago: tipoPago, 
-        metodo_pago: metodosUtilizados || 'Efectivo',
-        pagos_multiples: JSON.stringify(pagos),
-        moneda: appConfig.moneda, 
-        formato_numero: appConfig.formato_numero,
-        observaciones: observaciones
-      },
-      detalles: carrito
+    // Build final payments list including Store Credit if applied
+    const finalPaymentsList = []
+    if (effectiveCreditUsed > 0) {
+      finalPaymentsList.push({ metodo: 'Saldo a Favor', monto: effectiveCreditUsed })
+    }
+    if (remainingAfterCredit > 0) {
+      payments.forEach(p => {
+        const numericAmount = parseFloat(p.monto) || 0
+        if (numericAmount > 0) {
+          finalPaymentsList.push({ metodo: p.metodo, monto: numericAmount })
+        }
+      })
     }
 
-    const result = await ventasService.createVenta(data)
+    const usedMethods = finalPaymentsList.length > 0
+      ? finalPaymentsList.map(p => p.metodo).filter(Boolean).join(', ')
+      : (payments.map(p => p.metodo).filter(Boolean).join(', ') || 'Efectivo')
+
+    const serializedPayments = JSON.stringify(finalPaymentsList.length > 0 ? finalPaymentsList : payments)
+
+    const payload = {
+      maestro: {
+        nombre_cliente: client?.nombre,
+        documento_cliente: client?.documento,
+        subtotal: subtotal,
+        descuento: summary.totalDiscounts,
+        iva: totalTax,
+        total: totalFinal,
+        total_recibido: totalReceived,
+        saldo_pendiente: pendingBalance,
+        saldo_favor_usado: effectiveCreditUsed,
+        tipo_pago: paymentType,
+        metodo_pago: usedMethods,
+        pagos_multiples: serializedPayments,
+        moneda: appConfig.moneda,
+        formato_numero: appConfig.formato_numero,
+        observaciones: notes
+      },
+      detalles: cart
+    }
+
+    const result = await ventasService.createVenta(payload)
 
     if (result.success) {
       const printData = await ventasService.getDetalleFactura(result.maestroId)
-      const facturaGenerada = {
-          id: result.maestroId, 
-          numero_factura: result.numero_factura, 
-          prefijo: result.prefijo,
-          date_created: new Date().toISOString(), 
-          nombre_cliente: cliente.nombre, 
-          documento_cliente: cliente.documento,
-          subtotal: subtotal, 
-          descuento: resumen.totalDescuentos, 
-          iva: ivaTotal, total_factura: totalFinal,
-          total_recibido: recibidoNum, 
-          saldo_pendiente: saldoPendiente, 
-          tipo_pago: tipoPago, 
-          metodo_pago: metodosUtilizados || 'Efectivo',
-          moneda: appConfig.moneda, 
-          formato_numero: appConfig.formato_numero,
-          observaciones: observaciones
+      const generatedInvoice = {
+        id: result.maestroId,
+        numero_factura: result.numero_factura,
+        prefijo: result.prefijo,
+        date_created: new Date().toISOString(),
+        nombre_cliente: client.nombre,
+        documento_cliente: client.documento,
+        subtotal: subtotal,
+        descuento: summary.totalDiscounts,
+        iva: totalTax,
+        total_factura: totalFinal,
+        total_recibido: totalReceived,
+        saldo_pendiente: pendingBalance,
+        tipo_pago: paymentType,
+        metodo_pago: usedMethods,
+        pagos_multiples: serializedPayments,
+        moneda: appConfig.moneda,
+        formato_numero: appConfig.formato_numero,
+        observaciones: notes
       }
 
       Swal.fire({
-          title: '¡Venta Exitosa!',
-          text: `Factura ${result.prefijo || ''}${printData.configuracion?.separador || ''}${result.numero_factura} generada. ¿Deseas imprimirla?`,
-          icon: 'success', showCancelButton: true, confirmButtonColor: '#198754', cancelButtonColor: '#6c757d',
-          confirmButtonText: '<i class="bi bi-printer me-2"></i>Imprimir', cancelButtonText: 'Cerrar'
+        title: '¡Venta Exitosa!',
+        text: `Factura ${result.prefijo || ''}${printData.configuracion?.separador || ''}${result.numero_factura} generada. ¿Deseas imprimirla?`,
+        icon: 'success',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="bi bi-printer me-2"></i>Imprimir',
+        cancelButtonText: 'Cerrar'
       }).then((res) => {
-          if (res.isConfirmed && printData.success) {
-            setFacturaParaImprimir(facturaGenerada)
-            setDetallesParaImprimir(printData.data)
-            setAlmacenConfParaImprimir(printData.configuracion)
-            setShowPreviewImpresion(true)
-          }
-          
-          loadInitialData()
-          cleanForm() 
-          window.dispatchEvent(new CustomEvent('factura-creada'))
+        if (res.isConfirmed && printData.success) {
+          setInvoiceToPrint(generatedInvoice)
+          setDetailsToPrint(printData.data)
+          setStoreConfToPrint(printData.configuracion)
+          setShowPrintPreview(true)
+        }
+
+        loadInitialData()
+        cleanForm()
+        window.dispatchEvent(new CustomEvent('factura-creada'))
       })
     } else {
       Toast.fire({ icon: 'error', title: 'Error en la venta', text: result.error })
@@ -577,43 +706,50 @@ export const Facturacion = ({ currentUser: initialUser }) => {
   }
 
   const cleanForm = () => {
-    setCarrito([])
-    setCliente(null)
-    setDescuento(0)
-    setEsPorcentaje(true)
-    setPagos([{ metodo: listaMetodosPago.length > 0 ? listaMetodosPago[0].nombre : 'Efectivo', monto: '' }])
-    setTipoPago('contado')
-    setCuotas(1)
-    setObservaciones('')
+    setCart([])
+    setClient(null)
+    setAvailableCredit(0)
+    setUseCreditBalance(false)
+    setCreditAmountInput('')
+    setDiscount(0)
+    setIsPercentage(true)
+    setPayments([{ metodo: paymentMethodsList.length > 0 ? paymentMethodsList[0].nombre : 'Efectivo', monto: '' }])
+    setPaymentType('contado')
+    setInstallments(1)
+    setNotes('')
     setSkuInput('')
     setDocInput('')
     localStorage.removeItem(DRAFT_KEY)
   }
 
-  const updateQuantity = (id, delta, isEncargo) => {
-    setCarrito(prev => {
-      const item = prev.find(i => i.id === id && i.isEncargo === isEncargo);
+  const updateQuantity = (id, delta, isOrder) => {
+    setCart(prev => {
+      const item = prev.find(i => i.id === id && i.isEncargo === isOrder)
       if (!item) return prev
       const newQty = item.cantidad + delta
 
-      if (delta > 0 && isEncargo === '0' && newQty > item.stock && item.tipo === "producto") {
-        const allowEncargo = item.allow_encargo !== undefined ? Number(item.allow_encargo) : 1
-        if (allowEncargo === 0) {
+      if (delta > 0 && isOrder === '0' && newQty > item.stock && item.tipo === "producto") {
+        const allowOrder = item.allow_encargo !== undefined ? Number(item.allow_encargo) : 1
+        if (allowOrder === 0) {
           Toast.fire({ icon: 'warning', title: 'Agotado', text: 'Has alcanzado el límite de stock y este producto no permite encargos.' })
           return prev
         }
 
         Swal.fire({
-          title: 'Sin stock físico', text: '¿Deseas agregar las unidades adicionales como un encargo?',
-          icon: 'info', showCancelButton: true, confirmButtonText: 'Sí, encargar', cancelButtonText: 'Cancelar'
+          title: 'Sin stock físico',
+          text: '¿Deseas agregar las unidades adicionales como un encargo?',
+          icon: 'info',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, encargar',
+          cancelButtonText: 'Cancelar'
         }).then((result) => {
-          if (result.isConfirmed) agregarAlCarrito(item, true)
+          if (result.isConfirmed) addToCart(item, true)
         })
         return prev
       }
 
       return prev.map(i => {
-        if (i.id === id && i.isEncargo === isEncargo) return newQty > 0 ? { ...i, cantidad: newQty } : i
+        if (i.id === id && i.isEncargo === isOrder) return newQty > 0 ? { ...i, cantidad: newQty } : i
         return i
       })
     })
@@ -623,37 +759,37 @@ export const Facturacion = ({ currentUser: initialUser }) => {
     const handleGlobalEvents = (e) => {
       const target = e.target.closest('button, a') || e.target
       const id = target.getAttribute('data-id')
-      const isEncargo = target.getAttribute('data-encargo')
+      const isOrder = target.getAttribute('data-encargo')
 
       if (e.type === 'change' && id) {
         if (e.target.classList.contains('change-iva')) {
           const val = parseFloat(e.target.value) || 0
-          setCarrito(prev => prev.map(item => (
-            String(item.id) === String(id) && item.isEncargo === isEncargo
+          setCart(prev => prev.map(item => (
+            String(item.id) === String(id) && item.isEncargo === isOrder
           ) ? { ...item, iva: val } : item))
         }
         if (e.target.classList.contains('change-discount')) {
           const val = parseFloat(e.target.value) || 0
-          setCarrito(prev => prev.map(item => (
-            String(item.id) === String(id) && item.isEncargo === isEncargo
+          setCart(prev => prev.map(item => (
+            String(item.id) === String(id) && item.isEncargo === isOrder
           ) ? { ...item, descuento: val } : item))
         }
       }
 
       if (e.type === 'click') {
         if (target.closest('.btn-view-product')) {
-            e.preventDefault()
-            const link = target.closest('.btn-view-product')
-            if (link.dataset.alldata) {
-                const selectedProd = JSON.parse(decodeURIComponent(link.dataset.alldata))
-                setProductoSeleccionado(selectedProd)
-                setShowDetalleProd(true)
-            }
+          e.preventDefault()
+          const link = target.closest('.btn-view-product')
+          if (link.dataset.alldata) {
+            const selectedProd = JSON.parse(decodeURIComponent(link.dataset.alldata))
+            setSelectedProduct(selectedProd)
+            setShowProdDetail(true)
+          }
         }
 
         if (target.closest('.toggle-discount-type') && id) {
-          setCarrito(prev => prev.map(item => {
-            if (String(item.id) === String(id) && item.isEncargo === isEncargo) {
+          setCart(prev => prev.map(item => {
+            if (String(item.id) === String(id) && item.isEncargo === isOrder) {
               return { ...item, tipoDescuento: item.tipoDescuento === 'porcentaje' ? 'fijo' : 'porcentaje' }
             }
             return item
@@ -664,24 +800,24 @@ export const Facturacion = ({ currentUser: initialUser }) => {
           const btn = target.closest('.btn-select-product')
           if (btn.dataset.alldata) {
             const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata))
-            const forceEncargo = btn.dataset.forceEncargo === "1"
-            agregarAlCarrito(selected, forceEncargo)
+            const forceOrder = btn.dataset.forceEncargo === "1"
+            addToCart(selected, forceOrder)
           }
         }
 
         if (target.closest('.btn-select-client')) {
           const btn = target.closest('.btn-select-client')
           if (btn.dataset.alldata) {
-             const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata))
-             setCliente(selected)
-             handleClose()
+            const selected = JSON.parse(decodeURIComponent(btn.dataset.alldata))
+            selectClient(selected)
+            handleClose()
           }
         }
 
-        if (target.closest('.btn-qty-plus') && id) updateQuantity(id, 1, isEncargo)
-        if (target.closest('.btn-qty-minus') && id) updateQuantity(id, -1, isEncargo)
+        if (target.closest('.btn-qty-plus') && id) updateQuantity(id, 1, isOrder)
+        if (target.closest('.btn-qty-minus') && id) updateQuantity(id, -1, isOrder)
         if (target.closest('.btn-remove-item') && id) {
-          setCarrito(prev => prev.filter(item => !(String(item.id) === String(id) && item.isEncargo === isEncargo)))
+          setCart(prev => prev.filter(item => !(String(item.id) === String(id) && item.isEncargo === isOrder)))
         }
       }
     }
@@ -693,15 +829,15 @@ export const Facturacion = ({ currentUser: initialUser }) => {
       document.removeEventListener('change', handleGlobalEvents)
       document.removeEventListener('click', handleGlobalEvents)
     }
-  }, [productos, clientes, carrito])
+  }, [products, clients, cart])
 
   if (isLoading) {
     return (
-        <div className="d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
-            <div className="spinner-border text-primary mb-3" style={{ width: '3rem', height: '3rem' }} role="status">
-                <span className="visually-hidden">Cargando...</span>
-            </div>
+      <div className="d-flex flex-column justify-content-center align-items-center" style={{ minHeight: '60vh' }}>
+        <div className="spinner-border text-primary mb-3" style={{ width: '3rem', height: '3rem' }} role="status">
+          <span className="visually-hidden">Cargando...</span>
         </div>
+      </div>
     )
   }
 
@@ -723,13 +859,13 @@ export const Facturacion = ({ currentUser: initialUser }) => {
       </Col>
 
       <Col xs={5}>
-        {!cliente ? (
+        {!client ? (
           <InputGroup>
             <Button variant="primary" onClick={handleSearchClient}>
               <i className="bi bi-person-add me-1"></i> Buscar Cliente
             </Button>
-            <Form.Control 
-              placeholder="Buscar por documento..." 
+            <Form.Control
+              placeholder="Buscar por documento..."
               value={docInput}
               onChange={(e) => setDocInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearchClient()}
@@ -738,10 +874,18 @@ export const Facturacion = ({ currentUser: initialUser }) => {
         ) : (
           <div className="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
             <div>
-              <strong>Cliente:</strong> {cliente.nombre} <br />
-              <small className="text-muted">CC: {cliente.documento}</small>
+              <strong>Cliente:</strong> {client.nombre} <br />
+              <small className="text-muted">CC: {client.documento}</small>
+              {availableCredit > 0 && (
+                <div className="mt-1">
+                  <span className="badge bg-success bg-opacity-10 text-success border border-success">
+                    <i className="bi bi-wallet2 me-1"></i>
+                    Saldo a favor: {renderCurrency(availableCredit)}
+                  </span>
+                </div>
+              )}
             </div>
-            <Button variant="link" size="sm" className="text-danger" onClick={() => setCliente(null)}>
+            <Button variant="link" size="sm" className="text-danger" onClick={() => selectClient(null)}>
               Cambiar
             </Button>
           </div>
@@ -755,8 +899,8 @@ export const Facturacion = ({ currentUser: initialUser }) => {
           <Button
             variant="outline-secondary"
             size="sm"
-            onClick={aplicarDescuentoMasivo}
-            disabled={carrito.length === 0}
+            onClick={applyBulkDiscount}
+            disabled={cart.length === 0}
           >
             <i className="bi bi-percent me-1"></i>
             Descuento Masivo
@@ -765,7 +909,7 @@ export const Facturacion = ({ currentUser: initialUser }) => {
           <Button
             variant="outline-danger"
             size="sm"
-            onClick={vaciarCarrito}
+            onClick={clearCart}
           >
             <i className="bi bi-trash3 me-1"></i>
             Vaciar Formulario
@@ -775,22 +919,22 @@ export const Facturacion = ({ currentUser: initialUser }) => {
         <div className="w-100 pe-2" style={{ minWidth: 0 }}>
           <DataTableComponent
             tableId="dt-facturacion-carrito"
-            key={`cart-table-${appConfig.moneda}-${appConfig.formato_numero}`} 
-            data={carrito}
+            key={`cart-table-${appConfig.moneda}-${appConfig.formato_numero}`}
+            data={cart}
             columns={[
-            { data: 'ref_name', title: 'Ref.' },
-              { 
-                data: 'sku', 
+              { data: 'ref_name', title: 'Ref.' },
+              {
+                data: 'sku',
                 title: 'SKU',
                 render: (data, type, row) => {
-                  if (!data) return '-';
-                  const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : '';
-                  const skuVal = String(data).toUpperCase();
-                  
-                  const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`;
-                  const safeData = encodeURIComponent(JSON.stringify(row));
-                  
-                  return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-product" data-alldata="${safeData}">${finalSku}</a>`;
+                  if (!data) return '-'
+                  const prefix = row.sku_prefix ? `${row.sku_prefix}${row.separador || ''}`.toUpperCase() : ''
+                  const skuVal = String(data).toUpperCase()
+
+                  const finalSku = skuVal.startsWith(prefix) ? skuVal : `${prefix}${skuVal}`
+                  const safeData = encodeURIComponent(JSON.stringify(row))
+
+                  return `<a href="#" class="text-primary fw-bold text-decoration-underline btn-view-product" data-alldata="${safeData}">${finalSku}</a>`
                 }
               },
               {
@@ -800,15 +944,16 @@ export const Facturacion = ({ currentUser: initialUser }) => {
                   if (row.tipo === 'servicio') {
                     return `<span class="badge bg-secondary">-</span>`
                   }
-                  
-                  const umbralMinimo = row.min_stock !== undefined ? row.min_stock : 5
-                  const colorBadge = row.stock <= umbralMinimo ? 'bg-danger' : 'bg-success'
-                  
+
+                  const minThreshold = row.min_stock !== undefined ? row.min_stock : 5
+                  const badgeColor = row.stock <= minThreshold ? 'bg-danger' : 'bg-success'
+
                   return `
-                  <span class="badge ${colorBadge}">
+                  <span class="badge ${badgeColor}">
                     ${row.stock}
                   </span>
-                `}
+                `
+                }
               },
               {
                 data: null,
@@ -836,7 +981,7 @@ export const Facturacion = ({ currentUser: initialUser }) => {
               {
                 data: 'precio',
                 title: 'Precio',
-                render: (data, type, row) => renderCurrency(row.precio) 
+                render: (data, type, row) => renderCurrency(row.precio)
               },
               {
                 data: null,
@@ -893,204 +1038,260 @@ export const Facturacion = ({ currentUser: initialUser }) => {
           <div className="card-body">
             <h5 className="card-title mb-3">Resumen de Venta</h5>
 
-          <div className="d-flex justify-content-between mb-2">
-            <span>Subtotal:</span>
-            <span>{renderCurrency(subtotal)}</span>
-          </div>
-
-          {resumen.totalDescuentos > 0 && (
-            <div className="d-flex justify-content-between mb-2 text-danger font-italic">
-              <span>Total Descuentos:</span>
-              <span>-{renderCurrency(resumen.totalDescuentos)}</span>
+            <div className="d-flex justify-content-between mb-2">
+              <span>Subtotal:</span>
+              <span>{renderCurrency(subtotal)}</span>
             </div>
-          )}
 
-          <div className="d-flex justify-content-between mb-2 border-top pt-2">
-            <strong>Subtotal Neto:</strong>
-            <strong>{renderCurrency(subtotalNeto)}</strong>
-          </div>
+            {summary.totalDiscounts > 0 && (
+              <div className="d-flex justify-content-between mb-2 text-danger font-italic">
+                <span>Total Descuentos:</span>
+                <span>-{renderCurrency(summary.totalDiscounts)}</span>
+              </div>
+            )}
 
-          <div className="d-flex justify-content-between mb-2 text-muted">
-            <span>IVA:</span>
-            <span>{renderCurrency(ivaTotal)}</span>
-          </div>
+            <div className="d-flex justify-content-between mb-2 border-top pt-2">
+              <strong>Subtotal Neto:</strong>
+              <strong>{renderCurrency(netSubtotal)}</strong>
+            </div>
 
-          <hr />
-          <div className="d-flex justify-content-between mb-3">
-            <span className="h5">Total:</span>
-            <span className="h5 text-primary">{renderCurrency(totalFinal)}</span>
-          </div>
+            <div className="d-flex justify-content-between mb-2 text-muted">
+              <span>IVA:</span>
+              <span>{renderCurrency(totalTax)}</span>
+            </div>
 
-          <Row className="mb-2">
-              <Col xs={12}>
-                  <Form.Group className="mb-2">
-                  <Form.Label><small className="fw-bold">Tipo de Facturación</small></Form.Label>
-                  <Form.Select size="sm" value={tipoPago} onChange={(e) => setTipoPago(e.target.value)}>
-                      <option value="contado">Venta de Contado</option>
-                      <option value="credito">Venta a Crédito / Con Saldo Pendiente</option>
-                  </Form.Select>
-                  </Form.Group>
-              </Col>
-          </Row>
+            <hr />
+            <div className="d-flex justify-content-between mb-3">
+              <span className="h5">Total:</span>
+              <span className="h5 text-primary">{renderCurrency(totalFinal)}</span>
+            </div>
 
-          <div className="">
-            <Form.Label className="fw-bold d-block"><small>Métodos de Pago</small></Form.Label>
-              
-            {pagos.map((pago, index) => (
-                <div key={index} className="p-2 mb-2 bg-white border rounded shadow-sm">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                        <span className="small text-muted fw-bold">Pago {index + 1}</span>
-                        {pagos.length > 1 && (
-                            <Button variant="link" size="sm" className="text-danger p-0 text-decoration-none" onClick={() => removePago(index)}>
-                                <i className="bi bi-trash"></i>
-                            </Button>
-                        )}
-                    </div>
-                    <Form.Select 
-                        size="sm" 
-                        className="mb-2"
-                        value={pago.metodo} 
-                        onChange={(e) => updatePago(index, 'metodo', e.target.value)}
-                    >
-                        {listaMetodosPago.length === 0 && <option value="Efectivo">Efectivo</option>}
-                        {listaMetodosPago.map(m => (
-                            <option key={m.id} value={m.nombre}>{m.nombre}</option>
-                        ))}
-                    </Form.Select>
-                    
+            {availableCredit > 0 && (
+              <div className="p-2 mb-3 border border-success rounded bg-success bg-opacity-10">
+                <Form.Check
+                  type="switch"
+                  id="use-credit-balance-switch"
+                  className="fw-bold text-success small"
+                  label={`Usar Saldo a Favor (${renderCurrency(availableCredit)})`}
+                  checked={useCreditBalance}
+                  disabled={totalFinal <= 0}
+                  onChange={(e) => handleToggleCreditBalance(e.target.checked)}
+                />
+
+                {useCreditBalance && (
+                  <div className="mt-2">
                     <InputGroup size="sm">
+                      <InputGroup.Text className="text-success px-2">
+                        <small>{getCurrencySymbol(appConfig.moneda)}</small>
+                      </InputGroup.Text>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        max={maxUsableCredit}
+                        placeholder="Saldo a aplicar"
+                        value={creditAmountInput}
+                        onChange={(e) => handleCreditInputChange(e.target.value)}
+                      />
+                      <Button
+                        variant="outline-success"
+                        onClick={() => setCreditAmountInput(String(maxUsableCredit))}
+                      >
+                        Máx
+                      </Button>
+                    </InputGroup>
+                    <div className="d-flex justify-content-between small text-muted mt-1">
+                      <span>Saldo restante cliente:</span>
+                      <strong className="text-success">{renderCurrency(remainingCreditAfterSale)}</strong>
+                    </div>
+                    {remainingAfterCredit > 0 && (
+                      <div className="d-flex justify-content-between small text-dark mt-1">
+                        <span>Restante por pagar:</span>
+                        <strong>{renderCurrency(remainingAfterCredit)}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Row className="mb-2">
+              <Col xs={12}>
+                <Form.Group className="mb-2">
+                  <Form.Label><small className="fw-bold">Tipo de Facturación</small></Form.Label>
+                  <Form.Select size="sm" value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
+                    <option value="contado">Venta de Contado</option>
+                    <option value="credito">Venta a Crédito / Con Saldo Pendiente</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <div>
+              <Form.Label className="fw-bold d-block"><small>Métodos de Pago</small></Form.Label>
+
+              {remainingAfterCredit === 0 && effectiveCreditUsed > 0 ? (
+                <div className="alert alert-success py-2 px-2 small mb-2">
+                  <i className="bi bi-check-circle me-1"></i>
+                  Factura cubierta totalmente con Saldo a Favor.
+                </div>
+              ) : (
+                <>
+                  {payments.map((payment, index) => (
+                    <div key={index} className="p-2 mb-2 bg-white border rounded shadow-sm">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="small text-muted fw-bold">Pago {index + 1}</span>
+                        {payments.length > 1 && (
+                          <Button variant="link" size="sm" className="text-danger p-0 text-decoration-none" onClick={() => removePayment(index)}>
+                            <i className="bi bi-trash"></i>
+                          </Button>
+                        )}
+                      </div>
+                      <Form.Select
+                        size="sm"
+                        className="mb-2"
+                        value={payment.metodo}
+                        onChange={(e) => updatePayment(index, 'metodo', e.target.value)}
+                      >
+                        {paymentMethodsList.length === 0 && <option value="Efectivo">Efectivo</option>}
+                        {paymentMethodsList.map(m => (
+                          <option key={m.id} value={m.nombre}>{m.nombre}</option>
+                        ))}
+                      </Form.Select>
+
+                      <InputGroup size="sm">
                         <InputGroup.Text className="text-muted px-2"><small>{getCurrencySymbol(appConfig.moneda)}</small></InputGroup.Text>
                         <Form.Control
-                            type="number"
-                            min="0"
-                            placeholder="Monto a recibir"
-                            value={pago.monto}
-                            onChange={(e) => updatePago(index, 'monto', e.target.value)}
+                          type="number"
+                          min="0"
+                          placeholder={effectiveCreditUsed > 0 ? `Restante: ${remainingAfterCredit}` : 'Monto a recibir'}
+                          value={payment.monto}
+                          onChange={(e) => updatePayment(index, 'monto', e.target.value)}
                         />
-                    </InputGroup>
-                </div>
-            ))}
-              
-            <div className="text-center mt-2">
-                <Button variant="link" size="sm" className="text-decoration-none p-0 fw-bold" onClick={addPago}>
-                    <i className="bi bi-plus-circle me-1"></i> Añadir método de pago
-                </Button>
+                      </InputGroup>
+                    </div>
+                  ))}
+
+                  <div className="text-center mt-2">
+                    <Button variant="link" size="sm" className="text-decoration-none p-0 fw-bold" onClick={addPayment}>
+                      <i className="bi bi-plus-circle me-1"></i> Añadir método de pago
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
 
-          {recibidoNum > totalFinal && (
-            <div className="d-flex justify-content-between mb-3 text-success">
-              <strong>Cambio a devolver:</strong>
-              <strong className="fs-5">{renderCurrency(cambio)}</strong>
-            </div>
-          )}
+            {changeAmount > 0 && (
+              <div className="d-flex justify-content-between mb-3 text-success">
+                <strong>Cambio a devolver:</strong>
+                <strong className="fs-5">{renderCurrency(changeAmount)}</strong>
+              </div>
+            )}
 
-          {recibidoNum > 0 && recibidoNum < totalFinal && (
-            <div className="d-flex justify-content-between mb-3 text-warning">
-              <strong>Saldo pendiente (Deuda):</strong>
-              <strong>{renderCurrency(saldoPendiente)}</strong>
-            </div>
-          )}
+            {totalReceived > 0 && totalReceived < totalFinal && (
+              <div className="d-flex justify-content-between mb-3 text-warning">
+                <strong>Saldo pendiente (Deuda):</strong>
+                <strong>{renderCurrency(pendingBalance)}</strong>
+              </div>
+            )}
 
-          <Form.Group className="mb-3 border-top pt-3">
-            <Form.Label><small className="fw-bold">Observaciones en factura</small></Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              size="sm"
-              placeholder=""
-              value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
-            />
-          </Form.Group>
-
-          {tipoPago === 'credito' && (
-            <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
-              <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
-              <InputGroup size="sm">
-                <Form.Control 
-                  type="text" 
-                  inputMode="numeric"
-                  value={cuotas} 
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === '') {
-                      setCuotas('');
-                    } 
-                    else if (/^\d+$/.test(val)) {
-                      setCuotas(parseInt(val, 10));
-                    }
-                  }} 
-                />
-                <InputGroup.Text>Días</InputGroup.Text>
-              </InputGroup>
-              <Form.Text className="text-muted">Aplica para saldos pendientes</Form.Text>
+            <Form.Group className="mb-3 border-top pt-3">
+              <Form.Label><small className="fw-bold">Observaciones en factura</small></Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                size="sm"
+                placeholder=""
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
             </Form.Group>
-          )}
 
-          <Button
-            variant="success"
-            size="lg"
-            className="w-100 mt-2 shadow-sm"
-            disabled={carrito.length === 0}
-            onClick={finalizarVenta}
-          >
-            <i className="bi bi-check-circle me-2"></i>
-            Generar Factura
-          </Button>
+            {paymentType === 'credito' && (
+              <Form.Group className="mb-3 animate__animated animate__fadeIn bg-light p-2 rounded">
+                <Form.Label><small className="text-danger fw-bold">Plazo en Días para pagar</small></Form.Label>
+                <InputGroup size="sm">
+                  <Form.Control
+                    type="text"
+                    inputMode="numeric"
+                    value={installments}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === '') {
+                        setInstallments('')
+                      } else if (/^\d+$/.test(val)) {
+                        setInstallments(parseInt(val, 10))
+                      }
+                    }}
+                  />
+                  <InputGroup.Text>Días</InputGroup.Text>
+                </InputGroup>
+                <Form.Text className="text-muted">Aplica para saldos pendientes</Form.Text>
+              </Form.Group>
+            )}
+
+            <Button
+              variant="success"
+              size="lg"
+              className="w-100 mt-2 shadow-sm"
+              disabled={cart.length === 0}
+              onClick={finalizeSale}
+            >
+              <i className="bi bi-check-circle me-2"></i>
+              Generar Factura
+            </Button>
+          </div>
         </div>
-      </div>
-    </Col>
-  </Row>
+      </Col>
+    </Row>
 
     <ModalBusquedaVentas
-        show={show}
-        handleClose={handleClose}
-        modalData={modalData}
-        filterCategory={filterCategory}
-        setFilterCategory={setFilterCategory}
-        filterTag={filterTag}
-        setFilterTag={setFilterTag}
-        categoriasList={categoriasList}
-        etiquetasList={etiquetasList}
-        appConfig={appConfig}
-        clientes={clientes}
-        isUnder={showDetalleProd}
+      show={show}
+      handleClose={handleClose}
+      modalData={modalData}
+      filterCategory={filterCategory}
+      setFilterCategory={setFilterCategory}
+      filterTag={filterTag}
+      setFilterTag={setFilterTag}
+      categoriasList={categoriesList}
+      etiquetasList={tagsList}
+      appConfig={appConfig}
+      clientes={clients}
+      isUnder={showProdDetail}
     />
 
-    <ImpresorFactura 
-        show={showPreviewImpresion} 
-        onClose={handleClosePreviewImpresion} 
-        factura={facturaParaImprimir} 
-        detalles={detallesParaImprimir} 
-        almacenConf={almacenConfParaImprimir} 
-        textoVolver="Volver a Facturación" 
+    <ImpresorFactura
+      show={showPrintPreview}
+      onClose={handleClosePrintPreview}
+      factura={invoiceToPrint}
+      detalles={detailsToPrint}
+      almacenConf={storeConfToPrint}
+      textoVolver="Volver a Facturación"
     />
 
-    <ModalTercero 
-        show={showTerceroModal} 
-        handleClose={() => setShowTerceroModal(false)} 
-        forceCliente={true}
-        initialDocument={docInput.trim()}
-        onSuccess={async () => {
-            setShowTerceroModal(false)
-            const updatedClients = await ventasService.getClientes()
-            setClientes(updatedClients)
-            
-            const newlyCreated = updatedClients.find(c => c.documento === docInput.trim())
-            if (newlyCreated) {
-                setCliente(newlyCreated)
-                setDocInput('')
-                Toast.fire({ icon: 'success', title: '¡Listo!', text: 'Cliente asignado a la factura.' })
-            }
-        }}
+    <ModalTercero
+      show={showTerceroModal}
+      handleClose={() => setShowTerceroModal(false)}
+      forceCliente={true}
+      initialDocument={docInput.trim()}
+      onSuccess={async () => {
+        setShowTerceroModal(false)
+        const updatedClients = await ventasService.getClientes()
+        setClients(updatedClients)
+
+        const newlyCreated = updatedClients.find(c => c.documento === docInput.trim())
+        if (newlyCreated) {
+          selectClient(newlyCreated)
+          setDocInput('')
+          Toast.fire({ icon: 'success', title: '¡Listo!', text: 'Cliente asignado a la factura.' })
+        }
+      }}
     />
 
-    <ProductoDetalles 
-        show={showDetalleProd}
-        handleClose={() => setShowDetalleProd(false)}
-        productoData={productoSeleccionado}
-        appConfig={appConfig}
+    <ProductoDetalles
+      show={showProdDetail}
+      handleClose={() => setShowProdDetail(false)}
+      productoData={selectedProduct}
+      appConfig={appConfig}
     />
   </>
 }
