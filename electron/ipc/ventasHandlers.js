@@ -688,24 +688,33 @@ export const registerVentasHandlers = () => {
     })
 
     ipcMain.handle("add-factura-nota-adicional", (_, { facturaId, contenido }) => {
-        const user = global.currentUserSession;
-        if (!user) return { success: false, error: "Debes iniciar sesión para añadir notas." };
+        const activeUser = global.currentUserSession
+        if (!activeUser) return { success: false, error: "Debes iniciar sesión para añadir notas." }
+
+        if (!checkPermission("ventas_comentar")) {
+            return { success: false, error: "No autorizado para comentar facturas." }
+        }
+
+        const cleanContent = typeof contenido === 'string' ? contenido.trim() : ''
+        if (!cleanContent) {
+            return { success: false, error: "El comentario no puede estar vacío." }
+        }
 
         try {
-            const id = uuidv4();
-            const now = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get().nowStr;
+            const noteId = uuidv4()
+            const now = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get().nowStr
 
             db.prepare(`
                 INSERT INTO factura_notas_adicionales (id, factura_id, usuario_id, usuario_nombre, contenido, date_created)
                 VALUES (?, ?, ?, ?, ?, ?)
-            `).run(id, facturaId, user.id, user.nombre_completo || user.username, contenido, now);
+            `).run(noteId, facturaId, activeUser.id, activeUser.nombre_completo || activeUser.username, cleanContent, now)
 
-            logger.info('VENTAS', `Nota adicional añadida a la factura ${facturaId} por @${user.username}`);
-            
-            return { success: true, notaId: id, date_created: now };
+            logger.info('SALES', `Additional note added to invoice ${facturaId} by @${activeUser.username}`)
+
+            return { success: true, notaId: noteId, date_created: now }
         } catch (error) {
-            logger.error('VENTAS', "Error al añadir la nota adicional", error);
-            return { success: false, error: error.message };
+            logger.error('SALES', 'Error adding additional note to invoice', error)
+            return { success: false, error: error.message }
         }
     })
 
@@ -715,7 +724,7 @@ export const registerVentasHandlers = () => {
             return { success: false, error: "Debes iniciar sesión para editar facturas." }
         }
 
-        if (!checkPermission("ventas_editar") && !checkPermission("ventas_historial")) {
+        if (!checkPermission("ventas_editar")) {
             return { success: false, error: "No autorizado para editar facturas." }
         }
 

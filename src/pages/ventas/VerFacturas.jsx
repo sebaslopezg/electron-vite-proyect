@@ -429,7 +429,7 @@ export const VerFacturas = ({ currentUser }) => {
                 const canPrint = hasPermission('ventas_imprimir')
                 const canDownloadPDF = hasPermission('ventas_descargar_pdf')
                 const canDownloadExcel = hasPermission('ventas_descargar_excel')
-                const canEditInvoice = hasPermission('ventas_editar') || hasPermission('ventas_historial')
+                const canEditInvoice = hasPermission('ventas_editar')
                 const hasExtraActions = canPrint || canDownloadPDF || canDownloadExcel || canEditInvoice
                 
                 return `

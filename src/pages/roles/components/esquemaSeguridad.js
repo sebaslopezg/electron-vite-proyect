@@ -18,6 +18,14 @@ export const ESQUEMA_SEGURIDAD = [
                         label: 'Permitir re-imprimir tirillas o formatos de facturas' 
                     },
                     { 
+                        id: 'ventas_editar', 
+                        label: 'Editar facturas' 
+                    },
+                    { 
+                        id: 'ventas_comentar', 
+                        label: 'Comentar facturas' 
+                    },
+                    { 
                         id: 'ventas_descargar_pdf', 
                         label: 'Descargar en PDF' 
                     },
