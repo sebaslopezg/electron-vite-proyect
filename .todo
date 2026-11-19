@@ -4,8 +4,8 @@
 
  - Hacer configurable pago por medio de creditos a terceros (Addi y Sistecredito), y dejar configurable para que se pueda agregar mas opciones
  - Manejo de cartera con creditos de terceros (Addi y sistecredito) para mantener las cuentas actualizadas
- - Permitir cambiar fecha a las facturas para que estas no aparezcan un dia que no es (sobre todo cuando es correccion por nota credito)
  - Cierres de caja (permitir hacer un registro de cierre de caja)
+ - Inventarios, crear una seccion en inventario para hacer el reporte del inventario
 
  ### PRIORITARIO
  
@@ -19,6 +19,7 @@
  - Crear un componente de filtros para que se pueda usar en todos los modulos
  - Historial de facturas en modal cliente
  - Historial de abonos en modal cliente
+ - En reportes en vez de limpiar filtro, poner reestablecer, para que no borre si no que resetee el dia.
  
  ### Modulo Encargos:
  - > Habilitar cuadro de firma para que un usuario tenga que cambiar un estado.  
@@ -26,7 +27,7 @@
  ### Otros:
  - Agregar logo del almacen o por defecto en impresor y exporter de Reportes
  - Avanzar con la implementacion de los botones excel y pdf en todas las vistas
-
+ - Crear mas configuraciones: En ventas hacer configurable la info que se muestra en los impresors y exports (pdf y excel)
  - Mejorar modulo de pagos (mas sencillo)
  - Impuestos y Retenciones (Nivel Intermedio)
  - Conectar modulo de cartera con contabilidad

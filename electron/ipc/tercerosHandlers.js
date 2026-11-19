@@ -255,7 +255,7 @@ export const registerTercerosHandlers = () => {
         const start = Number(params.start) || 0
         const length = Number(params.length) || 10
         const searchValue = (params.search?.value || '').trim()
-        const tipoSaldo = params.tipoSaldo || 'todos' // 'todos' | 'deuda' | 'favor'
+        const tipoSaldo = params.tipoSaldo || 'todos'
 
         const baseFrom = `
             FROM terceros t
@@ -344,6 +344,199 @@ export const registerTercerosHandlers = () => {
     } catch (error) {
         logger.error('TERCEROS', "Error al obtener listado paginado de saldos de clientes", error)
         return { draw: params.draw || 1, recordsTotal: 0, recordsFiltered: 0, data: [], resumen: { totalDeuda: 0, totalFavor: 0 }, error: error.message }
+    }
+  })
+
+  ipcMain.handle("get-tercero-detalle-completo", (event, params = {}) => {
+    if (!checkPermission("terceros_ver") && !checkPermission("clientes_ver") && !checkPermission("cartera_ver")) {
+      return { success: false, error: "No autorizado" }
+    }
+
+    try {
+      const targetId = typeof params === 'object' ? (params.id || params.clienteId) : null
+      const targetDoc = typeof params === 'object' ? params.documento : params
+
+      let thirdParty = null
+      if (targetId) {
+        thirdParty = db.prepare(`
+          SELECT *, COALESCE(saldo_favor, 0) as saldo_favor
+          FROM terceros
+          WHERE id = ?
+          LIMIT 1
+        `).get(targetId)
+      } else if (targetDoc) {
+        thirdParty = db.prepare(`
+          SELECT *, COALESCE(saldo_favor, 0) as saldo_favor
+          FROM terceros
+          WHERE numero_documento = ? AND estado != -1
+          LIMIT 1
+        `).get(targetDoc)
+      }
+
+      if (!thirdParty) {
+        return { success: false, error: "Tercero no encontrado" }
+      }
+
+      const clientDoc = thirdParty.numero_documento || ''
+      const storeConf = db.prepare(`SELECT separador FROM almacen_conf LIMIT 1`).get()
+      const defaultSeparator = storeConf?.separador || ''
+
+      const invoices = clientDoc ? db.prepare(`
+        SELECT 
+          v.*,
+          COALESCE(NULLIF(v.separador, ''), ?) as separador_efectivo,
+          (SELECT GROUP_CONCAT(tipo_nota, ' y ') FROM nota WHERE id_factura_origen = v.id AND status = 1) as notas_aplicadas,
+          (SELECT GROUP_CONCAT(motivo_dian, '|') FROM nota WHERE id_factura_origen = v.id AND status = 1) as notas_motivos
+        FROM ventasMaestro v
+        WHERE v.documento_cliente = ? AND v.status > 0
+        ORDER BY v.date_created DESC
+      `).all(defaultSeparator, clientDoc) : []
+
+      let payments = []
+      if (clientDoc) {
+        try {
+          payments = db.prepare(`
+            SELECT 
+              a.*,
+              v.prefijo,
+              COALESCE(NULLIF(v.separador, ''), ?) as separador,
+              v.numero_factura
+            FROM abonos_ventas a
+            INNER JOIN ventasMaestro v ON a.maestro_id = v.id
+            WHERE v.documento_cliente = ?
+            ORDER BY a.date_created DESC
+          `).all(defaultSeparator, clientDoc)
+        } catch (err) {
+          logger.warning('TERCEROS', 'Could not query abonos_ventas for client detail', err.message)
+        }
+      }
+
+      const creditMovements = []
+
+      if (clientDoc) {
+        try {
+          const creditNotes = db.prepare(`
+            SELECT 
+              n.id,
+              n.prefijo,
+              n.numero_nota,
+              n.numero_factura_origen,
+              n.motivo_dian,
+              n.observaciones,
+              n.total_final,
+              n.date_created,
+              v.prefijo as prefijo_factura,
+              COALESCE(NULLIF(v.separador, ''), ?) as separador_factura
+            FROM nota n
+            LEFT JOIN ventasMaestro v ON n.id_factura_origen = v.id
+            WHERE n.documento_cliente = ? AND n.tipo_nota = 'Crédito' AND n.status = 1
+            ORDER BY n.date_created DESC
+          `).all(defaultSeparator, clientDoc)
+
+          creditNotes.forEach(note => {
+            const invoiceRef = `${note.prefijo_factura || ''}${note.separador_factura || ''}${note.numero_factura_origen || ''}`
+            creditMovements.push({
+              id: `note-${note.id}`,
+              type: 'credit_note',
+              direction: 'in',
+              label: 'Nota Crédito',
+              reference: `${note.prefijo || 'NC'}-${note.numero_nota}`,
+              detail: `Factura ${invoiceRef} - ${note.motivo_dian || 'Sin motivo'}`,
+              amount: Number(note.total_final) || 0,
+              date_created: note.date_created
+            })
+          })
+        } catch (err) {
+          logger.warning('TERCEROS', 'Could not query credit notes for client detail', err.message)
+        }
+      }
+
+      invoices.forEach(inv => {
+        let creditUsedInSale = 0
+
+        if (inv.pagos_multiples) {
+          try {
+            const parsedPayments = JSON.parse(inv.pagos_multiples)
+            if (Array.isArray(parsedPayments)) {
+              parsedPayments.forEach(p => {
+                if (String(p.metodo || '').trim().toLowerCase() === 'saldo a favor') {
+                  creditUsedInSale += parseFloat(p.monto) || 0
+                }
+              })
+            }
+          } catch (err) {}
+        } else if (String(inv.metodo_pago || '').trim().toLowerCase() === 'saldo a favor') {
+          creditUsedInSale = Math.max(0, (Number(inv.total_factura) || 0) - (Number(inv.saldo_pendiente_original ?? inv.saldo_pendiente) || 0))
+        }
+
+        if (creditUsedInSale > 0) {
+          const invoiceRef = `${inv.prefijo || ''}${inv.separador_efectivo || ''}${inv.numero_factura}`
+          creditMovements.push({
+            id: `sale-credit-${inv.id}`,
+            type: 'sale_usage',
+            direction: 'out',
+            label: 'Uso en Compra',
+            reference: invoiceRef,
+            detail: `Aplicado como pago en factura ${invoiceRef}`,
+            amount: creditUsedInSale,
+            date_created: inv.date_created
+          })
+        }
+      })
+
+      payments.forEach(pay => {
+        if (String(pay.metodo_pago || '').trim().toLowerCase() === 'saldo a favor') {
+          const invoiceRef = `${pay.prefijo || ''}${pay.separador || ''}${pay.numero_factura || ''}`
+          creditMovements.push({
+            id: `payment-credit-${pay.id}`,
+            type: 'payment_usage',
+            direction: 'out',
+            label: 'Uso en Abono',
+            reference: invoiceRef,
+            detail: pay.observaciones || `Abono a factura ${invoiceRef}`,
+            amount: Number(pay.valor) || 0,
+            date_created: pay.date_created
+          })
+        }
+      })
+
+      creditMovements.sort((a, b) => new Date(b.date_created) - new Date(a.date_created))
+
+      const debtTotal = invoices.reduce((sum, inv) => {
+        const pending = Number(inv.saldo_pendiente) || 0
+        return sum + (pending > 0 ? pending : 0)
+      }, 0)
+
+      const pendingInvoicesCount = invoices.filter(inv => (Number(inv.saldo_pendiente) || 0) > 0).length
+
+      const totalPurchased = invoices.reduce((sum, inv) => {
+        const isAnnulled = inv.notas_motivos && inv.notas_motivos.toLowerCase().includes('anula')
+        if (isAnnulled) return sum
+        return sum + (Number(inv.total_factura) || 0)
+      }, 0)
+
+      return {
+        success: true,
+        data: {
+          tercero: {
+            ...thirdParty,
+            saldo_favor: Number(thirdParty.saldo_favor) || 0
+          },
+          resumenCartera: {
+            deuda_total: debtTotal,
+            facturas_pendientes: pendingInvoicesCount,
+            saldo_favor: Number(thirdParty.saldo_favor) || 0,
+            total_comprado: totalPurchased,
+            total_facturas: invoices.length
+          },
+          facturas: invoices,
+          abonos: payments,
+          movimientosSaldoFavor: creditMovements
+        }
+      }
+    } catch (error) {
+      logger.error('TERCEROS', 'Error fetching complete third party detail', error)
+      return { success: false, error: error.message }
     }
   })
 }

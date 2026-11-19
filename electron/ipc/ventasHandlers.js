@@ -3,12 +3,66 @@ import { v4 as uuidv4 } from 'uuid'
 import db, { appDb } from "../database/index.js"
 import { logger } from "../utils/logger.js"
 import { canModifyModule, triggerBackgroundPush } from "./syncHandlers.js"
+import crypto from "crypto"
 
 const checkPermission = (permission) => {
     const user = global.currentUserSession
     if (!user) return false
     if (user.permisos?.includes("ALL")) return true
     return user.permisos?.includes(permission)
+}
+
+const normalizeInvoiceDate = (rawDate) => {
+    if (!rawDate || typeof rawDate !== 'string') return null
+    const cleaned = rawDate.trim().replace('T', ' ')
+    const match = cleaned.match(/^(\d{4}-\d{2}-\d{2})\s(\d{2}:\d{2})(?::(\d{2}))?$/)
+    if (!match) return null
+
+    const seconds = match[3] || '00'
+    const normalized = `${match[1]} ${match[2]}:${seconds}`
+    const parsedDate = new Date(normalized.replace(' ', 'T'))
+    if (Number.isNaN(parsedDate.getTime())) return null
+
+    return normalized
+}
+
+const verifyUserPassword = async (plainPassword, storedHash) => {
+    if (!plainPassword || !storedHash) return false
+    const hashStr = String(storedHash)
+
+    if (/^\$2[aby]\$/.test(hashStr)) {
+        try {
+            const bcryptModule = await import('bcryptjs')
+            const bcrypt = bcryptModule.default || bcryptModule
+            return await bcrypt.compare(plainPassword, hashStr)
+        } catch (err) {
+            try {
+                const nativeModule = await import('bcrypt')
+                const nativeBcrypt = nativeModule.default || nativeModule
+                return await nativeBcrypt.compare(plainPassword, hashStr)
+            } catch (fallbackErr) {
+                logger.error('AUTH', 'Bcrypt module unavailable for password verification', fallbackErr)
+                return false
+            }
+        }
+    }
+
+    if (hashStr.includes(':')) {
+        const [salt, storedKey] = hashStr.split(':')
+        if (salt && storedKey) {
+            try {
+                const derivedKey = crypto.scryptSync(plainPassword, salt, storedKey.length / 2).toString('hex')
+                if (derivedKey === storedKey) return true
+            } catch (err) {}
+        }
+    }
+
+    if (/^[a-f0-9]{64}$/i.test(hashStr)) {
+        const sha256Digest = crypto.createHash('sha256').update(plainPassword).digest('hex')
+        if (sha256Digest.toLowerCase() === hashStr.toLowerCase()) return true
+    }
+
+    return plainPassword === hashStr
 }
 
 export const registerVentasHandlers = () => {
@@ -652,6 +706,119 @@ export const registerVentasHandlers = () => {
         } catch (error) {
             logger.error('VENTAS', "Error al añadir la nota adicional", error);
             return { success: false, error: error.message };
+        }
+    })
+
+    ipcMain.handle("update-factura", async (_, payload = {}) => {
+        const activeUser = global.currentUserSession
+        if (!activeUser) {
+            return { success: false, error: "Debes iniciar sesión para editar facturas." }
+        }
+
+        if (!checkPermission("ventas_editar") && !checkPermission("ventas_historial")) {
+            return { success: false, error: "No autorizado para editar facturas." }
+        }
+
+        if (!canModifyModule('ventasMaestro')) {
+            return { success: false, error: "La edición local está bloqueada por la sincronización web." }
+        }
+
+        const { facturaId, date_created, observaciones, password } = payload
+
+        if (!facturaId) {
+            return { success: false, error: "ID de factura no especificado." }
+        }
+
+        if (!password || !String(password).trim()) {
+            return { success: false, error: "Debes ingresar tu contraseña para confirmar esta acción." }
+        }
+
+        const normalizedDate = normalizeInvoiceDate(date_created)
+        if (!normalizedDate) {
+            return { success: false, error: "La fecha ingresada no es válida." }
+        }
+
+        try {
+            const dbUser = activeUser.id
+                ? appDb.prepare("SELECT * FROM usuarios WHERE id = ?").get(activeUser.id)
+                : appDb.prepare("SELECT * FROM usuarios WHERE username = ?").get(activeUser.username)
+
+            if (!dbUser) {
+                logger.warning('SALES', `Active session user not found in appDb while editing invoice ${facturaId}`)
+                return { success: false, error: "No se pudo verificar el usuario activo." }
+            }
+
+            const storedPassword = dbUser.password ?? dbUser.contrasena ?? dbUser.password_hash ?? dbUser.clave
+            const isValidPassword = await verifyUserPassword(String(password), storedPassword)
+
+            if (!isValidPassword) {
+                logger.warning('SALES', `Invalid password attempt while editing invoice ${facturaId} by @${activeUser.username}`)
+                return { success: false, error: "Contraseña incorrecta." }
+            }
+
+            const updateTransaction = db.transaction(() => {
+                const existingInvoice = db.prepare(`
+                    SELECT id, prefijo, separador, numero_factura, date_created, observaciones
+                    FROM ventasMaestro
+                    WHERE id = ? AND status > 0
+                `).get(facturaId)
+
+                if (!existingInvoice) {
+                    throw new Error("Invoice not found")
+                }
+
+                const nowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get()
+                const modifiedAt = nowRow.nowStr
+                const cleanNotes = typeof observaciones === 'string' ? observaciones.trim() : ''
+
+                db.prepare(`
+                    UPDATE ventasMaestro
+                    SET date_created = ?, observaciones = ?, date_modify = ?
+                    WHERE id = ?
+                `).run(normalizedDate, cleanNotes, modifiedAt, facturaId)
+
+                db.prepare(`
+                    UPDATE ventasDetalle
+                    SET date_created = ?
+                    WHERE maestro_id = ?
+                `).run(normalizedDate, facturaId)
+
+                try {
+                    const docRef = `${existingInvoice.prefijo || ''}${existingInvoice.numero_factura}`
+                    db.prepare(`
+                        UPDATE comprobantes
+                        SET fecha = ?
+                        WHERE documento_referencia = ?
+                    `).run(normalizedDate, docRef)
+                } catch (accErr) {
+                    logger.warning('ACCOUNTING', `Could not sync voucher date for invoice ${facturaId}`, accErr.message)
+                }
+
+                return {
+                    previousDate: existingInvoice.date_created,
+                    newDate: normalizedDate,
+                    invoiceLabel: `${existingInvoice.prefijo || ''}${existingInvoice.separador || ''}${existingInvoice.numero_factura}`
+                }
+            })
+
+            const txResult = updateTransaction()
+
+            logger.success(
+                'SALES',
+                `Invoice ${txResult.invoiceLabel} edited by @${activeUser.username} (Date: ${txResult.previousDate} -> ${txResult.newDate})`
+            )
+
+            triggerBackgroundPush('ventasMaestro').catch(err => {
+                logger.error('SYNC', 'Error triggering background push after invoice edit', err)
+            })
+
+            return {
+                success: true,
+                date_created: txResult.newDate
+            }
+        } catch (error) {
+            logger.error('SALES', `Error updating invoice ${facturaId}`, error)
+            return { success: false, error: error.message }
         }
     })
 }

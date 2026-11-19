@@ -382,12 +382,10 @@ export const ventasService = {
         }
     },
 
-    // AÑADIDO: MÉTODOS PARA NOTAS ADICIONALES DE FACTURA
     getFacturaNotasAdicionales: async (facturaId) => {
         if (isElectron() && window.api.getFacturaNotasAdicionales) {
             return await window.api.getFacturaNotasAdicionales(facturaId);
         } else {
-            // Fallback web en caso de existir luego
             try {
                 const response = await api.get(`/sales/${facturaId}/notas-adicionales`);
                 return { success: true, data: response.data.data || [] };
@@ -401,7 +399,6 @@ export const ventasService = {
         if (isElectron() && window.api.addFacturaNotaAdicional) {
             return await window.api.addFacturaNotaAdicional({ facturaId, contenido });
         } else {
-            // Fallback web en caso de existir luego
             try {
                 const response = await api.post(`/sales/${facturaId}/notas-adicionales`, { contenido });
                 return { success: true, data: response.data };
@@ -409,5 +406,21 @@ export const ventasService = {
                 return { success: false, error: 'Función no disponible en entorno web' };
             }
         }
-    }
+    },
+
+    updateFactura: async (payload) => {
+        if (isElectron()) {
+            return await window.api.updateFactura(payload)
+        } else {
+            try {
+                const response = await api.put(`/sales/${payload.facturaId}`, payload)
+                return { success: true, ...response.data }
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.response?.data?.message || 'Error updating invoice on web'
+                }
+            }
+        }
+    },
 }

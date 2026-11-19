@@ -587,7 +587,7 @@ export const Reportes = ({ currentUser }) => {
                         <Card className={`shadow-sm border-0 border-start border-4 mb-0 border-primary`}>
                             <Card.Body className="py-2 px-3">
                                 <p className={`small mb-0 fw-bold text-uppercase text-muted`}>{method}</p>
-                                <h6 className="m-0 fw-bold">{formatMoney(amount)}</h6>
+                                <h5 className="m-0 fw-bold">{formatMoney(amount)}</h5>
                             </Card.Body>
                         </Card>
                     </Col>

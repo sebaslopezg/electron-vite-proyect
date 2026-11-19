@@ -188,19 +188,19 @@ export const ClientesSaldos = ({ activeUser }) => {
 
                     <ButtonGroup size="sm">
                         <Button
-                            variant={tipoSaldo === 'todos' ? 'primary' : 'outline-secondary'}
+                            variant={tipoSaldo === 'todos' ? 'primary' : 'outline-primary'}
                             onClick={() => setTipoSaldo('todos')}
                         >
                             Todos
                         </Button>
                         <Button
-                            variant={tipoSaldo === 'deuda' ? 'danger' : 'outline-danger'}
+                            variant={tipoSaldo === 'deuda' ? 'primary' : 'outline-primary'}
                             onClick={() => setTipoSaldo('deuda')}
                         >
                             Deben al Almacén
                         </Button>
                         <Button
-                            variant={tipoSaldo === 'favor' ? 'success' : 'outline-success'}
+                            variant={tipoSaldo === 'favor' ? 'primary' : 'outline-primary'}
                             onClick={() => setTipoSaldo('favor')}
                         >
                             Saldo a Favor
@@ -210,18 +210,18 @@ export const ClientesSaldos = ({ activeUser }) => {
 
                 <Row className="mb-4 g-3">
                     <Col xs={12} md={6}>
-                        <Card className="shadow-sm border-0 border-start border-danger border-4 bg-danger bg-opacity-10">
+                        <Card className="shadow-sm border-0 border-start border-primary border-4 bg-opacity-10">
                             <Card.Body className="py-2 px-3">
-                                <p className="text-danger small mb-0 fw-bold text-uppercase">Total por Cobrar (Deudas)</p>
-                                <h5 className="m-0 text-danger fw-bold">{_formatCurrency(resumen.totalDeuda)}</h5>
+                                <p className="text-secondary small mb-0 fw-bold text-uppercase">Total por Cobrar</p>
+                                <h5 className="m-0 text-dark fw-bold">{_formatCurrency(resumen.totalDeuda)}</h5>
                             </Card.Body>
                         </Card>
                     </Col>
                     <Col xs={12} md={6}>
-                        <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10">
+                        <Card className="shadow-sm border-0 border-start border-primary border-4 bg-opacity-10">
                             <Card.Body className="py-2 px-3">
-                                <p className="text-success small mb-0 fw-bold text-uppercase">Total Saldos a Favor</p>
-                                <h5 className="m-0 text-success fw-bold">{_formatCurrency(resumen.totalFavor)}</h5>
+                                <p className="text-secondary small mb-0 fw-bold text-uppercase">Total Saldos a Favor</p>
+                                <h5 className="m-0 text-dark fw-bold">{_formatCurrency(resumen.totalFavor)}</h5>
                             </Card.Body>
                         </Card>
                     </Col>

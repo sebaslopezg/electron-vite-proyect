@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld("api", {
   getReporteVentas: (data) => ipcRenderer.invoke("get-reporte-ventas", data),
   getFacturaNotasAdicionales: (id) => ipcRenderer.invoke('get-factura-notas-adicionales', id),
   addFacturaNotaAdicional: (data) => ipcRenderer.invoke('add-factura-nota-adicional', data),
+  updateFactura: (payload) => ipcRenderer.invoke('update-factura', payload),
 
   // inventario
   getInventario: () => ipcRenderer.invoke("get-inventario"),
@@ -99,6 +100,7 @@ contextBridge.exposeInMainWorld("api", {
   updateCliente: (item) => ipcRenderer.invoke("update-cliente", item),
   deleteCliente: (item) => ipcRenderer.invoke("delete-cliente", item),
   getClienteSaldo: (params) => ipcRenderer.invoke('get-cliente-saldo', params),
+  getTerceroDetalleCompleto: (params) => ipcRenderer.invoke('get-tercero-detalle-completo', params),
   getClientesSaldosPaginados: (params) => ipcRenderer.invoke('get-clientes-saldos-paginados', params),
 
   // configuraciones

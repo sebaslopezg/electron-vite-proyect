@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo } from "react"
 import DataTableComponent from "../../components/DataTableComponent"
 import { ModalExportConfig } from "../../components/ModalExportConfig"
 import { ModalExportSingleFactura } from "./components/ModalExportSingleFactura"
+import { ModalEditarFactura } from "./components/ModalEditarFactura"
 import { Button, Row, Col, Form } from 'react-bootstrap'
 import { ImpresorFactura } from "./components/ImpresorFactura"
 import { ModalDetalleFactura } from "./components/ModalDetalleFactura"
@@ -31,9 +32,16 @@ export const VerFacturas = ({ currentUser }) => {
     const [showExportModal, setShowExportModal] = useState(false)
     const [exportFormat, setExportFormat] = useState(null)
 
-    // Estado para la modal de exportación individual
     const [showSingleExportModal, setShowSingleExportModal] = useState(false)
     const [facturaParaExportar, setFacturaParaExportar] = useState(null)
+
+    const [showEditModal, setShowEditModal] = useState(false)
+    const [invoiceToEdit, setInvoiceToEdit] = useState(null)
+
+    const openEditModal = (invoice) => {
+        setInvoiceToEdit(invoice)
+        setShowEditModal(true)
+    }
 
     useEffect(() => {
         localStorage.setItem('ventas_filtro_inicio', startDate)
@@ -294,6 +302,17 @@ export const VerFacturas = ({ currentUser }) => {
                     openSingleExportModal(item)
                 } catch(err) { console.error(err) }
             }
+
+            const editBtn = e.target.closest('.btn-edit-item')
+            if (editBtn) {
+                e.preventDefault()
+                try {
+                    const item = JSON.parse(decodeURIComponent(editBtn.dataset.alldata))
+                    openEditModal(item)
+                } catch (err) {
+                    console.error('Error parsing invoice for edit modal', err)
+                }
+            }
         }
 
         container.addEventListener('click', handleTableClick)
@@ -410,9 +429,9 @@ export const VerFacturas = ({ currentUser }) => {
                 const canPrint = hasPermission('ventas_imprimir')
                 const canDownloadPDF = hasPermission('ventas_descargar_pdf')
                 const canDownloadExcel = hasPermission('ventas_descargar_excel')
+                const canEditInvoice = hasPermission('ventas_editar') || hasPermission('ventas_historial')
+                const hasExtraActions = canPrint || canDownloadPDF || canDownloadExcel || canEditInvoice
                 
-                const hasExtraActions = canPrint || canDownloadPDF || canDownloadExcel;
-
                 return `
                     <div class="dropdown">
                         <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Opciones">
@@ -429,6 +448,13 @@ export const VerFacturas = ({ currentUser }) => {
                             <li>
                                 <button class="dropdown-item btn-print-item" data-alldata="${safeData}">
                                     <i class="bi bi-printer me-2 text-primary"></i> Imprimir
+                                </button>
+                            </li>
+                            ` : ''}
+                            ${canEditInvoice ? `
+                            <li>
+                                <button class="dropdown-item btn-edit-item" data-alldata="${safeData}">
+                                    <i class="bi bi-pencil-square me-2 text-secondary"></i> Editar
                                 </button>
                             </li>
                             ` : ''}
@@ -570,6 +596,16 @@ export const VerFacturas = ({ currentUser }) => {
             onExport={handleProcessSingleExport}
             factura={facturaParaExportar}
             defaultFilename={facturaParaExportar ? `Factura_${facturaParaExportar.prefijo || ''}${facturaParaExportar.numero_factura}` : ''}
+        />
+        {/* Modal editar factura*/}
+        <ModalEditarFactura
+            show={showEditModal}
+            handleClose={() => {
+                setShowEditModal(false)
+                setInvoiceToEdit(null)
+            }}
+            factura={invoiceToEdit}
+            onSuccess={() => setReloadTable(prev => prev + 1)}
         />
     </>
 }

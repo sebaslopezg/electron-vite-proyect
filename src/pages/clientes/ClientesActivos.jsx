@@ -180,7 +180,7 @@ export const ClientesActivos = ({ activeUser }) => {
                             },
                             { 
                                 data: null, title: 'Nombre / Razón Social',
-                                render: (data, type, row) => `<i class="bi ${row.tipo_persona === 'juridica' ? 'bi-building':'bi-person'} text-secondary me-2"></i>${row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres}${row.apellidos}`}`
+                                render: (data, type, row) => `<i class="bi ${row.tipo_persona === 'juridica' ? 'bi-building':'bi-person'} text-secondary me-2"></i>${row.tipo_persona === 'juridica' ? row.razon_social : `${row.nombres} ${row.apellidos}`}`
                             },
                             { 
                                 data: null, title: 'Contacto',
@@ -212,7 +212,7 @@ export const ClientesActivos = ({ activeUser }) => {
                                                 ` : ''}
                                                 ${canDesactivar ? `
                                                 <li>
-                                                    <a class="dropdown-item btn-desactivar text-warning" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
+                                                    <a class="dropdown-item btn-desactivar text-danger" href="#" data-id="${row.id}" data-nombre="${nombreCliente}">
                                                         <i class="bi bi-person-down me-2"></i> Desactivar
                                                     </a>
                                                 </li>
