@@ -171,7 +171,14 @@ export const registerTercerosHandlers = () => {
   })
 
   ipcMain.handle("get-cliente-saldo", (event, params = {}) => {
-    if (!checkPermission("terceros_ver") && !checkPermission("clientes_ver") && !checkPermission("ventas_crear") && !checkPermission("notas_crear")) {
+    if (
+            !checkPermission("terceros_ver") && 
+            !checkPermission("clientes_ver") && 
+            !checkPermission("ventas_crear") && 
+            !checkPermission("notas_crear") && 
+            !checkPermission("cartera_ver") && 
+            !checkPermission("cartera_abonar"
+        )) {
         return { success: false, error: "No autorizado" }
     }
 

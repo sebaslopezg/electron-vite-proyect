@@ -2,12 +2,14 @@
 
  ## Modificaciones Prioritarias:
 
- - Notas credito con descuento (tener en cuenta)
+ - Hacer configurable pago por medio de creditos a terceros (Addi y Sistecredito), y dejar configurable para que se pueda agregar mas opciones
+ - Manejo de cartera con creditos de terceros (Addi y sistecredito) para mantener las cuentas actualizadas
  - Permitir cambiar fecha a las facturas para que estas no aparezcan un dia que no es (sobre todo cuando es correccion por nota credito)
  - Cierres de caja (permitir hacer un registro de cierre de caja)
 
  ### PRIORITARIO
  
+ - Historial de abonos en la modal de factura
  - Hacer que en la modal productos aparezca todos los datos (sobre todo en modulos fuera de producto)
  - Procesos con nota credito y DEBITO, revisar completamente y corregir
  - Agregar permiso para crear comentarios en facturas
@@ -16,14 +18,13 @@
  - Crear filtros mejorados de productos
  - Crear un componente de filtros para que se pueda usar en todos los modulos
  - Historial de facturas en modal cliente
+ - Historial de abonos en modal cliente
  
  ### Modulo Encargos:
  - > Habilitar cuadro de firma para que un usuario tenga que cambiar un estado.  
 
  ### Otros:
- - Agregar cartera con sistecredito y addi, el cliente no debe al almacen, si no que sea addi para controlar los pagos factoring
- - Agregar saldos a favor del cliente cuando sea aplicable.
-
+ - Agregar logo del almacen o por defecto en impresor y exporter de Reportes
  - Avanzar con la implementacion de los botones excel y pdf en todas las vistas
 
  - Mejorar modulo de pagos (mas sencillo)

@@ -267,6 +267,22 @@ const migrations = [
                 if (!error.message.includes('duplicate column name')) throw error
             }
         }
+    },
+    {
+        version: 21,
+        up: () => {
+            console.log("Applying migration V21: Adding descuento and iva columns to ventasDetalle")
+            try {
+                db.exec(`ALTER TABLE ventasDetalle ADD COLUMN descuento REAL DEFAULT 0`)
+            } catch (error) {
+                if (!error.message.includes('duplicate column name')) throw error
+            }
+            try {
+                db.exec(`ALTER TABLE ventasDetalle ADD COLUMN iva REAL`)
+            } catch (error) {
+                if (!error.message.includes('duplicate column name')) throw error
+            }
+        }
     }
 ]
 

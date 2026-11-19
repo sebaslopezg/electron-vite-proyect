@@ -21,20 +21,29 @@ export const registerCarteraHandlers = () => {
             observaciones TEXT,
             date_created TEXT,
             usuario TEXT
-        );
-    `);
+        )
+    `)
 
     ipcMain.handle("get-cartera", () => {
-        if (!checkPermission("cartera_ver")) return [];
+        if (!checkPermission("cartera_ver")) return []
         try {
             const stmt = db.prepare(`
-                SELECT * FROM ventasMaestro 
-                WHERE saldo_pendiente > 0 AND status > 0 
-                ORDER BY date_created ASC
-            `);
+                SELECT 
+                    v.*,
+                    COALESCE(t.saldo_favor, 0) as cliente_saldo_favor
+                FROM ventasMaestro v
+                LEFT JOIN (
+                    SELECT numero_documento, MAX(COALESCE(saldo_favor, 0)) as saldo_favor
+                    FROM terceros
+                    WHERE estado != -1
+                    GROUP BY numero_documento
+                ) t ON v.documento_cliente = t.numero_documento
+                WHERE v.saldo_pendiente > 0 AND v.status > 0 
+                ORDER BY v.date_created ASC
+            `)
             return stmt.all()
         } catch (error) {
-            logger.error('CARTERA', "Fallo al consultar la lista completa de deudores", error)
+            logger.error('CARTERA', 'Failed to fetch full debtors list', error)
             return []
         }
     })
@@ -50,14 +59,30 @@ export const registerCarteraHandlers = () => {
             const orderColIndex = dtParams.order?.[0]?.column || 0
             const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC'
 
-            const columnsMap = ['numero_factura', 'documento_cliente', 'nombre_cliente', 'date_created', 'total_factura', 'saldo_pendiente']
-            let orderCol = columnsMap[orderColIndex] || 'date_created'
+            const columnsMap = [
+                'v.numero_factura',
+                'v.documento_cliente',
+                'v.nombre_cliente',
+                'v.date_created',
+                'v.total_factura',
+                'v.saldo_pendiente'
+            ]
+            const orderCol = columnsMap[orderColIndex] || 'v.date_created'
 
-            let baseQuery = `FROM ventasMaestro WHERE saldo_pendiente > 0 AND status > 0`
-            let queryParams = []
+            let baseQuery = `
+                FROM ventasMaestro v
+                LEFT JOIN (
+                    SELECT numero_documento, MAX(COALESCE(saldo_favor, 0)) as saldo_favor
+                    FROM terceros
+                    WHERE estado != -1
+                    GROUP BY numero_documento
+                ) t ON v.documento_cliente = t.numero_documento
+                WHERE v.saldo_pendiente > 0 AND v.status > 0
+            `
+            const queryParams = []
 
             if (searchValue) {
-                baseQuery += ` AND (numero_factura LIKE ? OR documento_cliente LIKE ? OR nombre_cliente LIKE ?)`
+                baseQuery += ` AND (v.numero_factura LIKE ? OR v.documento_cliente LIKE ? OR v.nombre_cliente LIKE ?)`
                 const likeParam = `%${searchValue}%`
                 queryParams.push(likeParam, likeParam, likeParam)
             }
@@ -66,12 +91,17 @@ export const registerCarteraHandlers = () => {
             const filteredRow = db.prepare(`SELECT COUNT(*) as count ${baseQuery}`).get(...queryParams)
 
             const data = db.prepare(`
-                SELECT * ${baseQuery} ORDER BY ${orderCol} ${orderDir} LIMIT ? OFFSET ?
+                SELECT 
+                    v.*,
+                    COALESCE(t.saldo_favor, 0) as cliente_saldo_favor
+                ${baseQuery}
+                ORDER BY ${orderCol} ${orderDir}
+                LIMIT ? OFFSET ?
             `).all(...queryParams, limit, offset)
 
             return { draw: dtParams.draw, recordsTotal: totalRow.count, recordsFiltered: filteredRow.count, data }
         } catch (error) {
-            logger.error('CARTERA', "Fallo en la paginación y búsqueda del módulo de Cartera", error)
+            logger.error('CARTERA', 'Failed to paginate and search receivables', error)
             return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
     })
@@ -80,49 +110,161 @@ export const registerCarteraHandlers = () => {
         if (!checkPermission("cartera_abonar")) {
             return { success: false, error: "No cuentas con privilegios de rol para alterar saldos de cartera." }
         }
-        
-        const transaction = db.transaction((abono) => {
-            const now = new Date().toISOString();
-            const abonoId = uuidv4();
+
+        const transaction = db.transaction((paymentData) => {
+            const nowIso = new Date().toISOString()
+            const localNowRow = db.prepare("SELECT datetime('now', 'localtime') as nowStr").get()
+            const localNow = localNowRow.nowStr
+            const activeUser = global.currentUserSession?.username || 'system'
+
+            const invoiceInfo = db.prepare(`
+                SELECT id, numero_factura, prefijo, documento_cliente, nombre_cliente, saldo_pendiente
+                FROM ventasMaestro
+                WHERE id = ?
+            `).get(paymentData.maestro_id)
+
+            if (!invoiceInfo) {
+                throw new Error("Invoice not found")
+            }
+
+            const pendingBalance = Math.max(0, Number(invoiceInfo.saldo_pendiente) || 0)
+            if (pendingBalance <= 0) {
+                throw new Error("This invoice has no pending balance")
+            }
+
             
-            const usuarioActivo = global.currentUserSession?.username || 'system';
 
-            const facturaInfo = db.prepare("SELECT numero_factura, nombre_cliente, saldo_pendiente FROM ventasMaestro WHERE id = ?").get(abono.maestro_id)
+            const explicitCreditUsed = Math.max(0, Number(paymentData.saldo_favor_usado) || 0)
+            const rawAmount = Math.max(0, Number(paymentData.valor) || 0)
+            const isDirectCreditMethod = paymentData.metodo_pago === 'Saldo a Favor'
 
-            const insertAbono = db.prepare(`
+            const creditRequested = explicitCreditUsed > 0
+                ? explicitCreditUsed
+                : (isDirectCreditMethod ? rawAmount : 0)
+
+            const otherAmount = isDirectCreditMethod ? 0 : rawAmount
+
+            const totalPayment = creditRequested + otherAmount
+
+            if (totalPayment <= 0) {
+                throw new Error("Total payment amount must be greater than 0")
+            }
+
+            if (totalPayment > pendingBalance + 0.01) {
+                throw new Error("Total payment amount exceeds pending invoice debt")
+            }
+
+            let creditUsed = 0
+            let remainingCreditBalance = 0
+
+            if (creditRequested > 0) {
+                const clientDoc = (invoiceInfo.documento_cliente || '').trim()
+                if (!clientDoc) {
+                    throw new Error("Client document is required to apply credit balance")
+                }
+
+                const clientRecord = db.prepare(`
+                    SELECT id, COALESCE(saldo_favor, 0) as saldo_favor
+                    FROM terceros
+                    WHERE numero_documento = ? AND estado != -1
+                    LIMIT 1
+                `).get(clientDoc)
+
+                if (!clientRecord) {
+                    throw new Error("Client not found in terceros to apply credit balance")
+                }
+
+                const availableCredit = Number(clientRecord.saldo_favor) || 0
+                if (creditRequested > availableCredit + 0.01) {
+                    throw new Error("Insufficient client credit balance")
+                }
+
+                creditUsed = Math.min(creditRequested, availableCredit, pendingBalance)
+                remainingCreditBalance = Math.max(0, availableCredit - creditUsed)
+
+                db.prepare(`
+                    UPDATE terceros
+                    SET saldo_favor = ?, date_modify = ?
+                    WHERE id = ?
+                `).run(remainingCreditBalance, localNow, clientRecord.id)
+            }
+
+            const insertPayment = db.prepare(`
                 INSERT INTO abonos_ventas (id, maestro_id, valor, metodo_pago, observaciones, date_created, usuario)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             `)
-            insertAbono.run(abonoId, abono.maestro_id, abono.valor, abono.metodo_pago, abono.observaciones, now, usuarioActivo)
 
-            const updateMaestro = db.prepare(`
-                UPDATE ventasMaestro 
-                SET total_recibido = total_recibido + ?, 
-                    saldo_pendiente = saldo_pendiente - ?,
-                    date_modify = ?
-                WHERE id = ?
-            `)
-            updateMaestro.run(abono.valor, abono.valor, now, abono.maestro_id)
+            const createdIds = []
 
-            if (facturaInfo) {
-                logger.success(
-                    'CARTERA', 
-                    `Abono de $${abono.valor} registrado por @${usuarioActivo}`, 
-                    `Factura N° ${facturaInfo.numero_factura}. Cliente: ${facturaInfo.nombre_cliente}.`
+            if (creditUsed > 0) {
+                const creditPaymentId = uuidv4()
+                insertPayment.run(
+                    creditPaymentId,
+                    paymentData.maestro_id,
+                    creditUsed,
+                    'Saldo a Favor',
+                    paymentData.observaciones || '',
+                    nowIso,
+                    activeUser
                 )
+                createdIds.push(creditPaymentId)
             }
 
-            return abonoId
+            if (otherAmount > 0) {
+                const otherPaymentId = uuidv4()
+                insertPayment.run(
+                    otherPaymentId,
+                    paymentData.maestro_id,
+                    otherAmount,
+                    paymentData.metodo_pago || 'Efectivo',
+                    paymentData.observaciones || '',
+                    nowIso,
+                    activeUser
+                )
+                createdIds.push(otherPaymentId)
+            }
+
+            const appliedTotal = Math.min(pendingBalance, creditUsed + otherAmount)
+            const newPendingBalance = Math.max(0, pendingBalance - appliedTotal)
+
+            db.prepare(`
+                UPDATE ventasMaestro
+                SET total_recibido = total_recibido + ?,
+                    saldo_pendiente = ?,
+                    date_modify = ?
+                WHERE id = ?
+            `).run(appliedTotal, newPendingBalance, nowIso, paymentData.maestro_id)
+
+            logger.success(
+                'CARTERA',
+                `Payment of $${appliedTotal} registered by @${activeUser}`,
+                `Invoice ${invoiceInfo.prefijo || ''}${invoiceInfo.numero_factura}. Client: ${invoiceInfo.nombre_cliente}. Credit used: $${creditUsed}.`
+            )
+
+            return {
+                primaryId: createdIds[0] || null,
+                creditUsed,
+                remainingCreditBalance
+            }
         })
 
         try {
-            const id = transaction(data)
+            const txResult = transaction(data)
 
-            triggerBackgroundPush('ventasMaestro').catch(e => logger.error('SYNC', 'Error en push background (Abono de Cartera)', e))
+            triggerBackgroundPush('ventasMaestro').catch(e => logger.error('SYNC', 'Background push error after portfolio payment', e))
 
-            return { success: true, id }
+            if (txResult.creditUsed > 0) {
+                triggerBackgroundPush('terceros').catch(e => logger.error('SYNC', 'Background push error for terceros after credit payment', e))
+            }
+
+            return {
+                success: true,
+                id: txResult.primaryId,
+                creditUsed: txResult.creditUsed,
+                remainingCreditBalance: txResult.remainingCreditBalance
+            }
         } catch (error) {
-            logger.error('CARTERA', "Error crítico al intentar guardar un abono", error)
+            logger.error('CARTERA', 'Critical error while saving portfolio payment', error)
             return { success: false, error: error.message }
         }
     })
@@ -150,19 +292,19 @@ export const registerCarteraHandlers = () => {
                 LEFT JOIN ventasMaestro v ON a.maestro_id = v.id
                 ORDER BY a.date_created DESC
             `)
-            const abonos = stmt.all();
-            const configuracion = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`).get()
+            const payments = stmt.all()
+            const storeConfig = db.prepare(`SELECT * FROM almacen_conf LIMIT 1`).get()
 
-            return { success: true, data: abonos, configuracion: configuracion }
+            return { success: true, data: payments, configuracion: storeConfig }
         } catch (error) {
-            logger.error('CARTERA', "Fallo al consultar el historial completo de abonos", error)
+            logger.error('CARTERA', 'Failed to fetch full payment history', error)
             return { success: false, data: [] }
         }
     })
 
     ipcMain.handle("get-abonos-paginados", (_, dtParams) => {
         if (!checkPermission("cartera_historial_ver")) {
-            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] };
+            return { draw: dtParams?.draw || 0, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
         try {
             const limit = parseInt(dtParams.length, 10) || 10
@@ -172,14 +314,14 @@ export const registerCarteraHandlers = () => {
             const orderDir = dtParams.order?.[0]?.dir === 'desc' ? 'DESC' : 'ASC'
 
             const columnsMap = ['a.date_created', 'v.numero_factura', 'v.nombre_cliente', 'a.metodo_pago', 'a.valor', 'a.usuario']
-            let orderCol = columnsMap[orderColIndex] || 'a.date_created'
+            const orderCol = columnsMap[orderColIndex] || 'a.date_created'
 
             let baseQuery = `
                 FROM abonos_ventas a
                 LEFT JOIN ventasMaestro v ON a.maestro_id = v.id
                 WHERE 1=1
             `
-            let queryParams = []
+            const queryParams = []
 
             if (searchValue) {
                 baseQuery += ` AND (v.numero_factura LIKE ? OR v.nombre_cliente LIKE ? OR a.metodo_pago LIKE ? OR a.usuario LIKE ?)`
@@ -209,12 +351,12 @@ export const registerCarteraHandlers = () => {
                 ${baseQuery}
                 ORDER BY ${orderCol} ${orderDir}
                 LIMIT ? OFFSET ?
-            `;
+            `
             const data = db.prepare(dataQuery).all(...queryParams, limit, offset)
 
             return { draw: dtParams.draw, recordsTotal: totalRow.count, recordsFiltered: filteredRow.count, data }
         } catch (error) {
-            logger.error('CARTERA', "Fallo en la paginación y búsqueda del historial de abonos", error)
+            logger.error('CARTERA', 'Failed to paginate and search payment history', error)
             return { draw: dtParams.draw, recordsTotal: 0, recordsFiltered: 0, data: [] }
         }
     })

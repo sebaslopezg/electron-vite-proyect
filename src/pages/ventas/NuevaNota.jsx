@@ -17,6 +17,8 @@ const Toast = Swal.mixin({
     }
 })
 
+const roundMoney = (val) => Math.round((Number(val) || 0) * 100) / 100
+
 export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }) => {
     const [appConfig, setAppConfig] = useState({ moneda: 'COP', formato_numero: 'es-CO' })
 
@@ -67,23 +69,33 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
         "Cambio del valor"
     ]
 
-    const totals = items.reduce((acc, item) => {
+    const rawTotals = items.reduce((acc, item) => {
         return {
+            grossBase: acc.grossBase + (item.subtotal_bruto || 0),
+            discount: acc.discount + (item.descuento_total || 0),
             base: acc.base + (item.subtotal || 0),
             iva: acc.iva + ((item.subtotal * item.iva_percent) || 0),
             final: acc.final + (item.total || 0)
         }
-    }, { base: 0, iva: 0, final: 0 })
+    }, { grossBase: 0, discount: 0, base: 0, iva: 0, final: 0 })
 
-    // Live calculation of debt discount and credit balance excess
+    const totals = {
+        grossBase: roundMoney(rawTotals.grossBase),
+        discount: roundMoney(rawTotals.discount),
+        base: roundMoney(rawTotals.base),
+        iva: roundMoney(rawTotals.iva),
+        final: roundMoney(rawTotals.final)
+    }
+
     const isCreditNote = formData.tipo_nota === 'Crédito'
     const hasRegisteredClient = Boolean(clientBalance?.id)
     const currentClientCredit = Number(clientBalance?.saldo_favor) || 0
     const invoicePendingDebt = Math.max(0, Number(loadedInvoice?.saldo_pendiente) || 0)
+    const invoiceDiscountTotal = Math.max(0, Number(loadedInvoice?.descuento) || 0)
     const debtToDiscount = isCreditNote ? Math.min(invoicePendingDebt, totals.final) : 0
-    const creditExcess = isCreditNote ? Math.max(0, totals.final - debtToDiscount) : 0
+    const creditExcess = isCreditNote ? Math.max(0, roundMoney(totals.final - debtToDiscount)) : 0
     const willAddCreditBalance = isCreditNote && hasRegisteredClient && formData.generar_saldo_favor && creditExcess > 0
-    const projectedClientCredit = currentClientCredit + (willAddCreditBalance ? creditExcess : 0)
+    const projectedClientCredit = roundMoney(currentClientCredit + (willAddCreditBalance ? creditExcess : 0))
 
     const formatMoney = (value) => formatCurrency(value, appConfig.formato_numero, appConfig.moneda)
 
@@ -158,6 +170,12 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
             return
         }
 
+        const originalUnitPrice = Number(invoiceProduct.precio_producto) || 0
+        const unitDiscount = Number(invoiceProduct.descuento_unitario) || 0
+        const netUnitPrice = invoiceProduct.precio_unitario_neto !== undefined
+            ? Number(invoiceProduct.precio_unitario_neto)
+            : Math.max(0, originalUnitPrice - unitDiscount)
+
         const newItem = {
             id: invoiceProduct.id_producto,
             id_producto: invoiceProduct.id_producto,
@@ -167,8 +185,12 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
             nombre_producto: invoiceProduct.nombre_producto,
             amount: qtyToAdd,
             cantidad: qtyToAdd,
-            precio_unitario: invoiceProduct.precio_producto,
+            precio_original: originalUnitPrice,
+            descuento_unitario: unitDiscount,
+            precio_unitario: netUnitPrice,
             iva_percent: Number(invoiceProduct.iva ?? 0) / 100,
+            get subtotal_bruto() { return this.cantidad * this.precio_original },
+            get descuento_total() { return this.cantidad * this.descuento_unitario },
             get subtotal() { return this.cantidad * this.precio_unitario },
             get total() { return this.subtotal * (1 + this.iva_percent) }
         }
@@ -228,10 +250,10 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                 id_producto: item.id_producto,
                 nombre_producto: item.nombre_producto,
                 cantidad: item.cantidad,
-                precio_unitario: item.precio_unitario,
+                precio_unitario: roundMoney(item.precio_unitario),
                 iva_percent: item.iva_percent,
-                subtotal: item.subtotal,
-                total: item.total
+                subtotal: roundMoney(item.subtotal),
+                total: roundMoney(item.total)
             }))
         }
 
@@ -303,7 +325,12 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                                     <div>
                                         <strong>Factura Seleccionada:</strong> {loadedInvoice.prefijo || ''}{loadedInvoice.separador || ''}{loadedInvoice.numero_factura} |
                                         <strong> Cliente:</strong> {loadedInvoice.nombre_cliente} |
-                                        <strong> Total Original:</strong> {formatMoney(availableProducts.reduce((sum, item) => sum + (item.total || 0), 0))}
+                                        <strong> Total Factura:</strong> {formatMoney(loadedInvoice.total_factura || 0)}
+                                        {invoiceDiscountTotal > 0 && (
+                                            <span className="ms-2 text-danger fw-bold">
+                                                (Desc: -{formatMoney(invoiceDiscountTotal)})
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="d-flex gap-3">
                                         <span>
@@ -411,7 +438,8 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                                     },
                                     { data: 'nombre_producto', title: 'Producto' },
                                     { data: 'cantidad', title: 'Cant.' },
-                                    { data: 'precio_unitario', title: 'V. Unitario' },
+                                    { data: 'precio_original', title: 'V. Unitario' },
+                                    { data: 'descuento_total', title: 'Desc.' },
                                     { data: 'iva_percent', title: 'IVA' },
                                     { data: 'total', title: 'Total' },
                                     {
@@ -428,7 +456,13 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                                     }
                                 ]}
                                 customRenders={{
-                                    precio_unitario: (data) => formatMoney(data),
+                                    precio_original: (data) => formatMoney(data),
+                                    descuento_total: (data) => {
+                                        const discountVal = Number(data) || 0
+                                        return discountVal > 0
+                                            ? `<span class="text-danger">-${formatMoney(discountVal)}</span>`
+                                            : '<span class="text-muted">-</span>'
+                                    },
                                     iva_percent: (data) => `${(parseFloat(data) * 100).toFixed(0)}%`,
                                     total: (data) => `<strong>${formatMoney(data)}</strong>`
                                 }}
@@ -440,7 +474,15 @@ export const NuevaNota = ({ onBack, onSuccess, canCrearCredito, canCrearDebito }
                         <div className="col-md-4">
                             <table className="table table-sm table-borderless text-end fs-5">
                                 <tbody>
-                                    <tr><td className="fw-bold">Subtotal:</td><td>{formatMoney(totals.base)}</td></tr>
+                                    {totals.discount > 0 ? (
+                                        <>
+                                            <tr><td className="fw-bold">Subtotal Bruto:</td><td>{formatMoney(totals.grossBase)}</td></tr>
+                                            <tr className="text-danger"><td className="fw-bold">Descuento:</td><td>-{formatMoney(totals.discount)}</td></tr>
+                                            <tr><td className="fw-bold">Subtotal Neto:</td><td>{formatMoney(totals.base)}</td></tr>
+                                        </>
+                                    ) : (
+                                        <tr><td className="fw-bold">Subtotal:</td><td>{formatMoney(totals.base)}</td></tr>
+                                    )}
                                     <tr><td className="fw-bold">IVA:</td><td>{formatMoney(totals.iva)}</td></tr>
                                     <tr className="border-top border-2 border-dark">
                                         <td className="fw-bold fs-4">Total:</td><td className="fw-bold fs-4 text-primary">{formatMoney(totals.final)}</td>

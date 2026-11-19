@@ -27,9 +27,80 @@ const getLocalDatetime = (startOfDay = true) => {
     const year = today.getFullYear()
     const month = String(today.getMonth() + 1).padStart(2, '0')
     const day = String(today.getDate()).padStart(2, '0')
-    
+
     const time = startOfDay ? '00:00' : '23:59'
     return `${year}-${month}-${day}T${time}`
+}
+
+const isCreditBalanceMethod = (methodName) => {
+    return String(methodName || '').trim().toLowerCase() === 'saldo a favor'
+}
+
+const analyzeTransactionPayment = (transaction) => {
+    const methodsBreakdown = {}
+    let cashInflow = 0
+    let creditBalanceUsed = 0
+
+    const addMethodAmount = (methodName, amount) => {
+        if (amount <= 0) return
+        const cleanMethod = methodName || 'Contado'
+        methodsBreakdown[cleanMethod] = (methodsBreakdown[cleanMethod] || 0) + amount
+
+        if (isCreditBalanceMethod(cleanMethod)) {
+            creditBalanceUsed += amount
+        } else {
+            cashInflow += amount
+        }
+    }
+
+    if (transaction.tipo_transaccion === 'abono') {
+        const paymentValue = Number(transaction.valor) || 0
+        addMethodAmount(transaction.metodo_pago || 'Abono', paymentValue)
+        return { cashInflow, creditBalanceUsed, methodsBreakdown }
+    }
+
+    if (transaction.tipo_transaccion === 'venta') {
+        const initialPending = transaction.saldo_pendiente_original ?? transaction.saldo_pendiente ?? 0
+        const paidAtSale = Math.max(0, (Number(transaction.total_factura) || 0) - (Number(initialPending) || 0))
+
+        if (paidAtSale > 0) {
+            let distributedTotal = 0
+
+            if (transaction.pagos_multiples) {
+                try {
+                    const parsedPayments = JSON.parse(transaction.pagos_multiples)
+                    if (Array.isArray(parsedPayments) && parsedPayments.length > 0) {
+                        const orderedPayments = [...parsedPayments].sort((a, b) => {
+                            const aIsCredit = isCreditBalanceMethod(a.metodo) ? 0 : 1
+                            const bIsCredit = isCreditBalanceMethod(b.metodo) ? 0 : 1
+                            return aIsCredit - bIsCredit
+                        })
+
+                        let remainingToDistribute = paidAtSale
+                        orderedPayments.forEach(payment => {
+                            if (remainingToDistribute <= 0) return
+                            let amount = parseFloat(payment.monto) || 0
+                            if (amount > remainingToDistribute) amount = remainingToDistribute
+
+                            if (amount > 0) {
+                                addMethodAmount(payment.metodo || 'Contado', amount)
+                                remainingToDistribute -= amount
+                                distributedTotal += amount
+                            }
+                        })
+                    }
+                } catch (err) {
+                    console.error('Error parsing pagos_multiples in sales report', err)
+                }
+            }
+
+            if (distributedTotal === 0) {
+                addMethodAmount(transaction.metodo_pago || 'Contado', paidAtSale)
+            }
+        }
+    }
+
+    return { cashInflow, creditBalanceUsed, methodsBreakdown }
 }
 
 export const Reportes = ({ currentUser }) => {
@@ -38,19 +109,18 @@ export const Reportes = ({ currentUser }) => {
     const [startDate, setStartDate] = useState(() => getLocalDatetime(true))
     const [endDate, setEndDate] = useState(() => getLocalDatetime(false))
 
-    const [transacciones, setTransacciones] = useState([])
-    const [almacenConf, setAlmacenConf] = useState(null)
+    const [transactions, setTransactions] = useState([])
+    const [storeConfig, setStoreConfig] = useState(null)
     const [showPreview, setShowPreview] = useState(false)
     const [loading, setLoading] = useState(false)
 
     const tableContainerRef = useRef(null)
-    const [showModalFactura, setShowModalFactura] = useState(false)
-    const [showImpresorFactura, setShowImpresorFactura] = useState(false)
-    const [facturaVer, setFacturaVer] = useState(null)
-    const [detalleData, setDetalleData] = useState([])
-    const [notasFactura, setNotasFactura] = useState([])
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+    const [showInvoicePrinter, setShowInvoicePrinter] = useState(false)
+    const [selectedInvoice, setSelectedInvoice] = useState(null)
+    const [detailData, setDetailData] = useState([])
+    const [invoiceNotes, setInvoiceNotes] = useState([])
 
-    // Estados para la Modal de Exportación general
     const [showExportModal, setShowExportModal] = useState(false)
     const [exportFormat, setExportFormat] = useState(null)
 
@@ -70,10 +140,10 @@ export const Reportes = ({ currentUser }) => {
     }, [currentUser])
 
     const hasPermission = (permissionKey) => {
-        const userToEvaluate = activeUser || currentUser;
-        if (!userToEvaluate) return false;
-        if (userToEvaluate.permisos?.includes('ALL')) return true;
-        return userToEvaluate.permisos?.includes(permissionKey);
+        const userToEvaluate = activeUser || currentUser
+        if (!userToEvaluate) return false
+        if (userToEvaluate.permisos?.includes('ALL')) return true
+        return userToEvaluate.permisos?.includes(permissionKey)
     }
 
     const canPrint = hasPermission('reportes_imprimir')
@@ -86,22 +156,22 @@ export const Reportes = ({ currentUser }) => {
             const confAppRaw = configData.find(c => c.key === 'confApp')
             if (confAppRaw) {
                 try {
-                    const parsed = JSON.parse(confAppRaw.value);
+                    const parsed = JSON.parse(confAppRaw.value)
                     setAppConfig({ moneda: parsed.moneda || 'COP', formato_numero: parsed.formato_numero || 'es-CO' })
-                } catch(e) {}
+                } catch (e) {}
             }
         }
         loadConfig()
     }, [])
 
-    const _formatCurrency = (val) => formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
+    const formatMoney = (val) => formatCurrency(val, appConfig.formato_numero, appConfig.moneda)
 
-    const loadReporte = async () => {
+    const loadReport = async () => {
         setLoading(true)
         const res = await ventasService.getReporteVentas({ startDate, endDate })
         if (res.success) {
-            setTransacciones(res.data);
-            setAlmacenConf(res.configuracion)
+            setTransactions(res.data)
+            setStoreConfig(res.configuracion)
         } else {
             Toast.fire({ icon: 'error', title: res.error || 'No se pudo cargar el reporte' })
         }
@@ -109,10 +179,10 @@ export const Reportes = ({ currentUser }) => {
     }
 
     useEffect(() => {
-        loadReporte()
-        const handleNovaFactura = () => loadReporte()
-        window.addEventListener('factura-creada', handleNovaFactura)
-        return () => window.removeEventListener('factura-creada', handleNovaFactura)
+        loadReport()
+        const handleNewInvoice = () => loadReport()
+        window.addEventListener('factura-creada', handleNewInvoice)
+        return () => window.removeEventListener('factura-creada', handleNewInvoice)
     }, [startDate, endDate])
 
     useEffect(() => {
@@ -120,20 +190,22 @@ export const Reportes = ({ currentUser }) => {
         if (!container) return
 
         const handleTableClick = (e) => {
-            const btnFactura = e.target.closest('.btn-view-factura')
-            if (btnFactura && container.contains(btnFactura)) {
+            const invoiceBtn = e.target.closest('.btn-view-factura')
+            if (invoiceBtn && container.contains(invoiceBtn)) {
                 e.preventDefault()
                 try {
-                    const item = JSON.parse(decodeURIComponent(btnFactura.dataset.alldata))
-                    const facturaId = item.tipo_transaccion === 'abono' ? item.maestro_id : item.id
-                    
-                    handleViewFactura({
+                    const item = JSON.parse(decodeURIComponent(invoiceBtn.dataset.alldata))
+                    const invoiceId = item.tipo_transaccion === 'abono' ? item.maestro_id : item.id
+
+                    handleViewInvoice({
                         ...item,
-                        id: facturaId,
+                        id: invoiceId,
                         numero_factura: item.numero_factura || item.factura_numero,
                         tipo_pago: item.tipo_transaccion === 'abono' ? 'credito' : item.tipo_pago
                     })
-                } catch(err) { console.error(err) }
+                } catch (err) {
+                    console.error('Error parsing transaction data', err)
+                }
             }
         }
 
@@ -141,104 +213,68 @@ export const Reportes = ({ currentUser }) => {
         return () => container.removeEventListener('click', handleTableClick)
     }, [])
 
-    const handleViewFactura = async (factura) => {
-        setFacturaVer(factura)
-        setShowModalFactura(true)
-        
+    const handleViewInvoice = async (invoice) => {
+        setSelectedInvoice(invoice)
+        setShowInvoiceModal(true)
+
         try {
-            const result = await ventasService.getDetalleFactura(factura.id)
+            const result = await ventasService.getDetalleFactura(invoice.id)
             if (Array.isArray(result)) {
-                setDetalleData(result)
-                setNotasFactura([])
+                setDetailData(result)
+                setInvoiceNotes([])
             } else if (result && (result.success || result.data || result.detalles)) {
-                setDetalleData(result.data || result.detalles || [])
-                setNotasFactura(result.notes || result.notas || [])
-                
+                setDetailData(result.data || result.detalles || [])
+                setInvoiceNotes(result.notes || result.notas || [])
+
                 if (result.facturaMaestro) {
-                    setFacturaVer(result.facturaMaestro)
+                    setSelectedInvoice(result.facturaMaestro)
                 }
                 if (result.configuracion) {
-                    setAlmacenConf(result.configuracion)
+                    setStoreConfig(result.configuracion)
                 }
             } else {
-                setDetalleData([])
-                setNotasFactura([])
+                setDetailData([])
+                setInvoiceNotes([])
             }
-        } catch(e) {
-            console.error("Error cargando detalle", e)
-            setDetalleData([])
-            setNotasFactura([])
+        } catch (err) {
+            console.error('Error loading invoice detail', err)
+            setDetailData([])
+            setInvoiceNotes([])
         }
     }
 
-    const handleCloseModalFactura = () => {
-        setShowModalFactura(false)
-        setFacturaVer(null)
-        setDetalleData([])
-        setNotasFactura([])
+    const handleCloseInvoiceModal = () => {
+        setShowInvoiceModal(false)
+        setSelectedInvoice(null)
+        setDetailData([])
+        setInvoiceNotes([])
     }
 
-    const handlePrepararImpresionFactura = () => {
-        setShowModalFactura(false)
-        setShowImpresorFactura(true)
+    const handlePrepareInvoicePrint = () => {
+        setShowInvoiceModal(false)
+        setShowInvoicePrinter(true)
     }
 
-    const totales = useMemo(() => {
-        return transacciones.reduce((acc, t) => {
-            if (t.tipo_transaccion === 'venta') {
-                acc.totalFacturado += (t.total_factura || 0)
+    const totals = useMemo(() => {
+        return transactions.reduce((acc, item) => {
+            if (item.tipo_transaccion === 'venta') {
+                acc.totalFacturado += (Number(item.total_factura) || 0)
             }
 
-            if (t.tipo_transaccion === 'abono') {
-                const metodo = t.metodo_pago || 'Abono'
-                if (!acc.metodos[metodo]) acc.metodos[metodo] = 0
-                acc.metodos[metodo] += (t.valor || 0)
-                
-                acc.ingresoTotalCaja += (t.valor || 0)
-            } 
-            else if (t.tipo_transaccion === 'venta') {
-                let ingresoReal = (t.total_factura || 0) - (t.saldo_pendiente || 0)
-                
-                if (ingresoReal > 0) {
-                    if (t.pagos_multiples) {
-                        try {
-                            const pagos = JSON.parse(t.pagos_multiples)
-                            let faltaRepartir = ingresoReal;
-                            pagos.forEach(p => {
-                                if (faltaRepartir <= 0) return
-                                let mnt = parseFloat(p.monto) || 0
-                                if (mnt > faltaRepartir) mnt = faltaRepartir
-                                
-                                if (mnt > 0) {
-                                    const met = p.metodo || 'Contado'
-                                    if (!acc.metodos[met]) acc.metodos[met] = 0
-                                    acc.metodos[met] += mnt
-                                    faltaRepartir -= mnt
-                                }
-                            })
-                        } catch (e) {
-                            const metodo = t.metodo_pago || 'Contado'
-                            if (!acc.metodos[metodo]) acc.metodos[metodo] = 0
-                            acc.metodos[metodo] += ingresoReal
-                        }
-                    } else {
-                        const metodo = t.metodo_pago || 'Contado'
-                        if (!acc.metodos[metodo]) acc.metodos[metodo] = 0
-                        acc.metodos[metodo] += ingresoReal
-                    }
-                    
-                    acc.ingresoTotalCaja += ingresoReal
-                }
-                
-                if (t.saldo_pendiente > 0) {
-                    if (!acc.metodos['Crédito']) acc.metodos['Crédito'] = 0
-                    acc.metodos['Crédito'] += (t.saldo_pendiente || 0)
-                }
+            const { cashInflow, methodsBreakdown } = analyzeTransactionPayment(item)
+            acc.ingresoTotalCaja += cashInflow
+
+            Object.entries(methodsBreakdown).forEach(([method, amount]) => {
+                acc.metodos[method] = (acc.metodos[method] || 0) + amount
+            })
+
+            if (item.tipo_transaccion === 'venta' && (Number(item.saldo_pendiente) || 0) > 0) {
+                acc.metodos['Crédito'] = (acc.metodos['Crédito'] || 0) + (Number(item.saldo_pendiente) || 0)
             }
 
             return acc
         }, { totalFacturado: 0, ingresoTotalCaja: 0, metodos: {} })
-    }, [transacciones])
+    }, [transactions])
 
     const exportColumnsDef = [
         { key: 'hora', label: 'Hora', defaultChecked: true },
@@ -250,7 +286,7 @@ export const Reportes = ({ currentUser }) => {
     ]
 
     const openExportModal = (format) => {
-        if (transacciones.length === 0) {
+        if (transactions.length === 0) {
             return Swal.fire('Error', 'No hay registros para exportar', 'warning')
         }
         setExportFormat(format)
@@ -258,84 +294,84 @@ export const Reportes = ({ currentUser }) => {
     }
 
     const handleProcessExport = (limit, selectedColumnKeys, customFileName, exportTypeSelection) => {
-        let dataToProcess = transacciones
-        
+        let dataToProcess = transactions
+
         if (limit && exportTypeSelection === 'limit') {
-            dataToProcess = [...transacciones]
+            dataToProcess = [...transactions]
                 .sort((a, b) => new Date(b.date_created) - new Date(a.date_created))
-                .slice(0, limit);
+                .slice(0, limit)
         }
 
-        const extractValue = (t, key) => {
-            const ingreso = t.tipo_transaccion === 'abono' ? (t.valor || 0) : ((t.total_factura || 0) - (t.saldo_pendiente || 0))
-            const venta = t.tipo_transaccion === 'abono' ? 0 : (t.total_factura || 0);
-            let concepto = t.tipo_transaccion === 'abono' ? `Abono - ${t.metodo_pago}` : (t.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${t.metodo_pago || 'Contado'}`);
-            
-            if (t.notas_aplicadas) {
-                concepto += exportFormat === 'pdf' ? `\n(${t.notas_aplicadas})` : ` (${t.notas_aplicadas})`;
+        const extractValue = (item, key) => {
+            const { cashInflow } = analyzeTransactionPayment(item)
+            const saleAmount = item.tipo_transaccion === 'abono' ? 0 : (item.total_factura || 0)
+            let concept = item.tipo_transaccion === 'abono'
+                ? `Abono - ${item.metodo_pago}`
+                : (item.tipo_pago === 'credito' ? 'Venta a Crédito' : `Venta - ${item.metodo_pago || 'Contado'}`)
+
+            if (item.notas_aplicadas) {
+                concept += exportFormat === 'pdf' ? `\n(${item.notas_aplicadas})` : ` (${item.notas_aplicadas})`
             }
 
-            switch(key) {
-                case 'hora': return new Date(t.date_created).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' });
-                case 'documento': return t.tipo_transaccion === 'abono' ? `Abono a F-${t.factura_numero || ''}` : `${t.prefijo || ''}${t.separador || ''}${t.numero_factura || ''}`;
-                case 'cliente': return t.nombre_cliente;
-                case 'concepto': return concepto;
-                case 'venta': return exportFormat === 'pdf' ? (venta > 0 ? _formatCurrency(venta) : '-') : venta;
-                case 'ingreso': return exportFormat === 'pdf' ? (ingreso > 0 ? _formatCurrency(ingreso) : '$0') : ingreso;
-                default: return '';
+            switch (key) {
+                case 'hora': return new Date(item.date_created).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' })
+                case 'documento': return item.tipo_transaccion === 'abono' ? `Abono a F-${item.factura_numero || ''}` : `${item.prefijo || ''}${item.separador || ''}${item.numero_factura || ''}`
+                case 'cliente': return item.nombre_cliente
+                case 'concepto': return concept
+                case 'venta': return exportFormat === 'pdf' ? (saleAmount > 0 ? formatMoney(saleAmount) : '-') : saleAmount
+                case 'ingreso': return exportFormat === 'pdf' ? (cashInflow > 0 ? formatMoney(cashInflow) : '$0') : cashInflow
+                default: return ''
             }
         }
 
-        const safeFileName = customFileName || `Reporte_Financiero_${startDate.split('T')[0]}`;
+        const safeFileName = customFileName || `Reporte_Financiero_${startDate.split('T')[0]}`
 
         if (exportFormat === 'excel') {
-            const dataToExport = dataToProcess.map(t => {
-                const row = {};
+            const dataToExport = dataToProcess.map(item => {
+                const row = {}
                 exportColumnsDef.forEach(colDef => {
                     if (selectedColumnKeys.includes(colDef.key)) {
-                        row[colDef.label] = extractValue(t, colDef.key);
+                        row[colDef.label] = extractValue(item, colDef.key)
                     }
-                });
-                return row;
-            });
-            
-            // Insertamos fila separadora y fila de totales
-            const emptyRow = {};
-            const totalsRow = {};
+                })
+                return row
+            })
+
+            const emptyRow = {}
+            const totalsRow = {}
             exportColumnsDef.forEach(colDef => {
                 if (selectedColumnKeys.includes(colDef.key)) {
-                    emptyRow[colDef.label] = '';
-                    if (colDef.key === 'concepto') totalsRow[colDef.label] = 'TOTALES GLOBALES';
-                    else if (colDef.key === 'venta') totalsRow[colDef.label] = totales.totalFacturado;
-                    else if (colDef.key === 'ingreso') totalsRow[colDef.label] = totales.ingresoTotalCaja;
-                    else totalsRow[colDef.label] = '';
+                    emptyRow[colDef.label] = ''
+                    if (colDef.key === 'concepto') totalsRow[colDef.label] = 'TOTALES GLOBALES'
+                    else if (colDef.key === 'venta') totalsRow[colDef.label] = totals.totalFacturado
+                    else if (colDef.key === 'ingreso') totalsRow[colDef.label] = totals.ingresoTotalCaja
+                    else totalsRow[colDef.label] = ''
                 }
-            });
-            dataToExport.push(emptyRow, totalsRow);
+            })
+            dataToExport.push(emptyRow, totalsRow)
 
-            exportToExcel(dataToExport, safeFileName, "Transacciones");
-        } 
-        else if (exportFormat === 'pdf') {
+            exportToExcel(dataToExport, safeFileName, 'Transacciones')
+        } else if (exportFormat === 'pdf') {
             const tableColumn = exportColumnsDef
                 .filter(col => selectedColumnKeys.includes(col.key))
-                .map(col => col.label);
-            
-            const tableRows = dataToProcess.map(t => {
+                .map(col => col.label)
+
+            const tableRows = dataToProcess.map(item => {
                 return exportColumnsDef
                     .filter(col => selectedColumnKeys.includes(col.key))
-                    .map(col => extractValue(t, col.key))
-            });
+                    .map(col => extractValue(item, col.key))
+            })
 
-            const stats = dataToProcess.reduce((acc, f) => {
-                if (f.tipo_transaccion === 'venta') {
-                    acc.subtotal += f.subtotal || 0;
-                    acc.descuentos += f.descuento || 0;
-                    acc.iva += f.iva || 0;
-                    if (f.tipo_pago === 'contado') acc.contado += f.total_factura || 0;
-                    if (f.tipo_pago === 'credito') acc.credito += f.total_factura || 0;
+            const stats = dataToProcess.reduce((acc, item) => {
+                if (item.tipo_transaccion === 'venta') {
+                    acc.subtotal += item.subtotal || 0
+                    acc.descuentos += item.descuento || 0
+                    acc.iva += item.iva || 0
+                    if (item.tipo_pago === 'contado') acc.contado += item.total_factura || 0
+                    if (item.tipo_pago === 'credito') acc.credito += item.total_factura || 0
                 }
-                return acc;
-            }, { subtotal: 0, descuentos: 0, iva: 0, contado: 0, credito: 0 });
+                return acc
+            }, { subtotal: 0, descuentos: 0, iva: 0, contado: 0, credito: 0 })
 
             exportToPDF({
                 title: 'Reporte de Ventas',
@@ -343,9 +379,9 @@ export const Reportes = ({ currentUser }) => {
                 columns: tableColumn,
                 data: tableRows,
                 filename: safeFileName,
-                configuracion: almacenConf,
+                configuracion: storeConfig,
                 totales: {
-                    ...totales,
+                    ...totals,
                     subtotal: stats.subtotal,
                     descuentos: stats.descuentos,
                     iva: stats.iva,
@@ -354,18 +390,19 @@ export const Reportes = ({ currentUser }) => {
                 },
                 moneda: appConfig.moneda,
                 formato_numero: appConfig.formato_numero
-            });
+            })
         }
     }
 
-    const columnas = [
-        { 
-            data: 'date_created', 
+    const columns = [
+        {
+            data: 'date_created',
             title: 'Hora',
             render: (data) => new Date(data).toLocaleTimeString(appConfig.formato_numero, { hour: '2-digit', minute: '2-digit' })
         },
-        { 
-            data: null, title: 'Documento',
+        {
+            data: null,
+            title: 'Documento',
             render: (data, type, row) => {
                 const safeData = encodeURIComponent(JSON.stringify(row))
                 if (row.tipo_transaccion === 'abono') {
@@ -378,12 +415,15 @@ export const Reportes = ({ currentUser }) => {
             }
         },
         { data: 'nombre_cliente', title: 'Cliente' },
-        { 
-            data: null, title: 'Concepto / Método',
+        {
+            data: null,
+            title: 'Concepto / Método',
             render: (data, type, row) => {
-                let htmlReturn = '';
+                let htmlReturn = ''
 
                 if (row.tipo_transaccion === 'abono') {
+                    //const isCreditBal = isCreditBalanceMethod(row.metodo_pago)
+                    //const badgeClass = isCreditBal ? 'border-info text-info' : 'border-success text-success'
                     htmlReturn += `<span class="badge bg-success me-1">Abono</span> <span class="badge border border-success text-success">${row.metodo_pago}</span>`
                 } else if (row.tipo_pago === 'credito') {
                     htmlReturn += `<span class="badge bg-primary me-1">Venta</span> <span class="badge border border-warning text-warning text-dark">Crédito</span>`
@@ -391,16 +431,22 @@ export const Reportes = ({ currentUser }) => {
                     let badges = `<span class="badge bg-primary me-1">Venta</span>`
                     if (row.pagos_multiples) {
                         try {
-                            const pagosArray = JSON.parse(row.pagos_multiples)
-                            pagosArray.forEach(p => {
-                                if (parseFloat(p.monto) > 0) {
-                                    badges += ` <span class="badge border border-primary text-primary mx-1" title="${p.metodo}: ${_formatCurrency(p.monto)}">${p.metodo}</span>`
+                            const paymentsList = JSON.parse(row.pagos_multiples)
+                            paymentsList.forEach(payment => {
+                                if (parseFloat(payment.monto) > 0) {
+                                    //const badgeClass = isCreditBalanceMethod(payment.metodo)
+                                    //    ? 'border-info text-info'
+                                    //    : 'border-primary text-primary'
+                                    badges += ` <span class="badge border border-primary text-primary mx-1" title="${payment.metodo}: ${formatMoney(payment.monto)}">${payment.metodo}</span>`
                                 }
                             })
-                            htmlReturn += badges;
-                        } catch(e) {}
+                            htmlReturn += badges
+                        } catch (e) {}
                     } else {
-                        htmlReturn += badges + ` <span class="badge border border-primary text-primary mx-1">${row.metodo_pago || 'Contado'}</span>`
+                        const badgeClass = isCreditBalanceMethod(row.metodo_pago)
+                            ? 'border-info text-info'
+                            : 'border-primary text-primary'
+                        htmlReturn += badges + ` <span class="badge border ${badgeClass} mx-1">${row.metodo_pago || 'Contado'}</span>`
                     }
                 }
 
@@ -413,28 +459,36 @@ export const Reportes = ({ currentUser }) => {
                     }
                 }
 
-                return htmlReturn;
+                return htmlReturn
             }
         },
-        { 
-            data: null, title: 'Venta',
+        {
+            data: null,
+            title: 'Venta',
             render: (data, type, row) => {
                 if (row.tipo_transaccion === 'abono') return `<span class="text-muted">-</span>`
-                return `${_formatCurrency(row.total_factura || 0)}`
+                return `${formatMoney(row.total_factura || 0)}`
             }
         },
-        { 
-            data: null, title: 'Abono / Ingreso',
+        {
+            data: null,
+            title: 'Abono / Ingreso',
             render: (data, type, row) => {
-                let ingreso = 0;
-                if (row.tipo_transaccion === 'abono') {
-                    ingreso = row.valor || 0;
-                } else {
-                    ingreso = (row.total_factura || 0) - (row.saldo_pendiente || 0)
+                const { cashInflow, creditBalanceUsed } = analyzeTransactionPayment(row)
+
+                if (cashInflow <= 0 && creditBalanceUsed > 0) {
+                    return `
+                        <div class="small text-secondary">Saldo a Favor: ${formatMoney(creditBalanceUsed)}</div>
+                    `
                 }
 
-                if (ingreso <= 0) return `<span class="text-muted">$0</span>`
-                return `<strong class="text-success">${_formatCurrency(ingreso)}</strong>`
+                if (cashInflow <= 0) return `<span class="text-muted">$0</span>`
+
+                const creditNote = creditBalanceUsed > 0
+                    ? `<span class="small text-secondary"> (${formatMoney(creditBalanceUsed)})</span>`
+                    : ''
+
+                return `<strong class="text-success">${formatMoney(cashInflow)}</strong>${creditNote}`
             }
         }
     ]
@@ -457,20 +511,22 @@ export const Reportes = ({ currentUser }) => {
 
                 <Col md={6}>
                     <div className="d-flex gap-2">
-                        <Button 
-                            variant="outline-secondary" size="sm"
-                            onClick={() => { setStartDate(''); setEndDate(''); }}
+                        <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => { setStartDate(''); setEndDate('') }}
                             disabled={!startDate && !endDate}
                             title="Limpiar Filtros de Fecha"
                         >
                             <i className="bi bi-x-circle me-1"></i> Limpiar Filtro
                         </Button>
-                        
+
                         {canPrint && (
-                            <Button 
-                                variant="outline-primary" size="sm" 
-                                onClick={() => setShowPreview(true)} 
-                                disabled={transacciones.length === 0}
+                            <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => setShowPreview(true)}
+                                disabled={transactions.length === 0}
                                 title="Imprimir Reporte"
                             >
                                 <i className="bi bi-printer"></i>
@@ -478,21 +534,23 @@ export const Reportes = ({ currentUser }) => {
                         )}
 
                         {canDownloadPDF && (
-                            <Button 
-                                variant="outline-danger" size="sm" 
-                                onClick={() => openExportModal('pdf')} 
-                                disabled={transacciones.length === 0}
+                            <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => openExportModal('pdf')}
+                                disabled={transactions.length === 0}
                                 title="Exportar a PDF"
                             >
                                 <i className="bi bi-file-earmark-pdf"></i>
                             </Button>
                         )}
-                        
+
                         {canDownloadExcel && (
-                            <Button 
-                                variant="outline-success" size="sm" 
-                                onClick={() => openExportModal('excel')} 
-                                disabled={transacciones.length === 0}
+                            <Button
+                                variant="outline-success"
+                                size="sm"
+                                onClick={() => openExportModal('excel')}
+                                disabled={transactions.length === 0}
                                 title="Exportar a Excel"
                             >
                                 <i className="bi bi-file-earmark-excel"></i>
@@ -508,33 +566,36 @@ export const Reportes = ({ currentUser }) => {
                 <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 mb-0">
                     <Card.Body className="py-2 px-3">
                         <p className="text-success small mb-0 fw-bold text-uppercase">Total Facturado</p>
-                        <h5 className="m-0 text-success fw-bold">{_formatCurrency(totales.totalFacturado)}</h5>
+                        <h5 className="m-0 text-success fw-bold">{formatMoney(totals.totalFacturado)}</h5>
                     </Card.Body>
                 </Card>
             </Col>
-            
+
             <Col xs={12} sm={6} md={4} lg={3}>
                 <Card className="shadow-sm border-0 border-start border-success border-4 bg-success bg-opacity-10 mb-0">
                     <Card.Body className="py-2 px-3">
                         <p className="text-success small mb-0 fw-bold text-uppercase">Ingreso Caja</p>
-                        <h5 className="m-0 text-success fw-bold">{_formatCurrency(totales.ingresoTotalCaja)}</h5>
+                        <h5 className="m-0 text-success fw-bold">{formatMoney(totals.ingresoTotalCaja)}</h5>
                     </Card.Body>
                 </Card>
             </Col>
 
-            {Object.entries(totales.metodos).map(([metodo, valor]) => (
-                <Col xs={12} sm={6} md={4} lg={3} key={metodo}>
-                    <Card className="shadow-sm border-0 border-start border-primary border-4 mb-0">
-                        <Card.Body className="py-2 px-3">
-                            <p className="text-muted small mb-0 fw-bold text-uppercase">{metodo}</p>
-                            <h6 className="m-0 fw-bold">{_formatCurrency(valor)}</h6>
-                        </Card.Body>
-                    </Card>
-                </Col>
-            ))}
+            {Object.entries(totals.metodos).map(([method, amount]) => {
+                const isCreditBal = isCreditBalanceMethod(method)
+                return (
+                    <Col xs={12} sm={6} md={4} lg={3} key={method}>
+                        <Card className={`shadow-sm border-0 border-start border-4 mb-0 border-primary`}>
+                            <Card.Body className="py-2 px-3">
+                                <p className={`small mb-0 fw-bold text-uppercase text-muted`}>{method}</p>
+                                <h6 className="m-0 fw-bold">{formatMoney(amount)}</h6>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                )
+            })}
         </Row>
 
-        <h6 className="mb-3">Detalle de Transacciones ({transacciones.length})</h6>
+        <h6 className="mb-3">Detalle de Transacciones ({transactions.length})</h6>
         <div className="w-100 bg-white" ref={tableContainerRef}>
             {loading ? (
                 <div className="d-flex justify-content-center align-items-center py-5">
@@ -543,53 +604,53 @@ export const Reportes = ({ currentUser }) => {
                     </div>
                 </div>
             ) : (
-                <DataTableComponent 
+                <DataTableComponent
                     tableId="dt-reportes-ventas"
-                    key={`reporte-${startDate}-${endDate}-${transacciones.length}`}
-                    data={transacciones}
-                    columns={columnas}
+                    key={`reporte-${startDate}-${endDate}-${transactions.length}`}
+                    data={transactions}
+                    columns={columns}
                     order={[[0, 'desc']]}
                 />
             )}
         </div>
 
-        <ImpresorReporte 
-            show={showPreview} 
-            onClose={() => setShowPreview(false)} 
-            facturas={transacciones}
-            almacenConf={almacenConf}
+        <ImpresorReporte
+            show={showPreview}
+            onClose={() => setShowPreview(false)}
+            facturas={transactions}
+            almacenConf={storeConfig}
             fechaInicio={startDate}
             fechaFin={endDate}
         />
 
-        <ModalDetalleFactura 
-            show={showModalFactura}
-            handleClose={handleCloseModalFactura}
-            facturaSeleccionada={facturaVer}
-            detalleData={detalleData}
-            notasFactura={notasFactura}
-            handlePrepararImpresion={handlePrepararImpresionFactura}
+        <ModalDetalleFactura
+            show={showInvoiceModal}
+            handleClose={handleCloseInvoiceModal}
+            facturaSeleccionada={selectedInvoice}
+            detalleData={detailData}
+            notasFactura={invoiceNotes}
+            handlePrepararImpresion={handlePrepareInvoicePrint}
             appConfig={appConfig}
             canPrint={canPrint}
         />
 
-        <ImpresorFactura 
-            show={showImpresorFactura}
-            onClose={() => setShowImpresorFactura(false)}
-            factura={facturaVer}
-            detalles={detalleData}
-            almacenConf={almacenConf}
+        <ImpresorFactura
+            show={showInvoicePrinter}
+            onClose={() => setShowInvoicePrinter(false)}
+            factura={selectedInvoice}
+            detalles={detailData}
+            almacenConf={storeConfig}
             textoVolver="Volver a Reportes"
         />
 
-        <ModalExportConfig 
+        <ModalExportConfig
             show={showExportModal}
             handleClose={() => setShowExportModal(false)}
             onExport={handleProcessExport}
             title="Reporte de ventas"
             defaultFilename={`Reporte_Ventas_${startDate.split('T')[0]}`}
-            totalRecords={transacciones.length}
-            totalFiltered={transacciones.length}
+            totalRecords={transactions.length}
+            totalFiltered={transactions.length}
             availableColumns={exportColumnsDef}
         />
     </>

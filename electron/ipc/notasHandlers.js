@@ -264,13 +264,58 @@ export const registerNotasHandlers = () => {
       const masterRecord = stmt.get(invoiceNumber, invoiceNumber)
       if (!masterRecord) return { success: false, message: 'Factura no encontrada' }
 
-      const details = db.prepare(`
-        SELECT df.*, p.sku, p.iva, c.sku_prefix, c.separador
+      const rawDetails = db.prepare(`
+        SELECT 
+          df.*, 
+          p.sku, 
+          COALESCE(df.iva, p.iva, 0) as iva, 
+          c.sku_prefix, 
+          c.separador
         FROM ventasDetalle df
         LEFT JOIN producto p ON df.id_producto = p.id
         LEFT JOIN categoria c ON p.categoria_id = c.id
         WHERE df.maestro_id = ?
       `).all(masterRecord.id)
+
+      const invoiceDiscount = Math.max(0, Number(masterRecord.descuento) || 0)
+      const grossLinesSum = rawDetails.reduce((sum, row) => {
+        const unitPrice = Number(row.precio_producto) || 0
+        const qty = Number(row.cantidad_producto) || 0
+        return sum + (unitPrice * qty)
+      }, 0)
+      const invoiceSubtotal = Number(masterRecord.subtotal) || grossLinesSum
+
+      const savedLineDiscountsSum = rawDetails.reduce(
+        (sum, row) => sum + Math.max(0, Number(row.descuento) || 0),
+        0
+      )
+      const hasPerItemDiscounts = savedLineDiscountsSum > 0
+
+      const fallbackDiscountRatio = (!hasPerItemDiscounts && invoiceDiscount > 0 && invoiceSubtotal > 0)
+        ? Math.min(1, invoiceDiscount / invoiceSubtotal)
+        : 0
+
+      const details = rawDetails.map(row => {
+        const unitPrice = Number(row.precio_producto) || 0
+        const qty = Number(row.cantidad_producto) || 0
+        let lineDiscount = 0
+
+        if (hasPerItemDiscounts) {
+          lineDiscount = Math.max(0, Number(row.descuento) || 0)
+        } else if (fallbackDiscountRatio > 0) {
+          lineDiscount = (unitPrice * qty) * fallbackDiscountRatio
+        }
+
+        const unitDiscount = qty > 0 ? Math.min(unitPrice, lineDiscount / qty) : 0
+        const netUnitPrice = Math.max(0, unitPrice - unitDiscount)
+
+        return {
+          ...row,
+          descuento_linea: lineDiscount,
+          descuento_unitario: unitDiscount,
+          precio_unitario_neto: netUnitPrice
+        }
+      })
 
       let clientBalanceInfo = null
       if (masterRecord.documento_cliente) {

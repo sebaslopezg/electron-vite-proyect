@@ -433,15 +433,22 @@ export const registerVentasHandlers = () => {
 
             for (const item of detailsData) {
                 const detailId = uuidv4()
+                const grossLine = (Number(item.precio) || 0) * (Number(item.cantidad) || 0)
+                const rawDiscount = Number(item.descuento) || 0
+                const lineDiscount = item.tipoDescuento === 'porcentaje'
+                    ? grossLine * (rawDiscount / 100)
+                    : rawDiscount * (Number(item.cantidad) || 0)
+                const itemTaxRate = Number(item.iva) || 0
+
                 const insertDetail = db.prepare(`
                     INSERT INTO ventasDetalle (
                         id, maestro_id, id_producto, nombre_producto, cantidad_producto, 
-                        precio_producto, total, is_encargo, date_created
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        precio_producto, descuento, iva, total, is_encargo, date_created
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `)
                 insertDetail.run(
                     detailId, masterId, item.id, item.ref_name, item.cantidad,
-                    item.precio, item.cantidad * item.precio, item.isEncargo, now
+                    item.precio, lineDiscount, itemTaxRate, grossLine, item.isEncargo, now
                 )
 
                 if (item.isEncargo === '0' && item.tipo !== "servicio") {

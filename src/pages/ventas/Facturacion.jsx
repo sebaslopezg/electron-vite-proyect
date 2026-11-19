@@ -878,7 +878,7 @@ export const Facturacion = ({ currentUser: initialUser }) => {
               <small className="text-muted">CC: {client.documento}</small>
               {availableCredit > 0 && (
                 <div className="mt-1">
-                  <span className="badge bg-success bg-opacity-10 text-success border border-success">
+                  <span className="badge bg-info bg-opacity-10 text-dark border border-info">
                     <i className="bi bi-wallet2 me-1"></i>
                     Saldo a favor: {renderCurrency(availableCredit)}
                   </span>
@@ -1067,11 +1067,11 @@ export const Facturacion = ({ currentUser: initialUser }) => {
             </div>
 
             {availableCredit > 0 && (
-              <div className="p-2 mb-3 border border-success rounded bg-success bg-opacity-10">
+              <div className="p-2 mb-3 border border-secondary rounded bg-secondary bg-opacity-10">
                 <Form.Check
                   type="switch"
                   id="use-credit-balance-switch"
-                  className="fw-bold text-success small"
+                  className="text-dark small"
                   label={`Usar Saldo a Favor (${renderCurrency(availableCredit)})`}
                   checked={useCreditBalance}
                   disabled={totalFinal <= 0}
@@ -1081,7 +1081,7 @@ export const Facturacion = ({ currentUser: initialUser }) => {
                 {useCreditBalance && (
                   <div className="mt-2">
                     <InputGroup size="sm">
-                      <InputGroup.Text className="text-success px-2">
+                      <InputGroup.Text className="text-dark px-2">
                         <small>{getCurrencySymbol(appConfig.moneda)}</small>
                       </InputGroup.Text>
                       <Form.Control
@@ -1093,7 +1093,7 @@ export const Facturacion = ({ currentUser: initialUser }) => {
                         onChange={(e) => handleCreditInputChange(e.target.value)}
                       />
                       <Button
-                        variant="outline-success"
+                        variant="outline-secondary"
                         onClick={() => setCreditAmountInput(String(maxUsableCredit))}
                       >
                         Máx
@@ -1101,7 +1101,7 @@ export const Facturacion = ({ currentUser: initialUser }) => {
                     </InputGroup>
                     <div className="d-flex justify-content-between small text-muted mt-1">
                       <span>Saldo restante cliente:</span>
-                      <strong className="text-success">{renderCurrency(remainingCreditAfterSale)}</strong>
+                      <strong className="text-dark">{renderCurrency(remainingCreditAfterSale)}</strong>
                     </div>
                     {remainingAfterCredit > 0 && (
                       <div className="d-flex justify-content-between small text-dark mt-1">
@@ -1130,7 +1130,7 @@ export const Facturacion = ({ currentUser: initialUser }) => {
               <Form.Label className="fw-bold d-block"><small>Métodos de Pago</small></Form.Label>
 
               {remainingAfterCredit === 0 && effectiveCreditUsed > 0 ? (
-                <div className="alert alert-success py-2 px-2 small mb-2">
+                <div className="alert alert-info py-2 px-2 small mb-2">
                   <i className="bi bi-check-circle me-1"></i>
                   Factura cubierta totalmente con Saldo a Favor.
                 </div>
